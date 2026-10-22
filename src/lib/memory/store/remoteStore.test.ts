@@ -593,6 +593,49 @@ describe("remote MemoryStore", () => {
     expect(release).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the refresh gap when a realtime marker arrives during an in-flight poll", async () => {
+    let changed = (_connected: boolean) => {};
+    const { store, server } = await remoteStore(
+      undefined,
+      undefined,
+      60_000,
+      {},
+      undefined,
+      (listener) => {
+        changed = listener;
+        return () => {};
+      }
+    );
+    const original = server.fetch.getMockImplementation()!;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.fetch.mockImplementationOnce(async (...args) => {
+      await gate;
+      return original(...args);
+    });
+    server.fetch.mockClear();
+    vi.useFakeTimers();
+    const stop = store.subscribe(vi.fn());
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+      changed(true);
+      release();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(199);
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(server.fetch).toHaveBeenCalledTimes(2);
+    } finally {
+      release();
+      stop();
+      vi.useRealTimers();
+    }
+  });
+
   it("does not postpone refresh indefinitely during continuous realtime changes", async () => {
     let changed = (_connected: boolean) => {};
     const { store, server } = await remoteStore(
@@ -2514,6 +2557,42 @@ describe("remote decay", () => {
 });
 
 describe("account topic catalog", () => {
+  it("refreshes topic counts when another device edits an unreadable memory", async () => {
+    const { store, server } = await remoteStore(undefined, undefined, 20);
+    await store.createTopic!("coffee");
+    await store.createTopic!("hiking");
+    const memory = await store.create({ content: "Likes coffee", embedding: axis(0) });
+    await store.addTopics(memory.uniqueId, [{ name: "coffee" }]);
+    server.touch(memory.uniqueId, { content: "enc:v3:00" });
+    const onChange = vi.fn();
+    const stop = store.subscribe(onChange, { topics: true });
+    const warn = vi.spyOn(getLogger(), "warn").mockImplementation(() => {});
+    try {
+      expect((await store.listTopics()).map((topic) => topic.memoryCount)).toEqual([1, 0]);
+      await vi.waitFor(() =>
+        expect(
+          server.fetch.mock.calls.some(([, init]) => {
+            if (!init?.body) return false;
+            const query = JSON.parse(init.body as string) as { order?: string; cursor?: string };
+            return query.order === "changed" && query.cursor !== undefined;
+          })
+        ).toBe(true)
+      );
+      onChange.mockClear();
+      server.touch(memory.uniqueId, {
+        topics: JSON.stringify([{ name: "hiking", source: "user" }]),
+      });
+      await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+      expect((await store.listTopics()).map((topic) => topic.memoryCount)).toEqual([0, 1]);
+      onChange.mockClear();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      expect(onChange).not.toHaveBeenCalled();
+    } finally {
+      stop();
+      warn.mockRestore();
+    }
+  });
+
   it("refreshes catalog-only changes when no topic subscription can invalidate its cache", async () => {
     const first = await remoteStore();
     const second = await remoteStore(first.server, first.keys);

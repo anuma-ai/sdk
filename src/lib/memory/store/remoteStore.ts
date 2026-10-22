@@ -939,14 +939,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   } as const;
   const changesSince = async (cursor: string | undefined, pending: ReadonlySet<string>) => {
     const records: RemoteMemoryRecord[] = [];
-    const failed = new Set<string>();
+    const failed = new Map<string, number>();
     const collect = (page: {
       items: RemoteMemoryRecord[];
       failed: RemoteMemoryDecodeFailure[];
     }) => {
       warnFailed(page.failed);
       records.push(...page.items);
-      for (const failure of page.failed) failed.add(failure.memory_id);
+      for (const failure of page.failed) failed.set(failure.memory_id, failure.version);
     };
     let resume = cursor;
     let next: string | undefined;
@@ -981,6 +981,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   let ready = false;
   let cursor: string | undefined;
   let pending = new Set<string>();
+  let failedVersions = new Map<string, number>();
   let topicFingerprint: string | undefined;
   let polling = false;
   let pollRequested = false;
@@ -1039,16 +1040,24 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           failures = 0;
           retryAt = 0;
         }
-        if (records.length || (topicState !== undefined && topicState !== topicFingerprint)) {
+        const failedChanged = [...failed].some(
+          ([id, version]) => failedVersions.get(id) !== version
+        );
+        if (
+          records.length ||
+          failedChanged ||
+          (topicState !== undefined && topicState !== topicFingerprint)
+        ) {
           reads.clear();
           metadataReads.clear();
           topicSnapshot = undefined;
         }
         const changed = new Set<Subscriber>();
         if (
-          topicState !== undefined &&
-          topicFingerprint !== undefined &&
-          topicState !== topicFingerprint
+          (ready && failedChanged) ||
+          (topicState !== undefined &&
+            topicFingerprint !== undefined &&
+            topicState !== topicFingerprint)
         )
           for (const subscriber of subscribers)
             if (subscriber.options.topics) changed.add(subscriber);
@@ -1065,7 +1074,8 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         }
         ready = true;
         cursor = resume;
-        pending = failed;
+        pending = new Set(failed.keys());
+        failedVersions = failed;
         for (const subscriber of changed)
           if (subscribers.has(subscriber)) safely(subscriber.onChange);
       })
@@ -1076,11 +1086,13 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       .finally(() => {
         polling = false;
         schedulePoll(
-          pollRequested || current !== generation
+          current !== generation
             ? 0
-            : changesConnected
-              ? Math.max(pollIntervalMs, 5 * 60_000)
-              : pollIntervalMs
+            : pollRequested
+              ? 200
+              : changesConnected
+                ? Math.max(pollIntervalMs, 5 * 60_000)
+                : pollIntervalMs
         );
       });
   };
