@@ -634,6 +634,107 @@ describe("updateVaultMemoryOp", () => {
   });
 });
 
+describe.each([false, true])("concurrent memory edits (encrypted: %s)", (encrypted) => {
+  let ctx: VaultMemoryOperationsContext;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    const database = new Database({
+      adapter: new LokiJSAdapter({
+        schema: sdkSchema,
+        migrations: sdkMigrations,
+        useWebWorker: false,
+        useIncrementalIndexedDB: false,
+        dbName: `concurrent-edit-${Math.random()}`,
+      }),
+      modelClasses: sdkModelClasses,
+    });
+    ctx = {
+      database,
+      vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
+      ...(encrypted && {
+        walletAddress: "wallet",
+        signMessage: () => Promise.resolve("signature"),
+      }),
+    };
+  });
+
+  async function correctBeforeWriter(id: string, updatedAt = 2000) {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    const write = ctx.database.write.bind(ctx.database);
+    vi.spyOn(ctx.database, "write").mockImplementationOnce(async (work, description) => {
+      await write(() =>
+        record.update((r) => {
+          r._setRaw("content", encrypted ? "encrypted:user correction" : "user correction");
+          r._setRaw("embedding", "[0,1]");
+          r._setRaw("updated_at", updatedAt);
+        })
+      );
+      return write(work, description);
+    });
+  }
+
+  it("keeps concurrent content and timestamps on an observation update", async () => {
+    const memory = await createVaultMemoryOp(ctx, { content: "original", sourceChunkIds: ["m1"] });
+    await correctBeforeWriter(memory.uniqueId);
+
+    const updated = await updateVaultMemoryOp(ctx, memory.uniqueId, {
+      proofCountIncrement: 1,
+      observationSourceIds: ["m2"],
+      sourceChunkIds: ["m2"],
+      lastObservedAt: 3000,
+      preserveUpdatedAt: true,
+    });
+
+    expect(updated?.content).toBe("user correction");
+    expect(updated?.updatedAt.getTime()).toBe(2000);
+    expect(updated?.embedding).toBe("[0,1]");
+    expect(updated?.proofCount).toBe(2);
+    expect(updated?.sourceChunkIds).toEqual(["m1", "m2"]);
+    expect(updated?.lastObservedAt).toBe(3000);
+  });
+
+  it.each([false, true])(
+    "rejects a concurrent content replacement (timestamp preserved: %s)",
+    async (preserveUpdatedAt) => {
+      const memory = await createVaultMemoryOp(ctx, { content: "original" });
+      const updatedAt = preserveUpdatedAt ? memory.updatedAt.getTime() : 2000;
+      await correctBeforeWriter(memory.uniqueId, updatedAt);
+
+      const updated = await updateVaultMemoryOp(ctx, memory.uniqueId, {
+        content: "background replacement",
+        expectedContent: memory.content,
+        embedding: "[1,0]",
+        proofCountIncrement: 1,
+        preserveUpdatedAt: true,
+      });
+
+      expect(updated).toBeNull();
+      const current = await getVaultMemoryOp(ctx, memory.uniqueId);
+      expect(current?.content).toBe("user correction");
+      expect(current?.embedding).toBe("[0,1]");
+      expect(current?.updatedAt.getTime()).toBe(updatedAt);
+      expect(current?.proofCount).toBe(1);
+    }
+  );
+
+  it("checks the expected content before a content replacement", async () => {
+    const memory = await createVaultMemoryOp(ctx, { content: "user correction" });
+
+    const rejected = await updateVaultMemoryOp(ctx, memory.uniqueId, {
+      content: "background replacement",
+      expectedContent: "original",
+    });
+    expect(rejected).toBeNull();
+
+    const accepted = await updateVaultMemoryOp(ctx, memory.uniqueId, {
+      content: "new content",
+      expectedContent: "user correction",
+    });
+    expect(accepted?.content).toBe("new content");
+  });
+});
+
 describe("deleteVaultMemoryOp", () => {
   beforeEach(() => vi.clearAllMocks());
 

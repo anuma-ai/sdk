@@ -209,7 +209,6 @@ export async function retainWithPersistence(
           const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
           const resurrect = resurrectFields(existing);
           const updated = await ctx.persistence.update(targetId, {
-            content: existing.content,
             freeFormOnly: true,
             proofCountIncrement: 1,
             observationSourceIds: options.sourceChunkIds,
@@ -533,7 +532,6 @@ async function tryConsolidate(
     const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
     const resurrect = resurrectFields(existing);
     const updated = await ctx.persistence.update(decision.targetId, {
-      content: existing.content,
       freeFormOnly: true,
       proofCountIncrement: 1,
       observationSourceIds: options.sourceChunkIds,
@@ -562,6 +560,10 @@ async function tryConsolidate(
   }
 
   if (decision.action === "update" && decision.targetId && decision.content) {
+    const expectedContent = candidates.find(
+      (candidate) => candidate.id === decision.targetId
+    )?.content;
+    if (expectedContent === undefined) return null;
     const existing = await ctx.persistence.get(decision.targetId);
     if (!existing || existing.supersededBy) {
       return abandonToRace(
@@ -581,6 +583,7 @@ async function tryConsolidate(
     const resurrect = resurrectFields(existing);
     const updated = await ctx.persistence.update(decision.targetId, {
       content: decision.content,
+      expectedContent,
       freeFormOnly: true,
       proofCountIncrement: 1,
       observationSourceIds: options.sourceChunkIds,

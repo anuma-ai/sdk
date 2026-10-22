@@ -349,6 +349,7 @@ describe("retain", () => {
 
     const updateArgs = vi.mocked(updateVaultMemoryOp).mock.calls[0][2];
     expect(updateArgs).toMatchObject({ preserveUpdatedAt: true });
+    expect(updateArgs).not.toHaveProperty("content");
     expect(updateArgs).not.toHaveProperty("restore");
   });
 
@@ -1387,6 +1388,31 @@ describe("retain — the consolidation decision is reported on the result", () =
 
     expect(result).toMatchObject({ action: "merge", memoryId: "live", consolidation: "noop" });
     expect(result.similarity).toBeUndefined();
+    expect(vi.mocked(updateVaultMemoryOp).mock.calls[0][2]).not.toHaveProperty("content");
+  });
+
+  it("checks the candidate content used for a consolidation replacement", async () => {
+    mockVaultMatches([{ uniqueId: "live", content: "original", similarity: 0.7 }]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "update",
+      targetId: "live",
+      content: "consolidated content",
+    });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "live",
+      content: "user correction",
+      sourceChunkIds: [],
+      proofCount: 1,
+    } as never);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0]);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ uniqueId: "live", proofCount: 2 } as never);
+
+    await retain("new detail", ctx, { consolidateOptions });
+
+    expect(vi.mocked(updateVaultMemoryOp).mock.calls[0][2]).toMatchObject({
+      content: "consolidated content",
+      expectedContent: "original",
+    });
   });
 
   it("stamps create when the consolidator explicitly chose it", async () => {

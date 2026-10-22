@@ -170,7 +170,6 @@ describe("memory persistence reliability", () => {
     await Promise.all(
       ["m2", "m3"].map((id) =>
         updateVaultMemoryOp(ctx, memory.uniqueId, {
-          content: "Same fact",
           sourceChunkIds: ["m1", id],
           observationSourceIds: [id],
           proofCountIncrement: 1,
