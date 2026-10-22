@@ -1361,7 +1361,11 @@ export async function setMemoryVisibilityOp(
     }
     const currentUpdatedAt = record.updatedAt.getTime();
     const currentPublishedAt = record.publishedAt ?? null;
+    const scope = opts.visibility === "private" ? "private" : "shared";
+    const level = levelForScopeChange(record, scope);
     await record.update((r) => {
+      r._setRaw("scope", scope);
+      r._setRaw("level", level);
       r._setRaw("visibility", opts.visibility);
       if (opts.visibility === "private") {
         r._setRaw("published_at", null);

@@ -1323,6 +1323,9 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     setVisibility: async (id, visibility: VaultMemoryVisibility, visibilityOptions) =>
       asStored(
         await mutate(id, "edit", (memory) => {
+          const scope = visibility === "private" ? "private" : "shared";
+          memory.level = levelForScopeChange({ level: memory.level, scope: memory.scope }, scope);
+          memory.scope = scope;
           memory.visibility = visibility;
           if (visibility === "private") delete memory.published_at;
           else memory.published_at ??= Date.now();

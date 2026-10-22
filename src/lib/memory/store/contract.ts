@@ -306,15 +306,66 @@ export function runMemoryStoreContract(
       const m = await store.create({ content: "Loves jazz" });
 
       const published = await store.setVisibility(m.uniqueId, "public", { twinOptIn: true });
-      expect(published).toMatchObject({ visibility: "public", twinOptIn: true });
+      expect(published).toMatchObject({
+        visibility: "public",
+        scope: "shared",
+        level: "matching",
+        twinOptIn: true,
+        updatedAt: m.updatedAt,
+      });
       expect(published?.publishedAt).not.toBeNull();
+      expect((await store.list({ scopes: ["shared", "public"] })).map((r) => r.uniqueId)).toEqual([
+        m.uniqueId,
+      ]);
       expect((await store.list({ visibility: ["public"] })).map((r) => r.uniqueId)).toEqual([
         m.uniqueId,
       ]);
 
       const revoked = await store.setVisibility(m.uniqueId, "private");
-      expect(revoked).toMatchObject({ visibility: "private", publishedAt: null });
+      expect(revoked).toMatchObject({
+        visibility: "private",
+        scope: "private",
+        level: "private",
+        publishedAt: null,
+        twinOptIn: true,
+        updatedAt: m.updatedAt,
+      });
+      expect(await store.list({ scopes: ["shared", "public"] })).toEqual([]);
+      expect(await store.list({ visibility: ["public"] })).toEqual([]);
     });
+
+    it.each(["matching", "profile"] as const)(
+      "revokes a %s memory from publication queries",
+      async (level) => {
+        const store = await makeStore();
+        const m = await store.create({
+          content: "Loves jazz",
+          kind: "bio",
+          kindValue: '"Loves jazz"',
+          level,
+          embedding: vectorA,
+        });
+        const published = await store.setVisibility(m.uniqueId, "public", { twinOptIn: true });
+        expect(published).toMatchObject({ scope: "shared", level, visibility: "public" });
+        const repeated = await store.setVisibility(m.uniqueId, "public");
+        expect(repeated).toMatchObject({ level, publishedAt: published?.publishedAt });
+        expect(await store.list({ scopes: ["shared", "public"] })).toHaveLength(1);
+
+        const revoked = await store.setVisibility(m.uniqueId, "private", { twinOptIn: false });
+        const expected = {
+          scope: "private",
+          level: "private",
+          visibility: "private",
+          publishedAt: null,
+          twinOptIn: false,
+          updatedAt: m.updatedAt,
+        };
+        expect(revoked).toMatchObject(expected);
+        expect(await store.get(m.uniqueId)).toMatchObject(expected);
+        expect(await store.list({ scopes: ["shared", "public"] })).toEqual([]);
+        expect(await store.list({ visibility: ["public"] })).toEqual([]);
+      }
+    );
 
     it("notifies subscribers of creates and in-place edits, and stops after unsubscribe", async () => {
       const store = await makeStore();
