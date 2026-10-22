@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BASE_URL } from "../clientConfig";
 import {
@@ -84,19 +84,18 @@ export type UseToolsResult = {
 export function useTools(options: UseToolsOptions): UseToolsResult {
   const { getToken, baseUrl = BASE_URL, includeTools, autoFetch = true } = options;
 
-  const [tools, setTools] = useState<ServerTool[]>([]);
+  const [allTools, setAllTools] = useState<ServerTool[]>([]);
   const [checksum, setChecksum] = useState<string | undefined>(getToolsChecksum);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const tools = useMemo(() => filterServerTools(allTools, includeTools), [allTools, includeTools]);
 
   const getTokenRef = useRef(getToken);
   const baseUrlRef = useRef(baseUrl);
-  const includeToolsRef = useRef(includeTools);
 
   useEffect(() => {
     getTokenRef.current = getToken;
     baseUrlRef.current = baseUrl;
-    includeToolsRef.current = includeTools;
   });
 
   const fetchTools = useCallback(async (forceRefresh = false) => {
@@ -110,9 +109,7 @@ export function useTools(options: UseToolsOptions): UseToolsResult {
         forceRefresh,
       });
 
-      const filteredTools = filterServerTools(fetchedTools, includeToolsRef.current);
-
-      setTools(filteredTools);
+      setAllTools(fetchedTools);
       setChecksum(getToolsChecksum());
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -138,12 +135,6 @@ export function useTools(options: UseToolsOptions): UseToolsResult {
     },
     [refresh]
   );
-
-  useEffect(() => {
-    if (tools.length > 0 && includeTools !== undefined) {
-      setTools((currentTools) => filterServerTools(currentTools, includeTools));
-    }
-  }, [includeTools, tools.length]);
 
   const hasFetchedRef = useRef(false);
   useEffect(() => {
