@@ -2061,6 +2061,143 @@ describe("repairEmbeddings", () => {
     expect(server.rows.get("safe")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
   });
 
+  it.each(["unknown_field", "server-400", "server-422"])(
+    "isolates %s validation failures and moves past the rejected row on later runs",
+    async (failure) => {
+      const { store, server, seed } = await repairStore();
+      await seed("older", "Older memory");
+      for (let i = 0; i < 49; i++) await seed(`healthy-${i}`, `Healthy memory ${i}`);
+      await seed(
+        "bad",
+        "Rejected memory",
+        failure === "unknown_field" ? { future_field: true } : {}
+      );
+      const original = server.fetch.getMockImplementation()!;
+      server.fetch.mockImplementation(async (...args) => {
+        if (failure !== "unknown_field" && String(args[0]).endsWith("/memories/batch")) {
+          const body = JSON.parse(String(args[1]?.body)) as { writes: { memory: Row }[] };
+          if (body.writes.some(({ memory }) => memory.memory_id === "bad"))
+            return Response.json(
+              { detail: "Invalid memory" },
+              { status: failure === "server-400" ? 400 : 422 }
+            );
+        }
+        return original(...args);
+      });
+      const first = await store.repairEmbeddings!({ maxScan: 50 });
+      expect(first).toMatchObject({ reembedded: 49, failed: 1, skippedConflict: 0 });
+      expect(first.cursor).toBeDefined();
+      expect(server.rows.get("bad")!.memory.embedding).toBeUndefined();
+      for (let i = 0; i < 49; i++)
+        expect(server.rows.get(`healthy-${i}`)!.memory.embedding_model).toBe(
+          DEFAULT_API_EMBEDDING_MODEL
+        );
+      expect(server.rows.get("older")!.memory.embedding).toBeUndefined();
+      vi.mocked(generateEmbeddings).mockClear();
+      const second = await store.repairEmbeddings!({ maxScan: 50 });
+      expect(second).toMatchObject({ reembedded: 1, failed: 0 });
+      expect(second.cursor).toBeUndefined();
+      expect(server.rows.get("older")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+      vi.mocked(generateEmbeddings).mockClear();
+      server.fetch.mockClear();
+      await expect(store.repairEmbeddings!({ maxScan: 50 })).resolves.toMatchObject({
+        reembedded: 0,
+        failed: 0,
+      });
+      expect(generateEmbeddings).not.toHaveBeenCalled();
+      expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
+        false
+      );
+    }
+  );
+
+  it("parks a singleton rejected before upload and continues to older memories", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("healthy", "Healthy memory");
+    await seed("bad", "Rejected memory", { future_field: true });
+    const first = await store.repairEmbeddings!({ maxScan: 1 });
+    expect(first).toMatchObject({ reembedded: 0, failed: 1 });
+    expect(first.cursor).toBeDefined();
+    expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
+      false
+    );
+    await expect(store.repairEmbeddings!({ maxScan: 1 })).resolves.toMatchObject({
+      reembedded: 1,
+      failed: 0,
+    });
+    expect(server.rows.get("healthy")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+  });
+
+  it.each([
+    [401, "unauthorized"],
+    [402, "insufficient_credits"],
+    [403, "forbidden"],
+    [408, "timeout"],
+    [429, "rate_limited"],
+    [500, undefined],
+    [503, undefined],
+    [400, "invalid_token"],
+    [422, "invalid_token"],
+    [409, "key_mismatch"],
+    [409, "work_lease_expired"],
+  ] as const)(
+    "does not fan out or park rows after a global %i/%s write error",
+    async (status, code) => {
+      const { store, server, seed } = await repairStore();
+      for (let i = 0; i < 3; i++) await seed(`row-${i}`, `Memory ${i}`);
+      const original = server.fetch.getMockImplementation()!;
+      let reject = true;
+      server.fetch.mockImplementation(async (...args) => {
+        if (reject && String(args[0]).endsWith("/memories/batch"))
+          return Response.json({ code }, { status });
+        return original(...args);
+      });
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject(
+        code === "work_lease_expired" ? { deferred: true } : { reembedded: 0, failed: 3 }
+      );
+      expect(
+        server.fetch.mock.calls.filter(([url]) => String(url).endsWith("/memories/batch"))
+      ).toHaveLength(1);
+      expect([...server.rows.values()].every((row) => row.version === 1)).toBe(true);
+      expect(server.leases.size).toBe(0);
+      reject = false;
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 3, failed: 0 });
+    }
+  );
+
+  it.each([
+    [401, "unauthorized"],
+    [429, "rate_limited"],
+    [503, undefined],
+    [409, "work_lease_expired"],
+  ] as const)(
+    "stops isolating rows when validation fallback encounters %i/%s",
+    async (status, code) => {
+      const { store, server, seed } = await repairStore();
+      for (let i = 0; i < 3; i++) await seed(`row-${i}`, `Memory ${i}`);
+      const original = server.fetch.getMockImplementation()!;
+      let reject = true;
+      server.fetch.mockImplementation(async (...args) => {
+        if (reject && String(args[0]).endsWith("/memories/batch")) {
+          const body = JSON.parse(String(args[1]?.body)) as { writes: unknown[] };
+          return body.writes.length > 1
+            ? Response.json({ detail: "Invalid memory" }, { status: 422 })
+            : Response.json({ code }, { status });
+        }
+        return original(...args);
+      });
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject(
+        code === "work_lease_expired" ? { deferred: true } : { reembedded: 0, failed: 3 }
+      );
+      expect(
+        server.fetch.mock.calls.filter(([url]) => String(url).endsWith("/memories/batch"))
+      ).toHaveLength(2);
+      expect(server.leases.size).toBe(0);
+      reject = false;
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 3, failed: 0 });
+    }
+  );
+
   it("does nothing beyond a metadata scan when every row is current", async () => {
     const { store, decrypt, seed, current } = await repairStore();
     await seed("a", "Likes tea", current);

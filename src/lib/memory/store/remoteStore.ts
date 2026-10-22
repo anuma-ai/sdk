@@ -165,6 +165,14 @@ function rejectsInput(error: unknown): boolean {
   );
 }
 
+function rejectsMemoryWrite(error: unknown): boolean {
+  return (
+    error instanceof RemoteMemoryError &&
+    (error.status === 400 || error.status === 422) &&
+    (error.code === undefined || error.code === "unknown_field")
+  );
+}
+
 function warnFailed(failed: RemoteMemoryDecodeFailure[]) {
   if (failed.length)
     getLogger().warn(
@@ -1199,7 +1207,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       }
     });
     for (const batch of chunks(writes, MAX_BATCH)) {
-      await serializedAll(
+      const continueRepair = await serializedAll(
         batch.map(({ memory }) => memory.memory_id),
         async () => {
           signal?.throwIfAborted();
@@ -1214,15 +1222,21 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           } catch (error) {
             signal?.throwIfAborted();
             if (isRemoteWorkLeaseExpired(error)) throw error;
-            if (!(error instanceof RemoteMemoryError && error.code === "version_conflict")) {
+            if (
+              !(error instanceof RemoteMemoryError && error.code === "version_conflict") &&
+              !rejectsMemoryWrite(error)
+            ) {
               result.failed += batch.length;
-              return;
+              return false;
             }
             if (batch.length === 1) {
-              result.skippedConflict++;
-              return;
+              if (rejectsMemoryWrite(error)) {
+                unrepairable.add(batch[0].memory.memory_id);
+                result.failed++;
+              } else result.skippedConflict++;
+              return true;
             }
-            for (const write of batch) {
+            for (const [index, write] of batch.entries()) {
               signal?.throwIfAborted();
               try {
                 await commit([write]);
@@ -1231,12 +1245,20 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
                 if (isRemoteWorkLeaseExpired(error)) throw error;
                 if (error instanceof RemoteMemoryError && error.code === "version_conflict")
                   result.skippedConflict++;
-                else result.failed++;
+                else if (rejectsMemoryWrite(error)) {
+                  unrepairable.add(write.memory.memory_id);
+                  result.failed++;
+                } else {
+                  result.failed += batch.length - index;
+                  return false;
+                }
               }
             }
           }
+          return true;
         }
       );
+      if (!continueRepair) break;
     }
     return finish();
   };
