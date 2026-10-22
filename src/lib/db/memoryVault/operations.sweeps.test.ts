@@ -30,10 +30,10 @@ const { DatabaseSync } = requireNode("node:sqlite") as {
   DatabaseSync: new (path: string) => SqliteDb;
 };
 const { encodeSchema } = requireNode("@nozbe/watermelondb/adapters/sqlite/encodeSchema") as {
-  encodeSchema(schema: typeof sdkSchema): string;
+  encodeSchema: (schema: typeof sdkSchema) => string;
 };
 const { default: encodeQuery } = requireNode("@nozbe/watermelondb/adapters/sqlite/encodeQuery") as {
-  default(query: unknown): [string, SqlValue[]];
+  default: (query: unknown) => [string, SqlValue[]];
 };
 
 const USER = "owner's vault";
@@ -244,6 +244,26 @@ describe("vault sweep projections", () => {
     expect(reads).toHaveLength(1);
     expect(reads[0].rows[0]).not.toHaveProperty("content");
     expect(reads[0].rows[0]).not.toHaveProperty("embedding");
+  });
+
+  it("reads only metadata when the capped backlog needs topic links", async () => {
+    const topics = '[{"name":"travel","source":"auto"}]';
+    seed("older", { topics, created_at: 100 });
+    seed("newer", { topics, created_at: 200 });
+
+    expect(await getMemoriesNeedingTopicExtractionOp(ctx, { limit: 1 })).toEqual({
+      pending: [],
+      linkedUnstamped: [],
+      topicsToRelink: ["newer"],
+      topicsBackfill: [],
+    });
+    expect(reads).toHaveLength(1);
+    expect(reads[0].rows.map((row) => row.id)).toEqual(["newer", "older"]);
+    for (const row of reads[0].rows) {
+      expect(row).not.toHaveProperty("content");
+      expect(row).not.toHaveProperty("embedding");
+      expect(row).not.toHaveProperty("kind_value");
+    }
   });
 
   it("loads an uncapped topic backlog in bounded batches", async () => {

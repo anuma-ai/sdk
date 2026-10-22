@@ -29,6 +29,8 @@ const checkedTestFiles = [
   "src/lib/db/chat/operations.chunkText.test.ts",
   "src/lib/db/chat/operations.embeddingEncryption.test.ts",
   "src/lib/db/chat/operations.eventIdIndex.test.ts",
+  "src/lib/db/memoryVault/operations.sweeps.test.ts",
+  "src/lib/db/memoryVault/operations.test.ts",
   "src/react/useChatStorage.fileSize.test.tsx",
   "src/react/useChatStorage.queueIdentifiers.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",
