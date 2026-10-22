@@ -107,6 +107,10 @@ export interface MemoryMigrationOptions extends Pick<
   embeddingOptions?: EmbeddingOptions;
   /** Explicitly account-owned topics for databases that are not marked singleTenant. */
   topics?: readonly { name: string; kind?: string }[];
+  /** Drain all local memory writes, block new writes until the task returns, and retain the block if the remote handoff fails. */
+  withWriteBarrier: (task: () => Promise<MemoryMigrationResult>) => Promise<MemoryMigrationResult>;
+  /** Route all subsequent memory writes to the remote store before this callback returns. */
+  onActivated: () => void | Promise<void>;
   signal?: AbortSignal;
   onProgress?: (progress: MemoryMigrationProgress) => void;
 }
@@ -480,6 +484,8 @@ async function backfillTopics(ctx: VaultMemoryOperationsContext): Promise<void> 
 export async function migrateMemoriesToRemote(
   options: MemoryMigrationOptions
 ): Promise<MemoryMigrationResult> {
+  if (typeof options.withWriteBarrier !== "function" || typeof options.onActivated !== "function")
+    throw new Error("A write barrier and a remote store handoff are required");
   const { canonical, signal } = options;
   const rings = [canonical, ...(options.fallbacks ?? [])];
   const model = options.embeddingOptions?.model ?? DEFAULT_API_EMBEDDING_MODEL;
@@ -520,98 +526,103 @@ export async function migrateMemoriesToRemote(
   const placeholders = new Set<string>();
   const truncated = new Set<string>();
   let imported = 0;
-  for (let pass = 0; ; pass++) {
-    const rows = await getAllVaultMemoryRowsOp(options.vaultCtx);
-    for (const raw of rows) if (invalid(raw)) skipped.set(String(raw.id), "invalid");
-    const candidates = rows.filter((raw) => !skipped.has(String(raw.id)));
-    const missing = await missingIds(request, candidates.map(revision), signal);
-    const pending = new Map<string, number>();
-    for (const raw of candidates)
-      if (missing.has(raw.id as string)) pending.set(raw.id as string, raw.updated_at as number);
-    if (pending.size === 0 && !active) {
-      const remote = await remoteMetadata(
-        request,
-        candidates.map((raw) => raw.id as string),
-        signal
-      );
-      const needsVector = (raw: RawRow, server: Record<string, unknown>) =>
-        !!options.embeddingOptions && !embedding(raw, model) && server.embedding_model !== model;
-      for (const raw of candidates) {
-        const server = remote.get(raw.id as string);
-        if (
-          server &&
-          server.updated_at === raw.updated_at &&
-          (!sameMetadata(raw, server, model) || needsVector(raw, server))
-        )
-          pending.set(raw.id as string, (raw.updated_at as number) + 1);
-      }
-    }
-
-    if (pending.size === 0) {
-      const result = (state: MemoryMigrationResult["state"]): MemoryMigrationResult => ({
-        state,
-        total: rows.length,
-        imported,
-        skipped: [...skipped].map(([memoryId, reason]) => ({ memoryId, reason })),
-        reembedded: reembedded.size,
-        unembedded: unembedded.size,
-        placeholderTombstones: placeholders.size,
-        truncatedSourceChunkIds: truncated.size,
-      });
-      if (skipped.size > 0 && !options.allowSkipped) return result("migrating");
-      if (!claimed) await importBatch(request, canonical.keyId, [], signal);
-      if (!active)
-        await request(
-          "/account",
-          { method: "PUT", body: JSON.stringify({ state: "active" }) },
+  const uploadPasses = async (finalizing = false): Promise<MemoryMigrationResult> => {
+    for (let pass = 0; ; pass++) {
+      const rows = await getAllVaultMemoryRowsOp(options.vaultCtx);
+      for (const raw of rows) if (invalid(raw)) skipped.set(String(raw.id), "invalid");
+      const candidates = rows.filter((raw) => !skipped.has(String(raw.id)));
+      const missing = await missingIds(request, candidates.map(revision), signal);
+      const pending = new Map<string, number>();
+      for (const raw of candidates)
+        if (missing.has(raw.id as string)) pending.set(raw.id as string, raw.updated_at as number);
+      if (pending.size === 0 && !active) {
+        const remote = await remoteMetadata(
+          request,
+          candidates.map((raw) => raw.id as string),
           signal
         );
-      return result("active");
-    }
-    if (pass >= MAX_UPLOAD_PASSES)
-      throw new RemoteMemoryError(
-        "Nearby still reports memories missing after importing them",
-        409,
-        "migration_incomplete"
-      );
+        const needsVector = (raw: RawRow, server: Record<string, unknown>) =>
+          !!options.embeddingOptions && !embedding(raw, model) && server.embedding_model !== model;
+        for (const raw of candidates) {
+          const server = remote.get(raw.id as string);
+          if (
+            server &&
+            server.updated_at === raw.updated_at &&
+            (!sameMetadata(raw, server, model) || needsVector(raw, server))
+          )
+            pending.set(raw.id as string, (raw.updated_at as number) + 1);
+        }
+      }
 
-    const prepared: PreparedRow[] = [];
-    for (const raw of candidates) {
-      const updatedAt = pending.get(raw.id as string);
-      if (updatedAt === undefined) continue;
-      try {
-        prepared.push(await prepareRow(raw, canonical, rings, model, updatedAt));
-      } catch (error) {
-        if (!(error instanceof MemoryKeyError)) throw error;
-        skipped.set(raw.id as string, "unreadable");
+      if (pending.size === 0) {
+        const result = (state: MemoryMigrationResult["state"]): MemoryMigrationResult => ({
+          state,
+          total: rows.length,
+          imported,
+          skipped: [...skipped].map(([memoryId, reason]) => ({ memoryId, reason })),
+          reembedded: reembedded.size,
+          unembedded: unembedded.size,
+          placeholderTombstones: placeholders.size,
+          truncatedSourceChunkIds: truncated.size,
+        });
+        if (skipped.size > 0 && !options.allowSkipped) return result("migrating");
+        if (!finalizing) return options.withWriteBarrier(() => uploadPasses(true));
+        if (!claimed) await importBatch(request, canonical.keyId, [], signal);
+        if (!active)
+          await request(
+            "/account",
+            { method: "PUT", body: JSON.stringify({ state: "active" }) },
+            signal
+          );
+        await options.onActivated();
+        return result("active");
       }
-    }
-    const usable = new Set(prepared.filter((p) => p.row.embedding).map((p) => p.row.memory_id));
-    if (options.embeddingOptions)
-      await embedMissing(prepared, options.embeddingOptions, model, signal);
-    const local = new Map(candidates.map((raw) => [raw.id as string, raw]));
-    const upload: RemoteMemoryRow[] = [];
-    for (const { row, plaintext } of prepared) {
-      const id = row.memory_id;
-      if (!fitsNearby(row)) {
-        skipped.set(id, "invalid");
-        continue;
+      if (pass >= MAX_UPLOAD_PASSES)
+        throw new RemoteMemoryError(
+          "Nearby still reports memories missing after importing them",
+          409,
+          "migration_incomplete"
+        );
+
+      const prepared: PreparedRow[] = [];
+      for (const raw of candidates) {
+        const updatedAt = pending.get(raw.id as string);
+        if (updatedAt === undefined) continue;
+        try {
+          prepared.push(await prepareRow(raw, canonical, rings, model, updatedAt));
+        } catch (error) {
+          if (!(error instanceof MemoryKeyError)) throw error;
+          skipped.set(raw.id as string, "unreadable");
+        }
       }
-      upload.push(row);
-      const track = (set: Set<string>, on: boolean) => (on ? set.add(id) : set.delete(id));
-      track(reembedded, !!row.embedding && !usable.has(id));
-      track(unembedded, !row.embedding);
-      track(placeholders, plaintext === undefined);
-      track(truncated, row.source_chunk_ids !== text(local.get(id)!.source_chunk_ids));
-    }
-    let sent = 0;
-    options.onProgress?.({ imported: sent, toImport: upload.length });
-    for (const batch of chunks(upload, IMPORT_BATCH)) {
-      await importBatch(request, canonical.keyId, batch, signal);
-      claimed = true;
-      sent += batch.length;
+      const usable = new Set(prepared.filter((p) => p.row.embedding).map((p) => p.row.memory_id));
+      if (options.embeddingOptions)
+        await embedMissing(prepared, options.embeddingOptions, model, signal);
+      const local = new Map(candidates.map((raw) => [raw.id as string, raw]));
+      const upload: RemoteMemoryRow[] = [];
+      for (const { row, plaintext } of prepared) {
+        const id = row.memory_id;
+        if (!fitsNearby(row)) {
+          skipped.set(id, "invalid");
+          continue;
+        }
+        upload.push(row);
+        const track = (set: Set<string>, on: boolean) => (on ? set.add(id) : set.delete(id));
+        track(reembedded, !!row.embedding && !usable.has(id));
+        track(unembedded, !row.embedding);
+        track(placeholders, plaintext === undefined);
+        track(truncated, row.source_chunk_ids !== text(local.get(id)!.source_chunk_ids));
+      }
+      let sent = 0;
       options.onProgress?.({ imported: sent, toImport: upload.length });
+      for (const batch of chunks(upload, IMPORT_BATCH)) {
+        await importBatch(request, canonical.keyId, batch, signal);
+        claimed = true;
+        sent += batch.length;
+        options.onProgress?.({ imported: sent, toImport: upload.length });
+      }
+      imported += sent;
     }
-    imported += sent;
-  }
+  };
+  return uploadPasses();
 }

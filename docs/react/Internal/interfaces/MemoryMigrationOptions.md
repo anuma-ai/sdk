@@ -184,11 +184,25 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:131](https://github.com/a
 
 ***
 
+### onActivated()
+
+> **onActivated**: () => `void` | `Promise`<`void`>
+
+Defined in: [src/lib/memory/store/remoteMigration.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#113)
+
+Route all subsequent memory writes to the remote store before this callback returns.
+
+**Returns**
+
+`void` | `Promise`<`void`>
+
+***
+
 ### onProgress()?
 
 > `optional` **onProgress**: (`progress`: [`MemoryMigrationProgress`](MemoryMigrationProgress.md)) => `void`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#111)
+Defined in: [src/lib/memory/store/remoteMigration.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#115)
 
 **Parameters**
 
@@ -225,7 +239,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:111](https://github.com/anu
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#110)
+Defined in: [src/lib/memory/store/remoteMigration.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#114)
 
 ***
 
@@ -258,3 +272,42 @@ Explicitly account-owned topics for databases that are not marked singleTenant.
 Defined in: [src/lib/memory/store/remoteMigration.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#99)
 
 The local vault to read, scoped by `userId` or marked `singleTenant`.
+
+***
+
+### withWriteBarrier()
+
+> **withWriteBarrier**: (`task`: () => `Promise`<[`MemoryMigrationResult`](MemoryMigrationResult.md)>) => `Promise`<[`MemoryMigrationResult`](MemoryMigrationResult.md)>
+
+Defined in: [src/lib/memory/store/remoteMigration.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#111)
+
+Drain all local memory writes, block new writes until the task returns, and retain the block if the remote handoff fails.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`task`
+
+</td>
+<td>
+
+() => `Promise`<[`MemoryMigrationResult`](MemoryMigrationResult.md)>
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<[`MemoryMigrationResult`](MemoryMigrationResult.md)>

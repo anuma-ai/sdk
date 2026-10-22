@@ -1,6 +1,8 @@
 vi.mock("../../memoryEngine/embeddings.js", () => ({
-  generateEmbeddings: vi.fn(async (texts: string[]) =>
-    texts.map((t) => Array.from({ length: 4096 }, (_, i) => (i === 0 ? t.length : 1)))
+  generateEmbeddings: vi.fn((texts: string[]) =>
+    Promise.resolve(
+      texts.map((t) => Array.from({ length: 4096 }, (_, i) => (i === 0 ? t.length : 1)))
+    )
   ),
 }));
 
@@ -8,6 +10,7 @@ import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { clearAllEncryptionKeys, type SignMessageFn } from "../../../react/useEncryption";
 import type { Entity, MemoryEntity } from "../../db/entities/models";
 import { replaceMemoryEntitiesGuardedOp } from "../../db/entities/operations";
 import type { VaultMemory } from "../../db/memoryVault/models";
@@ -23,11 +26,16 @@ import { sdkMigrations, sdkModelClasses, sdkSchema } from "../../db/schema";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants";
 import { generateEmbeddings } from "../../memoryEngine/embeddings.js";
 import { MEDIUM_TTL_MS } from "../decay";
-import { clearAllEncryptionKeys, type SignMessageFn } from "../../../react/useEncryption";
 import { deriveMemoryKeyRing, memoryCipher } from "./memoryKeys";
 import { migrateMemoriesToRemote } from "./remoteMigration";
-import { RemoteMemoryError, type RemoteMemoryRow } from "./remotePersistence";
+import {
+  createRemoteMemoryPersistence,
+  RemoteMemoryError,
+  type RemoteMemoryRow,
+} from "./remotePersistence";
 import { storedVector } from "./remotePipeline";
+import { createRemoteMemoryStore } from "./remoteStore";
+import type { MemoryStore } from "./types";
 
 const signatureA = `0x${"a1".repeat(65)}`;
 const signatureB = `0x${"b2".repeat(65)}`;
@@ -55,7 +63,7 @@ function vault(
     database,
     vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
     walletAddress,
-    signMessage: vi.fn(async () => signature) as unknown as SignMessageFn,
+    signMessage: vi.fn(() => Promise.resolve(signature)) as unknown as SignMessageFn,
     userId,
     entityCtx: {
       database,
@@ -67,8 +75,13 @@ function vault(
 
 type Stored = RemoteMemoryRow;
 
+function requestUrl(input: Parameters<typeof globalThis.fetch>[0]): string {
+  return typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+}
+
 function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
   const rows = new Map<string, Stored>();
+  const versions = new Map<string, number>();
   const catalog = new Map<string, { name: string; kind?: string }>();
   const account = { state: initial.state ?? "none", key_id: initial.key_id };
   const calls: string[] = [];
@@ -82,7 +95,8 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
   const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
     const path = String(url).replace(/^.*\/api\/private-memories/, "");
     const method = init?.method ?? "GET";
-    const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+    const body =
+      typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
     calls.push(`${method} ${path}`);
     if (path === "/topics/import") {
       for (const t of body.topics as { name: string; kind?: string }[])
@@ -163,6 +177,23 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
         .map((memory) => ({ memory, version: 1, server_updated_at: "2026-01-01T00:00:00Z" }));
       return json(200, { items });
     }
+    if (path.startsWith("/memories/")) {
+      const id = decodeURIComponent(path.slice("/memories/".length));
+      if (method === "PUT") {
+        const version = versions.get(id) ?? (rows.has(id) ? 1 : 0);
+        if (body.expected_version !== version) return json(409, { code: "version_conflict" });
+        rows.set(id, body.memory as Stored);
+        versions.set(id, version + 1);
+      }
+      const memory = rows.get(id);
+      return memory
+        ? json(200, {
+            memory,
+            version: versions.get(id) ?? 1,
+            server_updated_at: "2026-01-01T00:00:00Z",
+          })
+        : json(404, { detail: "not found" });
+    }
     return json(404, { detail: "not found" });
   });
   return {
@@ -188,10 +219,12 @@ async function migrate(
 ) {
   return migrateMemoriesToRemote({
     baseUrl: "https://nearby.test",
-    getToken: async () => "token",
+    getToken: () => Promise.resolve("token"),
     fetch: nearby.fetch,
     vaultCtx,
     canonical: await deriveMemoryKeyRing(signatureA),
+    withWriteBarrier: (task) => task(),
+    onActivated: () => {},
     ...extra,
   });
 }
@@ -218,6 +251,21 @@ beforeEach(() => {
 });
 
 describe("migrateMemoriesToRemote", () => {
+  it.each(["withWriteBarrier", "onActivated"])(
+    "requires %s before it changes the remote account",
+    async (option) => {
+      const ctx = vault(makeDatabase(), signatureA);
+      const nearby = fakeNearby();
+
+      await expect(migrate(nearby, ctx, { [option]: undefined })).rejects.toThrow(
+        "A write barrier and a remote store handoff are required"
+      );
+
+      expect(nearby.calls).toEqual([]);
+      expect(nearby.account.state).toBe("none");
+    }
+  );
+
   it("uploads every local row in every state under the canonical key, then activates", async () => {
     const ctx = vault(makeDatabase(), signatureA);
     const live = await createVaultMemoryOp(ctx, {
@@ -257,11 +305,13 @@ describe("migrateMemoriesToRemote", () => {
     await migrate(nearby, ctx);
     nearby.calls.length = 0;
 
-    const again = await migrate(nearby, ctx);
+    const onActivated = vi.fn();
+    const again = await migrate(nearby, ctx, { onActivated });
 
     expect(again).toMatchObject({ state: "active", imported: 0 });
     expect(nearby.calls).not.toContain("POST /import");
     expect(nearby.calls).not.toContain("PUT /account");
+    expect(onActivated).toHaveBeenCalledOnce();
   });
 
   it("sends only the rows nearby is missing", async () => {
@@ -273,9 +323,8 @@ describe("migrateMemoriesToRemote", () => {
     const sent: string[] = [];
     const fetch = nearby.fetch;
     nearby.fetch = (async (url: string | URL, init?: RequestInit) => {
-      if (String(url).endsWith("/import"))
-        for (const row of (JSON.parse(String(init?.body)) as { memories: RemoteMemoryRow[] })
-          .memories)
+      if (String(url).endsWith("/import") && typeof init?.body === "string")
+        for (const row of (JSON.parse(init.body) as { memories: RemoteMemoryRow[] }).memories)
           sent.push(row.memory_id);
       return fetch(url, init);
     }) as typeof globalThis.fetch;
@@ -318,6 +367,199 @@ describe("migrateMemoriesToRemote", () => {
     expect(await memoryCipher(canonical).decrypt(nearby.rows.get(m.uniqueId)!.content)).toBe(
       "Likes oolong tea"
     );
+  });
+
+  it.each(["save", "edit", "delete"])(
+    "includes a concurrent %s before the write barrier starts",
+    async (operation) => {
+      const ctx = vault(makeDatabase(), signatureA);
+      const memory = await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+      const nearby = fakeNearby();
+      const fetch = nearby.fetch;
+      let changed = false;
+      nearby.fetch = (async (url, init) => {
+        const response = await fetch(url, init);
+        if (!requestUrl(url).endsWith("/memories/query") || changed) return response;
+        changed = true;
+        if (operation === "save") await createVaultMemoryOp(ctx, { content: "Has a dog" });
+        if (operation === "edit") {
+          await updateVaultMemoryOp(ctx, memory.uniqueId, { content: "Likes oolong tea" });
+          await setRaw(ctx, memory.uniqueId, { updated_at: memory.updatedAt.getTime() + 1 });
+        }
+        if (operation === "delete") await deleteVaultMemoryOp(ctx, memory.uniqueId);
+        return response;
+      }) as typeof globalThis.fetch;
+
+      const result = await migrate(nearby, ctx);
+
+      expect(changed).toBe(true);
+      expect(result.state).toBe("active");
+      const canonical = await deriveMemoryKeyRing(signatureA);
+      const contents = await Promise.all(
+        [...nearby.rows.values()].map((row) => memoryCipher(canonical).decrypt(row.content))
+      );
+      if (operation === "save") expect(contents).toContain("Has a dog");
+      if (operation === "edit") expect(contents).toEqual(["Likes oolong tea"]);
+      if (operation === "delete") expect(nearby.rows.get(memory.uniqueId)?.is_deleted).toBe(true);
+    }
+  );
+
+  it.each(["/verify", "/memories/query", "/account"])(
+    "routes writes queued during final %s to the remote store",
+    async (path) => {
+      const ctx = vault(makeDatabase(), signatureA);
+      const edited = await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+      const deleted = await createVaultMemoryOp(ctx, { content: "Had a cat" });
+      const nearby = fakeNearby();
+      const local = {
+        create: vi.fn<MemoryStore["create"]>((input) => createVaultMemoryOp(ctx, input)),
+        update: vi.fn<MemoryStore["update"]>((id, input) => updateVaultMemoryOp(ctx, id, input)),
+        delete: vi.fn<MemoryStore["delete"]>((id) => deleteVaultMemoryOp(ctx, id)),
+      } satisfies Pick<MemoryStore, "create" | "update" | "delete">;
+      let store: Pick<MemoryStore, "create" | "update" | "delete"> = local;
+      let tail = Promise.resolve();
+      const exclusive = <T>(task: () => Promise<T>): Promise<T> => {
+        const result = tail.then(task);
+        tail = result.then(
+          () => {},
+          () => {}
+        );
+        return result;
+      };
+      let held = false;
+      let queued: Promise<void> | undefined;
+      let completed = false;
+      const fetch = nearby.fetch;
+      nearby.fetch = (async (url, init) => {
+        const response = await fetch(url, init);
+        if (held && !queued && requestUrl(url).endsWith(path)) {
+          queued = exclusive(async () => {
+            await store.create({ content: "Has a dog", embedding: vector4096 });
+            await store.update(edited.uniqueId, {
+              content: "Likes oolong tea",
+              embedding: vector4096,
+            });
+            await store.delete(deleted.uniqueId);
+            completed = true;
+          });
+          await Promise.resolve();
+          expect(completed).toBe(false);
+        }
+        return response;
+      }) as typeof globalThis.fetch;
+      const onActivated = vi.fn(async () => {
+        expect(held).toBe(true);
+        expect(nearby.account.state).toBe("active");
+        const canonical = await deriveMemoryKeyRing(signatureA);
+        store = createRemoteMemoryStore({
+          persistence: await createRemoteMemoryPersistence({
+            baseUrl: "https://nearby.test",
+            getToken: () => Promise.resolve("token"),
+            fetch: nearby.fetch,
+            keyId: canonical.keyId,
+            ...memoryCipher(canonical),
+          }),
+          embeddingOptions: {},
+        });
+      });
+
+      const result = await migrate(nearby, ctx, {
+        withWriteBarrier: (task) =>
+          exclusive(async () => {
+            held = true;
+            try {
+              return await task();
+            } finally {
+              held = false;
+            }
+          }),
+        onActivated,
+      });
+      await queued;
+
+      expect(result.state).toBe("active");
+      expect(queued).toBeDefined();
+      expect(completed).toBe(true);
+      expect(onActivated).toHaveBeenCalledOnce();
+      expect(local.create).not.toHaveBeenCalled();
+      expect(local.update).not.toHaveBeenCalled();
+      expect(local.delete).not.toHaveBeenCalled();
+      expect(await ctx.vaultMemoryCollection.query().fetchCount()).toBe(2);
+      const canonical = await deriveMemoryKeyRing(signatureA);
+      expect(await memoryCipher(canonical).decrypt(nearby.rows.get(edited.uniqueId)!.content)).toBe(
+        "Likes oolong tea"
+      );
+      expect(nearby.rows.get(deleted.uniqueId)?.is_deleted).toBe(true);
+      const contents = await Promise.all(
+        [...nearby.rows.values()].map((row) => memoryCipher(canonical).decrypt(row.content))
+      );
+      expect(contents).toContain("Has a dog");
+    }
+  );
+
+  it.each(["/verify", "/memories/query", "/account"])(
+    "leaves local writes enabled if final %s fails before activation",
+    async (path) => {
+      const ctx = vault(makeDatabase(), signatureA);
+      await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+      const nearby = fakeNearby();
+      const fetch = nearby.fetch;
+      let held = false;
+      const onActivated = vi.fn();
+      nearby.fetch = (async (url, init) => {
+        if (held && requestUrl(url).endsWith(path))
+          return new Response(JSON.stringify({ detail: "unavailable" }), { status: 503 });
+        return fetch(url, init);
+      }) as typeof globalThis.fetch;
+
+      await expect(
+        migrate(nearby, ctx, {
+          withWriteBarrier: async (task) => {
+            held = true;
+            try {
+              return await task();
+            } finally {
+              held = false;
+            }
+          },
+          onActivated,
+        })
+      ).rejects.toMatchObject({ status: 503 });
+
+      expect(held).toBe(false);
+      expect(nearby.account.state).toBe("migrating");
+      expect(onActivated).not.toHaveBeenCalled();
+      await createVaultMemoryOp(ctx, { content: "Has a dog" });
+      expect(await ctx.vaultMemoryCollection.query().fetchCount()).toBe(2);
+    }
+  );
+
+  it("rejects inside the write barrier when the handoff fails after activation", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    const nearby = fakeNearby();
+    let barrierError: unknown;
+
+    await expect(
+      migrate(nearby, ctx, {
+        withWriteBarrier: async (task) => {
+          try {
+            return await task();
+          } catch (error) {
+            barrierError = error;
+            throw error;
+          }
+        },
+        onActivated: () => Promise.reject(new Error("handoff failed")),
+      })
+    ).rejects.toThrow("handoff failed");
+
+    expect(barrierError).toMatchObject({ message: "handoff failed" });
+    expect(nearby.account.state).toBe("active");
+    const onActivated = vi.fn();
+    const retry = await migrate(nearby, ctx, { onActivated });
+    expect(retry.state).toBe("active");
+    expect(onActivated).toHaveBeenCalledOnce();
   });
 
   it("refuses an account another key already claimed, before importing", async () => {
@@ -474,6 +716,33 @@ describe("migrateMemoriesToRemote", () => {
     expect(result).toMatchObject({ state: "active", imported: 3 });
   });
 
+  it("gives the write barrier fresh upload passes after the last allowed pass", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const m = await createVaultMemoryOp(ctx, { content: "Edit 0" });
+    const nearby = fakeNearby();
+    let imports = 0;
+    nearby.onImport(async () => {
+      imports++;
+      if (imports > 2) return;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await updateVaultMemoryOp(ctx, m.uniqueId, { content: `Edit ${imports}` });
+    });
+
+    const result = await migrate(nearby, ctx, {
+      withWriteBarrier: async (task) => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        await updateVaultMemoryOp(ctx, m.uniqueId, { content: "Edit 3" });
+        return task();
+      },
+    });
+
+    expect(result).toMatchObject({ state: "active", imported: 4 });
+    const canonical = await deriveMemoryKeyRing(signatureA);
+    expect(await memoryCipher(canonical).decrypt(nearby.rows.get(m.uniqueId)!.content)).toBe(
+      "Edit 3"
+    );
+  });
+
   it("honours an HTTP-date Retry-After", async () => {
     const ctx = vault(makeDatabase(), signatureA);
     await createVaultMemoryOp(ctx, { content: "Likes green tea" });
@@ -542,7 +811,9 @@ describe("migrateMemoriesToRemote", () => {
     await deleteVaultMemoryOp(ctx, tombstone.uniqueId);
     const nearby = fakeNearby();
 
-    const result = await migrate(nearby, ctx, { embeddingOptions: { getToken: async () => "t" } });
+    const result = await migrate(nearby, ctx, {
+      embeddingOptions: { getToken: () => Promise.resolve("t") },
+    });
 
     expect(result).toMatchObject({ state: "active", reembedded: 4, unembedded: 0 });
     expect(vi.mocked(generateEmbeddings)).toHaveBeenCalledTimes(1);
@@ -699,13 +970,18 @@ describe("topic migration", () => {
     let imports = 0;
     let requestSignal: AbortSignal | null | undefined;
     server.fetch = (async (url, init) => {
-      if (String(url).endsWith("/topics/import") && ++imports === 2) {
+      if (requestUrl(url).endsWith("/topics/import") && ++imports === 2) {
         requestSignal = init?.signal;
         pending!();
         return new Promise<Response>((_resolve, reject) => {
-          requestSignal!.addEventListener("abort", () => reject(requestSignal!.reason), {
-            once: true,
-          });
+          requestSignal!.addEventListener(
+            "abort",
+            () => {
+              const reason: unknown = requestSignal!.reason;
+              reject(reason instanceof Error ? reason : new Error("Request cancelled"));
+            },
+            { once: true }
+          );
         });
       }
       return original(url, init);
