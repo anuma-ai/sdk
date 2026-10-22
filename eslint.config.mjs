@@ -19,6 +19,8 @@ const memoryTelemetryTests = [
 ];
 
 const checkedTestFiles = [
+  "src/lib/memory/store/remoteStore.test.ts",
+  "src/lib/memory/store/remotePersistence.test.ts",
   "src/lib/chatStore/remote.test.ts",
   ...appGenerationTests,
   ...memoryTelemetryTests,

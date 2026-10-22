@@ -2,7 +2,7 @@
 
 > **createRemoteMemoryPersistence**(`options`: [`RemoteMemoryPersistenceOptions`](../interfaces/RemoteMemoryPersistenceOptions.md)): `Promise`<[`RemoteMemoryPersistence`](../interfaces/RemoteMemoryPersistence.md)>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:406](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#406)
+Defined in: [src/lib/memory/store/remotePersistence.ts:455](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#455)
 
 Connect to an already-active account. Encryption/key failures fail closed; a
 failed write is never replayed automatically because its outcome may be unknown.

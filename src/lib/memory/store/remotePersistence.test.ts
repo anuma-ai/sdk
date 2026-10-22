@@ -1,12 +1,116 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  createNearbyRequest,
   createRemoteMemoryPersistence,
   RemoteMemoryError,
   type RemoteMemoryPersistenceOptions,
   type RemoteMemoryRecord,
   type RemoteMemoryRow,
 } from "./remotePersistence";
+
+describe("private memory rate budgets", () => {
+  it("shares read cooldowns across query, topics, counts and leases while allowing writes", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () => Response.json({}));
+    fetch.mockResolvedValueOnce(
+      Response.json(
+        { code: "rate_limited", rate_limit_bucket: "private-memory-read" },
+        {
+          status: 429,
+          headers: { "Retry-After": "2" },
+        }
+      )
+    );
+    const request = createNearbyRequest({
+      baseUrl: "https://nearby.test",
+      getToken: async () => "token",
+      fetch,
+    });
+    vi.useFakeTimers();
+    try {
+      await expect(request("/memories/query", { method: "POST" })).rejects.toMatchObject({
+        status: 429,
+        rateLimitBucket: "private-memory-read",
+      });
+      for (const [path, method] of [
+        ["/topics?limit=200", "GET"],
+        ["/counts", "GET"],
+        ["/work/claim", "POST"],
+      ])
+        await expect(request(path, { method })).rejects.toMatchObject({
+          status: 429,
+          retryAfterMs: 2_000,
+        });
+      expect(fetch).toHaveBeenCalledTimes(1);
+      await request("/memories/a", { method: "PUT" });
+      await request("/memories/batch", { method: "POST" });
+      expect(fetch).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await request("/counts");
+      expect(fetch).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps import and single-write budgets independent and IP cooldowns cover both", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () => Response.json({}));
+    const request = createNearbyRequest({
+      baseUrl: "https://nearby.test",
+      getToken: async () => "token",
+      fetch,
+    });
+    fetch.mockResolvedValueOnce(
+      Response.json(
+        { code: "rate_limited", rate_limit_bucket: "private-memory-import" },
+        { status: 429, headers: { "Retry-After": "60" } }
+      )
+    );
+    await expect(request("/memories/batch", { method: "POST" })).rejects.toMatchObject({
+      status: 429,
+    });
+    await expect(request("/topics", { method: "PUT" })).rejects.toMatchObject({ status: 429 });
+    await request("/memories/a", { method: "PUT" });
+    await request("/counts");
+    expect(fetch).toHaveBeenCalledTimes(3);
+    fetch.mockResolvedValueOnce(
+      Response.json(
+        { code: "rate_limited", rate_limit_bucket: "private-memory-ip" },
+        { status: 429, headers: { "Retry-After": "60" } }
+      )
+    );
+    await expect(request("/counts")).rejects.toMatchObject({ status: 429 });
+    await expect(request("/memories/a", { method: "PUT" })).rejects.toMatchObject({
+      rateLimitBucket: "private-memory-ip",
+    });
+    expect(fetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("isolates cooldowns between persistence instances and honors cancellation during a cooldown", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () => Response.json({}));
+    const options = { baseUrl: "https://nearby.test", getToken: async () => "token", fetch };
+    const first = createNearbyRequest(options);
+    const second = createNearbyRequest(options);
+    fetch.mockResolvedValueOnce(
+      Response.json(
+        { code: "rate_limited", rate_limit_bucket: "private-memory-read" },
+        { status: 429, headers: { "Retry-After": "60" } }
+      )
+    );
+    await expect(first("/counts")).rejects.toMatchObject({ status: 429 });
+    await second("/counts");
+    const controller = new AbortController();
+    controller.abort(new Error("Cancelled"));
+    await expect(first("/topics", {}, controller.signal)).rejects.toThrow("Cancelled");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
 
 const vector = () => [1, ...new Array<number>(1535).fill(0)];
 

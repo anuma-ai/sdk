@@ -12,7 +12,7 @@ HTTP failures remain distinguishable, particularly version\_conflict and key\_mi
 
 ### Constructor
 
-> **new RemoteMemoryError**(`message`: `string`, `status`: `number`, `code?`: `string`, `retryAfterMs?`: `number`): `RemoteMemoryError`
+> **new RemoteMemoryError**(`message`: `string`, `status`: `number`, `code?`: `string`, `retryAfterMs?`: `number`, `rateLimitBucket?`: `string`): `RemoteMemoryError`
 
 Defined in: [src/lib/memory/store/remotePersistence.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#143)
 
@@ -74,6 +74,18 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:143](https://github.com/a
 
 </td>
 </tr>
+<tr>
+<td>
+
+`rateLimitBucket?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -116,6 +128,14 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 **Inherited from**
 
 `Error.name`
+
+***
+
+### rateLimitBucket?
+
+> `readonly` `optional` **rateLimitBucket**: `string`
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:148](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#148)
 
 ***
 

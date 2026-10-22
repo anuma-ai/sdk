@@ -4,6 +4,59 @@ Defined in: [src/lib/memory/store/remoteStore.ts:78](https://github.com/anuma-ai
 
 ## Properties
 
+### activity?
+
+> `optional` **activity**: `object`
+
+Defined in: [src/lib/memory/store/remoteStore.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#85)
+
+**isActive()**
+
+> **isActive**: () => `boolean`
+
+**Returns**
+
+`boolean`
+
+**subscribe()**
+
+> **subscribe**: (`onChange`: () => `void`) => () => `void`
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`onChange`
+
+</td>
+<td>
+
+() => `void`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+> (): `void`
+
+**Returns**
+
+`void`
+
+***
+
 ### embeddingOptions
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
@@ -88,6 +141,49 @@ Defined in: [src/lib/memory/store/remoteStore.ts:79](https://github.com/anuma-ai
 > `optional` **pollIntervalMs**: `number`
 
 Defined in: [src/lib/memory/store/remoteStore.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#84)
+
+***
+
+### subscribeChanges()?
+
+> `optional` **subscribeChanges**: (`onChange`: (`connected`: `boolean`) => `void`) => () => `void`
+
+Defined in: [src/lib/memory/store/remoteStore.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#90)
+
+Report connection state on subscribe/reconnect and true on each account memory change.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`onChange`
+
+</td>
+<td>
+
+(`connected`: `boolean`) => `void`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+> (): `void`
+
+**Returns**
+
+`void`
 
 ***
 
