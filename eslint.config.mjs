@@ -27,6 +27,7 @@ const checkedTestFiles = [
   "src/lib/memory/reliability.integration.test.ts",
   "src/lib/backup/icloud/backup.test.ts",
   "src/lib/chat/toolLoop.detach.test.ts",
+  "src/lib/chat/toolLoop.gmailConfirmation.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
   "src/lib/db/chat/operations.chunkText.test.ts",
   "src/lib/db/chat/operations.embeddingEncryption.test.ts",
@@ -41,6 +42,7 @@ const checkedTestFiles = [
   "src/server/pg-adapter.inequality.test.ts",
   "src/server/pg-adapter.integration.test.ts",
   "src/server/pg-adapter.test.ts",
+  "src/tools/gmail.test.ts",
 ];
 
 export default tseslint.config(
