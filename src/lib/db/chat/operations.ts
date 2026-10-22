@@ -767,16 +767,23 @@ export async function getToolCallEventIdsOp(
 }
 
 async function invalidateConversationSummary(
-  database: Database,
-  conversationId: string
+  ctx: StorageOperationsContext,
+  conversationId: string,
+  changedMessageId?: number
 ): Promise<void> {
-  if (!database.schema?.tables[ConversationSummary.table]) return;
+  if (!ctx.database.schema?.tables[ConversationSummary.table]) return;
 
-  const summaries = await database
+  const summaries = await ctx.database
     .get<ConversationSummary>(ConversationSummary.table)
     .query(Q.where("conversation_id", conversationId))
     .fetch();
   for (const summary of summaries) {
+    if (changedMessageId !== undefined) {
+      const [boundary] = await ctx.messagesCollection
+        .query(Q.where("id", summary.summarizedUpTo), Q.where("conversation_id", conversationId))
+        .fetch();
+      if (boundary && changedMessageId > boundary.messageId) continue;
+    }
     await summary.destroyPermanently();
   }
 }
@@ -791,7 +798,7 @@ export async function clearMessagesOp(
   convId: string
 ): Promise<void> {
   await ctx.database.write(async () => {
-    await invalidateConversationSummary(ctx.database, convId);
+    await invalidateConversationSummary(ctx, convId);
     const messages = await ctx.messagesCollection.query(Q.where("conversation_id", convId)).fetch();
     const jobs = ctx.database.schema?.tables[ExtractionJob.table]
       ? await ctx.database
@@ -834,7 +841,7 @@ export async function deleteMessageOp(
   }
 
   await ctx.database.write(async () => {
-    await invalidateConversationSummary(ctx.database, message.conversationId);
+    await invalidateConversationSummary(ctx, message.conversationId, message.messageId);
     const jobs = ctx.database.schema?.tables[ExtractionJob.table]
       ? await ctx.database
           .get<ExtractionJob>(ExtractionJob.table)
@@ -1541,7 +1548,7 @@ async function _updateMessageOp(
         : message.content;
       contentChanged = opts.content !== originalContent;
       if (contentChanged) {
-        await invalidateConversationSummary(ctx.database, message.conversationId);
+        await invalidateConversationSummary(ctx, message.conversationId, message.messageId);
       }
     }
     await message.update((msg) => {

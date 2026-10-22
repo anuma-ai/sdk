@@ -278,6 +278,40 @@ describe("conversation summary invalidation", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["edit", "delete"])(
+    "preserves the summary after a %s of a message past the summary",
+    async (mutation) => {
+      const summary = await getConversationSummaryOp(summaryCtx, "conv_1");
+
+      if (mutation === "delete") {
+        expect(await deleteMessageOp(ctx, "m3")).toBe("m3");
+      } else {
+        const updated = await upsertMessageOp(ctx, {
+          conversationId: "conv_1",
+          uniqueId: "m3",
+          role: "user",
+          content: "What else do you remember?",
+        });
+        expect(updated.content).toBe("What else do you remember?");
+      }
+
+      expect(await getConversationSummaryOp(summaryCtx, "conv_1")).toEqual(summary);
+    }
+  );
+
+  it("invalidates the summary after an edit when the summary boundary is missing", async () => {
+    await upsertConversationSummaryOp(summaryCtx, "conv_1", "Lives in Paris.", "missing", 4);
+
+    await upsertMessageOp(ctx, {
+      conversationId: "conv_1",
+      uniqueId: "m3",
+      role: "user",
+      content: "What else do you remember?",
+    });
+
+    expect(await getConversationSummaryOp(summaryCtx, "conv_1")).toBeNull();
+  });
+
   it("preserves the summary after an attachment update", async () => {
     const summary = await getConversationSummaryOp(summaryCtx, "conv_1");
 

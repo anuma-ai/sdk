@@ -2,7 +2,7 @@
 
 > **decryptMessageEmbeddingFields**(`raw`: `Record`<`string`, `unknown`>, `walletAddress?`: `string`): `Promise`<`Record`<`string`, `unknown`>>
 
-Defined in: [src/lib/db/chat/operations.ts:1127](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1127)
+Defined in: [src/lib/db/chat/operations.ts:1134](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1134)
 
 Decrypts raw message embedding columns with the cached wallet key.
 

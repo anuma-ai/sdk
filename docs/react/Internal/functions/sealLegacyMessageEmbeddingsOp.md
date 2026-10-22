@@ -2,7 +2,7 @@
 
 > **sealLegacyMessageEmbeddingsOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)): `Promise`<`number`>
 
-Defined in: [src/lib/db/chat/operations.ts:1142](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1142)
+Defined in: [src/lib/db/chat/operations.ts:1149](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#1149)
 
 Seals legacy message embedding columns and discards chunks with invalid plaintext offsets.
 
