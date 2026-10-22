@@ -146,6 +146,14 @@ function finalAssistantMessage(data: unknown): LlmapiMessage | undefined {
     for (const item of output) {
       const message = (item as { message?: LlmapiMessage }).message;
       if (message) return message;
+      if (item.type === "message" && item.role === "assistant") {
+        return {
+          role: "assistant",
+          content: item.content
+            ?.filter((part) => part.type === "output_text")
+            .map((part) => ({ type: "text", text: part.text })),
+        };
+      }
     }
   }
   return undefined;

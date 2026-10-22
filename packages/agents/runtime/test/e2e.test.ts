@@ -36,6 +36,46 @@ function buildGmailFactories(): Array<(portal: PortalClient) => ReturnType<typeo
 }
 
 describe("agent-runtime e2e", () => {
+  test.each([undefined, "auto", "responses"] as const)(
+    "returns the assistant reply with apiType %s",
+    async (apiType) => {
+      stub = await startStubPortal({ grants: { [HAVEN_BEARER]: havenGrant } });
+
+      const transport: StreamingTransport = () => ({
+        stream: (async function* () {
+          yield { type: "response.reasoning.delta", delta: "Internal reasoning." };
+          yield { type: "response.output_text.delta", delta: "Hello from Responses." };
+          yield {
+            type: "response.completed",
+            response: {
+              status: "completed",
+              usage: { input_tokens: 4, output_tokens: 8 },
+            },
+          };
+        })(),
+      });
+      const messages = [
+        { role: "user" as const, content: [{ type: "text" as const, text: "hello" }] },
+      ];
+
+      const result = await runAgentRequest({
+        request: mockReq(HAVEN_BEARER),
+        agent: havenAgent,
+        messages,
+        portalClientOpts: { baseUrl: stub.url, maxRetries: 1, retryBaseMs: 1 },
+        transport,
+        ...(apiType ? { apiType } : {}),
+      });
+
+      expect(result.messages).toEqual([
+        ...messages,
+        { role: "assistant", content: [{ type: "text", text: "Hello from Responses." }] },
+      ]);
+      expect(result.usage).toEqual({ inputTokens: 4, outputTokens: 8, totalTokens: 12 });
+      expect(result.toolErrors).toEqual([]);
+    }
+  );
+
   test("happy path: valid grant + connected connector mints and the LLM reply references the upstream tool output", async () => {
     stub = await startStubPortal({
       grants: { [HAVEN_BEARER]: havenGrant },
