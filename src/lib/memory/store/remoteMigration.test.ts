@@ -534,6 +534,34 @@ describe("migrateMemoriesToRemote", () => {
     }
   );
 
+  it("rejects inside the write barrier when the handoff fails after activation", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    const nearby = fakeNearby();
+    let barrierError: unknown;
+
+    await expect(
+      migrate(nearby, ctx, {
+        withWriteBarrier: async (task) => {
+          try {
+            return await task();
+          } catch (error) {
+            barrierError = error;
+            throw error;
+          }
+        },
+        onActivated: () => Promise.reject(new Error("handoff failed")),
+      })
+    ).rejects.toThrow("handoff failed");
+
+    expect(barrierError).toMatchObject({ message: "handoff failed" });
+    expect(nearby.account.state).toBe("active");
+    const onActivated = vi.fn();
+    const retry = await migrate(nearby, ctx, { onActivated });
+    expect(retry.state).toBe("active");
+    expect(onActivated).toHaveBeenCalledOnce();
+  });
+
   it("refuses an account another key already claimed, before importing", async () => {
     const ctx = vault(makeDatabase(), signatureA);
     await createVaultMemoryOp(ctx, { content: "Likes green tea" });
@@ -686,6 +714,33 @@ describe("migrateMemoriesToRemote", () => {
     const result = await migrate(nearby, ctx);
 
     expect(result).toMatchObject({ state: "active", imported: 3 });
+  });
+
+  it("gives the write barrier fresh upload passes after the last allowed pass", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const m = await createVaultMemoryOp(ctx, { content: "Edit 0" });
+    const nearby = fakeNearby();
+    let imports = 0;
+    nearby.onImport(async () => {
+      imports++;
+      if (imports > 2) return;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await updateVaultMemoryOp(ctx, m.uniqueId, { content: `Edit ${imports}` });
+    });
+
+    const result = await migrate(nearby, ctx, {
+      withWriteBarrier: async (task) => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        await updateVaultMemoryOp(ctx, m.uniqueId, { content: "Edit 3" });
+        return task();
+      },
+    });
+
+    expect(result).toMatchObject({ state: "active", imported: 4 });
+    const canonical = await deriveMemoryKeyRing(signatureA);
+    expect(await memoryCipher(canonical).decrypt(nearby.rows.get(m.uniqueId)!.content)).toBe(
+      "Edit 3"
+    );
   });
 
   it("honours an HTTP-date Retry-After", async () => {

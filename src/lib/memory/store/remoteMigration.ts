@@ -526,11 +526,8 @@ export async function migrateMemoriesToRemote(
   const placeholders = new Set<string>();
   const truncated = new Set<string>();
   let imported = 0;
-  const uploadPasses = async (
-    startPass = 0,
-    finalizing = false
-  ): Promise<MemoryMigrationResult> => {
-    for (let pass = startPass; ; pass++) {
+  const uploadPasses = async (finalizing = false): Promise<MemoryMigrationResult> => {
+    for (let pass = 0; ; pass++) {
       const rows = await getAllVaultMemoryRowsOp(options.vaultCtx);
       for (const raw of rows) if (invalid(raw)) skipped.set(String(raw.id), "invalid");
       const candidates = rows.filter((raw) => !skipped.has(String(raw.id)));
@@ -569,7 +566,7 @@ export async function migrateMemoriesToRemote(
           truncatedSourceChunkIds: truncated.size,
         });
         if (skipped.size > 0 && !options.allowSkipped) return result("migrating");
-        if (!finalizing) return options.withWriteBarrier(() => uploadPasses(pass, true));
+        if (!finalizing) return options.withWriteBarrier(() => uploadPasses(true));
         if (!claimed) await importBatch(request, canonical.keyId, [], signal);
         if (!active)
           await request(
