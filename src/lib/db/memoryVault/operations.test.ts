@@ -1,54 +1,76 @@
-import { Database, Q } from "@nozbe/watermelondb";
+import { type Collection, Database, Q } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Clause as QueryClause } from "@nozbe/watermelondb/QueryDescription";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { Entity, MemoryEntity } from "../entities/models";
+import {
+  type EntityOperationsContext,
+  linkMemoryEntitiesOp,
+  resolveMemoryTopicsWrite,
+} from "../entities/operations";
+import type { StoredEntity } from "../entities/types";
+import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
+import type { VaultMemory } from "./models";
 import type { VaultMemoryOperationsContext } from "./operations";
 import {
   archiveVaultMemoryOp,
-  createVaultMemoryOp,
+  clearMemoryTopicsOverrideOp,
   createVaultMemoriesBatchOp,
-  getVaultMemoryOp,
-  getVaultMemoriesByIdsOp,
+  createVaultMemoryOp,
+  deleteAllVaultMemoriesForUserOp,
+  deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
-  getVaultRankingProjectionsOp,
+  getAllVaultMemoryContentsOp,
+  getMemoriesNeedingTopicExtractionOp,
   getVaultCandidateKeysOp,
   getVaultEmbeddingsByIdsOp,
-  getAllVaultMemoryContentsOp,
-  updateVaultMemoryOp,
-  updateVaultMemoryEmbeddingOp,
-  deleteVaultMemoryOp,
-  supersedeVaultMemoryOp,
-  deleteAllVaultMemoriesForUserOp,
+  getVaultMemoriesByIdsOp,
+  getVaultMemoryOp,
+  getVaultRankingProjectionsOp,
   setMemoryEntitiesOp,
   setMemoryVisibilityOp,
-  clearMemoryTopicsOverrideOp,
-  getMemoriesNeedingTopicExtractionOp,
   stampTopicsExtractedAtOp,
+  supersedeVaultMemoryOp,
   TOPICS_EXTRACTION_VERSION,
+  updateVaultMemoryEmbeddingOp,
+  updateVaultMemoryOp,
   vaultMemoryToStored,
 } from "./operations";
-import { linkMemoryEntitiesOp, resolveMemoryTopicsWrite } from "../entities/operations";
-import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
-import type { VaultMemory } from "./models";
 
 vi.mock("./encryption", () => ({
-  encryptVaultMemoryContent: vi.fn(async (content: string) => `encrypted:${content}`),
-  decryptVaultMemoryFields: vi.fn(async (memory: any) => ({
-    ...memory,
-    content: memory.content.replace("encrypted:", ""),
-  })),
+  encryptVaultMemoryContent: vi.fn((content: string) => Promise.resolve(`encrypted:${content}`)),
+  decryptVaultMemoryFields: vi.fn((memory: { content: string }) =>
+    Promise.resolve({
+      ...memory,
+      content: memory.content.replace("encrypted:", ""),
+    })
+  ),
 }));
 
 vi.mock("../entities/operations", () => ({
-  linkMemoryEntitiesOp: vi.fn(async () => []),
-  resolveMemoryTopicsWrite: vi.fn(async () => ({ row: {}, topics: [] })),
+  linkMemoryEntitiesOp: vi.fn(() => Promise.resolve([])),
+  resolveMemoryTopicsWrite: vi.fn(() => Promise.resolve({ row: {}, topics: [] })),
   prepareMemoryTopicsUpdate: vi.fn(() => ({ _op: "vault-topics" })),
-  relinkMemoryEntitiesFromTopicsOp: vi.fn(async () => []),
-  unlinkMemoryEntitiesOp: vi.fn(async () => undefined),
-  unlinkAllMemoryEntitiesForUserOp: vi.fn(async () => undefined),
+  relinkMemoryEntitiesFromTopicsOp: vi.fn(() => Promise.resolve([])),
+  unlinkMemoryEntitiesOp: vi.fn(() => Promise.resolve(undefined)),
+  unlinkAllMemoryEntitiesForUserOp: vi.fn(() => Promise.resolve(undefined)),
 }));
 
-function mockRecord(overrides: Record<string, any> = {}) {
-  const raw: Record<string, any> = {
+type RawWriter = {
+  _setRaw: (key: string, value: unknown) => void;
+};
+
+function mockRecord(overrides: Record<string, unknown> = {}) {
+  const raw: Record<string, unknown> & {
+    content: string;
+    scope: string;
+    user_id: string | null;
+    folder_id: string | null;
+    is_deleted: boolean;
+    created_at: Date;
+    updated_at: Date;
+  } = {
     content: "test content",
     scope: "private",
     user_id: null,
@@ -58,10 +80,14 @@ function mockRecord(overrides: Record<string, any> = {}) {
     updated_at: new Date("2025-01-01"),
     ...overrides,
   };
-  const rawRow: Record<string, any> = { id: overrides.id ?? "mem_1", ...raw };
+  const id = typeof overrides.id === "string" ? overrides.id : "mem_1";
+  const rawRow: Record<string, unknown> = { ...raw, id };
   return {
-    id: overrides.id ?? "mem_1",
+    id,
     _raw: rawRow,
+    factType: null as string | null,
+    archivedAt: null as number | null,
+    trustTier: null as string | null,
     get content() {
       return raw.content;
     },
@@ -104,22 +130,23 @@ function mockRecord(overrides: Record<string, any> = {}) {
     get geohash() {
       return raw.geohash ?? null;
     },
-    _setRaw(key: string, value: any) {
+    _setRaw(key: string, value: unknown) {
       raw[key] = value;
     },
     _getRaw(key: string) {
       return raw[key];
     },
-    update: vi.fn(async (updater: (r: any) => void) => {
+    update: vi.fn((updater: (r: RawWriter) => void) => {
       updater({
-        _setRaw: (k: string, v: any) => {
+        _setRaw: (k: string, v: unknown) => {
           raw[k] = v;
         },
       });
+      return Promise.resolve();
     }),
-    prepareUpdate: vi.fn((updater: (r: any) => void) => {
+    prepareUpdate: vi.fn((updater: (r: RawWriter) => void) => {
       return {
-        _setRaw: (k: string, v: any) => {
+        _setRaw: (k: string, v: unknown) => {
           raw[k] = v;
         },
         updater,
@@ -134,22 +161,26 @@ function makeCtx(
 ): VaultMemoryOperationsContext {
   return {
     database: {
-      write: vi.fn(async (cb: () => any) => cb()),
-    } as any,
+      write: vi.fn((cb: () => unknown) => Promise.resolve(cb())),
+    } as unknown as Database,
     vaultMemoryCollection: {
-      create: vi.fn(async (builder: (r: any) => void) => {
+      create: vi.fn((builder: (r: RawWriter) => void) => {
         const record = mockRecord();
         builder(record);
-        return record;
+        return Promise.resolve(record);
       }),
-      find: vi.fn(async (id: string) => mockRecord({ id })),
-      query: vi.fn((..._conditions: any[]) => ({
-        fetch: vi.fn(async () => [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })]),
-        unsafeFetchRaw: vi.fn(async () =>
-          [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })].map((r) => r._raw)
+      find: vi.fn((id: string) => Promise.resolve(mockRecord({ id }))),
+      query: vi.fn((..._conditions: QueryClause[]) => ({
+        fetch: vi.fn(() =>
+          Promise.resolve([mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })])
+        ),
+        unsafeFetchRaw: vi.fn(() =>
+          Promise.resolve(
+            [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })].map((r) => r._raw)
+          )
         ),
       })),
-    } as any,
+    } as unknown as Collection<VaultMemory>,
     ...overrides,
   };
 }
@@ -161,12 +192,12 @@ describe("createVaultMemoryOp", () => {
     const ctx = makeCtx();
     await createVaultMemoryOp(ctx, { content: "hello" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     expect(createFn).toHaveBeenCalledTimes(1);
 
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("scope", "private");
   });
 
@@ -174,10 +205,10 @@ describe("createVaultMemoryOp", () => {
     const ctx = makeCtx();
     await createVaultMemoryOp(ctx, { content: "hello", scope: "shared" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("scope", "shared");
   });
 
@@ -185,10 +216,10 @@ describe("createVaultMemoryOp", () => {
     const ctx = makeCtx();
     await createVaultMemoryOp(ctx, { content: "remember this" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("content", "remember this");
     expect(setRawSpy).toHaveBeenCalledWith("is_deleted", false);
   });
@@ -196,15 +227,15 @@ describe("createVaultMemoryOp", () => {
   it("encrypts content when wallet context is present", async () => {
     const ctx = makeCtx({
       walletAddress: "0xabc",
-      signMessage: vi.fn(async () => "0xsig") as any,
+      signMessage: vi.fn(() => Promise.resolve("0xsig")),
     });
 
     await createVaultMemoryOp(ctx, { content: "secret", scope: "private" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("content", "encrypted:secret");
     expect(setRawSpy).toHaveBeenCalledWith("scope", "private");
   });
@@ -213,10 +244,10 @@ describe("createVaultMemoryOp", () => {
     const ctx = makeCtx();
     await createVaultMemoryOp(ctx, { content: "plain text" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("content", "plain text");
   });
 
@@ -246,8 +277,8 @@ describe("getVaultMemoryOp", () => {
   it("returns null when the memory is soft-deleted", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => mockRecord({ isDeleted: true })),
-      } as any,
+        find: vi.fn(() => Promise.resolve(mockRecord({ isDeleted: true }))),
+      } as unknown as Collection<VaultMemory>,
     });
     const result = await getVaultMemoryOp(ctx, "mem_1");
     expect(result).toBeNull();
@@ -256,10 +287,10 @@ describe("getVaultMemoryOp", () => {
   it("returns null when find throws (not found)", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => {
-          throw new Error("not found");
+        find: vi.fn(() => {
+          return Promise.reject(new Error("not found"));
         }),
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
     const result = await getVaultMemoryOp(ctx, "nonexistent");
     expect(result).toBeNull();
@@ -274,18 +305,20 @@ describe("getAllVaultMemoriesOp", () => {
     const results = await getAllVaultMemoriesOp(ctx);
 
     expect(results).toHaveLength(2);
-    const queryFn = ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>;
+    const queryFn = vi.mocked(ctx.vaultMemoryCollection.query);
     expect(queryFn).toHaveBeenCalled();
   });
 
   it("passes scope filter when options.scopes is provided", async () => {
-    const fetchFn = vi.fn(async () => [mockRecord({ id: "mem_pub" })]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn(() => Promise.resolve([mockRecord({ id: "mem_pub" })]));
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const results = await getAllVaultMemoriesOp(ctx, { scopes: ["shared"] });
@@ -299,11 +332,15 @@ describe("getAllVaultMemoriesOp", () => {
     const live = mockRecord({ id: "mem_live" });
     const gone = mockRecord({ id: "mem_gone" });
     gone._raw.is_deleted = true;
-    const queryFn = vi.fn((..._conditions: any[]) => ({
-      fetch: vi.fn(async () => [live, gone]),
-      unsafeFetchRaw: vi.fn(async () => [live._raw, gone._raw]),
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
+      fetch: vi.fn(() => Promise.resolve([live, gone])),
+      unsafeFetchRaw: vi.fn(() => Promise.resolve([live._raw, gone._raw])),
     }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const results = await getAllVaultMemoriesOp(ctx, { includeDeleted: true });
 
@@ -314,12 +351,18 @@ describe("getAllVaultMemoriesOp", () => {
   });
 
   it("keeps the is_deleted filter when includeDeleted is false", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await getAllVaultMemoriesOp(ctx, { includeDeleted: false });
 
@@ -327,13 +370,17 @@ describe("getAllVaultMemoriesOp", () => {
   });
 
   it("does NOT add scope condition when scopes is empty array", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoriesOp(ctx, { scopes: [] });
@@ -343,13 +390,17 @@ describe("getAllVaultMemoriesOp", () => {
   });
 
   it("does NOT add scope condition when options is undefined", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoriesOp(ctx);
@@ -359,13 +410,15 @@ describe("getAllVaultMemoriesOp", () => {
   });
 
   it("adds since condition when options.since is provided", async () => {
-    const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn(() => Promise.resolve([mockRecord()]));
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoriesOp(ctx, { since: new Date("2025-06-01") });
@@ -375,13 +428,15 @@ describe("getAllVaultMemoriesOp", () => {
   });
 
   it("adds limit condition when options.limit is provided", async () => {
-    const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn(() => Promise.resolve([mockRecord()]));
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoriesOp(ctx, { limit: 5 });
@@ -391,13 +446,15 @@ describe("getAllVaultMemoriesOp", () => {
   });
 
   it("adds both since and limit conditions together", async () => {
-    const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn(() => Promise.resolve([mockRecord()]));
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoriesOp(ctx, { since: new Date("2025-06-01"), limit: 10 });
@@ -407,14 +464,16 @@ describe("getAllVaultMemoriesOp", () => {
   });
 
   it("combines since with scopes and userId", async () => {
-    const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn(() => Promise.resolve([mockRecord()]));
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
       userId: "user_123",
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoriesOp(ctx, { scopes: ["shared"], since: new Date("2025-06-01") });
@@ -424,13 +483,17 @@ describe("getAllVaultMemoriesOp", () => {
   });
 
   it("returns empty array when since is in the future", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const results = await getAllVaultMemoriesOp(ctx, { since: new Date("2099-01-01") });
@@ -455,13 +518,15 @@ describe("getAllVaultMemoryContentsOp", () => {
   });
 
   it("adds since condition when options.since is provided", async () => {
-    const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn(() => Promise.resolve([mockRecord()]));
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoryContentsOp(ctx, { since: new Date("2025-06-01") });
@@ -471,14 +536,18 @@ describe("getAllVaultMemoryContentsOp", () => {
   });
 
   it("adds both userId and since conditions together", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
       userId: "user_123",
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoryContentsOp(ctx, { since: new Date("2025-06-01") });
@@ -492,14 +561,16 @@ describe("updateVaultMemoryOp", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("updates content and scope when both provided", async () => {
-    const updateFn = vi.fn(async (updater: (r: any) => void) => {
-      const setRawSpy = vi.fn();
+    const updateFn = vi.fn((updater: (r: RawWriter) => void) => {
+      const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
       updater({ _setRaw: setRawSpy });
-      return setRawSpy;
+      return Promise.resolve(setRawSpy);
     });
     const record = mockRecord({ update: updateFn });
     const ctx = makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await updateVaultMemoryOp(ctx, "mem_1", {
@@ -511,25 +582,28 @@ describe("updateVaultMemoryOp", () => {
     expect(updateFn).toHaveBeenCalledTimes(1);
 
     const updater = updateFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("content", "updated");
     expect(setRawSpy).toHaveBeenCalledWith("scope", "shared");
   });
 
   it("does NOT set scope when opts.scope is undefined", async () => {
-    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+    const updateFn = vi.fn((updater: (r: RawWriter) => void) => {
       updater({ _setRaw: vi.fn() });
+      return Promise.resolve();
     });
     const record = mockRecord({ update: updateFn });
     const ctx = makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     await updateVaultMemoryOp(ctx, "mem_1", { content: "new content" });
 
     const updater = updateFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("content", "new content");
     expect(setRawSpy).not.toHaveBeenCalledWith("scope", expect.anything());
@@ -538,8 +612,8 @@ describe("updateVaultMemoryOp", () => {
   it("returns null for soft-deleted records", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => mockRecord({ isDeleted: true })),
-      } as any,
+        find: vi.fn(() => Promise.resolve(mockRecord({ isDeleted: true }))),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await updateVaultMemoryOp(ctx, "mem_1", { content: "x" });
@@ -549,10 +623,10 @@ describe("updateVaultMemoryOp", () => {
   it("returns null when find throws", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => {
-          throw new Error("not found");
+        find: vi.fn(() => {
+          return Promise.reject(new Error("not found"));
         }),
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await updateVaultMemoryOp(ctx, "bad_id", { content: "x" });
@@ -564,19 +638,22 @@ describe("deleteVaultMemoryOp", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("soft-deletes a record by setting is_deleted to true", async () => {
-    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+    const updateFn = vi.fn((updater: (r: RawWriter) => void) => {
       updater({ _setRaw: vi.fn() });
+      return Promise.resolve();
     });
     const record = mockRecord({ update: updateFn });
     const ctx = makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await deleteVaultMemoryOp(ctx, "mem_1");
     expect(result).toBe(true);
 
     const updater = updateFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("is_deleted", true);
   });
@@ -584,8 +661,8 @@ describe("deleteVaultMemoryOp", () => {
   it("returns false for already-deleted records", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => mockRecord({ isDeleted: true })),
-      } as any,
+        find: vi.fn(() => Promise.resolve(mockRecord({ isDeleted: true }))),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await deleteVaultMemoryOp(ctx, "mem_1");
@@ -595,10 +672,10 @@ describe("deleteVaultMemoryOp", () => {
   it("returns false when find throws", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => {
-          throw new Error("nope");
+        find: vi.fn(() => {
+          return Promise.reject(new Error("nope"));
         }),
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await deleteVaultMemoryOp(ctx, "bad_id");
@@ -610,18 +687,21 @@ describe("supersedeVaultMemoryOp (A2)", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("stamps superseded_by + superseded_at on the retired row", async () => {
-    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+    const updateFn = vi.fn((updater: (r: RawWriter) => void) => {
       updater({ _setRaw: vi.fn() });
+      return Promise.resolve();
     });
     const record = mockRecord({ update: updateFn });
     const ctx = makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await supersedeVaultMemoryOp(ctx, "old", "new");
     expect(result).toBe(true);
 
-    const setRawSpy = vi.fn();
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
     updateFn.mock.calls[0][0]({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("superseded_by", "new");
     expect(setRawSpy).toHaveBeenCalledWith("superseded_at", expect.any(Number));
@@ -630,8 +710,8 @@ describe("supersedeVaultMemoryOp (A2)", () => {
   it("returns false (no-op) for an already-superseded row", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => mockRecord({ superseded_by: "someone-else" })),
-      } as any,
+        find: vi.fn(() => Promise.resolve(mockRecord({ superseded_by: "someone-else" }))),
+      } as unknown as Collection<VaultMemory>,
     });
     expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
   });
@@ -640,11 +720,11 @@ describe("supersedeVaultMemoryOp (A2)", () => {
     const target = mockRecord({ id: "old", update: vi.fn() });
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async (id: string) => {
-          if (id === "old") return target;
-          throw new Error("not found");
+        find: vi.fn((id: string) => {
+          if (id === "old") return Promise.resolve(target);
+          return Promise.reject(new Error("not found"));
         }),
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
     expect(await supersedeVaultMemoryOp(ctx, "old", "missing")).toBe(false);
     expect(target.update).not.toHaveBeenCalled();
@@ -656,8 +736,8 @@ describe("supersedeVaultMemoryOp (A2)", () => {
       const successor = mockRecord({ id: "new", ...bad });
       const ctx = makeCtx({
         vaultMemoryCollection: {
-          find: vi.fn(async (id: string) => (id === "old" ? target : successor)),
-        } as any,
+          find: vi.fn((id: string) => Promise.resolve(id === "old" ? target : successor)),
+        } as unknown as Collection<VaultMemory>,
       });
       expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
     }
@@ -667,15 +747,19 @@ describe("supersedeVaultMemoryOp (A2)", () => {
   it("returns false for a soft-deleted row", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => mockRecord({ isDeleted: true })),
-      } as any,
+        find: vi.fn(() => Promise.resolve(mockRecord({ isDeleted: true }))),
+      } as unknown as Collection<VaultMemory>,
     });
     expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
   });
 
   it("refuses to let a memory supersede itself", async () => {
-    const find = vi.fn(async () => mockRecord());
-    const ctx = makeCtx({ vaultMemoryCollection: { find } as any });
+    const find = vi.fn(() => Promise.resolve(mockRecord()));
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find,
+      } as unknown as Collection<VaultMemory>,
+    });
     expect(await supersedeVaultMemoryOp(ctx, "same", "same")).toBe(false);
     expect(find).not.toHaveBeenCalled();
   });
@@ -683,10 +767,10 @@ describe("supersedeVaultMemoryOp (A2)", () => {
   it("returns false when find throws", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => {
-          throw new Error("nope");
+        find: vi.fn(() => {
+          return Promise.reject(new Error("nope"));
         }),
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
     expect(await supersedeVaultMemoryOp(ctx, "old", "new")).toBe(false);
   });
@@ -698,13 +782,13 @@ describe("vaultMemoryToStored", () => {
   it("maps memory.scope to scope in returned object", async () => {
     const record = mockRecord();
     record._setRaw("scope", "shared");
-    const result = await vaultMemoryToStored(record as any);
+    const result = await vaultMemoryToStored(record as unknown as VaultMemory);
     expect(result.scope).toBe("shared");
   });
 
   it("returns raw fields without decryption when no wallet address", async () => {
     const record = mockRecord();
-    const result = await vaultMemoryToStored(record as any);
+    const result = await vaultMemoryToStored(record as unknown as VaultMemory);
     expect(result.uniqueId).toBe("mem_1");
     expect(result.content).toBe("test content");
     expect(result.scope).toBe("private");
@@ -713,7 +797,7 @@ describe("vaultMemoryToStored", () => {
   it("decrypts content when wallet address is provided", async () => {
     const record = mockRecord();
     record._setRaw("content", "encrypted:secret");
-    const result = await vaultMemoryToStored(record as any, "0xabc", vi.fn() as any);
+    const result = await vaultMemoryToStored(record as unknown as VaultMemory, "0xabc", vi.fn());
     expect(result.content).toBe("secret");
   });
 });
@@ -725,10 +809,10 @@ describe("userId scoping", () => {
     const ctx = makeCtx({ userId: "user_123" });
     await createVaultMemoryOp(ctx, { content: "hello" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("user_id", "user_123");
   });
 
@@ -736,22 +820,24 @@ describe("userId scoping", () => {
     const ctx = makeCtx();
     await createVaultMemoryOp(ctx, { content: "hello" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("user_id", null);
   });
 
   it("filters by user_id in getAllVaultMemoriesOp when ctx.userId is set", async () => {
-    const fetchFn = vi.fn(async () => [mockRecord()]);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn(() => Promise.resolve([mockRecord()]));
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
       userId: "user_123",
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoriesOp(ctx);
@@ -761,13 +847,17 @@ describe("userId scoping", () => {
   });
 
   it("does NOT filter by user_id in getAllVaultMemoriesOp when ctx.userId is undefined", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoriesOp(ctx);
@@ -781,19 +871,22 @@ describe("updateVaultMemoryEmbeddingOp", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns true and writes the embedding string to the record", async () => {
-    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+    const updateFn = vi.fn((updater: (r: RawWriter) => void) => {
       updater({ _setRaw: vi.fn() });
+      return Promise.resolve();
     });
     const record = mockRecord({ update: updateFn });
     const ctx = makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-embed-model");
 
     expect(result).toBe(true);
     const updater = updateFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("embedding", "[1,0,0]");
     expect(setRawSpy).toHaveBeenCalledWith("embedding_model", "test-embed-model");
@@ -803,16 +896,19 @@ describe("updateVaultMemoryEmbeddingOp", () => {
     const { decryptVaultMemoryFields } = await import("./encryption");
     let inWriter = false;
     const decryptedInWriter: boolean[] = [];
-    vi.mocked(decryptVaultMemoryFields).mockImplementation(async (memory: any) => {
+    vi.mocked(decryptVaultMemoryFields).mockImplementation((memory) => {
       decryptedInWriter.push(inWriter);
-      return { ...memory, content: String(memory.content).replace("encrypted:", "") };
+      return Promise.resolve({
+        ...memory,
+        content: String(memory.content).replace("encrypted:", ""),
+      });
     });
     const record = mockRecord({ content: "encrypted:Plays cello" });
     const ctx = makeCtx({
       walletAddress: "0xabc",
       signMessage: vi.fn(),
       database: {
-        write: vi.fn(async (cb: () => any) => {
+        write: vi.fn(async (cb: () => unknown) => {
           inWriter = true;
           try {
             return await cb();
@@ -820,8 +916,10 @@ describe("updateVaultMemoryEmbeddingOp", () => {
             inWriter = false;
           }
         }),
-      } as any,
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      } as unknown as Database,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0]", "m", {
@@ -835,8 +933,8 @@ describe("updateVaultMemoryEmbeddingOp", () => {
   it("returns false for soft-deleted records", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => mockRecord({ isDeleted: true })),
-      } as any,
+        find: vi.fn(() => Promise.resolve(mockRecord({ isDeleted: true }))),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-embed-model");
@@ -846,10 +944,10 @@ describe("updateVaultMemoryEmbeddingOp", () => {
   it("returns false when find throws (record not found)", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => {
-          throw new Error("not found");
+        find: vi.fn(() => {
+          return Promise.reject(new Error("not found"));
         }),
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await updateVaultMemoryEmbeddingOp(
@@ -863,12 +961,14 @@ describe("updateVaultMemoryEmbeddingOp", () => {
 
   it("returns false when database.write throws", async () => {
     const record = mockRecord({
-      update: vi.fn(async () => {
-        throw new Error("write failed");
+      update: vi.fn(() => {
+        return Promise.reject(new Error("write failed"));
       }),
     });
     const ctx = makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-embed-model");
@@ -880,29 +980,35 @@ describe("updateVaultMemoryOp — embedding field handling", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("sets embedding to null when opts.embedding is null (clears stale embedding)", async () => {
-    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+    const updateFn = vi.fn((updater: (r: RawWriter) => void) => {
       updater({ _setRaw: vi.fn() });
+      return Promise.resolve();
     });
     const record = mockRecord({ update: updateFn });
     const ctx = makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     await updateVaultMemoryOp(ctx, "mem_1", { content: "new content", embedding: null });
 
     const updater = updateFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("embedding", null);
   });
 
   it("sets embedding to the provided string when opts.embedding is a string", async () => {
-    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+    const updateFn = vi.fn((updater: (r: RawWriter) => void) => {
       updater({ _setRaw: vi.fn() });
+      return Promise.resolve();
     });
     const record = mockRecord({ update: updateFn });
     const ctx = makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     await updateVaultMemoryOp(ctx, "mem_1", {
@@ -911,24 +1017,27 @@ describe("updateVaultMemoryOp — embedding field handling", () => {
     });
 
     const updater = updateFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("embedding", "[0.5,0.5]");
   });
 
   it("does NOT set embedding when opts.embedding is undefined (preserves existing embedding)", async () => {
-    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+    const updateFn = vi.fn((updater: (r: RawWriter) => void) => {
       updater({ _setRaw: vi.fn() });
+      return Promise.resolve();
     });
     const record = mockRecord({ update: updateFn });
     const ctx = makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     await updateVaultMemoryOp(ctx, "mem_1", { content: "new content" });
 
     const updater = updateFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).not.toHaveBeenCalledWith("embedding", expect.anything());
   });
@@ -941,10 +1050,10 @@ describe("createVaultMemoryOp — embedding field", () => {
     const ctx = makeCtx();
     await createVaultMemoryOp(ctx, { content: "hello", embedding: "[1,2,3]" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("embedding", "[1,2,3]");
   });
 
@@ -952,10 +1061,10 @@ describe("createVaultMemoryOp — embedding field", () => {
     const ctx = makeCtx();
     await createVaultMemoryOp(ctx, { content: "hello" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).not.toHaveBeenCalledWith("embedding", expect.anything());
   });
 });
@@ -965,15 +1074,17 @@ describe("deleteAllVaultMemoriesForUserOp", () => {
 
   it("soft-deletes all non-deleted memories for a given userId", async () => {
     const records = [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })];
-    const fetchFn = vi.fn(async () => records);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const fetchFn = vi.fn(() => Promise.resolve(records));
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({ fetch: fetchFn }));
     const batchFn = vi.fn(async () => {});
     const ctx = makeCtx({
       database: {
-        write: vi.fn(async (cb: () => any) => cb()),
+        write: vi.fn((cb: () => unknown) => Promise.resolve(cb())),
         batch: batchFn,
-      } as any,
-      vaultMemoryCollection: { query: queryFn } as any,
+      } as unknown as Database,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const count = await deleteAllVaultMemoriesForUserOp(ctx, "user_123");
@@ -982,10 +1093,14 @@ describe("deleteAllVaultMemoriesForUserOp", () => {
   });
 
   it("returns 0 when no memories exist for the user", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({ fetch: fetchFn }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const count = await deleteAllVaultMemoriesForUserOp(ctx, "no_such_user");
@@ -1000,10 +1115,10 @@ describe("createVaultMemoryOp — folderId field", () => {
     const ctx = makeCtx();
     await createVaultMemoryOp(ctx, { content: "hello", folderId: "folder_1" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("folder_id", "folder_1");
   });
 
@@ -1011,10 +1126,10 @@ describe("createVaultMemoryOp — folderId field", () => {
     const ctx = makeCtx();
     await createVaultMemoryOp(ctx, { content: "hello" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("folder_id", null);
   });
 });
@@ -1026,17 +1141,17 @@ describe("createVaultMemoriesBatchOp — folderId propagation", () => {
     const setRawSpies: ReturnType<typeof vi.fn>[] = [];
     const ctx = makeCtx({
       database: {
-        write: vi.fn(async (cb: () => any) => cb()),
+        write: vi.fn((cb: () => unknown) => Promise.resolve(cb())),
         batch: vi.fn(async () => {}),
-      } as any,
+      } as unknown as Database,
       vaultMemoryCollection: {
-        prepareCreate: vi.fn((builder: (r: any) => void) => {
+        prepareCreate: vi.fn((builder: (r: RawWriter) => void) => {
           const spy = vi.fn();
           setRawSpies.push(spy);
           builder({ _setRaw: spy });
           return mockRecord();
         }),
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await createVaultMemoriesBatchOp(ctx, [
@@ -1053,13 +1168,17 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("adds folderId WHERE clause when folderId is a string", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoriesOp(ctx, { folderId: "folder_1" });
@@ -1069,13 +1188,17 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
   });
 
   it("adds folderId WHERE clause when folderId is null (unfiled)", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoriesOp(ctx, { folderId: null });
@@ -1085,13 +1208,17 @@ describe("getAllVaultMemoriesOp — folderId filtering", () => {
   });
 
   it("does NOT add folderId clause when folderId is undefined", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await getAllVaultMemoriesOp(ctx);
@@ -1109,16 +1236,23 @@ describe("setMemoryEntitiesOp", () => {
   }
 
   function ctxWithEntity(record = mockRecord(), existing: ReturnType<typeof linkRow>[] = []) {
-    const batch = vi.fn(async () => undefined);
-    const writer = { callWriter: (work: () => any) => work() };
+    const batch = vi.fn(() => Promise.resolve(undefined));
+    const writer = { callWriter: (work: () => unknown) => work() };
     const ctx = makeCtx({
-      database: { write: vi.fn(async (cb: (w: any) => any) => cb(writer)), batch } as any,
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      database: {
+        write: vi.fn((cb: (w: { callWriter: (work: () => unknown) => unknown }) => unknown) =>
+          Promise.resolve(cb(writer))
+        ),
+        batch,
+      } as unknown as Database,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
       entityCtx: {
         memoryEntityCollection: {
-          query: vi.fn(() => ({ fetch: vi.fn(async () => existing) })),
+          query: vi.fn(() => ({ fetch: vi.fn(() => Promise.resolve(existing)) })),
         },
-      } as any,
+      } as unknown as EntityOperationsContext,
     });
     return { ctx, batch };
   }
@@ -1131,7 +1265,7 @@ describe("setMemoryEntitiesOp", () => {
     vi.mocked(linkMemoryEntitiesOp).mockResolvedValueOnce([
       { uniqueId: "ent_tokyo" },
       { uniqueId: "ent_berlin" },
-    ] as any);
+    ] as StoredEntity[]);
 
     const result = await setMemoryEntitiesOp(ctx, "mem_1", [
       "tokyo",
@@ -1153,12 +1287,13 @@ describe("setMemoryEntitiesOp", () => {
   it("links are added before stale removal (no wipe on partial failure)", async () => {
     const { ctx } = ctxWithEntity(mockRecord({ id: "mem_1" }), [linkRow("ent_old")]);
     const order: string[] = [];
-    vi.mocked(linkMemoryEntitiesOp).mockImplementationOnce(async () => {
+    vi.mocked(linkMemoryEntitiesOp).mockImplementationOnce(() => {
       order.push("link");
-      return [{ uniqueId: "ent_new" }] as any;
+      return Promise.resolve([{ uniqueId: "ent_new" }] as StoredEntity[]);
     });
-    (ctx.database.batch as any).mockImplementationOnce(async () => {
+    vi.spyOn(ctx.database, "batch").mockImplementationOnce(() => {
       order.push("removeStale");
+      return Promise.resolve();
     });
     await setMemoryEntitiesOp(ctx, "mem_1", ["new"]);
     expect(order).toEqual(["link", "removeStale"]);
@@ -1178,14 +1313,18 @@ describe("setMemoryEntitiesOp", () => {
     const record = mockRecord({ id: "mem_1" });
     const before = record.updatedAt.getTime();
     const { ctx } = ctxWithEntity(record);
-    vi.mocked(linkMemoryEntitiesOp).mockResolvedValueOnce([{ uniqueId: "ent_tokyo" }] as any);
+    vi.mocked(linkMemoryEntitiesOp).mockResolvedValueOnce([
+      { uniqueId: "ent_tokyo" },
+    ] as StoredEntity[]);
     await setMemoryEntitiesOp(ctx, "mem_1", ["tokyo"]);
     expect(record.updatedAt).toBe(before);
   });
 
   it("throws when ctx.entityCtx is missing", async () => {
     const ctx = makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => mockRecord()) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(mockRecord())),
+      } as unknown as Collection<VaultMemory>,
     });
     await expect(setMemoryEntitiesOp(ctx, "mem_1", ["tokyo"])).rejects.toThrow(/entityCtx/);
   });
@@ -1205,17 +1344,28 @@ describe("clearMemoryTopicsOverrideOp", () => {
   it("clears the user-managed flag and returns true", async () => {
     const record = mockRecord({ id: "mem_1" });
     record._setRaw("topics_user_managed", true);
-    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
+    });
     const ok = await clearMemoryTopicsOverrideOp(ctx, "mem_1");
     expect(ok).toBe(true);
     expect(record.topicsUserManaged).toBe(false);
   });
 
   it("nulls the version and preserves an existing stamp (routes to stale-version path)", async () => {
-    const setRawSpy = vi.fn();
-    const updateFn = vi.fn(async (updater: (r: any) => void) => updater({ _setRaw: setRawSpy }));
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    const updateFn = vi.fn((updater: (r: RawWriter) => void) => {
+      updater({ _setRaw: setRawSpy });
+      return Promise.resolve();
+    });
     const record = mockRecord({ id: "mem_1", topics_extracted_at: 3_000, update: updateFn });
-    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await clearMemoryTopicsOverrideOp(ctx, "mem_1");
 
@@ -1224,14 +1374,21 @@ describe("clearMemoryTopicsOverrideOp", () => {
   });
 
   it("forces a stamp when the row was never LLM-stamped (re-extract, not grandfather)", async () => {
-    const setRawSpy = vi.fn();
-    const updateFn = vi.fn(async (updater: (r: any) => void) => updater({ _setRaw: setRawSpy }));
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    const updateFn = vi.fn((updater: (r: RawWriter) => void) => {
+      updater({ _setRaw: setRawSpy });
+      return Promise.resolve();
+    });
     const record = mockRecord({
       id: "mem_1",
       updated_at: new Date("2025-06-01"),
       update: updateFn,
     });
-    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await clearMemoryTopicsOverrideOp(ctx, "mem_1");
 
@@ -1243,7 +1400,7 @@ describe("clearMemoryTopicsOverrideOp", () => {
 describe("getMemoriesNeedingTopicExtractionOp", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  function rawRow(id: string, overrides: Record<string, any> = {}) {
+  function rawRow(id: string, overrides: Record<string, unknown> = {}) {
     return {
       id,
       content: `content of ${id}`,
@@ -1259,7 +1416,7 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
   }
 
   function sweepCtx(
-    rows: any[],
+    rows: Record<string, unknown>[],
     linkRows: Array<{ memory_id: string; entity_id?: string }>,
     entityRows?: Array<{ id: string; canonical_name: string }>
   ) {
@@ -1267,17 +1424,23 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
     const entities =
       entityRows ??
       links.map((l) => ({ id: l.entity_id, canonical_name: `name_of_${l.entity_id}` }));
-    const memoryEntityQuery = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => links) }));
-    const entityQuery = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => entities) }));
+    const memoryEntityQuery = vi.fn(() => ({
+      unsafeFetchRaw: vi.fn(() => Promise.resolve(links)),
+    }));
+    const entityQuery = vi.fn(() => ({ unsafeFetchRaw: vi.fn(() => Promise.resolve(entities)) }));
     return {
       ctx: makeCtx({
         vaultMemoryCollection: {
-          query: vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => rows) })),
-        } as any,
+          query: vi.fn(() => ({ unsafeFetchRaw: vi.fn(() => Promise.resolve(rows)) })),
+        } as unknown as Collection<VaultMemory>,
         entityCtx: {
-          database: {} as any,
-          entityCollection: { query: entityQuery } as any,
-          memoryEntityCollection: { query: memoryEntityQuery } as any,
+          database: {} as unknown as Database,
+          entityCollection: {
+            query: entityQuery,
+          } as unknown as Collection<Entity>,
+          memoryEntityCollection: {
+            query: memoryEntityQuery,
+          } as unknown as Collection<MemoryEntity>,
         },
       }),
       memoryEntityQuery,
@@ -1374,17 +1537,27 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
   });
 
   it("does not pass a topics_user_managed clause to the query", async () => {
-    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []) }));
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
+      unsafeFetchRaw: vi.fn(() => Promise.resolve([])),
+    }));
     const ctx = makeCtx({
-      vaultMemoryCollection: { query: queryFn } as any,
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
       entityCtx: {
-        database: {} as any,
-        entityCollection: { query: vi.fn() } as any,
-        memoryEntityCollection: { query: vi.fn() } as any,
+        database: {} as unknown as Database,
+        entityCollection: {
+          query: vi.fn(),
+        } as unknown as Collection<Entity>,
+        memoryEntityCollection: {
+          query: vi.fn(),
+        } as unknown as Collection<MemoryEntity>,
       },
     });
     await getMemoriesNeedingTopicExtractionOp(ctx);
-    expect(queryFn.mock.calls[0].length).toBe(5);
+    const clause = queryFn.mock.calls[0][0] as { type: string; sql: string };
+    expect(clause.type).toBe("sqlQuery");
+    expect(clause.sql.slice(clause.sql.indexOf("where"))).not.toContain('"topics_user_managed"');
   });
 });
 
@@ -1395,19 +1568,25 @@ describe("stampTopicsExtractedAtOp", () => {
     const record = mockRecord({ id: "mem_1" });
     const batchFn = vi.fn(async () => {});
     const queryFn = vi.fn(() => ({
-      unsafeFetchRaw: vi.fn(async () => [record._raw]),
+      unsafeFetchRaw: vi.fn(() => Promise.resolve([record._raw])),
     }));
     const ctx = makeCtx({
-      database: { write: vi.fn(async (cb: () => any) => cb()), batch: batchFn } as any,
-      vaultMemoryCollection: { find: vi.fn(async () => record), query: queryFn } as any,
+      database: {
+        write: vi.fn((cb: () => unknown) => Promise.resolve(cb())),
+        batch: batchFn,
+      } as unknown as Database,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const stamped = await stampTopicsExtractedAtOp(ctx, ["mem_1"], 5_000);
 
     expect(stamped).toEqual(["mem_1"]);
     expect(batchFn).toHaveBeenCalledTimes(1);
-    const prepared = (record.prepareUpdate as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    const setRawSpy = vi.fn();
+    const prepared = record.prepareUpdate.mock.calls[0][0];
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
     prepared({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_at", 5_000);
     expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", TOPICS_EXTRACTION_VERSION);
@@ -1418,19 +1597,19 @@ describe("stampTopicsExtractedAtOp", () => {
     const record = mockRecord({ id: "mem_1" });
     const ctx = makeCtx({
       database: {
-        write: vi.fn(async (cb: () => any) => cb()),
+        write: vi.fn((cb: () => unknown) => Promise.resolve(cb())),
         batch: vi.fn(async () => {}),
-      } as any,
+      } as unknown as Database,
       vaultMemoryCollection: {
-        find: vi.fn(async () => record),
-        query: vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => [record._raw]) })),
-      } as any,
+        find: vi.fn(() => Promise.resolve(record)),
+        query: vi.fn(() => ({ unsafeFetchRaw: vi.fn(() => Promise.resolve([record._raw])) })),
+      } as unknown as Collection<VaultMemory>,
     });
 
     await stampTopicsExtractedAtOp(ctx, ["mem_1"], 5_000, 42);
 
-    const prepared = (record.prepareUpdate as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    const setRawSpy = vi.fn();
+    const prepared = record.prepareUpdate.mock.calls[0][0];
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
     prepared({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("topics_extracted_version", 42);
   });
@@ -1440,21 +1619,21 @@ describe("stampTopicsExtractedAtOp", () => {
     const record = mockRecord({ id: "mem_1", updated_at: new Date("2026-03-03") });
     const ctx = makeCtx({
       database: {
-        write: vi.fn(async (cb: () => any) => cb()),
+        write: vi.fn((cb: () => unknown) => Promise.resolve(cb())),
         batch: vi.fn(async () => {}),
-      } as any,
+      } as unknown as Database,
       vaultMemoryCollection: {
-        find: vi.fn(async () => record),
+        find: vi.fn(() => Promise.resolve(record)),
         query: vi.fn(() => ({
-          unsafeFetchRaw: vi.fn(async () => [{ ...record._raw, updated_at: 1 }]),
+          unsafeFetchRaw: vi.fn(() => Promise.resolve([{ ...record._raw, updated_at: 1 }])),
         })),
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await stampTopicsExtractedAtOp(ctx, ["mem_1"], 9_999);
 
-    const prepared = (record.prepareUpdate as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    const setRawSpy = vi.fn();
+    const prepared = record.prepareUpdate.mock.calls[0][0];
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
     prepared({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("updated_at", liveUpdatedAt);
     expect(setRawSpy).not.toHaveBeenCalledWith("updated_at", 1);
@@ -1465,27 +1644,27 @@ describe("stampTopicsExtractedAtOp", () => {
     const violations: string[] = [];
     const makeTracked = (id: string) => {
       const record = mockRecord({ id });
-      (record.prepareUpdate as ReturnType<typeof vi.fn>).mockImplementation((updater: any) => {
+      record.prepareUpdate.mockImplementation((updater: (r: RawWriter) => void) => {
         pending.add(id);
-        return { updater };
+        return { updater, _setRaw: record._setRaw.bind(record) };
       });
       return record;
     };
-    const records: Record<string, any> = {
+    const records: Record<string, ReturnType<typeof mockRecord>> = {
       mem_a: makeTracked("mem_a"),
       mem_b: makeTracked("mem_b"),
     };
     const ctx = makeCtx({
       database: {
-        write: vi.fn(async (cb: () => any) => cb()),
-        batch: vi.fn(async () => pending.clear()),
-      } as any,
+        write: vi.fn((cb: () => unknown) => Promise.resolve(cb())),
+        batch: vi.fn(() => Promise.resolve(pending.clear())),
+      } as unknown as Database,
       vaultMemoryCollection: {
-        find: vi.fn(async (id: string) => {
+        find: vi.fn((id: string) => {
           if (pending.size > 0) violations.push(...pending);
-          return records[id];
+          return Promise.resolve(records[id]);
         }),
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const stamped = await stampTopicsExtractedAtOp(ctx, ["mem_a", "mem_b"], 5_000);
@@ -1498,23 +1677,23 @@ describe("stampTopicsExtractedAtOp", () => {
     const managed = mockRecord({ id: "mem_managed", topics_user_managed: true });
     const deleted = mockRecord({ id: "mem_deleted", is_deleted: true });
     const ok = mockRecord({ id: "mem_ok" });
-    const records: Record<string, any> = {
+    const records: Record<string, ReturnType<typeof mockRecord>> = {
       mem_managed: managed,
       mem_deleted: deleted,
       mem_ok: ok,
     };
     const queryFn = vi.fn(() => ({
-      unsafeFetchRaw: vi.fn(async () => [managed._raw, deleted._raw, ok._raw]),
+      unsafeFetchRaw: vi.fn(() => Promise.resolve([managed._raw, deleted._raw, ok._raw])),
     }));
     const ctx = makeCtx({
       database: {
-        write: vi.fn(async (cb: () => any) => cb()),
+        write: vi.fn((cb: () => unknown) => Promise.resolve(cb())),
         batch: vi.fn(async () => {}),
-      } as any,
+      } as unknown as Database,
       vaultMemoryCollection: {
-        find: vi.fn(async (id: string) => records[id]),
+        find: vi.fn((id: string) => Promise.resolve(records[id])),
         query: queryFn,
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const stamped = await stampTopicsExtractedAtOp(
@@ -1530,15 +1709,15 @@ describe("stampTopicsExtractedAtOp", () => {
 
   it("returns [] for missing rows and empty input", async () => {
     const queryFn = vi.fn(() => ({
-      unsafeFetchRaw: vi.fn(async () => []),
+      unsafeFetchRaw: vi.fn(() => Promise.resolve([])),
     }));
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => {
-          throw new Error("not found");
+        find: vi.fn(() => {
+          return Promise.reject(new Error("not found"));
         }),
         query: queryFn,
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
     expect(await stampTopicsExtractedAtOp(ctx, [], 1)).toEqual([]);
     expect(await stampTopicsExtractedAtOp(ctx, ["mem_gone"], 1)).toEqual([]);
@@ -1564,11 +1743,15 @@ describe("getVaultRankingProjectionsOp", () => {
   it("carries the plaintext embedding through untouched", async () => {
     const embedded = mockRecord({ id: "mem_vec" });
     embedded._raw.embedding = "[0.1,0.2,0.3]";
-    const queryFn = vi.fn((..._conditions: any[]) => ({
-      fetch: vi.fn(async () => [embedded]),
-      unsafeFetchRaw: vi.fn(async () => [embedded._raw]),
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
+      fetch: vi.fn(() => Promise.resolve([embedded])),
+      unsafeFetchRaw: vi.fn(() => Promise.resolve([embedded._raw])),
     }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const results = await getVaultRankingProjectionsOp(ctx, { scopes: ["private"] });
 
@@ -1582,11 +1765,15 @@ describe("getVaultRankingProjectionsOp", () => {
     const consolidated = mockRecord({ id: "mem_consolidated", updated_at: pinned });
     consolidated._raw.last_observed_at = reobserved;
     const untouched = mockRecord({ id: "mem_untouched", updated_at: pinned });
-    const queryFn = vi.fn((..._conditions: any[]) => ({
-      fetch: vi.fn(async () => [consolidated, untouched]),
-      unsafeFetchRaw: vi.fn(async () => [consolidated._raw, untouched._raw]),
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
+      fetch: vi.fn(() => Promise.resolve([consolidated, untouched])),
+      unsafeFetchRaw: vi.fn(() => Promise.resolve([consolidated._raw, untouched._raw])),
     }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const results = await getVaultRankingProjectionsOp(ctx, { scopes: ["shared"] });
 
@@ -1599,12 +1786,18 @@ describe("getVaultRankingProjectionsOp", () => {
   });
 
   it("reuses baseVaultConditions — excludes deleted + superseded like the recall read", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await getVaultRankingProjectionsOp(ctx, { scopes: ["private"] });
 
@@ -1612,12 +1805,18 @@ describe("getVaultRankingProjectionsOp", () => {
   });
 
   it("does NOT add a scope condition when scopes is empty", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await getVaultRankingProjectionsOp(ctx, { scopes: [] });
 
@@ -1633,18 +1832,21 @@ describe("getVaultMemoriesByIdsOp", () => {
     const results = await getVaultMemoriesByIdsOp(ctx, []);
 
     expect(results).toEqual([]);
-    expect(ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    expect(ctx.vaultMemoryCollection.query).not.toHaveBeenCalled();
   });
 
   it("bulk-decrypts the requested rows via unsafeFetchRaw (no per-row find)", async () => {
     const rows = [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })];
-    const unsafeFetchRaw = vi.fn(async () => rows.map((r) => r._raw));
+    const unsafeFetchRaw = vi.fn(() => Promise.resolve(rows.map((r) => r._raw)));
     const findFn = vi.fn();
-    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: vi.fn(), unsafeFetchRaw }));
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({ fetch: vi.fn(), unsafeFetchRaw }));
     const ctx = makeCtx({
       walletAddress: "0xabc",
-      signMessage: vi.fn(async () => "0xsig") as any,
-      vaultMemoryCollection: { query: queryFn, find: findFn } as any,
+      signMessage: vi.fn(() => Promise.resolve("0xsig")),
+      vaultMemoryCollection: {
+        query: queryFn,
+        find: findFn,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const results = await getVaultMemoriesByIdsOp(ctx, ["mem_1", "mem_2"]);
@@ -1655,11 +1857,15 @@ describe("getVaultMemoriesByIdsOp", () => {
   });
 
   it("reuses baseVaultConditions (is_deleted + superseded) plus the id oneOf", async () => {
-    const queryFn = vi.fn((..._conditions: any[]) => ({
+    const queryFn = vi.fn((..._conditions: QueryClause[]) => ({
       fetch: vi.fn(),
-      unsafeFetchRaw: vi.fn(async () => []),
+      unsafeFetchRaw: vi.fn(() => Promise.resolve([])),
     }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await getVaultMemoriesByIdsOp(ctx, ["mem_1"]);
 
@@ -1681,15 +1887,19 @@ describe("getVaultCandidateKeysOp", () => {
       },
     ];
     let calls = 0;
-    const queryFn = vi.fn((..._c: any[]) => {
+    const queryFn = vi.fn((..._c: QueryClause[]) => {
       calls += 1;
       if (calls === 1) throw new Error("unsafeSqlQuery not supported");
       return {
-        unsafeFetchRaw: vi.fn(async () => raws),
+        unsafeFetchRaw: vi.fn(() => Promise.resolve(raws)),
         fetch: vi.fn(),
       };
     });
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const keys = await getVaultCandidateKeysOp(ctx, { scopes: ["private"] });
 
@@ -1716,17 +1926,21 @@ describe("getVaultCandidateKeysOp", () => {
       },
     ];
     let callCount = 0;
-    const queryFn = vi.fn((..._c: any[]) => {
+    const queryFn = vi.fn((..._c: QueryClause[]) => {
       callCount += 1;
       if (callCount === 1) {
         throw new Error("unsafeSqlQuery not supported");
       }
       return {
-        unsafeFetchRaw: vi.fn(async () => raws),
+        unsafeFetchRaw: vi.fn(() => Promise.resolve(raws)),
         fetch: vi.fn(),
       };
     });
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const keys = await getVaultCandidateKeysOp(ctx, { folderId: "f1" });
 
@@ -1752,11 +1966,15 @@ describe("getVaultCandidateKeysOp", () => {
         updated_at: new Date("2026-05-01").getTime(),
       },
     ];
-    const queryFn = vi.fn((..._c: any[]) => ({
-      unsafeFetchRaw: vi.fn(async () => raws),
+    const queryFn = vi.fn((..._c: QueryClause[]) => ({
+      unsafeFetchRaw: vi.fn(() => Promise.resolve(raws)),
       fetch: vi.fn(),
     }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const keys = await getVaultCandidateKeysOp(ctx, { scopes: ["private", "shared"] });
 
@@ -1800,11 +2018,16 @@ describe("getVaultCandidateKeysOp", () => {
       },
     ];
 
-    const sqlQueryFn = vi.fn((..._c: any[]) => ({
-      unsafeFetchRaw: vi.fn(async () => rows),
+    const sqlQueryFn = vi.fn((..._c: QueryClause[]) => ({
+      unsafeFetchRaw: vi.fn(() => Promise.resolve(rows)),
       fetch: vi.fn(),
     }));
-    const sqlCtx = makeCtx({ userId: "u1", vaultMemoryCollection: { query: sqlQueryFn } as any });
+    const sqlCtx = makeCtx({
+      userId: "u1",
+      vaultMemoryCollection: {
+        query: sqlQueryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const sqlKeys = await getVaultCandidateKeysOp(sqlCtx);
     expect(sqlKeys).toHaveLength(1);
@@ -1814,16 +2037,21 @@ describe("getVaultCandidateKeysOp", () => {
     expect(sqlQueryArg.values).toEqual(["u1"]);
 
     let calls = 0;
-    const lokiQueryFn = vi.fn((...conditions: any[]) => {
+    const lokiQueryFn = vi.fn((...conditions: QueryClause[]) => {
       calls += 1;
       if (calls === 1) throw new Error("unsafeSqlQuery not supported");
       expect(conditions.length).toBe(5);
       return {
-        unsafeFetchRaw: vi.fn(async () => rows),
+        unsafeFetchRaw: vi.fn(() => Promise.resolve(rows)),
         fetch: vi.fn(),
       };
     });
-    const lokiCtx = makeCtx({ userId: "u1", vaultMemoryCollection: { query: lokiQueryFn } as any });
+    const lokiCtx = makeCtx({
+      userId: "u1",
+      vaultMemoryCollection: {
+        query: lokiQueryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const lokiKeys = await getVaultCandidateKeysOp(lokiCtx);
     expect(lokiKeys).toHaveLength(1);
@@ -1837,24 +2065,35 @@ describe("getVaultEmbeddingsByIdsOp", () => {
   it("returns [] for empty ids without querying", async () => {
     const ctx = makeCtx();
     expect(await getVaultEmbeddingsByIdsOp(ctx, [])).toEqual([]);
-    expect(ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    expect(ctx.vaultMemoryCollection.query).not.toHaveBeenCalled();
   });
 
   it("projects id+embedding for the requested ids", async () => {
     const raws = [{ id: "a", embedding: "[1,0]", embedding_model: "m" }];
-    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => raws), fetch: vi.fn() }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const queryFn = vi.fn(() => ({
+      unsafeFetchRaw: vi.fn(() => Promise.resolve(raws)),
+      fetch: vi.fn(),
+    }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
     const out = await getVaultEmbeddingsByIdsOp(ctx, ["a"]);
     expect(out).toEqual([{ uniqueId: "a", embedding: "[1,0]", embeddingModel: "m" }]);
   });
 
   it("uses the projected SQL SELECT on the OPFS-SQLite path when unsafeSqlQuery does not throw", async () => {
     const raws = [{ id: "a", embedding: "[1,0]", embedding_model: "m" }];
-    const queryFn = vi.fn((..._c: any[]) => ({
-      unsafeFetchRaw: vi.fn(async () => raws),
+    const queryFn = vi.fn((..._c: QueryClause[]) => ({
+      unsafeFetchRaw: vi.fn(() => Promise.resolve(raws)),
       fetch: vi.fn(),
     }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const out = await getVaultEmbeddingsByIdsOp(ctx, ["a", "b"]);
 
@@ -1881,15 +2120,19 @@ describe("getVaultEmbeddingsByIdsOp", () => {
   it("falls back to the Loki path when the projected SQL query throws", async () => {
     const raws = [{ id: "a", embedding: "[1,0]", embedding_model: "m" }];
     let calls = 0;
-    const queryFn = vi.fn((..._c: any[]) => {
+    const queryFn = vi.fn((..._c: QueryClause[]) => {
       calls += 1;
       if (calls === 1) throw new Error("unsafeSqlQuery not supported");
       return {
-        unsafeFetchRaw: vi.fn(async () => raws),
+        unsafeFetchRaw: vi.fn(() => Promise.resolve(raws)),
         fetch: vi.fn(),
       };
     });
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const out = await getVaultEmbeddingsByIdsOp(ctx, ["a"]);
 
@@ -1901,11 +2144,16 @@ describe("getVaultEmbeddingsByIdsOp", () => {
   it("enforces user_id scoping on both the SQL path and the Loki fallback path", async () => {
     const rows = [{ id: "a", embedding: "[1,0]", embedding_model: null }];
 
-    const sqlQueryFn = vi.fn((..._c: any[]) => ({
-      unsafeFetchRaw: vi.fn(async () => rows),
+    const sqlQueryFn = vi.fn((..._c: QueryClause[]) => ({
+      unsafeFetchRaw: vi.fn(() => Promise.resolve(rows)),
       fetch: vi.fn(),
     }));
-    const sqlCtx = makeCtx({ userId: "u1", vaultMemoryCollection: { query: sqlQueryFn } as any });
+    const sqlCtx = makeCtx({
+      userId: "u1",
+      vaultMemoryCollection: {
+        query: sqlQueryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const sqlOut = await getVaultEmbeddingsByIdsOp(sqlCtx, ["a"]);
     expect(sqlOut).toHaveLength(1);
@@ -1915,16 +2163,21 @@ describe("getVaultEmbeddingsByIdsOp", () => {
     expect(sqlQueryArg.values).toEqual(["u1", "a"]);
 
     let calls = 0;
-    const lokiQueryFn = vi.fn((...conditions: any[]) => {
+    const lokiQueryFn = vi.fn((...conditions: QueryClause[]) => {
       calls += 1;
       if (calls === 1) throw new Error("unsafeSqlQuery not supported");
       expect(conditions.length).toBe(6);
       return {
-        unsafeFetchRaw: vi.fn(async () => rows),
+        unsafeFetchRaw: vi.fn(() => Promise.resolve(rows)),
         fetch: vi.fn(),
       };
     });
-    const lokiCtx = makeCtx({ userId: "u1", vaultMemoryCollection: { query: lokiQueryFn } as any });
+    const lokiCtx = makeCtx({
+      userId: "u1",
+      vaultMemoryCollection: {
+        query: lokiQueryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const lokiOut = await getVaultEmbeddingsByIdsOp(lokiCtx, ["a"]);
     expect(lokiOut).toHaveLength(1);
@@ -1942,10 +2195,10 @@ describe("typed memory (PR1)", () => {
       factType: "preference",
       trustTier: "quarantined",
     });
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("fact_type", "preference");
     expect(setRawSpy).toHaveBeenCalledWith("trust_tier", "quarantined");
   });
@@ -1953,10 +2206,10 @@ describe("typed memory (PR1)", () => {
   it("does NOT set fact_type / trust_tier / archived_at on a plain create", async () => {
     const ctx = makeCtx();
     await createVaultMemoryOp(ctx, { content: "plain" });
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     const keys = setRawSpy.mock.calls.map((c) => c[0]);
     expect(keys).not.toContain("fact_type");
     expect(keys).not.toContain("trust_tier");
@@ -1965,59 +2218,84 @@ describe("typed memory (PR1)", () => {
 
   it("persists fact_type on update when provided (retain lazy backfill)", async () => {
     const record = mockRecord({ id: "mem_bf" });
-    const setRawSpy = vi.fn();
-    record.update = vi.fn(async (updater: (r: any) => void) => updater({ _setRaw: setRawSpy }));
-    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    record.update = vi.fn((updater: (r: RawWriter) => void) => {
+      updater({ _setRaw: setRawSpy });
+      return Promise.resolve();
+    });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
+    });
     await updateVaultMemoryOp(ctx, "mem_bf", { content: "x", factType: "identity" });
     expect(setRawSpy).toHaveBeenCalledWith("fact_type", "identity");
   });
 
   it("round-trips fact_type / archived_at / trust_tier through the Model mapper", async () => {
     const record = mockRecord({ id: "mem_typed" });
-    (record as any).factType = "identity";
-    (record as any).archivedAt = 123;
-    (record as any).trustTier = "trusted";
-    const stored = await vaultMemoryToStored(record as any);
+    record.factType = "identity";
+    record.archivedAt = 123;
+    record.trustTier = "trusted";
+    const stored = await vaultMemoryToStored(record as unknown as VaultMemory);
     expect(stored.factType).toBe("identity");
     expect(stored.archivedAt).toBe(123);
     expect(stored.trustTier).toBe("trusted");
   });
 
   it("maps absent typed columns to null (legacy row)", async () => {
-    const stored = await vaultMemoryToStored(mockRecord({ id: "mem_legacy" }) as any);
+    const stored = await vaultMemoryToStored(
+      mockRecord({ id: "mem_legacy" }) as unknown as VaultMemory
+    );
     expect(stored.factType).toBeNull();
     expect(stored.archivedAt).toBeNull();
     expect(stored.trustTier).toBeNull();
   });
 
   it("drops both choke-point conditions when include flags are set", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._c: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._c: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
     await getAllVaultMemoriesOp(ctx, { includeArchived: true, includeQuarantined: true });
     expect(queryFn.mock.calls[0].length).toBe(3);
   });
 
   it("adds a fact_type condition when factTypes is provided", async () => {
-    const fetchFn = vi.fn(async () => []);
-    const queryFn = vi.fn((..._c: any[]) => ({
+    const fetchFn = vi.fn<() => Promise<ReturnType<typeof mockRecord>[]>>(() =>
+      Promise.resolve([])
+    );
+    const queryFn = vi.fn((..._c: QueryClause[]) => ({
       fetch: fetchFn,
-      unsafeFetchRaw: async () => (await fetchFn()).map((r: any) => r._raw),
+      unsafeFetchRaw: async () => (await fetchFn()).map((r) => r._raw),
     }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
     await getAllVaultMemoriesOp(ctx, { factTypes: ["plan", "identity"] });
     expect(queryFn.mock.calls[0].length).toBe(6);
   });
 
   function ctxReturningRaw(raws: Record<string, unknown>[]) {
     const queryFn = vi.fn(() => ({
-      fetch: vi.fn(async () => []),
-      unsafeFetchRaw: vi.fn(async () => raws),
+      fetch: vi.fn(() => Promise.resolve([])),
+      unsafeFetchRaw: vi.fn(() => Promise.resolve(raws)),
     }));
-    return makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    return makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
   }
 
   it("raw unsafeFetchRaw mapper round-trips fact_type / trust_tier / archived_at with real values", async () => {
@@ -2117,11 +2395,18 @@ describe("getVaultCandidateKeysOp — filter parity with the legacy path (#779)"
     options?: Parameters<typeof getVaultCandidateKeysOp>[1]
   ): Promise<{ sql: string; args: unknown[] }> {
     const spy = vi.spyOn(Q, "unsafeSqlQuery");
-    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const queryFn = vi.fn(() => ({
+      unsafeFetchRaw: vi.fn(() => Promise.resolve([])),
+      fetch: vi.fn(),
+    }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
     await getVaultCandidateKeysOp(ctx, options);
-    const call = spy.mock.calls[0]!;
-    return { sql: call[0] as string, args: (call[1] ?? []) as unknown[] };
+    const call = spy.mock.calls[0];
+    return { sql: call[0], args: (call[1] ?? []) as unknown[] };
   }
 
   it("filters by fact_type when factTypes is passed", async () => {
@@ -2150,14 +2435,18 @@ describe("getVaultCandidateKeysOp — filter parity with the legacy path (#779)"
     options?: Parameters<typeof getVaultCandidateKeysOp>[1]
   ): Promise<number> {
     let calls = 0;
-    const queryFn = vi.fn((..._c: any[]) => {
+    const queryFn = vi.fn((..._c: QueryClause[]) => {
       calls += 1;
       if (calls === 1) throw new Error("unsafeSqlQuery not supported");
-      return { unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() };
+      return { unsafeFetchRaw: vi.fn(() => Promise.resolve([])), fetch: vi.fn() };
     });
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
     await getVaultCandidateKeysOp(ctx, options);
-    return queryFn.mock.calls[1]!.length;
+    return queryFn.mock.calls[1].length;
   }
 
   it("applies both filters on the LokiJS fallback too", async () => {
@@ -2172,28 +2461,39 @@ describe("by-id hydration ops honor includeArchived (#779)", () => {
 
   it("getVaultEmbeddingsByIdsOp keeps the archived filter by default and drops it on request", async () => {
     const spy = vi.spyOn(Q, "unsafeSqlQuery");
-    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []), fetch: vi.fn() }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const queryFn = vi.fn(() => ({
+      unsafeFetchRaw: vi.fn(() => Promise.resolve([])),
+      fetch: vi.fn(),
+    }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await getVaultEmbeddingsByIdsOp(ctx, ["a"]);
-    expect(spy.mock.calls[0]![0] as string).toContain('"archived_at" is null');
+    expect(spy.mock.calls[0][0]).toContain('"archived_at" is null');
 
     await getVaultEmbeddingsByIdsOp(ctx, ["a"], { includeArchived: true });
-    const withArchived = spy.mock.calls[1]![0] as string;
+    const withArchived = spy.mock.calls[1][0];
     expect(withArchived).not.toContain("archived_at");
     expect(withArchived).toContain('"id" in (?)');
     expect(withArchived).toContain('"is_deleted" = 0');
   });
 
   it("getVaultMemoriesByIdsOp keeps the archived filter by default and drops it on request", async () => {
-    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []) }));
-    const ctx = makeCtx({ vaultMemoryCollection: { query: queryFn } as any });
+    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(() => Promise.resolve([])) }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        query: queryFn,
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await getVaultMemoriesByIdsOp(ctx, ["a"]);
-    expect(queryFn.mock.calls[0]!.length).toBe(5);
+    expect(queryFn.mock.calls[0].length).toBe(5);
 
     await getVaultMemoriesByIdsOp(ctx, ["a"], { includeArchived: true });
-    expect(queryFn.mock.calls[1]!.length).toBe(4);
+    expect(queryFn.mock.calls[1].length).toBe(4);
   });
 });
 
@@ -2204,10 +2504,10 @@ describe("visibility defaults", () => {
     const ctx = makeCtx();
     await createVaultMemoryOp(ctx, { content: "hello" });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("visibility", "private");
     expect(setRawSpy).toHaveBeenCalledWith("published_at", null);
   });
@@ -2220,10 +2520,10 @@ describe("visibility defaults", () => {
       publishedAt: 1750000000000,
     });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("visibility", "public");
     expect(setRawSpy).toHaveBeenCalledWith("published_at", 1750000000000);
   });
@@ -2236,16 +2536,16 @@ describe("visibility defaults", () => {
       publishedAt: 1750000000000,
     });
 
-    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const createFn = vi.spyOn(ctx.vaultMemoryCollection, "create");
     const builder = createFn.mock.calls[0][0];
-    const setRawSpy = vi.fn();
-    builder({ _setRaw: setRawSpy });
+    const setRawSpy = vi.fn<(key: string, value: unknown) => void>();
+    builder(mockRecord({ _setRaw: setRawSpy }) as unknown as VaultMemory);
     expect(setRawSpy).toHaveBeenCalledWith("published_at", null);
   });
 
   it("vaultMemoryToStored grandfathers NULL visibility as 'private'", async () => {
     const record = mockRecord({ id: "mem_1" });
-    const stored = await vaultMemoryToStored(record as any);
+    const stored = await vaultMemoryToStored(record as unknown as VaultMemory);
     expect(stored.visibility).toBe("private");
     expect(stored.twinOptIn).toBe(false);
     expect(stored.publishedAt).toBe(null);
@@ -2258,7 +2558,11 @@ describe("setMemoryVisibilityOp", () => {
 
   it("publishes: sets visibility and stamps published_at, preserving updated_at", async () => {
     const record = mockRecord({ id: "mem_1" });
-    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const before = Date.now();
     const result = await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
@@ -2273,7 +2577,11 @@ describe("setMemoryVisibilityOp", () => {
     const record = mockRecord({ id: "mem_1" });
     record._setRaw("visibility", "public");
     record._setRaw("published_at", 1750000000000);
-    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
 
@@ -2287,13 +2595,15 @@ describe("setMemoryVisibilityOp", () => {
     record._setRaw("published_at", 1750000000000);
     const ctx = makeCtx({
       database: {
-        write: vi.fn(async (cb: () => any) => {
+        write: vi.fn((cb: () => unknown) => {
           record._setRaw("visibility", "private");
           record._setRaw("published_at", null);
-          return cb();
+          return Promise.resolve(cb());
         }),
-      } as any,
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      } as unknown as Database,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const before = Date.now();
@@ -2307,7 +2617,11 @@ describe("setMemoryVisibilityOp", () => {
     const record = mockRecord({ id: "mem_1" });
     record._setRaw("visibility", "public");
     record._setRaw("published_at", 1750000000000);
-    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "private" });
 
@@ -2317,7 +2631,11 @@ describe("setMemoryVisibilityOp", () => {
 
   it("sets twin_opt_in when provided", async () => {
     const record = mockRecord({ id: "mem_1" });
-    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "private", twinOptIn: true });
     expect(record.twinOptIn).toBe(true);
@@ -2326,7 +2644,11 @@ describe("setMemoryVisibilityOp", () => {
   it("leaves twin_opt_in untouched when omitted", async () => {
     const record = mockRecord({ id: "mem_1" });
     record._setRaw("twin_opt_in", true);
-    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
+    });
 
     await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
     expect(record.twinOptIn).toBe(true);
@@ -2335,7 +2657,11 @@ describe("setMemoryVisibilityOp", () => {
   it("returns null for a soft-deleted memory", async () => {
     const record = mockRecord({ id: "mem_1" });
     record._setRaw("is_deleted", true);
-    const ctx = makeCtx({ vaultMemoryCollection: { find: vi.fn(async () => record) } as any });
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
+    });
 
     const result = await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
     expect(result).toBeNull();
@@ -2347,7 +2673,9 @@ describe("setMemoryVisibilityOp", () => {
     record._setRaw("user_id", "user_b");
     const ctx = makeCtx({
       userId: "user_a",
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await setMemoryVisibilityOp(ctx, "mem_1", { visibility: "public" });
@@ -2365,7 +2693,9 @@ describe("visibility coercion (two-tier fail-safe)", () => {
       const record = mockRecord({ id: "mem_1" });
       record._setRaw("visibility", stored);
       const ctx = makeCtx({
-        vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+        vaultMemoryCollection: {
+          find: vi.fn(() => Promise.resolve(record)),
+        } as unknown as Collection<VaultMemory>,
       });
 
       const result = await getVaultMemoryOp(ctx, "mem_1");
@@ -2377,7 +2707,9 @@ describe("visibility coercion (two-tier fail-safe)", () => {
     const record = mockRecord({ id: "mem_1" });
     record._setRaw("visibility", "public");
     const ctx = makeCtx({
-      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+      vaultMemoryCollection: {
+        find: vi.fn(() => Promise.resolve(record)),
+      } as unknown as Collection<VaultMemory>,
     });
 
     const result = await getVaultMemoryOp(ctx, "mem_1");
@@ -2392,7 +2724,7 @@ describe("getAllVaultMemoriesOp — visibility filtering", () => {
     const ctx = makeCtx();
     await getAllVaultMemoriesOp(ctx, { visibility: ["public"] });
 
-    const queryFn = ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>;
+    const queryFn = vi.mocked(ctx.vaultMemoryCollection.query);
     const conditions = JSON.stringify(queryFn.mock.calls[0]);
     expect(conditions).toContain("public");
     expect(conditions).not.toContain('"or"');
@@ -2402,7 +2734,7 @@ describe("getAllVaultMemoriesOp — visibility filtering", () => {
     const ctx = makeCtx();
     await getAllVaultMemoriesOp(ctx, { visibility: ["private"] });
 
-    const queryFn = ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>;
+    const queryFn = vi.mocked(ctx.vaultMemoryCollection.query);
     const conditions = JSON.stringify(queryFn.mock.calls[0]);
     expect(conditions).toContain('"or"');
     expect(conditions).toContain("notIn");
@@ -2413,7 +2745,7 @@ describe("getAllVaultMemoriesOp — visibility filtering", () => {
     const ctx = makeCtx();
     await getAllVaultMemoriesOp(ctx, { visibility: ["private", "public"] });
 
-    const queryFn = ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>;
+    const queryFn = vi.mocked(ctx.vaultMemoryCollection.query);
     const conditions = JSON.stringify(queryFn.mock.calls[0]);
     expect(conditions).not.toContain("visibility");
   });
@@ -2422,7 +2754,7 @@ describe("getAllVaultMemoriesOp — visibility filtering", () => {
     const ctx = makeCtx();
     await getAllVaultMemoriesOp(ctx);
 
-    const queryFn = ctx.vaultMemoryCollection.query as ReturnType<typeof vi.fn>;
+    const queryFn = vi.mocked(ctx.vaultMemoryCollection.query);
     const conditions = JSON.stringify(queryFn.mock.calls[0]);
     expect(conditions).not.toContain("visibility");
   });
@@ -2432,20 +2764,20 @@ describe("visibility — batch create + raw mapper", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("createVaultMemoriesBatchOp defaults visibility to 'private' with published_at null", async () => {
-    const prepared: Array<Record<string, any>> = [];
+    const prepared: Array<Record<string, unknown>> = [];
     const ctx = makeCtx({
       database: {
-        write: vi.fn(async (cb: () => any) => cb()),
-        batch: vi.fn(async () => undefined),
-      } as any,
+        write: vi.fn((cb: () => unknown) => Promise.resolve(cb())),
+        batch: vi.fn(() => Promise.resolve(undefined)),
+      } as unknown as Database,
       vaultMemoryCollection: {
-        prepareCreate: vi.fn((builder: (r: any) => void) => {
+        prepareCreate: vi.fn((builder: (r: RawWriter) => void) => {
           const record = mockRecord();
           builder(record);
           prepared.push(record);
           return record;
         }),
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
 
     await createVaultMemoriesBatchOp(ctx, [{ content: "a" }, { content: "b" }]);
@@ -2458,20 +2790,20 @@ describe("visibility — batch create + raw mapper", () => {
   });
 
   it("createVaultMemoriesBatchOp stamps published_at for a non-private create without one", async () => {
-    const prepared: Array<Record<string, any>> = [];
+    const prepared: Array<Record<string, unknown>> = [];
     const ctx = makeCtx({
       database: {
-        write: vi.fn(async (cb: () => any) => cb()),
-        batch: vi.fn(async () => undefined),
-      } as any,
+        write: vi.fn((cb: () => unknown) => Promise.resolve(cb())),
+        batch: vi.fn(() => Promise.resolve(undefined)),
+      } as unknown as Database,
       vaultMemoryCollection: {
-        prepareCreate: vi.fn((builder: (r: any) => void) => {
+        prepareCreate: vi.fn((builder: (r: RawWriter) => void) => {
           const record = mockRecord();
           builder(record);
           prepared.push(record);
           return record;
         }),
-      } as any,
+      } as unknown as Collection<VaultMemory>,
     });
 
     const before = Date.now();
