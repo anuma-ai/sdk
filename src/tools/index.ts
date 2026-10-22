@@ -192,6 +192,7 @@ export type {
   GmailMessageSummary,
   GmailRequestAccess,
   GmailSearchArgs,
+  GmailSendConfirmation,
   GmailSendMessageArgs,
   GmailTokenGetter,
 } from "./gmail";

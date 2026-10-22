@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import type { GmailSendMessageArgs } from "./gmail.js";
 import { connectorMintErrorToToolResult, createGmailTools } from "./gmail.js";
 
 type ToolResult = unknown;
@@ -224,33 +225,159 @@ describe("createGmailTools", () => {
     expect(result.body).toBeUndefined();
   });
 
-  test("gmail_send_message posts a base64url-encoded RFC822 message", async () => {
+  test("gmail_send_message waits for host confirmation of the complete message", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-1", threadId: "t1" }));
-    const tools = createGmailTools(
-      async () => "good-token",
-      async () => null
-    );
-    const result = (await runExecutor(tools.gmail_send_message, {
+    let approve!: (confirmed: boolean) => void;
+    const confirmSend = vi.fn(() => new Promise<boolean>((resolve) => (approve = resolve)));
+    const getToken = vi.fn().mockResolvedValue("good-token");
+    const tools = createGmailTools(getToken, async () => null, confirmSend);
+    const args = {
       to: "ada@example.com",
       subject: "hi",
       body: "let's chat",
-    })) as { id: string; threadId: string };
+      cc: "charles@example.com",
+      bcc: "grace@example.com",
+    };
+    const pending = runExecutor(tools.gmail_send_message, args);
+    expect(confirmSend).toHaveBeenCalledExactlyOnceWith(args);
+    expect(getToken).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    approve(true);
+    const result = await pending;
     expect(result).toEqual({ id: "sent-1", threadId: "t1" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     const [, init] = fetchMock.mock.calls[0];
     const sent = JSON.parse((init as RequestInit).body as string) as { raw: string };
     const decoded = Buffer.from(sent.raw.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString(
       "utf-8"
     );
     expect(decoded).toContain("To: ada@example.com");
+    expect(decoded).toContain("Cc: charles@example.com");
+    expect(decoded).toContain("Bcc: grace@example.com");
     expect(decoded).toContain("Subject: hi");
     expect(decoded).toContain("let's chat");
+  });
+
+  test.each([false, undefined, "true"])(
+    "gmail_send_message blocks sends when host confirmation returns %s",
+    async (decision) => {
+      fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-1", threadId: "t1" }));
+      const getToken = vi.fn().mockResolvedValue("good-token");
+      const requestAccess = vi.fn();
+      const tools = createGmailTools(getToken, requestAccess, vi.fn().mockResolvedValue(decision));
+      const result = await runExecutor(tools.gmail_send_message, {
+        to: "ada@example.com",
+        subject: "hi",
+        body: "hello",
+        confirmed: true,
+      });
+      expect(result).toBe("Error: Gmail message send was not confirmed.");
+      expect(getToken).not.toHaveBeenCalled();
+      expect(requestAccess).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+  );
+
+  test("gmail_send_message blocks sends when host confirmation throws", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-1", threadId: "t1" }));
+    const getToken = vi.fn().mockResolvedValue("good-token");
+    const tools = createGmailTools(
+      getToken,
+      async () => null,
+      vi.fn().mockRejectedValue(new Error("confirmation failed"))
+    );
+    await expect(
+      runExecutor(tools.gmail_send_message, { to: "ada@example.com", subject: "hi", body: "hello" })
+    ).rejects.toThrow("confirmation failed");
+    expect(getToken).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("gmail_send_message requires a new host confirmation for each send", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-1", threadId: "t1" }));
+    const confirmSend = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const tools = createGmailTools(
+      async () => "good-token",
+      async () => null,
+      confirmSend
+    );
+    const args = { to: "ada@example.com", subject: "hi", body: "hello" };
+    expect(await runExecutor(tools.gmail_send_message, args)).toEqual({
+      id: "sent-1",
+      threadId: "t1",
+    });
+    expect(await runExecutor(tools.gmail_send_message, args)).toBe(
+      "Error: Gmail message send was not confirmed."
+    );
+    expect(confirmSend).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("gmail_send_message blocks sends when the host aborts before confirmation", async () => {
+    let approve!: (confirmed: boolean) => void;
+    const confirmSend = vi.fn(() => new Promise<boolean>((resolve) => (approve = resolve)));
+    const getToken = vi.fn().mockResolvedValue("good-token");
+    const tools = createGmailTools(getToken, async () => null, confirmSend);
+    const controller = new AbortController();
+    const pending = tools.gmail_send_message.executor?.(
+      { to: "ada@example.com", subject: "hi", body: "hello" },
+      controller.signal
+    );
+    controller.abort();
+    approve(true);
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(getToken).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("gmail_send_message sends the confirmed snapshot when the caller changes the arguments", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-1", threadId: "t1" }));
+    const args = {
+      to: "ada@example.com\r\n",
+      subject: " hi ",
+      body: "hello",
+      cc: "charles@example.com\r\n",
+      bcc: "grace@example.com\0",
+    };
+    const confirmed = {
+      to: "ada@example.com",
+      subject: "hi",
+      body: "hello",
+      cc: "charles@example.com",
+      bcc: "grace@example.com",
+    };
+    const confirmSend = vi.fn((message: Readonly<GmailSendMessageArgs>) => {
+      expect(message).toEqual(confirmed);
+      expect(Object.isFrozen(message)).toBe(true);
+      Object.assign(args, {
+        to: "other@example.com",
+        subject: "changed",
+        body: "changed",
+        cc: "other@example.com",
+        bcc: "other@example.com",
+      });
+      return true;
+    });
+    const tools = createGmailTools(
+      async () => "good-token",
+      async () => null,
+      confirmSend
+    );
+    await runExecutor(tools.gmail_send_message, args);
+    expect(confirmSend).toHaveBeenCalledExactlyOnceWith(confirmed);
+    const [, init] = fetchMock.mock.calls[0];
+    const sent = JSON.parse((init as RequestInit).body as string) as { raw: string };
+    expect(Buffer.from(sent.raw, "base64url").toString("utf-8")).toBe(
+      "To: ada@example.com\r\nCc: charles@example.com\r\nBcc: grace@example.com\r\nSubject: hi\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nhello"
+    );
   });
 
   test("gmail_send_message strips CRLF from header values to block header injection", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-2", threadId: "t2" }));
     const tools = createGmailTools(
       async () => "good-token",
-      async () => null
+      async () => null,
+      () => true
     );
     await runExecutor(tools.gmail_send_message, {
       to: "ada@example.com",

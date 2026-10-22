@@ -31,6 +31,11 @@ export interface GmailSendMessageArgs {
   bcc?: string;
 }
 
+/** Requests host confirmation of the complete message before each send. */
+export type GmailSendConfirmation = (
+  message: Readonly<GmailSendMessageArgs>
+) => boolean | Promise<boolean>;
+
 /** A draft has the same fields as a sent message — it just isn't sent. */
 type GmailCreateDraftArgs = GmailSendMessageArgs;
 
@@ -462,14 +467,15 @@ function createGmailGetMessageTool(
 
 function createGmailSendMessageTool(
   getToken: GmailTokenGetter,
-  requestAccess: GmailRequestAccess
+  requestAccess: GmailRequestAccess,
+  confirmSend?: GmailSendConfirmation
 ): ToolConfig {
   return {
     type: "function",
     function: {
       name: "gmail_send_message",
       description:
-        "Sends a plaintext email from the user's Gmail account. Use only when the user has explicitly confirmed the recipient, subject, and body.",
+        "Sends a plaintext email from the user's Gmail account. The host must confirm To, Cc, Bcc, subject, and body before each send.",
       parameters: {
         type: "object",
         properties: {
@@ -497,18 +503,26 @@ function createGmailSendMessageTool(
         required: ["to", "subject", "body"],
       },
     },
-    executor: async (args: Record<string, unknown>) => {
-      const resolved = await resolveToken(getToken, requestAccess);
-      if ("error" in resolved) return resolved.error;
-      const typed: GmailSendMessageArgs = {
-        to: args.to as string,
-        subject: args.subject as string,
-        body: args.body as string,
-        cc: args.cc as string | undefined,
-        bcc: args.bcc as string | undefined,
-      };
-      return sendGmailMessage(resolved.token, typed);
-    },
+    executorTimeout: Infinity,
+    executor: confirmSend
+      ? async (args: Record<string, unknown>, signal?: AbortSignal) => {
+          const typed: Readonly<GmailSendMessageArgs> = Object.freeze({
+            to: sanitizeHeaderValue(args.to as string),
+            subject: sanitizeHeaderValue(args.subject as string),
+            body: args.body as string,
+            cc: args.cc ? sanitizeHeaderValue(args.cc as string) : undefined,
+            bcc: args.bcc ? sanitizeHeaderValue(args.bcc as string) : undefined,
+          });
+          if ((await confirmSend(typed)) !== true) {
+            return "Error: Gmail message send was not confirmed.";
+          }
+          signal?.throwIfAborted();
+          const resolved = await resolveToken(getToken, requestAccess);
+          if ("error" in resolved) return resolved.error;
+          signal?.throwIfAborted();
+          return sendGmailMessage(resolved.token, typed);
+        }
+      : undefined,
   };
 }
 
@@ -565,26 +579,21 @@ function createGmailDraftTool(
 }
 
 /**
- * Build the Gmail tool set wired to the supplied token getter.
+ * Creates Gmail tools with optional host confirmation before each send.
  *
- * The returned record keys (`gmail_search_messages`, `gmail_get_message`,
- * `gmail_create_draft`, `gmail_send_message`) match the underlying tool names
- * so callers can forward a subset by destructuring.
- *
- * @param getToken     Async getter — typically `createConnectorTokenGetter(portal, "gmail")`.
- * @param requestAccess Fallback called when `getToken()` returns null.
- *                      Server agents pass `async () => { throw ... }`; browser
- *                      surfaces drive a connect flow and resolve with the
- *                      fresh token (or `null` on user cancel).
+ * @param getToken Retrieves the Gmail token.
+ * @param requestAccess Requests access when no token exists.
+ * @param confirmSend Confirms the complete message. Without this callback, the send tool has no executor and returns calls to the host.
  */
 export function createGmailTools(
   getToken: GmailTokenGetter,
-  requestAccess: GmailRequestAccess
+  requestAccess: GmailRequestAccess,
+  confirmSend?: GmailSendConfirmation
 ): Record<string, ToolConfig> {
   return {
     gmail_search_messages: createGmailSearchTool(getToken, requestAccess),
     gmail_get_message: createGmailGetMessageTool(getToken, requestAccess),
     gmail_create_draft: createGmailDraftTool(getToken, requestAccess),
-    gmail_send_message: createGmailSendMessageTool(getToken, requestAccess),
+    gmail_send_message: createGmailSendMessageTool(getToken, requestAccess, confirmSend),
   };
 }
