@@ -571,6 +571,9 @@ async function tryConsolidate(
         `update: target ${decision.targetId} ${existing ? "superseded" : "deleted"} before the write`
       );
     }
+    if (existing.content !== expectedContent) {
+      return abandonToRace(options, `update: target ${decision.targetId} edited before the write`);
+    }
     const mergedSourceIds = unionStrings(
       existing.sourceChunkIds ?? [],
       options.sourceChunkIds ?? []
@@ -596,10 +599,10 @@ async function tryConsolidate(
       ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
     });
     if (!updated) {
-      await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
+      await assertMergeTargetGoneOrThrow(ctx, decision.targetId, expectedContent);
       return abandonToRace(
         options,
-        `update: target ${decision.targetId} deleted mid-write (consolidated rewrite lost)`
+        `update: target ${decision.targetId} changed mid-write (consolidated rewrite lost)`
       );
     }
     cacheRowVector(
@@ -630,12 +633,17 @@ async function tryConsolidate(
 
 async function assertMergeTargetGoneOrThrow(
   ctx: RetainPipelineContext,
-  targetId: string
+  targetId: string,
+  expectedContent?: string
 ): Promise<void> {
   const stillExists = await (ctx.persistence.getFresh
     ? ctx.persistence.getFresh(targetId)
     : ctx.persistence.get(targetId));
-  if (stillExists && (stillExists.kind === null || stillExists.kind === undefined)) {
+  if (
+    stillExists &&
+    (stillExists.kind === null || stillExists.kind === undefined) &&
+    (expectedContent === undefined || stillExists.content === expectedContent)
+  ) {
     throw new RetainError(
       "merge-not-persisted",
       `retain: merge into memory ${targetId} failed to persist`

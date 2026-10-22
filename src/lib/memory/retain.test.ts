@@ -1096,6 +1096,49 @@ describe("retain — a dropped consolidation decision is reported (#630)", () =>
     expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
   });
 
+  it("reports target_vanished without a rewrite when an update target was edited first", async () => {
+    stagesFor("edited");
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "update",
+      targetId: "edited",
+      content: "richer consolidated form",
+    });
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      ...liveRow("edited"),
+      content: "user correction",
+    } as never);
+    const onFallback = vi.fn();
+
+    const result = await retain("plain fact", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    expect(result.action).toBe("create");
+    expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
+    expect(vi.mocked(updateVaultMemoryOp)).not.toHaveBeenCalled();
+  });
+
+  it("reports target_vanished instead of throwing when an update target is edited mid-write", async () => {
+    stagesFor("racy");
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "update",
+      targetId: "racy",
+      content: "richer consolidated form",
+    });
+    vi.mocked(getVaultMemoryOp)
+      .mockResolvedValueOnce(liveRow("racy") as never)
+      .mockResolvedValue({ ...liveRow("racy"), content: "user correction" } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue(null as never);
+    const onFallback = vi.fn();
+
+    const result = await retain("plain fact", ctx, {
+      consolidateOptions: { apiKey: "k", onFallback },
+    });
+
+    expect(result.action).toBe("create");
+    expect(onFallback).toHaveBeenCalledExactlyOnceWith("target_vanished");
+  });
+
   it("reports target_vanished when every supersede target is already retired", async () => {
     stagesFor("old");
     vi.mocked(consolidateMemory).mockResolvedValue({
@@ -1435,7 +1478,7 @@ describe("retain — the consolidation decision is reported on the result", () =
     });
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
       uniqueId: "live",
-      content: "user correction",
+      content: "original",
       sourceChunkIds: [],
       proofCount: 1,
     } as never);
