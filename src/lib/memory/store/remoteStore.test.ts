@@ -21,17 +21,21 @@ vi.mock("../../memoryEngine/embeddings", async (importOriginal) => {
   };
 });
 
-import { TOPICS_EXTRACTION_VERSION } from "../../db/memoryVault/operations";
 import { parseTopics } from "../../db/entities/types";
+import { TOPICS_EXTRACTION_VERSION } from "../../db/memoryVault/operations";
 import { getLogger } from "../../logger";
-import { parseQueryTimeWindow, scoreEventTimeOverlap } from "../queryTemporal";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants";
 import { EmbeddingHttpError, generateEmbeddings } from "../../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
+import { parseQueryTimeWindow, scoreEventTimeOverlap } from "../queryTemporal";
 import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
-import { deriveMemoryKeyRing, type MemoryKeyRing, memoryCipher } from "./memoryKeys";
+import { deriveMemoryKeyRing, memoryCipher, type MemoryKeyRing } from "./memoryKeys";
 import { createRemoteMemoryPersistence } from "./remotePersistence";
-import { createRemoteMemoryStore, RemoteMemoryPartialCreateError } from "./remoteStore";
+import {
+  createRemoteMemoryStore,
+  RemoteMemoryPartialCreateError,
+  type RemoteMemoryStoreOptions,
+} from "./remoteStore";
 
 type Row = Record<string, unknown> & { memory_id: string; content: string };
 interface Stored {
@@ -127,7 +131,8 @@ function fakeNearby(keyId: string) {
     const path = url.pathname.replace(/^.*\/api\/private-memories/, "");
     const method = init.method ?? "GET";
     const body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
-    if (path === "/account") return json(200, { state: "active", key_id: keyId });
+    if (path === "/account")
+      return json(200, { state: "active", key_id: keyId, realtime_changes: true });
     if (path === "/work/claim") {
       const kind = String(body.kind);
       const current = leases.get(kind);
@@ -366,7 +371,9 @@ async function remoteStore(
   nearby?: ReturnType<typeof fakeNearby>,
   ring?: MemoryKeyRing,
   pollIntervalMs = 60_000,
-  embeddingOverrides: Pick<EmbeddingOptions, "maskInput"> = {}
+  embeddingOverrides: Pick<EmbeddingOptions, "maskInput"> = {},
+  activity?: RemoteMemoryStoreOptions["activity"],
+  subscribeChanges?: RemoteMemoryStoreOptions["subscribeChanges"]
 ) {
   const keys = ring ?? (await deriveMemoryKeyRing(`0x${"c3".repeat(65)}`));
   const server = nearby ?? fakeNearby(keys.keyId);
@@ -383,6 +390,8 @@ async function remoteStore(
     graphRanking: async () => [],
     temporalRanking: async () => [],
     pollIntervalMs,
+    activity,
+    subscribeChanges,
   });
   return { store, server, keys };
 }
@@ -393,6 +402,310 @@ runMemoryStoreContract(
 );
 
 describe("remote MemoryStore", () => {
+  it("shares concurrent memory pages without sharing different filters", async () => {
+    const { store, server } = await remoteStore();
+    await store.createMany(
+      Array.from({ length: 205 }, (_, i) => ({ content: `Fact ${i}`, embedding: axis(0) }))
+    );
+    server.fetch.mockClear();
+    const lists = await Promise.all([store.list(), store.list(), store.list()]);
+    expect(lists.map((rows) => rows.length)).toEqual([205, 205, 205]);
+    expect(server.fetch).toHaveBeenCalledTimes(2);
+    server.fetch.mockClear();
+    const projections = await Promise.all([store.listProjections(), store.listProjections()]);
+    expect(projections.map((rows) => rows.length)).toEqual([205, 205]);
+    expect(server.fetch).toHaveBeenCalledTimes(2);
+    server.fetch.mockClear();
+    const [privateRows, sharedRows] = await Promise.all([
+      store.list({ scopes: ["private"] }),
+      store.list({ scopes: ["shared"] }),
+    ]);
+    expect(privateRows).toHaveLength(205);
+    expect(sharedRows).toHaveLength(0);
+    expect(server.fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not join a pre-write read after a committed mutation", async () => {
+    const { store, server } = await remoteStore();
+    await store.create({ content: "Before", embedding: axis(0) });
+    const original = server.fetch.getMockImplementation()!;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let captured!: () => void;
+    const started = new Promise<void>((resolve) => {
+      captured = resolve;
+    });
+    server.fetch.mockImplementationOnce(async (...args) => {
+      const response = await original(...args);
+      captured();
+      await gate;
+      return response;
+    });
+    const old = store.list();
+    try {
+      await started;
+      await store.create({ content: "After", embedding: axis(0) });
+      expect(await store.list()).toHaveLength(2);
+    } finally {
+      release();
+    }
+    expect(await old).toHaveLength(1);
+  });
+
+  it("retries a failed shared read on the next call", async () => {
+    const { store, server } = await remoteStore();
+    server.fetch.mockResolvedValueOnce(Response.json({ detail: "Unavailable" }, { status: 503 }));
+    const failed = await Promise.allSettled([store.list(), store.list()]);
+    expect(failed.map((result) => result.status)).toEqual(["rejected", "rejected"]);
+    expect(await store.list()).toEqual([]);
+  });
+
+  it("supports native-like globals with window but no document", async () => {
+    const { store } = await remoteStore();
+    let stop = () => {};
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("document", undefined);
+    try {
+      expect(() => {
+        stop = store.subscribe(vi.fn());
+      }).not.toThrow();
+    } finally {
+      stop();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps normal polling when the server does not advertise realtime changes", async () => {
+    const ring = await deriveMemoryKeyRing(`0x${"e5".repeat(65)}`);
+    const server = fakeNearby(ring.keyId);
+    server.fetch.mockResolvedValueOnce(Response.json({ state: "active", key_id: ring.keyId }));
+    const subscribeChanges = vi.fn(() => () => {});
+    const { store } = await remoteStore(server, ring, 60_000, {}, undefined, subscribeChanges);
+    server.fetch.mockClear();
+    vi.useFakeTimers();
+    const stop = store.subscribe(vi.fn());
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(server.fetch).toHaveBeenCalledTimes(2);
+      expect(subscribeChanges).not.toHaveBeenCalled();
+    } finally {
+      stop();
+      vi.useRealTimers();
+    }
+  });
+
+  it("pauses inactive polling and resumes from the last cursor across subscription gaps", async () => {
+    let active = false;
+    const listeners = new Set<() => void>();
+    const { store, server } = await remoteStore(
+      undefined,
+      undefined,
+      20,
+      {},
+      {
+        isActive: () => active,
+        subscribe: (listener) => {
+          listeners.add(listener);
+          return () => {
+            listeners.delete(listener);
+          };
+        },
+      }
+    );
+    await store.create({ content: "Existing", embedding: axis(0) });
+    server.fetch.mockClear();
+    vi.useFakeTimers();
+    let stop = store.subscribe(vi.fn());
+    try {
+      await vi.advanceTimersByTimeAsync(200);
+      expect(server.fetch).not.toHaveBeenCalled();
+      active = true;
+      listeners.forEach((listener) => listener());
+      await vi.waitFor(() =>
+        expect(
+          server.fetch.mock.calls.some(([, init]) => JSON.parse(String(init?.body)).cursor)
+        ).toBe(true)
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      stop();
+      expect(listeners.size).toBe(0);
+      server.fetch.mockClear();
+      stop = store.subscribe(vi.fn());
+      await vi.waitFor(() => expect(server.fetch).toHaveBeenCalled());
+      expect(JSON.parse(String(server.fetch.mock.calls[0][1]?.body))).toMatchObject({
+        order: "changed",
+        cursor: expect.any(String),
+      });
+      active = false;
+      listeners.forEach((listener) => listener());
+      await vi.advanceTimersByTimeAsync(0);
+      server.fetch.mockClear();
+      await vi.advanceTimersByTimeAsync(200);
+      expect(server.fetch).not.toHaveBeenCalled();
+    } finally {
+      stop();
+      vi.useRealTimers();
+    }
+  });
+
+  it("coalesces realtime changes and retains slower recovery polling while connected", async () => {
+    let changed = (_connected: boolean) => {};
+    const release = vi.fn();
+    const { store, server } = await remoteStore(
+      undefined,
+      undefined,
+      60_000,
+      {},
+      undefined,
+      (listener) => {
+        changed = listener;
+        return release;
+      }
+    );
+    server.fetch.mockClear();
+    vi.useFakeTimers();
+    const stop = store.subscribe(vi.fn());
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+      changed(true);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(server.fetch).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(server.fetch).toHaveBeenCalledTimes(2);
+      for (let i = 0; i < 10; i++) changed(true);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(server.fetch).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      expect(server.fetch).toHaveBeenCalledTimes(4);
+      changed(false);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(server.fetch).toHaveBeenCalledTimes(5);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(server.fetch).toHaveBeenCalledTimes(6);
+    } finally {
+      stop();
+      vi.useRealTimers();
+    }
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the refresh gap when a realtime marker arrives during an in-flight poll", async () => {
+    let changed = (_connected: boolean) => {};
+    const { store, server } = await remoteStore(
+      undefined,
+      undefined,
+      60_000,
+      {},
+      undefined,
+      (listener) => {
+        changed = listener;
+        return () => {};
+      }
+    );
+    const original = server.fetch.getMockImplementation()!;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.fetch.mockImplementationOnce(async (...args) => {
+      await gate;
+      return original(...args);
+    });
+    server.fetch.mockClear();
+    vi.useFakeTimers();
+    const stop = store.subscribe(vi.fn());
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+      changed(true);
+      release();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(199);
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(server.fetch).toHaveBeenCalledTimes(2);
+    } finally {
+      release();
+      stop();
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not postpone refresh indefinitely during continuous realtime changes", async () => {
+    let changed = (_connected: boolean) => {};
+    const { store, server } = await remoteStore(
+      undefined,
+      undefined,
+      60_000,
+      {},
+      undefined,
+      (listener) => {
+        changed = listener;
+        return () => {};
+      }
+    );
+    server.fetch.mockClear();
+    vi.useFakeTimers();
+    const stop = store.subscribe(vi.fn());
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      for (let i = 0; i < 10; i++) {
+        changed(true);
+        await vi.advanceTimersByTimeAsync(100);
+      }
+      expect(server.fetch.mock.calls.length).toBeGreaterThanOrEqual(5);
+    } finally {
+      stop();
+      vi.useRealTimers();
+    }
+  });
+
+  it("honors Retry-After even when activity resumes before the cooldown expires", async () => {
+    let refresh = () => {};
+    const { store, server } = await remoteStore(
+      undefined,
+      undefined,
+      20,
+      {},
+      {
+        isActive: () => true,
+        subscribe: (listener) => {
+          refresh = listener;
+          return () => {};
+        },
+      }
+    );
+    server.fetch.mockClear();
+    server.fetch.mockResolvedValueOnce(
+      Response.json(
+        { code: "rate_limited" },
+        {
+          status: 429,
+          headers: { "Retry-After": "2" },
+        }
+      )
+    );
+    vi.useFakeTimers();
+    const stop = store.subscribe(vi.fn());
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1_000);
+      refresh();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(server.fetch).toHaveBeenCalledTimes(2);
+    } finally {
+      stop();
+      vi.useRealTimers();
+    }
+  });
   it("dual-writes level with scope on create and update", async () => {
     const { store, server } = await remoteStore();
     const m = await store.create({ content: "Likes jazz", scope: "shared" });
@@ -465,7 +778,7 @@ describe("remote MemoryStore", () => {
     const full = await store.listProjections();
 
     expect(lean.map((p) => [p.uniqueId, p.embedding])).toEqual([[m.uniqueId, null]]);
-    expect(full[0]!.embedding).not.toBeNull();
+    expect(full[0].embedding).not.toBeNull();
     const queries = server.fetch.mock.calls
       .filter(([input]) => String(input).endsWith("/memories/query"))
       .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
@@ -1694,6 +2007,197 @@ describe("repairEmbeddings", () => {
     ]);
   });
 
+  it("repairs healthy rows when the embedder omits another row's vector", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("good", "Good");
+    await seed("bad", "Bad");
+    vi.mocked(generateEmbeddings).mockImplementationOnce(async (texts) =>
+      texts.map((text) => (text === "Bad" ? [] : (JSON.parse(axis(0)) as number[])))
+    );
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({
+      reembedded: 1,
+      failed: 1,
+      skippedConflict: 0,
+    });
+    expect(server.rows.get("good")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+    expect(server.rows.get("bad")!.memory.embedding).toBeUndefined();
+  });
+
+  it("writes more than one repair batch at the server's 50-row limit", async () => {
+    const { store, server, seed } = await repairStore();
+    for (let i = 0; i < 51; i++) await seed(`row-${i}`, `Fact ${i}`);
+    await expect(store.repairEmbeddings!({ maxRows: 51 })).resolves.toMatchObject({
+      reembedded: 51,
+      failed: 0,
+      skippedConflict: 0,
+    });
+    const writes = server.fetch.mock.calls.filter(([url]) =>
+      String(url).endsWith("/memories/batch")
+    );
+    expect(writes.map(([, init]) => JSON.parse(String(init?.body)).writes.length)).toEqual([50, 1]);
+    expect([...server.rows.values()].every((row) => row.version === 2)).toBe(true);
+  });
+
+  it("repairs unaffected rows after a batch conflict without overwriting the changed row", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("raced", "Original");
+    await seed("safe", "Unaffected");
+    const original = server.fetch.getMockImplementation()!;
+    let raced = false;
+    server.fetch.mockImplementation(async (...args) => {
+      if (String(args[0]).endsWith("/memories/batch") && !raced) {
+        raced = true;
+        server.touch("raced", { topics: JSON.stringify([{ name: "edited" }]) });
+      }
+      return original(...args);
+    });
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({
+      reembedded: 1,
+      failed: 0,
+      skippedConflict: 1,
+    });
+    expect(server.rows.get("raced")!.memory.embedding).toBeUndefined();
+    expect(server.rows.get("raced")!.memory.topics).toContain("edited");
+    expect(server.rows.get("safe")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+  });
+
+  it.each(["unknown_field", "server-400", "server-422"])(
+    "isolates %s validation failures and moves past the rejected row on later runs",
+    async (failure) => {
+      const { store, server, seed } = await repairStore();
+      await seed("older", "Older memory");
+      for (let i = 0; i < 49; i++) await seed(`healthy-${i}`, `Healthy memory ${i}`);
+      await seed(
+        "bad",
+        "Rejected memory",
+        failure === "unknown_field" ? { future_field: true } : {}
+      );
+      const original = server.fetch.getMockImplementation()!;
+      server.fetch.mockImplementation(async (...args) => {
+        if (failure !== "unknown_field" && String(args[0]).endsWith("/memories/batch")) {
+          const body = JSON.parse(String(args[1]?.body)) as { writes: { memory: Row }[] };
+          if (body.writes.some(({ memory }) => memory.memory_id === "bad"))
+            return Response.json(
+              { detail: "Invalid memory" },
+              { status: failure === "server-400" ? 400 : 422 }
+            );
+        }
+        return original(...args);
+      });
+      const first = await store.repairEmbeddings!({ maxScan: 50 });
+      expect(first).toMatchObject({ reembedded: 49, failed: 1, skippedConflict: 0 });
+      expect(first.cursor).toBeDefined();
+      expect(server.rows.get("bad")!.memory.embedding).toBeUndefined();
+      for (let i = 0; i < 49; i++)
+        expect(server.rows.get(`healthy-${i}`)!.memory.embedding_model).toBe(
+          DEFAULT_API_EMBEDDING_MODEL
+        );
+      expect(server.rows.get("older")!.memory.embedding).toBeUndefined();
+      vi.mocked(generateEmbeddings).mockClear();
+      const second = await store.repairEmbeddings!({ maxScan: 50 });
+      expect(second).toMatchObject({ reembedded: 1, failed: 0 });
+      expect(second.cursor).toBeUndefined();
+      expect(server.rows.get("older")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+      vi.mocked(generateEmbeddings).mockClear();
+      server.fetch.mockClear();
+      await expect(store.repairEmbeddings!({ maxScan: 50 })).resolves.toMatchObject({
+        reembedded: 0,
+        failed: 0,
+      });
+      expect(generateEmbeddings).not.toHaveBeenCalled();
+      expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
+        false
+      );
+    }
+  );
+
+  it("parks a singleton rejected before upload and continues to older memories", async () => {
+    const { store, server, seed } = await repairStore();
+    await seed("healthy", "Healthy memory");
+    await seed("bad", "Rejected memory", { future_field: true });
+    const first = await store.repairEmbeddings!({ maxScan: 1 });
+    expect(first).toMatchObject({ reembedded: 0, failed: 1 });
+    expect(first.cursor).toBeDefined();
+    expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
+      false
+    );
+    await expect(store.repairEmbeddings!({ maxScan: 1 })).resolves.toMatchObject({
+      reembedded: 1,
+      failed: 0,
+    });
+    expect(server.rows.get("healthy")!.memory.embedding_model).toBe(DEFAULT_API_EMBEDDING_MODEL);
+  });
+
+  it.each([
+    [401, "unauthorized"],
+    [402, "insufficient_credits"],
+    [403, "forbidden"],
+    [408, "timeout"],
+    [429, "rate_limited"],
+    [500, undefined],
+    [503, undefined],
+    [400, "invalid_token"],
+    [422, "invalid_token"],
+    [409, "key_mismatch"],
+    [409, "work_lease_expired"],
+  ] as const)(
+    "does not fan out or park rows after a global %i/%s write error",
+    async (status, code) => {
+      const { store, server, seed } = await repairStore();
+      for (let i = 0; i < 3; i++) await seed(`row-${i}`, `Memory ${i}`);
+      const original = server.fetch.getMockImplementation()!;
+      let reject = true;
+      server.fetch.mockImplementation(async (...args) => {
+        if (reject && String(args[0]).endsWith("/memories/batch"))
+          return Response.json({ code }, { status });
+        return original(...args);
+      });
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject(
+        code === "work_lease_expired" ? { deferred: true } : { reembedded: 0, failed: 3 }
+      );
+      expect(
+        server.fetch.mock.calls.filter(([url]) => String(url).endsWith("/memories/batch"))
+      ).toHaveLength(1);
+      expect([...server.rows.values()].every((row) => row.version === 1)).toBe(true);
+      expect(server.leases.size).toBe(0);
+      reject = false;
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 3, failed: 0 });
+    }
+  );
+
+  it.each([
+    [401, "unauthorized"],
+    [429, "rate_limited"],
+    [503, undefined],
+    [409, "work_lease_expired"],
+  ] as const)(
+    "stops isolating rows when validation fallback encounters %i/%s",
+    async (status, code) => {
+      const { store, server, seed } = await repairStore();
+      for (let i = 0; i < 3; i++) await seed(`row-${i}`, `Memory ${i}`);
+      const original = server.fetch.getMockImplementation()!;
+      let reject = true;
+      server.fetch.mockImplementation(async (...args) => {
+        if (reject && String(args[0]).endsWith("/memories/batch")) {
+          const body = JSON.parse(String(args[1]?.body)) as { writes: unknown[] };
+          return body.writes.length > 1
+            ? Response.json({ detail: "Invalid memory" }, { status: 422 })
+            : Response.json({ code }, { status });
+        }
+        return original(...args);
+      });
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject(
+        code === "work_lease_expired" ? { deferred: true } : { reembedded: 0, failed: 3 }
+      );
+      expect(
+        server.fetch.mock.calls.filter(([url]) => String(url).endsWith("/memories/batch"))
+      ).toHaveLength(2);
+      expect(server.leases.size).toBe(0);
+      reject = false;
+      await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 3, failed: 0 });
+    }
+  );
+
   it("does nothing beyond a metadata scan when every row is current", async () => {
     const { store, decrypt, seed, current } = await repairStore();
     await seed("a", "Likes tea", current);
@@ -2066,7 +2570,7 @@ describe("remote decay", () => {
     expect(server.rows.get(stale.uniqueId)!.memory.archived_at).toEqual(expect.any(Number));
     expect(server.rows.get(durable.uniqueId)!.memory.archived_at).toBeUndefined();
     expect(server.rows.get(manual.uniqueId)!.memory.archived_at).toBeUndefined();
-    expect(decrypt.mock.calls.some(([value]) => untouched.has(value as string))).toBe(false);
+    expect(decrypt.mock.calls.some(([value]) => untouched.has(value))).toBe(false);
   });
 
   it("keeps a memory re-observed between the scan and the write", async () => {
@@ -2190,6 +2694,94 @@ describe("remote decay", () => {
 });
 
 describe("account topic catalog", () => {
+  it("refreshes topic counts when another device edits an unreadable memory", async () => {
+    const { store, server } = await remoteStore(undefined, undefined, 20);
+    await store.createTopic!("coffee");
+    await store.createTopic!("hiking");
+    const memory = await store.create({ content: "Likes coffee", embedding: axis(0) });
+    await store.addTopics(memory.uniqueId, [{ name: "coffee" }]);
+    server.touch(memory.uniqueId, { content: "enc:v3:00" });
+    const onChange = vi.fn();
+    const stop = store.subscribe(onChange, { topics: true });
+    const warn = vi.spyOn(getLogger(), "warn").mockImplementation(() => {});
+    try {
+      expect((await store.listTopics()).map((topic) => topic.memoryCount)).toEqual([1, 0]);
+      await vi.waitFor(() =>
+        expect(
+          server.fetch.mock.calls.some(([, init]) => {
+            if (!init?.body) return false;
+            const query = JSON.parse(init.body as string) as { order?: string; cursor?: string };
+            return query.order === "changed" && query.cursor !== undefined;
+          })
+        ).toBe(true)
+      );
+      onChange.mockClear();
+      server.touch(memory.uniqueId, {
+        topics: JSON.stringify([{ name: "hiking", source: "user" }]),
+      });
+      await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+      expect((await store.listTopics()).map((topic) => topic.memoryCount)).toEqual([0, 1]);
+      onChange.mockClear();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      expect(onChange).not.toHaveBeenCalled();
+    } finally {
+      stop();
+      warn.mockRestore();
+    }
+  });
+
+  it("refreshes catalog-only changes when no topic subscription can invalidate its cache", async () => {
+    const first = await remoteStore();
+    const second = await remoteStore(first.server, first.keys);
+    const stopMemory = first.store.subscribe(vi.fn());
+    const stopTopics = first.store.subscribe(vi.fn(), { topics: true });
+    try {
+      await first.store.listTopics();
+      stopTopics();
+      await second.store.createTopic!("coffee");
+      expect(await first.store.listTopics()).toEqual([
+        { name: "coffee", kind: null, memoryCount: 0 },
+      ]);
+      await second.store.createTopic!("hiking");
+      expect((await first.store.listTopics()).map((topic) => topic.name)).toEqual([
+        "coffee",
+        "hiking",
+      ]);
+    } finally {
+      stopTopics();
+      stopMemory();
+    }
+  });
+
+  it("shares topic scans and refreshes membership after a local write", async () => {
+    const { store, server } = await remoteStore(
+      undefined,
+      undefined,
+      60_000,
+      {},
+      {
+        isActive: () => false,
+        subscribe: () => () => {},
+      }
+    );
+    const stop = store.subscribe(vi.fn(), { topics: true });
+    try {
+      const firstMemory = await store.create({ content: "Likes coffee", embedding: axis(0) });
+      await store.addTopics(firstMemory.uniqueId, [{ name: "coffee" }]);
+      server.fetch.mockClear();
+      const [first, second] = await Promise.all([store.listTopics(), store.listTopics()]);
+      expect(first).toEqual([{ name: "coffee", kind: null, memoryCount: 1 }]);
+      first[0].memoryCount = 999;
+      expect(second[0].memoryCount).toBe(1);
+      expect(await store.listTopics()).toEqual(second);
+      expect(server.fetch).toHaveBeenCalledTimes(2);
+      const secondMemory = await store.create({ content: "Coffee daily", embedding: axis(0) });
+      await store.addTopics(secondMemory.uniqueId, [{ name: "coffee" }]);
+      expect(await store.listTopics()).toEqual([{ name: "coffee", kind: null, memoryCount: 2 }]);
+    } finally {
+      stop();
+    }
+  });
   it("shares empty topics across devices and never creates a memory", async () => {
     const first = await remoteStore();
     await first.store.createTopic!(" Coffee ");

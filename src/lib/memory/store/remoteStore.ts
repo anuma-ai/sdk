@@ -82,6 +82,12 @@ export interface RemoteMemoryStoreOptions {
   graphRanking?: RecallFactSource["graphRanking"];
   temporalRanking?: RecallFactSource["temporalRanking"];
   pollIntervalMs?: number;
+  activity?: {
+    isActive: () => boolean;
+    subscribe: (onChange: () => void) => () => void;
+  };
+  /** Report connection state on subscribe/reconnect and true on each account memory change. */
+  subscribeChanges?: (onChange: (connected: boolean) => void) => () => void;
 }
 
 type Change = "membership" | "edit" | "embedding" | "metadata";
@@ -156,6 +162,14 @@ function rejectsInput(error: unknown): boolean {
     error.status < 500 &&
     error.status !== 429 &&
     !isFatalEmbeddingError(error)
+  );
+}
+
+function rejectsMemoryWrite(error: unknown): boolean {
+  return (
+    error instanceof RemoteMemoryError &&
+    (error.status === 400 || error.status === 422) &&
+    (error.code === undefined || error.code === "unknown_field")
   );
 }
 
@@ -273,6 +287,22 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const { persistence, embeddingOptions } = options;
   const model = embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const pollIntervalMs = options.pollIntervalMs ?? 60_000;
+  const activity = options.activity ?? {
+    isActive: () =>
+      (typeof document === "undefined" || document.visibilityState !== "hidden") &&
+      (typeof navigator === "undefined" || navigator.onLine !== false),
+    subscribe: (onChange: () => void) => {
+      if (typeof window === "undefined" || typeof document === "undefined") return () => {};
+      document.addEventListener("visibilitychange", onChange);
+      window.addEventListener("online", onChange);
+      window.addEventListener("offline", onChange);
+      return () => {
+        document.removeEventListener("visibilitychange", onChange);
+        window.removeEventListener("online", onChange);
+        window.removeEventListener("offline", onChange);
+      };
+    },
+  };
   const pipeline = createRemoteMemoryPipeline({
     ...options,
     graphRanking:
@@ -281,10 +311,27 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     temporalRanking: options.temporalRanking ?? ((query, now) => eventTimeRanking(query, now)),
   });
   const subscribers = new Set<Subscriber>();
+  const retainTopics = () =>
+    pollIntervalMs > 0 && [...subscribers].some((subscriber) => subscriber.options.topics);
   const seen = new Map<string, RemoteMemoryRecord>();
-  let timer: ReturnType<typeof setInterval> | undefined;
+  const reads = new Map<string, ReturnType<RemoteMemoryPersistence["query"]>>();
+  const metadataReads = new Map<string, ReturnType<RemoteMemoryPersistence["queryMetadata"]>>();
+  let topicSnapshot: Promise<MemoryTopic[]> | undefined;
+  let topicCatalog: ReturnType<RemoteMemoryPersistence["topics"]> | undefined;
+  const invalidateReads = () => {
+    reads.clear();
+    metadataReads.clear();
+    topicSnapshot = undefined;
+    topicCatalog = undefined;
+  };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let scheduledAt: number | undefined;
+  let stopActivity: (() => void) | undefined;
+  let stopChanges: (() => void) | undefined;
+  let changesConnected = false;
   const notify = (change: Change, records: readonly RemoteMemoryRecord[] = []) => {
-    if (timer)
+    invalidateReads();
+    if (subscribers.size)
       for (const record of records) {
         const previous = seen.get(record.memory.memory_id);
         if ((previous?.version ?? 0) + 1 === record.version)
@@ -313,9 +360,41 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     } while (cursor && records.length < max);
     return records.slice(0, max);
   };
-  const decrypted = (options: RemoteMemoryQueryOptions) => persistence.query(options);
+  const shareRead = <T>(
+    inflight: Map<string, Promise<T>>,
+    options: RemoteMemoryQueryOptions,
+    read: () => Promise<T>
+  ): Promise<T> => {
+    if (options.signal) return read();
+    const key = JSON.stringify(Object.entries(options).sort(([a], [b]) => a.localeCompare(b)));
+    const active = inflight.get(key);
+    if (active) return active;
+    const pending = read();
+    inflight.set(key, pending);
+    const clear = () => {
+      if (inflight.get(key) === pending) inflight.delete(key);
+    };
+    void pending.then(clear, clear);
+    return pending;
+  };
+  const decrypted = (options: RemoteMemoryQueryOptions) =>
+    shareRead(reads, options, () => persistence.query(options));
   const metadata = (options: RemoteMemoryQueryOptions) =>
-    persistence.queryMetadata(options as Parameters<typeof persistence.queryMetadata>[0]);
+    shareRead(metadataReads, options, () =>
+      persistence.queryMetadata(options as Parameters<typeof persistence.queryMetadata>[0])
+    );
+  const readTopics = () => {
+    if (topicCatalog) return topicCatalog;
+    const pending = persistence.topics();
+    topicCatalog = pending;
+    const clear = () => {
+      if (topicCatalog === pending) topicCatalog = undefined;
+    };
+    void pending.then(() => {
+      if (!retainTopics()) clear();
+    }, clear);
+    return pending;
+  };
   const enumerate = (filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit">, max = Infinity) =>
     pages(decrypted, filters, max);
   const memoriesByTopics = async (names: readonly string[]) => {
@@ -868,14 +947,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   } as const;
   const changesSince = async (cursor: string | undefined, pending: ReadonlySet<string>) => {
     const records: RemoteMemoryRecord[] = [];
-    const failed = new Set<string>();
+    const failed = new Map<string, number>();
     const collect = (page: {
       items: RemoteMemoryRecord[];
       failed: RemoteMemoryDecodeFailure[];
     }) => {
       warnFailed(page.failed);
       records.push(...page.items);
-      for (const failure of page.failed) failed.add(failure.memory_id);
+      for (const failure of page.failed) failed.set(failure.memory_id, failure.version);
     };
     let resume = cursor;
     let next: string | undefined;
@@ -910,29 +989,83 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   let ready = false;
   let cursor: string | undefined;
   let pending = new Set<string>();
+  let failedVersions = new Map<string, number>();
   let topicFingerprint: string | undefined;
   let polling = false;
+  let pollRequested = false;
+  let failures = 0;
+  let retryAt = 0;
+  const backoff = (error: unknown) => {
+    failures++;
+    retryAt =
+      Date.now() +
+      Math.max(
+        error instanceof RemoteMemoryError ? (error.retryAfterMs ?? 0) : 0,
+        Math.min(pollIntervalMs * 2 ** Math.min(failures - 1, 10), 15 * 60_000)
+      );
+  };
+  const schedulePoll = (delay: number, keepEarlier = false) => {
+    const at = Math.max(Date.now() + delay, retryAt);
+    if (keepEarlier && timer && scheduledAt !== undefined && scheduledAt <= at) return;
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+    scheduledAt = undefined;
+    if (!subscribers.size || pollIntervalMs <= 0 || !activity.isActive()) return;
+    scheduledAt = at;
+    timer = setTimeout(poll, Math.max(0, at - Date.now()));
+  };
   const poll = () => {
-    if (polling) return;
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+    scheduledAt = undefined;
+    if (!subscribers.size || pollIntervalMs <= 0 || !activity.isActive()) return;
+    if (Date.now() < retryAt) {
+      schedulePoll(0);
+      return;
+    }
+    if (polling) {
+      pollRequested = true;
+      return;
+    }
     polling = true;
+    pollRequested = false;
     const current = generation;
     changesSince(cursor, pending)
       .then(async ({ records, resume, failed }) => {
         let topicState: string | undefined;
+        let topicFailed = false;
         if ([...subscribers].some((s) => s.options.topics))
           try {
-            topicState = JSON.stringify(
-              (await persistence.topics()).map((t) => [t.name, t.version])
-            );
+            topicCatalog = undefined;
+            topicState = JSON.stringify((await readTopics()).map((t) => [t.name, t.version]));
           } catch (error) {
+            topicFailed = true;
+            if (current === generation) backoff(error);
             getLogger().warn("[memory/remote-store] Topic subscription poll failed:", error);
           }
         if (current !== generation) return;
+        if (!topicFailed) {
+          failures = 0;
+          retryAt = 0;
+        }
+        const failedChanged = [...failed].some(
+          ([id, version]) => failedVersions.get(id) !== version
+        );
+        if (
+          records.length ||
+          failedChanged ||
+          (topicState !== undefined && topicState !== topicFingerprint)
+        ) {
+          reads.clear();
+          metadataReads.clear();
+          topicSnapshot = undefined;
+        }
         const changed = new Set<Subscriber>();
         if (
-          topicState !== undefined &&
-          topicFingerprint !== undefined &&
-          topicState !== topicFingerprint
+          (ready && failedChanged) ||
+          (topicState !== undefined &&
+            topicFingerprint !== undefined &&
+            topicState !== topicFingerprint)
         )
           for (const subscriber of subscribers)
             if (subscriber.options.topics) changed.add(subscriber);
@@ -949,16 +1082,47 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         }
         ready = true;
         cursor = resume;
-        pending = failed;
+        pending = new Set(failed.keys());
+        failedVersions = failed;
         for (const subscriber of changed)
           if (subscribers.has(subscriber)) safely(subscriber.onChange);
       })
       .catch((error: unknown) => {
+        if (current === generation) backoff(error);
         getLogger().warn("[memory/remote-store] Subscription poll failed:", error);
       })
       .finally(() => {
         polling = false;
+        schedulePoll(
+          current !== generation
+            ? 0
+            : pollRequested
+              ? 200
+              : changesConnected
+                ? Math.max(pollIntervalMs, 5 * 60_000)
+                : pollIntervalMs
+        );
       });
+  };
+  const refreshActivity = () => {
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+    if (!activity.isActive()) {
+      stopChanges?.();
+      stopChanges = undefined;
+      changesConnected = false;
+      return;
+    }
+    if (!stopChanges && persistence.supportsRealtimeChanges && options.subscribeChanges)
+      stopChanges = options.subscribeChanges((connected) => {
+        changesConnected = connected;
+        if (polling) {
+          pollRequested = true;
+          return;
+        }
+        schedulePoll(connected ? 200 : 0, true);
+      });
+    poll();
   };
 
   const unrepairable = new Set<string>();
@@ -1020,40 +1184,81 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       result.failed += targets.length;
       return finish();
     }
-    for (const [i, record] of targets.entries()) {
+    const writes = targets.flatMap((record, i) => {
       const vector = vectors[i];
       if (!vector) {
         result.failed++;
-        continue;
+        return [];
       }
-      await serialized(record.memory.memory_id, async () => {
-        signal?.throwIfAborted();
-        try {
-          const [saved] = await persistence.putMany(
-            [
-              {
-                memory: {
-                  ...record.memory,
-                  embedding: storedVector(vector),
-                  embedding_model: model,
-                },
-                expectedVersion: record,
-              },
-            ],
-            signal,
-            leaseToken
-          );
-          notify("embedding", [saved]);
-          repaired.add(record.memory.memory_id);
-          result.reembedded++;
-        } catch (error) {
+      try {
+        return [
+          {
+            memory: {
+              ...record.memory,
+              embedding: storedVector(vector),
+              embedding_model: model,
+            },
+            expectedVersion: record,
+          },
+        ];
+      } catch {
+        result.failed++;
+        return [];
+      }
+    });
+    for (const batch of chunks(writes, MAX_BATCH)) {
+      const continueRepair = await serializedAll(
+        batch.map(({ memory }) => memory.memory_id),
+        async () => {
           signal?.throwIfAborted();
-          if (isRemoteWorkLeaseExpired(error)) throw error;
-          if (error instanceof RemoteMemoryError && error.code === "version_conflict")
-            result.skippedConflict++;
-          else result.failed++;
+          const commit = async (slice: typeof batch) => {
+            const saved = await persistence.putMany(slice, signal, leaseToken);
+            for (const record of saved) repaired.add(record.memory.memory_id);
+            result.reembedded += saved.length;
+            notify("embedding", saved);
+          };
+          try {
+            await commit(batch);
+          } catch (error) {
+            signal?.throwIfAborted();
+            if (isRemoteWorkLeaseExpired(error)) throw error;
+            if (
+              !(error instanceof RemoteMemoryError && error.code === "version_conflict") &&
+              !rejectsMemoryWrite(error)
+            ) {
+              result.failed += batch.length;
+              return false;
+            }
+            if (batch.length === 1) {
+              if (rejectsMemoryWrite(error)) {
+                unrepairable.add(batch[0].memory.memory_id);
+                result.failed++;
+              } else result.skippedConflict++;
+              return true;
+            }
+            for (const [index, write] of batch.entries()) {
+              signal?.throwIfAborted();
+              try {
+                await commit([write]);
+              } catch (error) {
+                signal?.throwIfAborted();
+                if (isRemoteWorkLeaseExpired(error)) throw error;
+                if (error instanceof RemoteMemoryError && error.code === "version_conflict")
+                  result.skippedConflict++;
+                else if (rejectsMemoryWrite(error)) {
+                  unrepairable.add(write.memory.memory_id);
+                  result.failed++;
+                } else {
+                  result.failed += batch.length - index;
+                  return false;
+                }
+              }
+            }
+          }
+          return true;
         }
-      });
+      );
+      if (!continueRepair) break;
     }
     return finish();
   };
@@ -1098,7 +1303,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     },
     importTopics: async (topics) => {
       if (!topics.length) return;
-      const existing = new Set((await persistence.topics()).map((topic) => topic.name));
+      const existing = new Set((await readTopics()).map((topic) => topic.name));
       const missing = topics.flatMap((topic) => {
         const name = normalizeEntityName(topic.name);
         if (existing.has(name)) return [];
@@ -1107,6 +1312,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       });
       if (!missing.length) return;
       await persistence.importTopics(missing);
+      invalidateReads();
       for (const subscriber of [...subscribers])
         if (subscriber.options.topics) safely(subscriber.onChange);
     },
@@ -1122,42 +1328,53 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       (await listRows(metadata, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
         projection
       ),
-    listTopics: async () => {
-      const topics = new Map<string, MemoryTopic & { members: Set<string> }>();
-      for (const { memory } of await pages(metadata, {
-        include_archived: true,
-        include_quarantined: true,
-        include_superseded: true,
-      })) {
-        for (const topic of parseTopics(memory.topics) ?? []) {
-          const name = normalizeEntityName(topic.name);
-          if (!name) continue;
-          const entry = topics.get(name) ?? {
-            name,
-            kind: null,
-            memoryCount: 0,
-            members: new Set<string>(),
-          };
-          entry.kind ??= topic.kind ?? null;
-          entry.members.add(memory.memory_id);
-          topics.set(name, entry);
+    listTopics: () => {
+      if (topicSnapshot) return topicSnapshot.then((topics) => structuredClone(topics));
+      const snapshot = (async () => {
+        const topics = new Map<string, MemoryTopic & { members: Set<string> }>();
+        for (const { memory } of await pages(metadata, {
+          include_archived: true,
+          include_quarantined: true,
+          include_superseded: true,
+        })) {
+          for (const topic of parseTopics(memory.topics) ?? []) {
+            const name = normalizeEntityName(topic.name);
+            if (!name) continue;
+            const entry = topics.get(name) ?? {
+              name,
+              kind: null,
+              memoryCount: 0,
+              members: new Set<string>(),
+            };
+            entry.kind ??= topic.kind ?? null;
+            entry.members.add(memory.memory_id);
+            topics.set(name, entry);
+          }
         }
-      }
-      for (const topic of await persistence.topics()) {
-        if (topic.is_deleted) continue;
-        const current = topics.get(topic.name);
-        if (current) current.kind ??= topic.kind ?? null;
-        else
-          topics.set(topic.name, {
-            name: topic.name,
-            kind: topic.kind ?? null,
-            memoryCount: 0,
-            members: new Set(),
-          });
-      }
-      return [...topics.values()]
-        .map(({ members, ...topic }) => ({ ...topic, memoryCount: members.size }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+        for (const topic of await readTopics()) {
+          if (topic.is_deleted) continue;
+          const current = topics.get(topic.name);
+          if (current) current.kind ??= topic.kind ?? null;
+          else
+            topics.set(topic.name, {
+              name: topic.name,
+              kind: topic.kind ?? null,
+              memoryCount: 0,
+              members: new Set(),
+            });
+        }
+        return [...topics.values()]
+          .map(({ members, ...topic }) => ({ ...topic, memoryCount: members.size }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      })();
+      topicSnapshot = snapshot;
+      const clear = () => {
+        if (topicSnapshot === snapshot) topicSnapshot = undefined;
+      };
+      void snapshot.then(() => {
+        if (!retainTopics()) clear();
+      }, clear);
+      return snapshot.then((topics) => structuredClone(topics));
     },
     get: async (id) => asStored(await live(id)),
     listArchived: async () =>
@@ -1352,20 +1569,23 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     subscribe: (onChange, subscribeOptions = {}) => {
       const subscriber: Subscriber = { onChange, options: subscribeOptions };
       subscribers.add(subscriber);
-      if (pollIntervalMs > 0 && !timer) {
-        timer = setInterval(poll, pollIntervalMs);
-        poll();
+      if (pollIntervalMs > 0 && subscribers.size === 1) {
+        stopActivity = activity.subscribe(refreshActivity);
+        refreshActivity();
       }
       return () => {
         subscribers.delete(subscriber);
-        if (subscribers.size || !timer) return;
-        clearInterval(timer);
+        if (!retainTopics()) invalidateReads();
+        if (subscribers.size) return;
+        if (timer) clearTimeout(timer);
         timer = undefined;
+        stopActivity?.();
+        stopActivity = undefined;
+        stopChanges?.();
+        stopChanges = undefined;
+        changesConnected = false;
         generation++;
-        seen.clear();
-        ready = false;
-        cursor = undefined;
-        pending = new Set();
+        invalidateReads();
       };
     },
   };
