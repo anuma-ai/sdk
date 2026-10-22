@@ -780,15 +780,16 @@ export interface VaultCandidateKey {
 
 function baseVaultSql(
   ctx: VaultMemoryOperationsContext,
-  options?: { includeArchived?: boolean }
+  options?: { includeArchived?: boolean; includeQuarantined?: boolean }
 ): {
   sql: string;
   args: Array<string | number | boolean | null>;
 } {
   const clauses = [
+    `"_status" is not 'deleted'`,
     '"is_deleted" = 0',
     ...(options?.includeArchived ? [] : ['"archived_at" is null']),
-    `"trust_tier" is not 'quarantined'`,
+    ...(options?.includeQuarantined ? [] : [`"trust_tier" is not 'quarantined'`]),
     '"superseded_by" is null',
   ];
   const args: Array<string | number | boolean | null> = [];
@@ -1641,11 +1642,25 @@ export async function getMemoriesNeedingTopicExtractionOp(
   if (!entityCtx) {
     throw new Error("getMemoriesNeedingTopicExtractionOp requires ctx.entityCtx");
   }
-  const conditions = [...baseVaultConditions(ctx), Q.sortBy("created_at", Q.desc)];
-  const rows = (await ctx.vaultMemoryCollection.query(...conditions).unsafeFetchRaw()) as Record<
-    string,
-    unknown
-  >[];
+  let rows: Record<string, unknown>[];
+  try {
+    const base = baseVaultSql(ctx);
+    const sql =
+      `select "id", "topics", "topics_user_managed", "topics_extracted_at", ` +
+      `"topics_extracted_version", "updated_at" from "memory_vault" ` +
+      `where ${base.sql} order by "created_at" desc`;
+    rows = (await ctx.vaultMemoryCollection
+      .query(Q.unsafeSqlQuery(sql, base.args))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+  } catch (err) {
+    getLogger().debug(
+      "memoryVault: topic sweep SQL unavailable; use the adapter query: " +
+        (err instanceof Error ? err.message : String(err))
+    );
+    rows = (await ctx.vaultMemoryCollection
+      .query(...baseVaultConditions(ctx), Q.sortBy("created_at", Q.desc))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+  }
 
   const linkedNames = await linkedEntityNamesByMemory(
     entityCtx,
@@ -1714,9 +1729,19 @@ export async function getMemoriesNeedingTopicExtractionOp(
 
   const orderedPendingRaw = [...stampedPendingRaw, ...pendingRaw];
   const limitedPendingRaw = cap !== undefined ? orderedPendingRaw.slice(0, cap) : orderedPendingRaw;
-  const pending = await mapInBatches(limitedPendingRaw, (raw) =>
-    vaultMemoryRawToStored(raw, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
-  );
+  const pending: StoredVaultMemory[] = [];
+  for (let i = 0; i < limitedPendingRaw.length; i += 500) {
+    const chunk = limitedPendingRaw.slice(i, i + 500);
+    const memories = await getVaultMemoriesByIdsOp(
+      ctx,
+      chunk.map((raw) => raw.id as string)
+    );
+    const byId = new Map(memories.map((memory) => [memory.uniqueId, memory]));
+    for (const raw of chunk) {
+      const memory = byId.get(raw.id as string);
+      if (memory) pending.push(memory);
+    }
+  }
   const applyCap = (ids: string[]): string[] => (cap !== undefined ? ids.slice(0, cap) : ids);
   return {
     pending,
@@ -2024,30 +2049,33 @@ export function assertVaultScopeForSweep(ctx: VaultMemoryOperationsContext): voi
   }
 }
 
-/**
- * Decay sweep candidate scan (PR2). Selects the plaintext columns
- * `classifyDecay` (in `memory/decay`) needs via
- * `unsafeFetchRaw` — NO Model per row (dodges the never-evicted RecordCache /
- * web Pile-2 OOM history) and NO `content` read / decrypt (zero-knowledge).
- *
- * Includes archived AND quarantined rows (so archived→delete transitions and
- * aged quarantined rows are seen) but excludes hard-deleted rows — the
- * `baseVaultConditions` default keeps `is_deleted = false`. Excludes kinded
- * (profile) memories, which never decay.
- *
- * Refuses to run on an unscoped multi-tenant context (see
- * {@link assertVaultScopeForSweep}).
- */
+/** Return the projected plaintext fields for the decay sweep within the required vault scope. */
 export async function getDecayCandidatesRawOp(
   ctx: VaultMemoryOperationsContext
 ): Promise<DecayCandidateRaw[]> {
   assertVaultScopeForSweep(ctx);
-  const results = (await ctx.vaultMemoryCollection
-    .query(
-      ...baseVaultConditions(ctx, { includeArchived: true, includeQuarantined: true }),
-      Q.where("kind", null)
-    )
-    .unsafeFetchRaw()) as Record<string, unknown>[];
+  let results: Record<string, unknown>[];
+  try {
+    const base = baseVaultSql(ctx, { includeArchived: true, includeQuarantined: true });
+    const sql =
+      `select "id", "fact_type", "event_time_end", "event_time_kind", "updated_at", ` +
+      `"last_observed_at", "archived_at", "source", "trust_tier" from "memory_vault" ` +
+      `where ${base.sql} and "kind" is null`;
+    results = (await ctx.vaultMemoryCollection
+      .query(Q.unsafeSqlQuery(sql, base.args))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+  } catch (err) {
+    getLogger().debug(
+      "memoryVault: decay sweep SQL unavailable; use the adapter query: " +
+        (err instanceof Error ? err.message : String(err))
+    );
+    results = (await ctx.vaultMemoryCollection
+      .query(
+        ...baseVaultConditions(ctx, { includeArchived: true, includeQuarantined: true }),
+        Q.where("kind", null)
+      )
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+  }
   return results.map((raw) => ({
     uniqueId: raw.id as string,
     factType: (raw.fact_type as string | null) ?? null,

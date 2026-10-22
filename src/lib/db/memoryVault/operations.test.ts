@@ -1374,7 +1374,9 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
   });
 
   it("does not pass a topics_user_managed clause to the query", async () => {
-    const queryFn = vi.fn(() => ({ unsafeFetchRaw: vi.fn(async () => []) }));
+    const queryFn = vi.fn((..._conditions: any[]) => ({
+      unsafeFetchRaw: vi.fn(async () => []),
+    }));
     const ctx = makeCtx({
       vaultMemoryCollection: { query: queryFn } as any,
       entityCtx: {
@@ -1384,7 +1386,9 @@ describe("getMemoriesNeedingTopicExtractionOp", () => {
       },
     });
     await getMemoriesNeedingTopicExtractionOp(ctx);
-    expect(queryFn.mock.calls[0].length).toBe(5);
+    const clause = queryFn.mock.calls[0][0] as { type: string; sql: string };
+    expect(clause.type).toBe("sqlQuery");
+    expect(clause.sql.slice(clause.sql.indexOf("where"))).not.toContain('"topics_user_managed"');
   });
 });
 
