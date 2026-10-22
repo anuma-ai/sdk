@@ -1,0 +1,12 @@
+{
+  "extends": "../../../tsconfig.test.json",
+  "compilerOptions": {
+    "paths": {
+      "@anuma/sdk": ["src/index.ts"],
+      "@anuma/sdk/server": ["src/server/index.ts"],
+      "@anuma/sdk/tools": ["src/tools/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": []
+}

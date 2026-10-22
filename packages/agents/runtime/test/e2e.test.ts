@@ -1,3 +1,5 @@
+import { Readable } from "node:stream";
+
 import type { StreamingTransport, StreamingTransportResult } from "@anuma/sdk/server";
 import { createGmailTools } from "@anuma/sdk/tools";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
@@ -5,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { createConnectorTokenGetter } from "../src/createConnectorTokenGetter.js";
 import { runAgentRequest } from "../src/runAgentRequest.js";
 import type { PortalClient } from "../src/types.js";
-
 import { havenAgent, havenGrant, mockReq, plannedTransport, sentinelGrant } from "./fixtures.js";
 import { startStubPortal, type StubPortalHandle } from "./stub-portal.js";
 
@@ -28,9 +29,9 @@ function buildGmailFactories(): Array<(portal: PortalClient) => ReturnType<typeo
   return [
     (portal) =>
       Object.values(
-        createGmailTools(createConnectorTokenGetter(portal, "gmail"), async () => {
-          throw new Error("server agent cannot initiate OAuth");
-        })
+        createGmailTools(createConnectorTokenGetter(portal, "gmail"), () =>
+          Promise.reject(new Error("server agent cannot initiate OAuth"))
+        )
       ),
   ];
 }
@@ -42,17 +43,17 @@ describe("agent-runtime e2e", () => {
       stub = await startStubPortal({ grants: { [HAVEN_BEARER]: havenGrant } });
 
       const transport: StreamingTransport = () => ({
-        stream: (async function* () {
-          yield { type: "response.reasoning.delta", delta: "Internal reasoning." };
-          yield { type: "response.output_text.delta", delta: "Hello from Responses." };
-          yield {
+        stream: Readable.from([
+          { type: "response.reasoning.delta", delta: "Internal reasoning." },
+          { type: "response.output_text.delta", delta: "Hello from Responses." },
+          {
             type: "response.completed",
             response: {
               status: "completed",
               usage: { input_tokens: 4, output_tokens: 8 },
             },
-          };
-        })(),
+          },
+        ]),
       });
       const messages = [
         { role: "user" as const, content: [{ type: "text" as const, text: "hello" }] },
@@ -131,7 +132,7 @@ describe("agent-runtime e2e", () => {
     expect(result.toolErrors).toHaveLength(0);
     const tail = result.messages.at(-1);
     const tailText = Array.isArray(tail?.content)
-      ? tail!.content.map((p) => p.text ?? "").join("")
+      ? tail.content.map((p) => p.text ?? "").join("")
       : ((tail?.content as unknown as string) ?? "");
     expect(tailText).toMatch(/invoice/i);
     expect(stub.mintCount).toBe(1);
@@ -179,11 +180,9 @@ describe("agent-runtime e2e", () => {
     });
 
     expect(result.toolErrors.length).toBeGreaterThanOrEqual(1);
-    expect(result.toolErrors[0]).toEqual(
-      expect.objectContaining({
-        error: expect.objectContaining({ code: "connector_not_connected", provider: "gmail" }),
-      })
-    );
+    expect(result.toolErrors[0]).toMatchObject({
+      error: { code: "connector_not_connected", provider: "gmail" },
+    });
 
     const toolResultMsg = result.messages.find((m) => m.role === "tool");
     expect(toolResultMsg).toBeTruthy();
@@ -197,7 +196,7 @@ describe("agent-runtime e2e", () => {
 
     const tail = result.messages.at(-1);
     const tailText = Array.isArray(tail?.content)
-      ? tail!.content.map((p) => p.text ?? "").join("")
+      ? tail.content.map((p) => p.text ?? "").join("")
       : ((tail?.content as unknown as string) ?? "");
     expect(tailText).toContain("/connectors/gmail/connect");
   });
@@ -381,17 +380,18 @@ describe("agent-runtime e2e", () => {
 
     const requestBodies: Array<Record<string, unknown>> = [];
     const transport: StreamingTransport = (options): StreamingTransportResult => {
+      if (!options.body) throw new Error("The LLM request body is absent.");
       requestBodies.push(options.body);
-      const stream = (async function* () {
-        yield {
+      const stream = Readable.from([
+        {
           id: "chunk-1",
           choices: [{ index: 0, delta: { content: "Hello from Haven." } }],
-        };
-        yield {
+        },
+        {
           id: "chunk-2",
           choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
-        };
-      })();
+        },
+      ]);
       return { stream };
     };
 

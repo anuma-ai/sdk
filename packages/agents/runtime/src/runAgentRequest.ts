@@ -189,8 +189,10 @@ function buildResponseMessages(
 }
 
 /** Default `requestAccess` for server agents: always throws, since they cannot drive interactive OAuth. */
-async function denyInteractive(): Promise<string | null> {
-  throw new Error("server agent cannot initiate OAuth; user must connect via portal");
+function denyInteractive(): Promise<string | null> {
+  return Promise.reject(
+    new Error("server agent cannot initiate OAuth; user must connect via portal")
+  );
 }
 
 /** Handle one inbound agent request: validate the bearer, build the portal client and tools, run `runToolLoop`, and lift connector errors. @throws Error when the tool loop fails at the transport level. */
