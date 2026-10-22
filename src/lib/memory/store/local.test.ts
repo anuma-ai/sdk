@@ -79,6 +79,41 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
     return { store, vaultCtx, entityCtx };
   }
 
+  it.each(["matching", "profile"] as const)(
+    "removes a %s memory from publication queries after revocation",
+    async (level) => {
+      const { store } = setup();
+      const memory = await store.create({
+        content: "Likes jazz",
+        kind: "bio",
+        kindValue: '"Likes jazz"',
+        level,
+        embedding: "[1,0]",
+      });
+      const published = await store.setVisibility(memory.uniqueId, "public", { twinOptIn: true });
+      expect(published).toMatchObject({ scope: "shared", level, visibility: "public" });
+      expect(published?.publishedAt).not.toBeNull();
+      expect((await store.list({ scopes: ["shared", "public"] })).map((m) => m.uniqueId)).toEqual([
+        memory.uniqueId,
+      ]);
+
+      const revoked = await store.setVisibility(memory.uniqueId, "private", { twinOptIn: false });
+
+      expect(await store.list({ scopes: ["shared", "public"] })).toEqual([]);
+      expect(await store.list({ visibility: ["public"] })).toEqual([]);
+      const expected = {
+        scope: "private",
+        level: "private",
+        visibility: "private",
+        publishedAt: null,
+        twinOptIn: false,
+        updatedAt: memory.updatedAt,
+      };
+      expect(revoked).toMatchObject(expected);
+      expect(await store.get(memory.uniqueId)).toMatchObject(expected);
+    }
+  );
+
   it("embeds new manual memories without replacing supplied vectors", async () => {
     const { store } = setup();
     const embed = vi.mocked(generateEmbedding);

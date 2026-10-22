@@ -393,6 +393,48 @@ runMemoryStoreContract(
 );
 
 describe("remote MemoryStore", () => {
+  it.each(["matching", "profile"] as const)(
+    "removes a %s memory from publication queries after revocation",
+    async (level) => {
+      const { store, server } = await remoteStore();
+      const memory = await store.create({
+        content: "Likes jazz",
+        kind: "bio",
+        kindValue: '"Likes jazz"',
+        level,
+        embedding: axis(0),
+      });
+      const published = await store.setVisibility(memory.uniqueId, "public", { twinOptIn: true });
+      expect(published).toMatchObject({ scope: "shared", level, visibility: "public" });
+      expect(published?.publishedAt).not.toBeNull();
+      expect((await store.list({ scopes: ["shared", "public"] })).map((m) => m.uniqueId)).toEqual([
+        memory.uniqueId,
+      ]);
+
+      const revoked = await store.setVisibility(memory.uniqueId, "private", { twinOptIn: false });
+
+      expect(await store.list({ scopes: ["shared", "public"] })).toEqual([]);
+      expect(await store.list({ visibility: ["public"] })).toEqual([]);
+      const expected = {
+        scope: "private",
+        level: "private",
+        visibility: "private",
+        publishedAt: null,
+        twinOptIn: false,
+        updatedAt: memory.updatedAt,
+      };
+      expect(revoked).toMatchObject(expected);
+      expect(await store.get(memory.uniqueId)).toMatchObject(expected);
+      expect(server.rows.get(memory.uniqueId)?.memory).toMatchObject({
+        scope: "private",
+        level: "private",
+        visibility: "private",
+        twin_opt_in: false,
+      });
+      expect(server.rows.get(memory.uniqueId)?.memory.published_at).toBeUndefined();
+    }
+  );
+
   it("dual-writes level with scope on create and update", async () => {
     const { store, server } = await remoteStore();
     const m = await store.create({ content: "Likes jazz", scope: "shared" });
