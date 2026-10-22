@@ -1,6 +1,8 @@
 vi.mock("../../memoryEngine/embeddings.js", () => ({
-  generateEmbeddings: vi.fn(async (texts: string[]) =>
-    texts.map((t) => Array.from({ length: 4096 }, (_, i) => (i === 0 ? t.length : 1)))
+  generateEmbeddings: vi.fn((texts: string[]) =>
+    Promise.resolve(
+      texts.map((t) => Array.from({ length: 4096 }, (_, i) => (i === 0 ? t.length : 1)))
+    )
   ),
 }));
 
@@ -8,6 +10,7 @@ import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { clearAllEncryptionKeys, type SignMessageFn } from "../../../react/useEncryption";
 import type { Entity, MemoryEntity } from "../../db/entities/models";
 import { replaceMemoryEntitiesGuardedOp } from "../../db/entities/operations";
 import type { VaultMemory } from "../../db/memoryVault/models";
@@ -23,7 +26,6 @@ import { sdkMigrations, sdkModelClasses, sdkSchema } from "../../db/schema";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants";
 import { generateEmbeddings } from "../../memoryEngine/embeddings.js";
 import { MEDIUM_TTL_MS } from "../decay";
-import { clearAllEncryptionKeys, type SignMessageFn } from "../../../react/useEncryption";
 import { deriveMemoryKeyRing, memoryCipher } from "./memoryKeys";
 import { migrateMemoriesToRemote } from "./remoteMigration";
 import {
@@ -61,7 +63,7 @@ function vault(
     database,
     vaultMemoryCollection: database.get<VaultMemory>("memory_vault"),
     walletAddress,
-    signMessage: vi.fn(async () => signature) as unknown as SignMessageFn,
+    signMessage: vi.fn(() => Promise.resolve(signature)) as unknown as SignMessageFn,
     userId,
     entityCtx: {
       database,
@@ -72,6 +74,10 @@ function vault(
 }
 
 type Stored = RemoteMemoryRow;
+
+function requestUrl(input: Parameters<typeof globalThis.fetch>[0]): string {
+  return typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+}
 
 function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
   const rows = new Map<string, Stored>();
@@ -89,7 +95,8 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
   const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
     const path = String(url).replace(/^.*\/api\/private-memories/, "");
     const method = init?.method ?? "GET";
-    const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+    const body =
+      typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
     calls.push(`${method} ${path}`);
     if (path === "/topics/import") {
       for (const t of body.topics as { name: string; kind?: string }[])
@@ -212,7 +219,7 @@ async function migrate(
 ) {
   return migrateMemoriesToRemote({
     baseUrl: "https://nearby.test",
-    getToken: async () => "token",
+    getToken: () => Promise.resolve("token"),
     fetch: nearby.fetch,
     vaultCtx,
     canonical: await deriveMemoryKeyRing(signatureA),
@@ -316,9 +323,8 @@ describe("migrateMemoriesToRemote", () => {
     const sent: string[] = [];
     const fetch = nearby.fetch;
     nearby.fetch = (async (url: string | URL, init?: RequestInit) => {
-      if (String(url).endsWith("/import"))
-        for (const row of (JSON.parse(String(init?.body)) as { memories: RemoteMemoryRow[] })
-          .memories)
+      if (String(url).endsWith("/import") && typeof init?.body === "string")
+        for (const row of (JSON.parse(init.body) as { memories: RemoteMemoryRow[] }).memories)
           sent.push(row.memory_id);
       return fetch(url, init);
     }) as typeof globalThis.fetch;
@@ -373,7 +379,7 @@ describe("migrateMemoriesToRemote", () => {
       let changed = false;
       nearby.fetch = (async (url, init) => {
         const response = await fetch(url, init);
-        if (!String(url).endsWith("/memories/query") || changed) return response;
+        if (!requestUrl(url).endsWith("/memories/query") || changed) return response;
         changed = true;
         if (operation === "save") await createVaultMemoryOp(ctx, { content: "Has a dog" });
         if (operation === "edit") {
@@ -406,9 +412,9 @@ describe("migrateMemoriesToRemote", () => {
       const deleted = await createVaultMemoryOp(ctx, { content: "Had a cat" });
       const nearby = fakeNearby();
       const local = {
-        create: vi.fn((input) => createVaultMemoryOp(ctx, input)),
-        update: vi.fn((id, input) => updateVaultMemoryOp(ctx, id, input)),
-        delete: vi.fn((id) => deleteVaultMemoryOp(ctx, id)),
+        create: vi.fn<MemoryStore["create"]>((input) => createVaultMemoryOp(ctx, input)),
+        update: vi.fn<MemoryStore["update"]>((id, input) => updateVaultMemoryOp(ctx, id, input)),
+        delete: vi.fn<MemoryStore["delete"]>((id) => deleteVaultMemoryOp(ctx, id)),
       } satisfies Pick<MemoryStore, "create" | "update" | "delete">;
       let store: Pick<MemoryStore, "create" | "update" | "delete"> = local;
       let tail = Promise.resolve();
@@ -426,7 +432,7 @@ describe("migrateMemoriesToRemote", () => {
       const fetch = nearby.fetch;
       nearby.fetch = (async (url, init) => {
         const response = await fetch(url, init);
-        if (held && !queued && String(url).endsWith(path)) {
+        if (held && !queued && requestUrl(url).endsWith(path)) {
           queued = exclusive(async () => {
             await store.create({ content: "Has a dog", embedding: vector4096 });
             await store.update(edited.uniqueId, {
@@ -448,7 +454,7 @@ describe("migrateMemoriesToRemote", () => {
         store = createRemoteMemoryStore({
           persistence: await createRemoteMemoryPersistence({
             baseUrl: "https://nearby.test",
-            getToken: async () => "token",
+            getToken: () => Promise.resolve("token"),
             fetch: nearby.fetch,
             keyId: canonical.keyId,
             ...memoryCipher(canonical),
@@ -501,7 +507,7 @@ describe("migrateMemoriesToRemote", () => {
       let held = false;
       const onActivated = vi.fn();
       nearby.fetch = (async (url, init) => {
-        if (held && String(url).endsWith(path))
+        if (held && requestUrl(url).endsWith(path))
           return new Response(JSON.stringify({ detail: "unavailable" }), { status: 503 });
         return fetch(url, init);
       }) as typeof globalThis.fetch;
@@ -750,7 +756,9 @@ describe("migrateMemoriesToRemote", () => {
     await deleteVaultMemoryOp(ctx, tombstone.uniqueId);
     const nearby = fakeNearby();
 
-    const result = await migrate(nearby, ctx, { embeddingOptions: { getToken: async () => "t" } });
+    const result = await migrate(nearby, ctx, {
+      embeddingOptions: { getToken: () => Promise.resolve("t") },
+    });
 
     expect(result).toMatchObject({ state: "active", reembedded: 4, unembedded: 0 });
     expect(vi.mocked(generateEmbeddings)).toHaveBeenCalledTimes(1);
@@ -907,13 +915,18 @@ describe("topic migration", () => {
     let imports = 0;
     let requestSignal: AbortSignal | null | undefined;
     server.fetch = (async (url, init) => {
-      if (String(url).endsWith("/topics/import") && ++imports === 2) {
+      if (requestUrl(url).endsWith("/topics/import") && ++imports === 2) {
         requestSignal = init?.signal;
         pending!();
         return new Promise<Response>((_resolve, reject) => {
-          requestSignal!.addEventListener("abort", () => reject(requestSignal!.reason), {
-            once: true,
-          });
+          requestSignal!.addEventListener(
+            "abort",
+            () => {
+              const reason: unknown = requestSignal!.reason;
+              reject(reason instanceof Error ? reason : new Error("Request cancelled"));
+            },
+            { once: true }
+          );
         });
       }
       return original(url, init);
