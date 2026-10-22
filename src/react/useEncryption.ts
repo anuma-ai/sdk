@@ -495,6 +495,7 @@ export async function getEncryptionKey(
     return cachedKey;
   }
 
+  const startEpoch = sessionEpoch;
   const keyHex = getStoredKeyByVersion(address, version);
   if (!keyHex) {
     throw new EncryptionKeyMissingError(address, version);
@@ -509,6 +510,10 @@ export async function getEncryptionKey(
     false,
     ["encrypt", "decrypt"]
   );
+
+  if (sessionEpoch !== startEpoch || getStoredKeyByVersion(address, version) !== keyHex) {
+    throw new EncryptionKeyMissingError(address, version);
+  }
 
   cryptoKeyCache.set(cacheKey, cryptoKey);
 

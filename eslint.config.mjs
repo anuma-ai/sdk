@@ -35,6 +35,7 @@ const checkedTestFiles = [
   "src/react/useChatStorage.queueIdentifiers.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",
   "src/react/useChatStorage.sendHistoryRead.test.tsx",
+  "src/react/useEncryption.import.test.ts",
   "src/server/pg-adapter.inequality.test.ts",
   "src/server/pg-adapter.integration.test.ts",
   "src/server/pg-adapter.test.ts",
