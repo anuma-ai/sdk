@@ -1,6 +1,6 @@
 # VaultEmbeddingExpectation
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2264](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2264)
+Defined in: [src/lib/db/memoryVault/operations.ts:2261](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2261)
 
 What a re-embed was computed from. A search embeds a row it READ earlier, so
 by the time the vector lands the row may have been edited (the tool clears
@@ -13,7 +13,7 @@ preserveUpdatedAt); writing then would pin a vector for text that is gone.
 
 > `optional` **content**: `string`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2266](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2266)
+Defined in: [src/lib/db/memoryVault/operations.ts:2263](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2263)
 
 Plaintext content the vector was computed from.
 
@@ -23,6 +23,6 @@ Plaintext content the vector was computed from.
 
 > `optional` **updatedAt**: `number`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2268](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2268)
+Defined in: [src/lib/db/memoryVault/operations.ts:2265](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2265)
 
 `updatedAt` (ms) of the row as it was read.
