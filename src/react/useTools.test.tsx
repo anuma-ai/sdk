@@ -48,10 +48,12 @@ describe("useTools filters", () => {
     expect(getServerTools).toHaveBeenCalledTimes(1);
 
     const settledRenders = renders;
+    const settledTools = result.current.tools;
     rerender();
 
     expect(renders).toBe(settledRenders + 1);
     expect(result.current.tools).toEqual([catalog[0]]);
+    expect(result.current.tools).toBe(settledTools);
   });
 
   it("derives each filter from the full catalog without another fetch", async () => {

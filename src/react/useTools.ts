@@ -88,7 +88,21 @@ export function useTools(options: UseToolsOptions): UseToolsResult {
   const [checksum, setChecksum] = useState<string | undefined>(getToolsChecksum);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const tools = useMemo(() => filterServerTools(allTools, includeTools), [allTools, includeTools]);
+  const includeToolsRef = useRef(includeTools);
+  if (
+    includeTools !== includeToolsRef.current &&
+    (includeTools === undefined ||
+      includeToolsRef.current === undefined ||
+      includeTools.length !== includeToolsRef.current.length ||
+      includeTools.some((name, i) => name !== includeToolsRef.current?.[i]))
+  ) {
+    includeToolsRef.current = includeTools;
+  }
+  const stableIncludeTools = includeToolsRef.current;
+  const tools = useMemo(
+    () => filterServerTools(allTools, stableIncludeTools),
+    [allTools, stableIncludeTools]
+  );
 
   const getTokenRef = useRef(getToken);
   const baseUrlRef = useRef(baseUrl);
