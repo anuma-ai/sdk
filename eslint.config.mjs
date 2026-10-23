@@ -33,6 +33,8 @@ const checkedTestFiles = [
   "src/lib/db/chat/operations.eventIdIndex.test.ts",
   "src/lib/db/memoryVault/operations.sweeps.test.ts",
   "src/lib/db/memoryVault/operations.test.ts",
+  "src/lib/memoryVault/searchTool.concurrent.test.ts",
+  "src/lib/memoryVault/searchTool.test.ts",
   "src/react/useChatStorage.fileSize.test.tsx",
   "src/react/useChatStorage.queueIdentifiers.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",
@@ -52,6 +54,7 @@ export default tseslint.config(
       "docs/**",
       "coverage/**",
       "scripts/**",
+      "!scripts/excluded-test-suites.mjs",
       "patches/**",
       "packages/**",
       "test/**/*",
@@ -119,7 +122,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["eslint.config.mjs"],
+    files: ["eslint.config.mjs", "scripts/excluded-test-suites.mjs"],
     extends: [tseslint.configs.disableTypeChecked],
   },
   {

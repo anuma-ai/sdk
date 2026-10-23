@@ -1,6 +1,6 @@
 # ProfileFacet
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#41)
+Defined in: [src/lib/memory/synthesizeProfile.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#42)
 
 One profile facet: how to recall its evidence and steer its synthesis.
 
@@ -10,7 +10,7 @@ One profile facet: how to recall its evidence and steer its synthesis.
 
 > **guidance**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#48)
+Defined in: [src/lib/memory/synthesizeProfile.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#49)
 
 Facet-specific guidance appended to the synthesis system prompt.
 
@@ -20,7 +20,7 @@ Facet-specific guidance appended to the synthesis system prompt.
 
 > **key**: [`ProfileFacetKey`](../type-aliases/ProfileFacetKey.md)
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#42)
+Defined in: [src/lib/memory/synthesizeProfile.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#43)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/memory/synthesizeProfile.ts:42](https://github.com/anuma-ai
 
 > **label**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#44)
+Defined in: [src/lib/memory/synthesizeProfile.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#45)
 
 Human-readable section label.
 
@@ -38,6 +38,6 @@ Human-readable section label.
 
 > **query**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#46)
+Defined in: [src/lib/memory/synthesizeProfile.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#47)
 
 Recall query that pulls the vault facts relevant to this facet.

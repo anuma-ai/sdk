@@ -5,6 +5,7 @@ import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
+import { createVaultPreparation, type VaultPreparation } from "../memoryVault/vaultPreparation.js";
 import type { PiiRedactor } from "../pii/redactor.js";
 import type { FactType } from "./autoExtract.js";
 import { type ObservationTrend, summarizeObservationTrends } from "./observationTrend.js";
@@ -436,13 +437,20 @@ export async function synthesizeProfile(
     }
   }
 
+  const vaultPreparation = createVaultPreparation();
   const settled = await Promise.allSettled(
     facets.map(async (facet) => {
       const prior = previous?.sections.find((s) => s.key === facet.key);
       if (prior && !staleKeys.has(facet.key)) {
         return prior;
       }
-      return synthesizeFacet(facet, recallCtx, options, fallbackPriors.get(facet.key));
+      return synthesizeFacet(
+        facet,
+        recallCtx,
+        options,
+        fallbackPriors.get(facet.key),
+        vaultPreparation
+      );
     })
   );
 
@@ -685,7 +693,8 @@ async function synthesizeFacet(
   facet: ProfileFacet,
   ctx: RecallContext,
   options: SynthesizeProfileOptions,
-  prior: ProfileSection | undefined
+  prior: ProfileSection | undefined,
+  vaultPreparation: VaultPreparation
 ): Promise<ProfileSection> {
   const scopes = options.scopes ?? DEFAULT_SCOPES;
   const limit = options.limit ?? DEFAULT_FACET_RECALL_LIMIT;
@@ -705,6 +714,7 @@ async function synthesizeFacet(
   }
 
   const recalled = await recall(facet.query, ctx, {
+    vaultPreparation,
     scopes,
     limit: hasReviewGate ? RECALL_MAX_LIMIT : limit,
     types: ["fact"],
