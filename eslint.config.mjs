@@ -37,6 +37,7 @@ const checkedTestFiles = [
   "src/lib/memory/portalLlm.test.ts",
   "src/lib/memoryVault/searchTool.concurrent.test.ts",
   "src/lib/memoryVault/searchTool.test.ts",
+  "src/lib/memory/decay.test.ts",
   "src/react/useChatStorage.fileSize.test.tsx",
   "src/react/useChatStorage.queueIdentifiers.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",

@@ -1,7 +1,9 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { noopLogger, setLogger } from "../logger";
-
 import {
   classifyDecay,
   type DecayInput,
@@ -39,6 +41,19 @@ function input(overrides: Partial<DecayInput> = {}): DecayInput {
     ...overrides,
   };
 }
+
+describe("classifyDecay documentation", () => {
+  it("documents the inclusive event grace boundary in the age-rule exception", () => {
+    const source = readFileSync(join(__dirname, "decay.ts"), "utf8");
+    const declarationStart = source.indexOf("export function classifyDecay");
+    const documentation = source.slice(
+      source.lastIndexOf("/**", declarationStart),
+      declarationStart
+    );
+
+    expect(documentation).toContain("`eventTimeEnd >= now - pastEventGraceMs`");
+  });
+});
 
 describe("ttlForType", () => {
   it("maps durable identity-class types to Infinity", () => {
@@ -185,6 +200,38 @@ describe("classifyDecay — plan/ongoing_context event-past archiving", () => {
         NOW
       );
       expect(verdict).toBe("keep");
+    });
+
+    it.each([
+      ["keep", DAY],
+      ["keep", PAST_EVENT_GRACE_MS],
+      ["archive", PAST_EVENT_GRACE_MS + 1],
+    ] as const)(`returns %s for stale ${t} %i ms after its event ends`, (expected, elapsed) => {
+      const verdict = classifyDecay(
+        input({
+          factType: t,
+          eventTimeEnd: NOW - elapsed,
+          eventTimeKind: "range",
+          updatedAt: NOW - (SHORT_TTL_MS + DAY),
+        }),
+        NOW
+      );
+      expect(verdict).toBe(expected);
+    });
+
+    it(`uses the custom grace period for an old ${t}`, () => {
+      const memory = input({
+        factType: t,
+        eventTimeEnd: NOW - 2 * DAY,
+        eventTimeKind: "range",
+        updatedAt: NOW - (SHORT_TTL_MS + DAY),
+      });
+      const policy = { pastEventGraceMs: 2 * DAY };
+
+      expect(classifyDecay(memory, NOW - 1, policy)).toBe("keep");
+      expect(classifyDecay(memory, NOW, policy)).toBe("keep");
+      expect(classifyDecay(memory, NOW + 1, policy)).toBe("archive");
+      expect(classifyDecay(memory, NOW + 1)).toBe("keep");
     });
 
     it(`keeps ${t} whose event is in the future`, () => {
