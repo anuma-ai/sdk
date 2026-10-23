@@ -1,6 +1,6 @@
 # VaultCandidateKey
 
-Defined in: [src/lib/db/memoryVault/operations.ts:770](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#770)
+Defined in: [src/lib/db/memoryVault/operations.ts:773](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#773)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:770](https://github.com/anuma-
 
 > **embeddingModel**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:774](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#774)
+Defined in: [src/lib/db/memoryVault/operations.ts:777](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#777)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:774](https://github.com/anuma-
 
 > **folderId**: `string` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:772](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#772)
+Defined in: [src/lib/db/memoryVault/operations.ts:775](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#775)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:772](https://github.com/anuma-
 
 > **scope**: `string`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:773](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#773)
+Defined in: [src/lib/db/memoryVault/operations.ts:776](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#776)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:773](https://github.com/anuma-
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:771](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#771)
+Defined in: [src/lib/db/memoryVault/operations.ts:774](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#774)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/lib/db/memoryVault/operations.ts:771](https://github.com/anuma-
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:775](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#775)
+Defined in: [src/lib/db/memoryVault/operations.ts:778](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#778)
