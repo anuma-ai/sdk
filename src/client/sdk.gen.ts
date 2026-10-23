@@ -2,6 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
+import { normalizeHeaders } from '../clientHeaders';
 import type { DeleteApiV1AccountData, DeleteApiV1AccountErrors, DeleteApiV1AccountResponses, DeleteApiV1AdminAgentsByIdData, DeleteApiV1AdminAgentsByIdErrors, DeleteApiV1AdminAgentsByIdResponses, DeleteApiV1AdminAppsByAppIdApiKeysByIdData, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByIdData, DeleteApiV1AdminAppsByIdErrors, DeleteApiV1AdminAppsByIdResponses, DeleteApiV1AdminOauthClientsByClientIdData, DeleteApiV1AdminOauthClientsByClientIdErrors, DeleteApiV1AdminOauthClientsByClientIdResponses, DeleteApiV1AdminPersonasByIdData, DeleteApiV1AdminPersonasByIdErrors, DeleteApiV1AdminPersonasByIdResponses, DeleteApiV1AdminSharesBySlugData, DeleteApiV1AdminSharesBySlugErrors, DeleteApiV1AdminSharesBySlugResponses, DeleteApiV1AdminTextResetData, DeleteApiV1AdminTextResetErrors, DeleteApiV1AdminTextResetResponses, DeleteApiV1AdminUsersDeleteData, DeleteApiV1AdminUsersDeleteErrors, DeleteApiV1AdminUsersDeleteResponses, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdData, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdErrors, DeleteApiV1AuthMfaPasskeyCredentialsByCredentialIdResponses, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses, DeleteApiV1DeveloperAppsByAppUuidData, DeleteApiV1DeveloperAppsByAppUuidErrors, DeleteApiV1DeveloperAppsByAppUuidPrivyData, DeleteApiV1DeveloperAppsByAppUuidPrivyErrors, DeleteApiV1DeveloperAppsByAppUuidPrivyResponses, DeleteApiV1DeveloperAppsByAppUuidResponses, DeleteApiV1SharesBySlugData, DeleteApiV1SharesBySlugErrors, DeleteApiV1SharesBySlugResponses, DeleteApiV1UserAgentConsentsByAgentIdData, DeleteApiV1UserAgentConsentsByAgentIdErrors, DeleteApiV1UserAgentConsentsByAgentIdResponses, DeleteApiV1UserApiKeysByKeyIdData, DeleteApiV1UserApiKeysByKeyIdErrors, DeleteApiV1UserApiKeysByKeyIdResponses, DeleteApiV1UserOauthGrantsByIdData, DeleteApiV1UserOauthGrantsByIdErrors, DeleteApiV1UserOauthGrantsByIdResponses, DeleteApiV1WalletsBindingByAddressData, DeleteApiV1WalletsBindingByAddressErrors, DeleteApiV1WalletsBindingByAddressResponses, GetAdminReferralGrantsStatsData, GetAdminReferralGrantsStatsErrors, GetAdminReferralGrantsStatsResponses, GetApiV1AdminAppsByAppIdApiKeysByIdData, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysData, GetApiV1AdminAppsByAppIdApiKeysErrors, GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByIdData, GetApiV1AdminAppsByIdErrors, GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsData, GetApiV1AdminAppsErrors, GetApiV1AdminAppsResponses, GetApiV1AdminBotStatusData, GetApiV1AdminBotStatusErrors, GetApiV1AdminBotStatusResponses, GetApiV1AdminConnectorsData, GetApiV1AdminConnectorsErrors, GetApiV1AdminConnectorsResponses, GetApiV1AdminModerationCsamByIdHistoryData, GetApiV1AdminModerationCsamByIdHistoryErrors, GetApiV1AdminModerationCsamByIdHistoryResponses, GetApiV1AdminModerationCsamData, GetApiV1AdminModerationCsamErrors, GetApiV1AdminModerationCsamResponses, GetApiV1AdminNearbyAccessCodesData, GetApiV1AdminNearbyAccessCodesErrors, GetApiV1AdminNearbyAccessCodesResponses, GetApiV1AdminNearbyMeetupsByIdData, GetApiV1AdminNearbyMeetupsByIdErrors, GetApiV1AdminNearbyMeetupsByIdResponses, GetApiV1AdminNotificationsCampaignsByCampaignIdData, GetApiV1AdminNotificationsCampaignsByCampaignIdErrors, GetApiV1AdminNotificationsCampaignsByCampaignIdResponses, GetApiV1AdminNotificationsCampaignsData, GetApiV1AdminNotificationsCampaignsErrors, GetApiV1AdminNotificationsCampaignsResponses, GetApiV1AdminOauthClientsByClientIdData, GetApiV1AdminOauthClientsByClientIdErrors, GetApiV1AdminOauthClientsByClientIdResponses, GetApiV1AdminOauthClientsData, GetApiV1AdminOauthClientsResponses, GetApiV1AdminPhoneHashesAuditData, GetApiV1AdminPhoneHashesAuditErrors, GetApiV1AdminPhoneHashesAuditResponses, GetApiV1AdminPrivyIdentifiersAuditData, GetApiV1AdminPrivyIdentifiersAuditErrors, GetApiV1AdminPrivyIdentifiersAuditResponses, GetApiV1AdminUsersLookupData, GetApiV1AdminUsersLookupErrors, GetApiV1AdminUsersLookupResponses, GetApiV1AgentPreferencesData, GetApiV1AgentPreferencesErrors, GetApiV1AgentPreferencesResponses, GetApiV1AgentsByIdData, GetApiV1AgentsByIdErrors, GetApiV1AgentsByIdResponses, GetApiV1AgentsData, GetApiV1AgentsErrors, GetApiV1AgentsResponses, GetApiV1AuthMfaStatusData, GetApiV1AuthMfaStatusErrors, GetApiV1AuthMfaStatusResponses, GetApiV1BootstrapData, GetApiV1BootstrapErrors, GetApiV1BootstrapResponses, GetApiV1ChatStreamsByInferenceIdData, GetApiV1ChatStreamsByInferenceIdErrors, GetApiV1ChatStreamsByInferenceIdResponses, GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1ConnectorsByProviderScopesData, GetApiV1ConnectorsByProviderScopesErrors, GetApiV1ConnectorsByProviderScopesResponses, GetApiV1ConnectorsByProviderToolsData, GetApiV1ConnectorsByProviderToolsErrors, GetApiV1ConnectorsByProviderToolsResponses, GetApiV1ConnectorsData, GetApiV1ConnectorsErrors, GetApiV1ConnectorsResponses, GetApiV1CreditsBalanceData, GetApiV1CreditsBalanceErrors, GetApiV1CreditsBalanceResponses, GetApiV1CreditsPacksData, GetApiV1CreditsPacksErrors, GetApiV1CreditsPacksResponses, GetApiV1CuratedModelsData, GetApiV1CuratedModelsResponses, GetApiV1DeveloperAppsByAppUuidApiKeysData, GetApiV1DeveloperAppsByAppUuidApiKeysErrors, GetApiV1DeveloperAppsByAppUuidApiKeysResponses, GetApiV1DeveloperAppsByAppUuidData, GetApiV1DeveloperAppsByAppUuidErrors, GetApiV1DeveloperAppsByAppUuidResponses, GetApiV1DeveloperAppsByAppUuidUsageData, GetApiV1DeveloperAppsByAppUuidUsageErrors, GetApiV1DeveloperAppsByAppUuidUsageResponses, GetApiV1DeveloperAppsByAppUuidUsageUsersData, GetApiV1DeveloperAppsByAppUuidUsageUsersErrors, GetApiV1DeveloperAppsByAppUuidUsageUsersResponses, GetApiV1DeveloperAppsByAppUuidUsersByAddressData, GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors, GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses, GetApiV1DeveloperAppsByAppUuidUsersData, GetApiV1DeveloperAppsByAppUuidUsersErrors, GetApiV1DeveloperAppsByAppUuidUsersResponses, GetApiV1DeveloperAppsData, GetApiV1DeveloperAppsErrors, GetApiV1DeveloperAppsResponses, GetApiV1DeveloperBillingData, GetApiV1DeveloperBillingErrors, GetApiV1DeveloperBillingResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1GuestBootstrapData, GetApiV1GuestBootstrapErrors, GetApiV1GuestBootstrapResponses, GetApiV1MeData, GetApiV1MediaSharedBySlugData, GetApiV1MediaSharedBySlugErrors, GetApiV1MediaSharedBySlugResponses, GetApiV1MeErrors, GetApiV1MeResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1NotificationsPreferencesData, GetApiV1NotificationsPreferencesErrors, GetApiV1NotificationsPreferencesResponses, GetApiV1PersonasByIdData, GetApiV1PersonasByIdErrors, GetApiV1PersonasByIdResponses, GetApiV1PersonasData, GetApiV1PersonasErrors, GetApiV1PersonasResponses, GetApiV1PhoneCallsByCallIdData, GetApiV1PhoneCallsByCallIdErrors, GetApiV1PhoneCallsByCallIdResponses, GetApiV1SharesBySlugData, GetApiV1SharesBySlugErrors, GetApiV1SharesBySlugResponses, GetApiV1SharesData, GetApiV1SharesErrors, GetApiV1SharesResponses, GetApiV1SubscriptionsPlansData, GetApiV1SubscriptionsPlansErrors, GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetApiV1UsageByModalityData, GetApiV1UsageByModalityErrors, GetApiV1UsageByModalityResponses, GetApiV1UsageInferenceWeeklyData, GetApiV1UsageInferenceWeeklyResponses, GetApiV1UsageModelsData, GetApiV1UsageModelsErrors, GetApiV1UsageModelsResponses, GetApiV1UserAgentConsentsData, GetApiV1UserAgentConsentsErrors, GetApiV1UserAgentConsentsResponses, GetApiV1UserAgentGrantsData, GetApiV1UserAgentGrantsErrors, GetApiV1UserAgentGrantsResponses, GetApiV1UserApiKeysData, GetApiV1UserApiKeysErrors, GetApiV1UserApiKeysResponses, GetApiV1UserOauthGrantsData, GetApiV1UserOauthGrantsErrors, GetApiV1UserOauthGrantsResponses, GetApiV1WalletsBindingData, GetApiV1WalletsBindingErrors, GetApiV1WalletsBindingResponses, GetApiV1ZetaCreditRateData, GetApiV1ZetaCreditRateResponses, GetApiV1ZetaMarketData, GetApiV1ZetaMarketResponses, GetConnectorsByProviderCallbackData, GetConnectorsByProviderCallbackErrors, GetConnectorsByProviderConnectData, GetConnectorsByProviderConnectErrors, GetHealthData, GetHealthErrors, GetHealthResponses, GetInternalAccountsByDidByDidData, GetInternalAccountsByDidByDidErrors, GetInternalAccountsByDidByDidResponses, GetNearbyAccessData, GetNearbyAccessErrors, GetNearbyAccessResponses, GetOauthAuthorizeData, GetOauthAuthorizeErrors, GetOauthConsentData, GetOauthConsentErrors, GetOauthConsentResponses, GetReferralMeData, GetReferralMeErrors, GetReferralMeResponses, GetReferralRewardsData, GetReferralRewardsErrors, GetReferralRewardsResponses, GetWellKnownJwksJsonData, GetWellKnownJwksJsonResponses, PatchApiV1AdminNotificationsCampaignsByCampaignIdData, PatchApiV1AdminNotificationsCampaignsByCampaignIdErrors, PatchApiV1AdminNotificationsCampaignsByCampaignIdResponses, PatchApiV1AdminOauthClientsByClientIdData, PatchApiV1AdminOauthClientsByClientIdErrors, PatchApiV1AdminOauthClientsByClientIdResponses, PatchApiV1DeveloperAppsByAppUuidData, PatchApiV1DeveloperAppsByAppUuidErrors, PatchApiV1DeveloperAppsByAppUuidResponses, PatchApiV1DeveloperAppsByAppUuidUsersByAddressData, PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors, PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses, PatchApiV1UserOauthGrantsByIdData, PatchApiV1UserOauthGrantsByIdErrors, PatchApiV1UserOauthGrantsByIdResponses, PostApiV1AccountVerifyChallengeData, PostApiV1AccountVerifyChallengeErrors, PostApiV1AccountVerifyChallengeResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminAgentsData, PostApiV1AdminAgentsErrors, PostApiV1AdminAgentsResponses, PostApiV1AdminAppsByAppIdApiKeysData, PostApiV1AdminAppsByAppIdApiKeysErrors, PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsData, PostApiV1AdminAppsErrors, PostApiV1AdminAppsResponses, PostApiV1AdminBotPollerStartData, PostApiV1AdminBotPollerStartErrors, PostApiV1AdminBotPollerStartResponses, PostApiV1AdminBotPollerStopData, PostApiV1AdminBotPollerStopErrors, PostApiV1AdminBotPollerStopResponses, PostApiV1AdminNearbyAccessCodesData, PostApiV1AdminNearbyAccessCodesErrors, PostApiV1AdminNearbyAccessCodesResponses, PostApiV1AdminNearbyAccessCodesRevokeData, PostApiV1AdminNearbyAccessCodesRevokeErrors, PostApiV1AdminNearbyAccessCodesRevokeResponses, PostApiV1AdminNotificationsAnnounceModelData, PostApiV1AdminNotificationsAnnounceModelErrors, PostApiV1AdminNotificationsAnnounceModelResponses, PostApiV1AdminNotificationsCampaignsByCampaignIdCancelData, PostApiV1AdminNotificationsCampaignsByCampaignIdCancelErrors, PostApiV1AdminNotificationsCampaignsByCampaignIdCancelResponses, PostApiV1AdminNotificationsCampaignsData, PostApiV1AdminNotificationsCampaignsErrors, PostApiV1AdminNotificationsCampaignsResponses, PostApiV1AdminNotificationsSendData, PostApiV1AdminNotificationsSendErrors, PostApiV1AdminNotificationsSendResponses, PostApiV1AdminOauthClientsData, PostApiV1AdminOauthClientsErrors, PostApiV1AdminOauthClientsResponses, PostApiV1AdminPersonasData, PostApiV1AdminPersonasErrors, PostApiV1AdminPersonasResponses, PostApiV1AdminPhoneHashesBackfillData, PostApiV1AdminPhoneHashesBackfillErrors, PostApiV1AdminPhoneHashesBackfillResponses, PostApiV1AdminPrivyDevWipeData, PostApiV1AdminPrivyDevWipeErrors, PostApiV1AdminPrivyDevWipeResponses, PostApiV1AdminPrivyIdentifiersMigrateData, PostApiV1AdminPrivyIdentifiersMigrateErrors, PostApiV1AdminPrivyIdentifiersMigrateResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1AdminUsersInternalTesterData, PostApiV1AdminUsersInternalTesterErrors, PostApiV1AdminUsersInternalTesterResponses, PostApiV1AdminUsersNearbyBetaData, PostApiV1AdminUsersNearbyBetaErrors, PostApiV1AdminUsersNearbyBetaResponses, PostApiV1AdminUsersSuspendData, PostApiV1AdminUsersSuspendErrors, PostApiV1AdminUsersSuspendResponses, PostApiV1AdminUsersUnsuspendData, PostApiV1AdminUsersUnsuspendErrors, PostApiV1AdminUsersUnsuspendResponses, PostApiV1AuthMfaDisableData, PostApiV1AuthMfaDisableErrors, PostApiV1AuthMfaDisableResponses, PostApiV1AuthMfaPasskeyEnrollBeginData, PostApiV1AuthMfaPasskeyEnrollBeginErrors, PostApiV1AuthMfaPasskeyEnrollBeginResponses, PostApiV1AuthMfaPasskeyEnrollFinishData, PostApiV1AuthMfaPasskeyEnrollFinishErrors, PostApiV1AuthMfaPasskeyEnrollFinishResponses, PostApiV1AuthMfaPasskeyVerifyBeginData, PostApiV1AuthMfaPasskeyVerifyBeginErrors, PostApiV1AuthMfaPasskeyVerifyBeginResponses, PostApiV1AuthMfaPasskeyVerifyFinishData, PostApiV1AuthMfaPasskeyVerifyFinishErrors, PostApiV1AuthMfaPasskeyVerifyFinishResponses, PostApiV1AuthMfaRecoveryCodesRegenerateData, PostApiV1AuthMfaRecoveryCodesRegenerateErrors, PostApiV1AuthMfaRecoveryCodesRegenerateResponses, PostApiV1AuthMfaTotpEnrollInitData, PostApiV1AuthMfaTotpEnrollInitErrors, PostApiV1AuthMfaTotpEnrollInitResponses, PostApiV1AuthMfaTotpEnrollVerifyData, PostApiV1AuthMfaTotpEnrollVerifyErrors, PostApiV1AuthMfaTotpEnrollVerifyResponses, PostApiV1AuthMfaVerifyData, PostApiV1AuthMfaVerifyErrors, PostApiV1AuthMfaVerifyResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1ChatStreamsByInferenceIdCancelData, PostApiV1ChatStreamsByInferenceIdCancelErrors, PostApiV1ChatStreamsByInferenceIdCancelResponses, PostApiV1ConnectorsByProviderDisconnectData, PostApiV1ConnectorsByProviderDisconnectErrors, PostApiV1ConnectorsByProviderDisconnectResponses, PostApiV1ConnectorsByProviderProxyData, PostApiV1ConnectorsByProviderProxyErrors, PostApiV1ConnectorsByProviderProxyResponses, PostApiV1ConnectorsImportData, PostApiV1ConnectorsImportErrors, PostApiV1ConnectorsImportResponses, PostApiV1ConnectorTokensByProviderData, PostApiV1ConnectorTokensByProviderErrors, PostApiV1ConnectorTokensByProviderResponses, PostApiV1ConnectTicketsData, PostApiV1ConnectTicketsErrors, PostApiV1ConnectTicketsResponses, PostApiV1CreditsPurchaseData, PostApiV1CreditsPurchaseErrors, PostApiV1CreditsPurchaseResponses, PostApiV1CreditsRedeemTokensData, PostApiV1CreditsRedeemTokensErrors, PostApiV1CreditsRedeemTokensResponses, PostApiV1DeveloperAppsByAppUuidApiKeysData, PostApiV1DeveloperAppsByAppUuidApiKeysErrors, PostApiV1DeveloperAppsByAppUuidApiKeysResponses, PostApiV1DeveloperAppsByAppUuidFundData, PostApiV1DeveloperAppsByAppUuidFundErrors, PostApiV1DeveloperAppsByAppUuidFundResponses, PostApiV1DeveloperAppsByAppUuidPrivyData, PostApiV1DeveloperAppsByAppUuidPrivyErrors, PostApiV1DeveloperAppsByAppUuidPrivyResponses, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses, PostApiV1DeveloperAppsData, PostApiV1DeveloperAppsErrors, PostApiV1DeveloperAppsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1GuestChatCompletionsData, PostApiV1GuestChatCompletionsErrors, PostApiV1GuestChatCompletionsResponses, PostApiV1NotificationsDevicesData, PostApiV1NotificationsDevicesErrors, PostApiV1NotificationsDevicesResponses, PostApiV1NotificationsDevicesUnregisterData, PostApiV1NotificationsDevicesUnregisterErrors, PostApiV1NotificationsDevicesUnregisterResponses, PostApiV1PhoneCallsData, PostApiV1PhoneCallsErrors, PostApiV1PhoneCallsResponses, PostApiV1PreprocessorsCryptoPricesData, PostApiV1PreprocessorsCryptoPricesErrors, PostApiV1PreprocessorsCryptoPricesResponses, PostApiV1PreprocessorsSearchData, PostApiV1PreprocessorsSearchErrors, PostApiV1PreprocessorsSearchResponses, PostApiV1PreprocessorsStockPricesData, PostApiV1PreprocessorsStockPricesErrors, PostApiV1PreprocessorsStockPricesResponses, PostApiV1PreprocessorsWeatherData, PostApiV1PreprocessorsWeatherErrors, PostApiV1PreprocessorsWeatherResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SharesBySlugReportData, PostApiV1SharesBySlugReportResponses, PostApiV1SharesData, PostApiV1SharesErrors, PostApiV1SharesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCancelScheduledDowngradeData, PostApiV1SubscriptionsCancelScheduledDowngradeErrors, PostApiV1SubscriptionsCancelScheduledDowngradeResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsScheduleDowngradeData, PostApiV1SubscriptionsScheduleDowngradeErrors, PostApiV1SubscriptionsScheduleDowngradeResponses, PostApiV1SubscriptionsUpgradeData, PostApiV1SubscriptionsUpgradeErrors, PostApiV1SubscriptionsUpgradeResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostApiV1UserAgentConsentsData, PostApiV1UserAgentConsentsErrors, PostApiV1UserAgentConsentsResponses, PostApiV1UserApiKeysData, PostApiV1UserApiKeysErrors, PostApiV1UserApiKeysResponses, PostApiV1UtilityChatCompletionsData, PostApiV1UtilityChatCompletionsErrors, PostApiV1UtilityChatCompletionsResponses, PostApiV1UtilityResponsesData, PostApiV1UtilityResponsesErrors, PostApiV1UtilityResponsesResponses, PostApiV1WalletsBindingData, PostApiV1WalletsBindingErrors, PostApiV1WalletsBindingNonceData, PostApiV1WalletsBindingNonceErrors, PostApiV1WalletsBindingNonceResponses, PostApiV1WalletsBindingResponses, PostApiV1WebhooksRevenuecatData, PostApiV1WebhooksRevenuecatErrors, PostApiV1WebhooksRevenuecatResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses, PostInternalAccountsByPhoneHashesData, PostInternalAccountsByPhoneHashesErrors, PostInternalAccountsByPhoneHashesResponses, PostInternalCompleteData, PostInternalCompleteErrors, PostInternalCompleteResponses, PostInternalDmRequestsData, PostInternalDmRequestsErrors, PostInternalDmRequestsResponses, PostInternalEmbeddingsData, PostInternalEmbeddingsErrors, PostInternalEmbeddingsResponses, PostInternalExtractPhotoFactsData, PostInternalExtractPhotoFactsErrors, PostInternalExtractPhotoFactsResponses, PostInternalMeetupsJoinsData, PostInternalMeetupsJoinsErrors, PostInternalMeetupsJoinsResponses, PostInternalNearbyActivationsData, PostInternalNearbyActivationsErrors, PostInternalNearbyActivationsResponses, PostInternalPrefineryClaimTokensData, PostInternalPrefineryClaimTokensErrors, PostInternalPrefineryClaimTokensResponses, PostNearbyAccessCodeData, PostNearbyAccessCodeErrors, PostNearbyAccessCodeResponses, PostNearbyWaitlistData, PostNearbyWaitlistErrors, PostNearbyWaitlistResponses, PostOauthConsentData, PostOauthConsentErrors, PostOauthConsentResponses, PostOauthRevokeData, PostOauthRevokeErrors, PostOauthRevokeResponses, PostOauthTokenData, PostOauthTokenErrors, PostOauthTokenResponses, PostReferralClaimData, PostReferralClaimErrors, PostReferralClaimResponses, PostReferralIdentityData, PostReferralIdentityErrors, PostReferralIdentityResponses, PostReferralInviteData, PostReferralInviteErrors, PostReferralInviteResponses, PostWebhooksPrefineryData, PostWebhooksPrefineryErrors, PostWebhooksPrefineryResponses, PutApiV1AdminAgentsByIdData, PutApiV1AdminAgentsByIdErrors, PutApiV1AdminAgentsByIdResponses, PutApiV1AdminAppsByAppIdApiKeysByIdData, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByIdData, PutApiV1AdminAppsByIdErrors, PutApiV1AdminAppsByIdResponses, PutApiV1AdminBotConfigData, PutApiV1AdminBotConfigErrors, PutApiV1AdminBotConfigResponses, PutApiV1AdminConnectorsByProviderData, PutApiV1AdminConnectorsByProviderErrors, PutApiV1AdminConnectorsByProviderResponses, PutApiV1AdminModerationCsamByIdReviewData, PutApiV1AdminModerationCsamByIdReviewErrors, PutApiV1AdminModerationCsamByIdReviewResponses, PutApiV1AdminPersonasByIdData, PutApiV1AdminPersonasByIdErrors, PutApiV1AdminPersonasByIdResponses, PutApiV1AgentsByIdPreferenceData, PutApiV1AgentsByIdPreferenceErrors, PutApiV1AgentsByIdPreferenceResponses, PutApiV1ConnectorsByProviderScopesData, PutApiV1ConnectorsByProviderScopesErrors, PutApiV1ConnectorsByProviderScopesResponses, PutApiV1ConnectorsByProviderToolsData, PutApiV1ConnectorsByProviderToolsErrors, PutApiV1ConnectorsByProviderToolsResponses, PutApiV1NotificationsPreferencesData, PutApiV1NotificationsPreferencesErrors, PutApiV1NotificationsPreferencesResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
@@ -56,7 +57,7 @@ export const postApiV1AdminAddCredits = <ThrowOnError extends boolean = false>(o
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -70,7 +71,7 @@ export const postApiV1AdminAgents = <ThrowOnError extends boolean = false>(optio
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -91,7 +92,7 @@ export const putApiV1AdminAgentsById = <ThrowOnError extends boolean = false>(op
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -112,7 +113,7 @@ export const postApiV1AdminApps = <ThrowOnError extends boolean = false>(options
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -133,7 +134,7 @@ export const postApiV1AdminAppsByAppIdApiKeys = <ThrowOnError extends boolean = 
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -161,7 +162,7 @@ export const putApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends boolean
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -189,7 +190,7 @@ export const putApiV1AdminAppsById = <ThrowOnError extends boolean = false>(opti
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -203,7 +204,7 @@ export const putApiV1AdminBotConfig = <ThrowOnError extends boolean = false>(opt
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -245,7 +246,7 @@ export const putApiV1AdminConnectorsByProvider = <ThrowOnError extends boolean =
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -273,7 +274,7 @@ export const putApiV1AdminModerationCsamByIdReview = <ThrowOnError extends boole
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -294,7 +295,7 @@ export const postApiV1AdminNearbyAccessCodes = <ThrowOnError extends boolean = f
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -308,7 +309,7 @@ export const postApiV1AdminNearbyAccessCodesRevoke = <ThrowOnError extends boole
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -329,7 +330,7 @@ export const postApiV1AdminNotificationsAnnounceModel = <ThrowOnError extends bo
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -348,7 +349,7 @@ export const postApiV1AdminNotificationsCampaigns = <ThrowOnError extends boolea
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -367,7 +368,7 @@ export const patchApiV1AdminNotificationsCampaignsByCampaignId = <ThrowOnError e
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -388,7 +389,7 @@ export const postApiV1AdminNotificationsSend = <ThrowOnError extends boolean = f
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -409,7 +410,7 @@ export const postApiV1AdminOauthClients = <ThrowOnError extends boolean = false>
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -431,7 +432,7 @@ export const patchApiV1AdminOauthClientsByClientId = <ThrowOnError extends boole
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -445,7 +446,7 @@ export const postApiV1AdminPersonas = <ThrowOnError extends boolean = false>(opt
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -466,7 +467,7 @@ export const putApiV1AdminPersonasById = <ThrowOnError extends boolean = false>(
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -494,7 +495,7 @@ export const postApiV1AdminPrivyDevWipe = <ThrowOnError extends boolean = false>
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -522,7 +523,7 @@ export const postApiV1AdminSeedApps = <ThrowOnError extends boolean = false>(opt
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -541,7 +542,7 @@ export const postApiV1AdminSubscriptionTier = <ThrowOnError extends boolean = fa
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -569,7 +570,7 @@ export const postApiV1AdminUsersInternalTester = <ThrowOnError extends boolean =
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -590,7 +591,7 @@ export const postApiV1AdminUsersNearbyBeta = <ThrowOnError extends boolean = fal
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -604,7 +605,7 @@ export const postApiV1AdminUsersSuspend = <ThrowOnError extends boolean = false>
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -618,7 +619,7 @@ export const postApiV1AdminUsersUnsuspend = <ThrowOnError extends boolean = fals
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -653,7 +654,7 @@ export const putApiV1AgentsByIdPreference = <ThrowOnError extends boolean = fals
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -665,7 +666,7 @@ export const postApiV1AuthMfaDisable = <ThrowOnError extends boolean = false>(op
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -687,7 +688,7 @@ export const postApiV1AuthMfaPasskeyEnrollFinish = <ThrowOnError extends boolean
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -704,7 +705,7 @@ export const postApiV1AuthMfaPasskeyVerifyFinish = <ThrowOnError extends boolean
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -733,7 +734,7 @@ export const postApiV1AuthMfaTotpEnrollVerify = <ThrowOnError extends boolean = 
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -745,7 +746,7 @@ export const postApiV1AuthMfaVerify = <ThrowOnError extends boolean = false>(opt
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -766,7 +767,7 @@ export const postApiV1ChatCompletions = <ThrowOnError extends boolean = false>(o
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -801,7 +802,7 @@ export const postApiV1ConnectTickets = <ThrowOnError extends boolean = false>(op
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -815,7 +816,7 @@ export const postApiV1ConnectorTokensByProvider = <ThrowOnError extends boolean 
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -836,7 +837,7 @@ export const postApiV1ConnectorsImport = <ThrowOnError extends boolean = false>(
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -857,7 +858,7 @@ export const postApiV1ConnectorsByProviderProxy = <ThrowOnError extends boolean 
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -878,7 +879,7 @@ export const putApiV1ConnectorsByProviderScopes = <ThrowOnError extends boolean 
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -899,7 +900,7 @@ export const putApiV1ConnectorsByProviderTools = <ThrowOnError extends boolean =
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -927,7 +928,7 @@ export const postApiV1CreditsPurchase = <ThrowOnError extends boolean = false>(o
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -941,7 +942,7 @@ export const postApiV1CreditsRedeemTokens = <ThrowOnError extends boolean = fals
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -969,7 +970,7 @@ export const postApiV1DeveloperApps = <ThrowOnError extends boolean = false>(opt
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -997,7 +998,7 @@ export const patchApiV1DeveloperAppsByAppUuid = <ThrowOnError extends boolean = 
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1018,7 +1019,7 @@ export const postApiV1DeveloperAppsByAppUuidApiKeys = <ThrowOnError extends bool
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1039,7 +1040,7 @@ export const postApiV1DeveloperAppsByAppUuidFund = <ThrowOnError extends boolean
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1060,7 +1061,7 @@ export const postApiV1DeveloperAppsByAppUuidPrivy = <ThrowOnError extends boolea
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1102,7 +1103,7 @@ export const patchApiV1DeveloperAppsByAppUuidUsersByAddress = <ThrowOnError exte
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1116,7 +1117,7 @@ export const postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp = <ThrowOnError 
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1144,7 +1145,7 @@ export const postApiV1Embeddings = <ThrowOnError extends boolean = false>(option
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1165,7 +1166,7 @@ export const postApiV1GuestChatCompletions = <ThrowOnError extends boolean = fal
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1198,7 +1199,7 @@ export const postApiV1NotificationsDevices = <ThrowOnError extends boolean = fal
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1212,7 +1213,7 @@ export const postApiV1NotificationsDevicesUnregister = <ThrowOnError extends boo
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1233,7 +1234,7 @@ export const putApiV1NotificationsPreferences = <ThrowOnError extends boolean = 
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1262,7 +1263,7 @@ export const postApiV1PhoneCalls = <ThrowOnError extends boolean = false>(option
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1283,7 +1284,7 @@ export const postApiV1PreprocessorsCryptoPrices = <ThrowOnError extends boolean 
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1297,7 +1298,7 @@ export const postApiV1PreprocessorsSearch = <ThrowOnError extends boolean = fals
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1311,7 +1312,7 @@ export const postApiV1PreprocessorsStockPrices = <ThrowOnError extends boolean =
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1325,7 +1326,7 @@ export const postApiV1PreprocessorsWeather = <ThrowOnError extends boolean = fal
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1339,7 +1340,7 @@ export const postApiV1Responses = <ThrowOnError extends boolean = false>(options
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1358,7 +1359,7 @@ export const postApiV1Shares = <ThrowOnError extends boolean = false>(options: O
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1387,7 +1388,7 @@ export const postApiV1SubscriptionsCancel = <ThrowOnError extends boolean = fals
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...normalizeHeaders(options?.headers)
     }
 });
 
@@ -1408,7 +1409,7 @@ export const postApiV1SubscriptionsCreateCheckoutSession = <ThrowOnError extends
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1422,7 +1423,7 @@ export const postApiV1SubscriptionsCustomerPortal = <ThrowOnError extends boolea
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1450,7 +1451,7 @@ export const postApiV1SubscriptionsScheduleDowngrade = <ThrowOnError extends boo
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1471,7 +1472,7 @@ export const postApiV1SubscriptionsUpgrade = <ThrowOnError extends boolean = fal
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1485,7 +1486,7 @@ export const postApiV1SubscriptionsWebhook = <ThrowOnError extends boolean = fal
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1532,7 +1533,7 @@ export const postApiV1UserAgentConsents = <ThrowOnError extends boolean = false>
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1567,7 +1568,7 @@ export const postApiV1UserApiKeys = <ThrowOnError extends boolean = false>(optio
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1602,7 +1603,7 @@ export const patchApiV1UserOauthGrantsById = <ThrowOnError extends boolean = fal
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1616,7 +1617,7 @@ export const postApiV1UtilityChatCompletions = <ThrowOnError extends boolean = f
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1630,7 +1631,7 @@ export const postApiV1UtilityResponses = <ThrowOnError extends boolean = false>(
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1647,7 +1648,7 @@ export const postApiV1WalletsBinding = <ThrowOnError extends boolean = false>(op
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1671,7 +1672,7 @@ export const postApiV1WebhooksRevenuecat = <ThrowOnError extends boolean = false
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...normalizeHeaders(options?.headers)
     }
 });
 
@@ -1695,7 +1696,7 @@ export const postAuthOauthByProviderExchange = <ThrowOnError extends boolean = f
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1709,7 +1710,7 @@ export const postAuthOauthByProviderRefresh = <ThrowOnError extends boolean = fa
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1723,7 +1724,7 @@ export const postAuthOauthByProviderRevoke = <ThrowOnError extends boolean = fal
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1765,7 +1766,7 @@ export const postInternalAccountsByPhoneHashes = <ThrowOnError extends boolean =
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1779,7 +1780,7 @@ export const postInternalComplete = <ThrowOnError extends boolean = false>(optio
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1793,7 +1794,7 @@ export const postInternalDmRequests = <ThrowOnError extends boolean = false>(opt
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1807,7 +1808,7 @@ export const postInternalEmbeddings = <ThrowOnError extends boolean = false>(opt
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1821,7 +1822,7 @@ export const postInternalExtractPhotoFacts = <ThrowOnError extends boolean = fal
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1835,7 +1836,7 @@ export const postInternalMeetupsJoins = <ThrowOnError extends boolean = false>(o
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1849,7 +1850,7 @@ export const postInternalNearbyActivations = <ThrowOnError extends boolean = fal
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1863,7 +1864,7 @@ export const postInternalPrefineryClaimTokens = <ThrowOnError extends boolean = 
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1884,7 +1885,7 @@ export const postNearbyAccessCode = <ThrowOnError extends boolean = false>(optio
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1898,7 +1899,7 @@ export const postNearbyWaitlist = <ThrowOnError extends boolean = false>(options
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1927,7 +1928,7 @@ export const postOauthConsent = <ThrowOnError extends boolean = false>(options?:
     ...options,
     headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        ...options?.headers
+        ...normalizeHeaders(options?.headers)
     }
 });
 
@@ -1942,7 +1943,7 @@ export const postOauthRevoke = <ThrowOnError extends boolean = false>(options?: 
     ...options,
     headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        ...options?.headers
+        ...normalizeHeaders(options?.headers)
     }
 });
 
@@ -1957,7 +1958,7 @@ export const postOauthToken = <ThrowOnError extends boolean = false>(options?: O
     ...options,
     headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        ...options?.headers
+        ...normalizeHeaders(options?.headers)
     }
 });
 
@@ -1971,7 +1972,7 @@ export const postReferralClaim = <ThrowOnError extends boolean = false>(options:
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -1992,7 +1993,7 @@ export const postReferralInvite = <ThrowOnError extends boolean = false>(options
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...normalizeHeaders(options.headers)
     }
 });
 
@@ -2020,6 +2021,6 @@ export const postWebhooksPrefinery = <ThrowOnError extends boolean = false>(opti
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...normalizeHeaders(options?.headers)
     }
 });

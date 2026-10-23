@@ -2,7 +2,7 @@
 
 > **getReferralRewards**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetReferralRewardsData`](../type-aliases/GetReferralRewardsData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetReferralRewardsResponses`](../type-aliases/GetReferralRewardsResponses.md), [`GetReferralRewardsErrors`](../type-aliases/GetReferralRewardsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:2011](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2011)
+Defined in: [src/client/sdk.gen.ts:2012](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#2012)
 
 Your referral rewards
 

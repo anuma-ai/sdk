@@ -301,7 +301,10 @@ export const mergeHeaders = (
       continue;
     }
 
-    const iterator = header instanceof Headers ? headersEntries(header) : Object.entries(header);
+    const iterator =
+      Array.isArray(header) || header instanceof Headers
+        ? headersEntries(new Headers(header))
+        : Object.entries(header);
 
     for (const [key, value] of iterator) {
       if (value === null) {

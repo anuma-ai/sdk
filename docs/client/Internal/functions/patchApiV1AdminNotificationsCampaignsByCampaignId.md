@@ -2,7 +2,7 @@
 
 > **patchApiV1AdminNotificationsCampaignsByCampaignId**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PatchApiV1AdminNotificationsCampaignsByCampaignIdData`](../type-aliases/PatchApiV1AdminNotificationsCampaignsByCampaignIdData.md), `ThrowOnError`>): `RequestResult`<[`PatchApiV1AdminNotificationsCampaignsByCampaignIdResponses`](../type-aliases/PatchApiV1AdminNotificationsCampaignsByCampaignIdResponses.md), [`PatchApiV1AdminNotificationsCampaignsByCampaignIdErrors`](../type-aliases/PatchApiV1AdminNotificationsCampaignsByCampaignIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:365](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#365)
+Defined in: [src/client/sdk.gen.ts:366](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#366)
 
 Edit a draft/scheduled announcement campaign (admin)
 

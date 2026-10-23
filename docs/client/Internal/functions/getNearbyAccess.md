@@ -2,7 +2,7 @@
 
 > **getNearbyAccess**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetNearbyAccessData`](../type-aliases/GetNearbyAccessData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetNearbyAccessResponses`](../type-aliases/GetNearbyAccessResponses.md), [`GetNearbyAccessErrors`](../type-aliases/GetNearbyAccessErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1875](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1875)
+Defined in: [src/client/sdk.gen.ts:1876](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1876)
 
 Read People Nearby beta admission for the caller
 

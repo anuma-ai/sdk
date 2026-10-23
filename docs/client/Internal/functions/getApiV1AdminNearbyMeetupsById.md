@@ -2,7 +2,7 @@
 
 > **getApiV1AdminNearbyMeetupsById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminNearbyMeetupsByIdData`](../type-aliases/GetApiV1AdminNearbyMeetupsByIdData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminNearbyMeetupsByIdResponses`](../type-aliases/GetApiV1AdminNearbyMeetupsByIdResponses.md), [`GetApiV1AdminNearbyMeetupsByIdErrors`](../type-aliases/GetApiV1AdminNearbyMeetupsByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:320](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#320)
+Defined in: [src/client/sdk.gen.ts:321](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#321)
 
 Get a nearby meetup (admin)
 

@@ -2,7 +2,7 @@
 
 > **postApiV1AdminNearbyAccessCodes**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminNearbyAccessCodesData`](../type-aliases/PostApiV1AdminNearbyAccessCodesData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminNearbyAccessCodesResponses`](../type-aliases/PostApiV1AdminNearbyAccessCodesResponses.md), [`PostApiV1AdminNearbyAccessCodesErrors`](../type-aliases/PostApiV1AdminNearbyAccessCodesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:292](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#292)
+Defined in: [src/client/sdk.gen.ts:293](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#293)
 
 Create a People Nearby beta access code
 

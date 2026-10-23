@@ -2,7 +2,7 @@
 
 > **getApiV1AdminModerationCsamByIdHistory**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminModerationCsamByIdHistoryData`](../type-aliases/GetApiV1AdminModerationCsamByIdHistoryData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminModerationCsamByIdHistoryResponses`](../type-aliases/GetApiV1AdminModerationCsamByIdHistoryResponses.md), [`GetApiV1AdminModerationCsamByIdHistoryErrors`](../type-aliases/GetApiV1AdminModerationCsamByIdHistoryErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:264](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#264)
+Defined in: [src/client/sdk.gen.ts:265](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#265)
 
 CSAM event review history (admin)
 
