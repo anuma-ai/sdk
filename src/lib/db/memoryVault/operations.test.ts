@@ -733,6 +733,38 @@ describe.each([false, true])("concurrent memory edits (encrypted: %s)", (encrypt
     });
     expect(accepted?.content).toBe("new content");
   });
+
+  it("ignores a concurrent metadata-only bump (archive/restore) when expected content matches", async () => {
+    const memory = await createVaultMemoryOp(ctx, { content: "original" });
+    const record = await ctx.vaultMemoryCollection.find(memory.uniqueId);
+    const write = ctx.database.write.bind(ctx.database);
+    vi.spyOn(ctx.database, "write").mockImplementationOnce(async (work, description) => {
+      await write(() =>
+        record.update((r) => {
+          r._setRaw("archived_at", 1500);
+          r._setRaw("updated_at", 2000);
+        })
+      );
+      return write(work, description);
+    });
+
+    const updated = await updateVaultMemoryOp(ctx, memory.uniqueId, {
+      content: "consolidated replacement",
+      expectedContent: memory.content,
+      restore: true,
+    });
+
+    expect(updated?.content).toBe("consolidated replacement");
+  });
+
+  it("lets a direct edit win over a concurrent write when no expected content is passed", async () => {
+    const memory = await createVaultMemoryOp(ctx, { content: "original" });
+    await correctBeforeWriter(memory.uniqueId);
+
+    const updated = await updateVaultMemoryOp(ctx, memory.uniqueId, { content: "user edit" });
+
+    expect(updated?.content).toBe("user edit");
+  });
 });
 
 describe("deleteVaultMemoryOp", () => {

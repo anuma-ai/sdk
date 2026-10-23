@@ -1068,7 +1068,6 @@ export async function updateVaultMemoryOp(
     if (probe.isDeleted || probe.supersededBy || !isOwnedByCtxUser(ctx, probe)) return null;
     if (opts.freeFormOnly && isKinded(probe)) return null;
     const readStoredContent = probe._getRaw("content");
-    const readUpdatedAt = probe.updatedAt.getTime();
     if (opts.expectedContent !== undefined) {
       const current = await vaultMemoryToStored(
         probe,
@@ -1106,9 +1105,7 @@ export async function updateVaultMemoryOp(
         record.supersededBy ||
         !isOwnedByCtxUser(ctx, record) ||
         (opts.freeFormOnly && isKinded(record)) ||
-        (opts.content !== undefined &&
-          (record._getRaw("content") !== readStoredContent ||
-            record.updatedAt.getTime() !== readUpdatedAt))
+        (opts.expectedContent !== undefined && record._getRaw("content") !== readStoredContent)
       ) {
         stale = true;
         return;
