@@ -1,6 +1,6 @@
 # UseEncryptionResult
 
-Defined in: [src/react/useEncryption.ts:1513](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1513)
+Defined in: [src/react/useEncryption.ts:1519](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1519)
 
 Result returned by the useEncryption hook.
 
@@ -10,7 +10,7 @@ Result returned by the useEncryption hook.
 
 > **clearKeyPair**: (`walletAddress`: `string`) => `void`
 
-Defined in: [src/react/useEncryption.ts:1523](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1523)
+Defined in: [src/react/useEncryption.ts:1529](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1529)
 
 Clear the key pair for a wallet address from memory
 
@@ -49,7 +49,7 @@ Clear the key pair for a wallet address from memory
 
 > **exportPublicKey**: (`walletAddress`: `string`) => `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:1519](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1519)
+Defined in: [src/react/useEncryption.ts:1525](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1525)
 
 Export the public key for a wallet address as base64-encoded SPKI
 
@@ -88,7 +88,7 @@ Export the public key for a wallet address as base64-encoded SPKI
 
 > **hasKeyPair**: (`walletAddress`: `string`) => `boolean`
 
-Defined in: [src/react/useEncryption.ts:1521](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1521)
+Defined in: [src/react/useEncryption.ts:1527](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1527)
 
 Check if a key pair exists in memory for a wallet address
 
@@ -127,7 +127,7 @@ Check if a key pair exists in memory for a wallet address
 
 > **requestEncryptionKey**: (`walletAddress`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useEncryption.ts:1515](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1515)
+Defined in: [src/react/useEncryption.ts:1521](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1521)
 
 Request and generate an encryption key for a wallet address
 
@@ -166,7 +166,7 @@ Request and generate an encryption key for a wallet address
 
 > **requestKeyPair**: (`walletAddress`: `string`) => `Promise`<`void`>
 
-Defined in: [src/react/useEncryption.ts:1517](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1517)
+Defined in: [src/react/useEncryption.ts:1523](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1523)
 
 Request and generate an ECDH key pair for a wallet address
 
