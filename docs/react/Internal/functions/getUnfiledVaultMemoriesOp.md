@@ -2,7 +2,7 @@
 
 > **getUnfiledVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1489](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1489)
+Defined in: [src/lib/db/memoryVault/operations.ts:1551](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1551)
 
 Get all non-deleted, unfiled vault memories (folder\_id is null).
 

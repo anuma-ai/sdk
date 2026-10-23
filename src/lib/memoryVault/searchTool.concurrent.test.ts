@@ -6,6 +6,7 @@ vi.mock("../db/memoryVault/operations", () => ({
   getVaultCandidateKeysOp: vi.fn(),
   getVaultEmbeddingsByIdsOp: vi.fn(),
   getVaultMemoriesByIdsOp: vi.fn(),
+  getVaultProfileMetadataOp: vi.fn(),
   updateVaultMemoryEmbeddingOp: vi.fn(),
 }));
 vi.mock("../memoryEngine/embeddings", () => ({
@@ -20,6 +21,7 @@ import {
   getVaultCandidateKeysOp,
   getVaultEmbeddingsByIdsOp,
   getVaultMemoriesByIdsOp,
+  getVaultProfileMetadataOp,
   updateVaultMemoryEmbeddingOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations";
@@ -102,6 +104,7 @@ describe("concurrent vault preparation", () => {
       memory("beta", { embedding: "[0,1]", embeddingModel: "old-model" }),
     ];
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(rows);
+    vi.mocked(getVaultProfileMetadataOp).mockResolvedValue(rows);
     vi.mocked(generateEmbedding).mockImplementation((query) => {
       const index = DEFAULT_PROFILE_FACETS.findIndex((facet) => facet.query === query);
       return Promise.resolve(index % 2 === 0 ? [1, 0] : [0, 1]);
@@ -158,7 +161,8 @@ describe("concurrent vault preparation", () => {
     expect(doc.sections.map((section) => section.sourceMemoryIds)).toEqual(
       DEFAULT_PROFILE_FACETS.map((_, index) => [index % 2 === 0 ? "alpha" : "beta"])
     );
-    expect(getAllVaultMemoriesOp).toHaveBeenCalledTimes(useStore ? 1 : 2);
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledTimes(1);
+    expect(getVaultProfileMetadataOp).toHaveBeenCalledTimes(useStore ? 0 : 1);
     expect(generateEmbedding).toHaveBeenCalledTimes(6);
     expect(generateEmbeddings).toHaveBeenCalledExactlyOnceWith(
       ["alpha", "beta"],
