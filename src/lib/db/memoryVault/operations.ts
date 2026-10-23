@@ -1067,6 +1067,16 @@ export async function updateVaultMemoryOp(
     const probe = await ctx.vaultMemoryCollection.find(id);
     if (probe.isDeleted || probe.supersededBy || !isOwnedByCtxUser(ctx, probe)) return null;
     if (opts.freeFormOnly && isKinded(probe)) return null;
+    const readStoredContent = probe._getRaw("content");
+    if (opts.expectedContent !== undefined) {
+      const current = await vaultMemoryToStored(
+        probe,
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+      if (current.content !== opts.expectedContent) return null;
+    }
 
     const levelAfter = (current: { level: string | null; scope: string }): MemoryLevel => {
       if (opts.level !== undefined) return opts.level;
@@ -1077,7 +1087,7 @@ export async function updateVaultMemoryOp(
     const encryptedKindValue = await encryptKindValue(ctx, opts.kindValue);
 
     const encryptedContent =
-      ctx.walletAddress && ctx.signMessage
+      opts.content !== undefined && ctx.walletAddress && ctx.signMessage
         ? await encryptVaultMemoryContent(
             opts.content,
             ctx.walletAddress,
@@ -1088,18 +1098,19 @@ export async function updateVaultMemoryOp(
 
     let stale = false;
     const record = probe;
-    const originalUpdatedAt = record.updatedAt.getTime();
     await ctx.database.write(async () => {
       await assertCanWrite(ctx);
       if (
         record.isDeleted ||
         record.supersededBy ||
         !isOwnedByCtxUser(ctx, record) ||
-        (opts.freeFormOnly && isKinded(record))
+        (opts.freeFormOnly && isKinded(record)) ||
+        (opts.expectedContent !== undefined && record._getRaw("content") !== readStoredContent)
       ) {
         stale = true;
         return;
       }
+      const originalUpdatedAt = record.updatedAt.getTime();
       const nextKind = opts.kind !== undefined ? opts.kind : record.kind;
       const nextLevel = levelAfter(record);
       assertValidKindLevel(nextKind, nextLevel);
@@ -1116,7 +1127,7 @@ export async function updateVaultMemoryOp(
         replayedObservation = opts.observationSourceIds.every((id) => observedSources.includes(id));
       }
       await record.update((r) => {
-        r._setRaw("content", encryptedContent);
+        if (encryptedContent !== undefined) r._setRaw("content", encryptedContent);
         if (opts.level !== undefined) {
           r._setRaw("level", nextLevel);
           r._setRaw("scope", scopeForLevel(nextLevel));
