@@ -1,3 +1,6 @@
+import { setFlagsFromString } from "node:v8";
+import { runInNewContext } from "node:vm";
+
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../memoryEngine/embeddings", async (importOriginal) => {
@@ -30,7 +33,7 @@ import type { EmbeddingOptions } from "../../memoryEngine/types";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "../queryTemporal";
 import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
 import { deriveMemoryKeyRing, memoryCipher, type MemoryKeyRing } from "./memoryKeys";
-import { createRemoteMemoryPersistence } from "./remotePersistence";
+import { createRemoteMemoryPersistence, type RemoteMemoryRecord } from "./remotePersistence";
 import {
   createRemoteMemoryStore,
   RemoteMemoryPartialCreateError,
@@ -393,7 +396,7 @@ async function remoteStore(
     activity,
     subscribeChanges,
   });
-  return { store, server, keys };
+  return { store, server, keys, persistence };
 }
 
 runMemoryStoreContract(
@@ -1598,6 +1601,51 @@ describe("remote MemoryStore", () => {
       expect(onChange).not.toHaveBeenCalled();
       await store.retain("Works at Anuma as an engineer");
       expect(onMembership).toHaveBeenCalledTimes(1);
+    } finally {
+      stop();
+      stopMembership();
+    }
+  });
+
+  it("releases subscription records while subscribers remain active", async () => {
+    setFlagsFromString("--expose-gc");
+    const collect = runInNewContext("gc") as () => void;
+    setFlagsFromString("--no-expose-gc");
+    const { store, server, persistence } = await remoteStore(undefined, undefined, 20);
+    const memories = await store.createMany(
+      Array.from({ length: 205 }, (_, i) => ({
+        content: `Fact ${i}: ${"private content ".repeat(1000)}`,
+        embedding: axis(0),
+      }))
+    );
+    server.touch(memories[0].uniqueId, { is_deleted: true });
+    server.touch(memories[1].uniqueId, { archived_at: Date.now() });
+    server.touch(memories[2].uniqueId, { trust_tier: "quarantined" });
+    server.touch(memories[3].uniqueId, { superseded_by: memories[4].uniqueId });
+    const records: WeakRef<RemoteMemoryRecord>[] = [];
+    const query = persistence.query.bind(persistence);
+    persistence.query = async (options) => {
+      const page = await query(options);
+      records.push(...page.items.map((record) => new WeakRef(record)));
+      return page;
+    };
+    const put = persistence.put.bind(persistence);
+    persistence.put = async (...args) => {
+      const saved = await put(...args);
+      records.push(new WeakRef(saved));
+      return saved;
+    };
+    const stop = store.subscribe(vi.fn());
+    const stopMembership = store.subscribe(vi.fn(), { includeDeleted: true });
+    try {
+      await vi.waitFor(() => expect(records).toHaveLength(205));
+      await store.update(memories[4].uniqueId, { content: "Updated fact", embedding: axis(1) });
+      await store.delete(memories[5].uniqueId);
+      server.touch(memories[6].uniqueId, { is_deleted: true });
+      await vi.waitFor(() => expect(records.length).toBeGreaterThanOrEqual(210));
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      collect();
+      expect(records.filter((record) => record.deref() !== undefined)).toHaveLength(0);
     } finally {
       stop();
       stopMembership();
