@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import type { ToolConfig } from "../lib/chat/useChat/types.js";
+import type { GmailSendMessageArgs } from "./gmail.js";
 import { connectorMintErrorToToolResult, createGmailTools } from "./gmail.js";
 
-type ToolResult = unknown;
-
-async function runExecutor(
-  tool: { executor?: (args: Record<string, unknown>) => Promise<ToolResult> | ToolResult },
+function runExecutor(
+  tool: Pick<ToolConfig, "executor">,
   args: Record<string, unknown>
-): Promise<ToolResult> {
+): Promise<unknown> {
   if (!tool.executor) throw new Error("tool has no executor");
-  return tool.executor(args);
+  return Promise.resolve(tool.executor(args));
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -24,13 +24,13 @@ function textResponse(text: string, status: number): Response {
 }
 
 describe("createGmailTools", () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
+  let fetchMock: ReturnType<typeof vi.fn<typeof globalThis.fetch>>;
   let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
     originalFetch = globalThis.fetch;
-    fetchMock = vi.fn();
-    globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
+    fetchMock = vi.fn<typeof globalThis.fetch>();
+    globalThis.fetch = fetchMock;
   });
 
   afterEach(() => {
@@ -47,8 +47,8 @@ describe("createGmailTools", () => {
       })
     );
     const tools = createGmailTools(
-      async () => "good-token",
-      async () => null
+      () => Promise.resolve("good-token"),
+      () => Promise.resolve(null)
     );
     const result = (await runExecutor(tools.gmail_search_messages, {
       query: "subject:invoice",
@@ -68,8 +68,8 @@ describe("createGmailTools", () => {
 
   test("returns canonical connector error when token getter returns null and requestAccess yields nothing", async () => {
     const tools = createGmailTools(
-      async () => null,
-      async () => null
+      () => Promise.resolve(null),
+      () => Promise.resolve(null)
     );
     const raw = (await runExecutor(tools.gmail_search_messages, {
       query: "anything",
@@ -85,10 +85,8 @@ describe("createGmailTools", () => {
 
   test("returns canonical connector error when requestAccess throws", async () => {
     const tools = createGmailTools(
-      async () => null,
-      async () => {
-        throw new Error("server agent cannot initiate OAuth");
-      }
+      () => Promise.resolve(null),
+      () => Promise.reject(new Error("server agent cannot initiate OAuth"))
     );
     const raw = (await runExecutor(tools.gmail_search_messages, {
       query: "anything",
@@ -101,8 +99,8 @@ describe("createGmailTools", () => {
   test("returns connector error when Gmail responds 401", async () => {
     fetchMock.mockResolvedValueOnce(textResponse("unauthorized", 401));
     const tools = createGmailTools(
-      async () => "stale-token",
-      async () => null
+      () => Promise.resolve("stale-token"),
+      () => Promise.resolve(null)
     );
     const raw = (await runExecutor(tools.gmail_search_messages, {
       query: "anything",
@@ -116,8 +114,8 @@ describe("createGmailTools", () => {
   test("returns connector error when Gmail responds 403", async () => {
     fetchMock.mockResolvedValueOnce(textResponse("forbidden", 403));
     const tools = createGmailTools(
-      async () => "good-token",
-      async () => null
+      () => Promise.resolve("good-token"),
+      () => Promise.resolve(null)
     );
     const raw = (await runExecutor(tools.gmail_get_message, {
       messageId: "m1",
@@ -153,8 +151,8 @@ describe("createGmailTools", () => {
   test("surfaces non-connector Gmail errors as raw error strings", async () => {
     fetchMock.mockResolvedValueOnce(textResponse("server burped", 500));
     const tools = createGmailTools(
-      async () => "good-token",
-      async () => null
+      () => Promise.resolve("good-token"),
+      () => Promise.resolve(null)
     );
     const result = (await runExecutor(tools.gmail_search_messages, {
       query: "x",
@@ -190,8 +188,8 @@ describe("createGmailTools", () => {
       })
     );
     const tools = createGmailTools(
-      async () => "good-token",
-      async () => null
+      () => Promise.resolve("good-token"),
+      () => Promise.resolve(null)
     );
     const result = (await runExecutor(tools.gmail_get_message, {
       messageId: "m1",
@@ -214,8 +212,8 @@ describe("createGmailTools", () => {
       })
     );
     const tools = createGmailTools(
-      async () => "good-token",
-      async () => null
+      () => Promise.resolve("good-token"),
+      () => Promise.resolve(null)
     );
     const result = (await runExecutor(tools.gmail_get_message, {
       messageId: "m2",
@@ -224,33 +222,159 @@ describe("createGmailTools", () => {
     expect(result.body).toBeUndefined();
   });
 
-  test("gmail_send_message posts a base64url-encoded RFC822 message", async () => {
+  test("gmail_send_message waits for host confirmation of the complete message", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-1", threadId: "t1" }));
-    const tools = createGmailTools(
-      async () => "good-token",
-      async () => null
-    );
-    const result = (await runExecutor(tools.gmail_send_message, {
+    let approve!: (confirmed: boolean) => void;
+    const confirmSend = vi.fn(() => new Promise<boolean>((resolve) => (approve = resolve)));
+    const getToken = vi.fn().mockResolvedValue("good-token");
+    const tools = createGmailTools(getToken, () => Promise.resolve(null), confirmSend);
+    const args = {
       to: "ada@example.com",
       subject: "hi",
       body: "let's chat",
-    })) as { id: string; threadId: string };
+      cc: "charles@example.com",
+      bcc: "grace@example.com",
+    };
+    const pending = runExecutor(tools.gmail_send_message, args);
+    expect(confirmSend).toHaveBeenCalledExactlyOnceWith(args);
+    expect(getToken).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    approve(true);
+    const result = await pending;
     expect(result).toEqual({ id: "sent-1", threadId: "t1" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     const [, init] = fetchMock.mock.calls[0];
     const sent = JSON.parse((init as RequestInit).body as string) as { raw: string };
     const decoded = Buffer.from(sent.raw.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString(
       "utf-8"
     );
     expect(decoded).toContain("To: ada@example.com");
+    expect(decoded).toContain("Cc: charles@example.com");
+    expect(decoded).toContain("Bcc: grace@example.com");
     expect(decoded).toContain("Subject: hi");
     expect(decoded).toContain("let's chat");
+  });
+
+  test.each([false, undefined, "true"])(
+    "gmail_send_message blocks sends when host confirmation returns %s",
+    async (decision) => {
+      fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-1", threadId: "t1" }));
+      const getToken = vi.fn().mockResolvedValue("good-token");
+      const requestAccess = vi.fn();
+      const tools = createGmailTools(getToken, requestAccess, vi.fn().mockResolvedValue(decision));
+      const result = await runExecutor(tools.gmail_send_message, {
+        to: "ada@example.com",
+        subject: "hi",
+        body: "hello",
+        confirmed: true,
+      });
+      expect(result).toBe("Error: Gmail message send was not confirmed.");
+      expect(getToken).not.toHaveBeenCalled();
+      expect(requestAccess).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+  );
+
+  test("gmail_send_message blocks sends when host confirmation throws", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-1", threadId: "t1" }));
+    const getToken = vi.fn().mockResolvedValue("good-token");
+    const tools = createGmailTools(
+      getToken,
+      () => Promise.resolve(null),
+      vi.fn().mockRejectedValue(new Error("confirmation failed"))
+    );
+    await expect(
+      runExecutor(tools.gmail_send_message, { to: "ada@example.com", subject: "hi", body: "hello" })
+    ).rejects.toThrow("confirmation failed");
+    expect(getToken).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("gmail_send_message requires a new host confirmation for each send", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-1", threadId: "t1" }));
+    const confirmSend = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const tools = createGmailTools(
+      () => Promise.resolve("good-token"),
+      () => Promise.resolve(null),
+      confirmSend
+    );
+    const args = { to: "ada@example.com", subject: "hi", body: "hello" };
+    expect(await runExecutor(tools.gmail_send_message, args)).toEqual({
+      id: "sent-1",
+      threadId: "t1",
+    });
+    expect(await runExecutor(tools.gmail_send_message, args)).toBe(
+      "Error: Gmail message send was not confirmed."
+    );
+    expect(confirmSend).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("gmail_send_message blocks sends when the host aborts before confirmation", async () => {
+    let approve!: (confirmed: boolean) => void;
+    const confirmSend = vi.fn(() => new Promise<boolean>((resolve) => (approve = resolve)));
+    const getToken = vi.fn().mockResolvedValue("good-token");
+    const tools = createGmailTools(getToken, () => Promise.resolve(null), confirmSend);
+    const controller = new AbortController();
+    const pending = tools.gmail_send_message.executor?.(
+      { to: "ada@example.com", subject: "hi", body: "hello" },
+      controller.signal
+    );
+    controller.abort();
+    approve(true);
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(getToken).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("gmail_send_message sends the confirmed snapshot when the caller changes the arguments", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-1", threadId: "t1" }));
+    const args = {
+      to: "ada@example.com\r\n",
+      subject: " hi ",
+      body: "hello",
+      cc: "charles@example.com\r\n",
+      bcc: "grace@example.com\0",
+    };
+    const confirmed = {
+      to: "ada@example.com",
+      subject: "hi",
+      body: "hello",
+      cc: "charles@example.com",
+      bcc: "grace@example.com",
+    };
+    const confirmSend = vi.fn((message: Readonly<GmailSendMessageArgs>) => {
+      expect(message).toEqual(confirmed);
+      expect(Object.isFrozen(message)).toBe(true);
+      Object.assign(args, {
+        to: "other@example.com",
+        subject: "changed",
+        body: "changed",
+        cc: "other@example.com",
+        bcc: "other@example.com",
+      });
+      return true;
+    });
+    const tools = createGmailTools(
+      () => Promise.resolve("good-token"),
+      () => Promise.resolve(null),
+      confirmSend
+    );
+    await runExecutor(tools.gmail_send_message, args);
+    expect(confirmSend).toHaveBeenCalledExactlyOnceWith(confirmed);
+    const [, init] = fetchMock.mock.calls[0];
+    const sent = JSON.parse((init as RequestInit).body as string) as { raw: string };
+    expect(Buffer.from(sent.raw, "base64url").toString("utf-8")).toBe(
+      "To: ada@example.com\r\nCc: charles@example.com\r\nBcc: grace@example.com\r\nSubject: hi\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nhello"
+    );
   });
 
   test("gmail_send_message strips CRLF from header values to block header injection", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ id: "sent-2", threadId: "t2" }));
     const tools = createGmailTools(
-      async () => "good-token",
-      async () => null
+      () => Promise.resolve("good-token"),
+      () => Promise.resolve(null),
+      () => true
     );
     await runExecutor(tools.gmail_send_message, {
       to: "ada@example.com",
@@ -273,8 +397,8 @@ describe("createGmailTools", () => {
       jsonResponse({ id: "draft-1", message: { id: "m9", threadId: "t9" } })
     );
     const tools = createGmailTools(
-      async () => "good-token",
-      async () => null
+      () => Promise.resolve("good-token"),
+      () => Promise.resolve(null)
     );
     const result = (await runExecutor(tools.gmail_create_draft, {
       to: "ada@example.com",
@@ -299,8 +423,8 @@ describe("createGmailTools", () => {
       jsonResponse({ id: "draft-2", message: { id: "m10", threadId: "t10" } })
     );
     const tools = createGmailTools(
-      async () => "good-token",
-      async () => null
+      () => Promise.resolve("good-token"),
+      () => Promise.resolve(null)
     );
     await runExecutor(tools.gmail_create_draft, {
       to: "ada@example.com",
@@ -322,8 +446,8 @@ describe("createGmailTools", () => {
   test("gmail_create_draft returns connector error when Gmail responds 403", async () => {
     fetchMock.mockResolvedValueOnce(textResponse("forbidden", 403));
     const tools = createGmailTools(
-      async () => "good-token",
-      async () => null
+      () => Promise.resolve("good-token"),
+      () => Promise.resolve(null)
     );
     const raw = (await runExecutor(tools.gmail_create_draft, {
       to: "ada@example.com",
