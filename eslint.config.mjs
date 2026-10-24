@@ -21,6 +21,7 @@ const memoryTelemetryTests = [
 const checkedTestFiles = [
   "src/lib/chatStore/remote.test.ts",
   "src/lib/memory/store/remoteMigration.test.ts",
+  "src/lib/memory/store/remoteStore.test.ts",
   ...appGenerationTests,
   ...memoryTelemetryTests,
   "src/clientHeaders.test.ts",
