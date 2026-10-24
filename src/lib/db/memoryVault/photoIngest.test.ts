@@ -1,6 +1,7 @@
 import { Database, Q } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { SOURCE_PHOTO } from "../../memory/decay";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import type { VaultMemory } from "./models";
@@ -14,11 +15,13 @@ import {
 import { ingestPublishedPhotoMemoriesOp, type PublishedPhotoMemory } from "./photoIngest";
 
 vi.mock("./encryption", () => ({
-  encryptVaultMemoryContent: vi.fn(async (content: string) => `encrypted:${content}`),
-  decryptVaultMemoryFields: vi.fn(async (memory: Record<string, unknown>) => ({
-    ...memory,
-    content: String(memory.content).replace("encrypted:", ""),
-  })),
+  encryptVaultMemoryContent: vi.fn((content: string) => Promise.resolve(`encrypted:${content}`)),
+  decryptVaultMemoryFields: vi.fn((memory: Record<string, unknown>) =>
+    Promise.resolve({
+      ...memory,
+      content: String(memory.content).replace("encrypted:", ""),
+    })
+  ),
 }));
 
 function makeRealDatabase(): Database {
@@ -238,11 +241,11 @@ describe("ingestPublishedPhotoMemoriesOp", () => {
       fresh.slice(1000),
     ];
     expect(read).toHaveBeenCalledTimes(expectedChunks.length);
-    expect(read.mock.calls.map(([query]) => query.description.where)).toEqual(
-      expectedChunks.map((chunk) =>
-        expect.arrayContaining([Q.where("id", Q.oneOf(chunk.map((row) => row.memoryId)))])
-      )
-    );
+    expectedChunks.forEach((chunk, index) => {
+      expect(read.mock.calls[index][0].description.where).toContainEqual(
+        Q.where("id", Q.oneOf(chunk.map((row) => row.memoryId)))
+      );
+    });
   });
 
   it("skips a photo that another ingestion inserts before the writer starts", async () => {
