@@ -17,8 +17,8 @@ vi.mock("../../memoryEngine/embeddings", async (importOriginal) => {
     return v.map((x) => x / norm);
   };
   return {
-    generateEmbedding: vi.fn(async (text: string) => embed(text)),
-    generateEmbeddings: vi.fn(async (texts: string[]) => texts.map(embed)),
+    generateEmbedding: vi.fn((text: string) => Promise.resolve(embed(text))),
+    generateEmbeddings: vi.fn((texts: string[]) => Promise.resolve(texts.map(embed))),
     EmbeddingHttpError: actual.EmbeddingHttpError,
     isFatalEmbeddingError: actual.isFatalEmbeddingError,
   };
@@ -46,6 +46,15 @@ interface Stored {
   version: number;
   server_updated_at: string;
   seq?: number;
+}
+
+function requestUrl(input: RequestInfo | URL): string {
+  return typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+}
+
+function parseBody<T = Record<string, unknown>>(body: RequestInit["body"]): T {
+  if (typeof body !== "string") throw new TypeError("The request body must be a string.");
+  return JSON.parse(body) as T;
 }
 
 const orderColumns = { created: "created_at", updated: "updated_at", archived: "archived_at" };
@@ -129,11 +138,11 @@ function fakeNearby(keyId: string) {
   };
   const cosine = (a: number[], b: number[]) => a.reduce((sum, v, i) => sum + v * b[i], 0);
 
-  const fetch = vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
-    const url = new URL(String(input));
+  const handle = (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const url = new URL(requestUrl(input));
     const path = url.pathname.replace(/^.*\/api\/private-memories/, "");
     const method = init.method ?? "GET";
-    const body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+    const body = init.body ? parseBody(init.body) : {};
     if (path === "/account")
       return json(200, { state: "active", key_id: keyId, realtime_changes: true });
     if (path === "/work/claim") {
@@ -252,8 +261,8 @@ function fakeNearby(keyId: string) {
         a[0] - b[0] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0);
       const sign = order === "changed" ? 1 : -1;
       let after: [number, string] | undefined;
-      if (body.cursor) {
-        const cursor = JSON.parse(String(body.cursor)) as { order: string; at: [number, string] };
+      if (typeof body.cursor === "string") {
+        const cursor = JSON.parse(body.cursor) as { order: string; at: [number, string] };
         if (cursor.order !== order) return problem(400, "bad_cursor");
         after = cursor.at;
       }
@@ -272,12 +281,14 @@ function fakeNearby(keyId: string) {
               (m.updated_at as number) > (body.updated_after as number)) &&
             (body.topics_due === undefined ||
               (m.topics_user_managed !== true &&
-                (m.topics_extracted_at == null ||
+                (m.topics_extracted_at === undefined ||
+                  m.topics_extracted_at === null ||
                   (m.updated_at as number) > (m.topics_extracted_at as number) ||
                   ((m.topics_extracted_version as number | undefined) ?? 0) <
                     (body.topics_due as number)))) &&
             (body.topics_extracted === undefined ||
-              (m.topics_extracted_at != null) === body.topics_extracted) &&
+              (m.topics_extracted_at !== undefined && m.topics_extracted_at !== null) ===
+                body.topics_extracted) &&
             (!body.event_time_overlaps ||
               inEventWindow(m, body.event_time_overlaps as { start: number; end: number }))
         )
@@ -357,7 +368,11 @@ function fakeNearby(keyId: string) {
       });
     }
     return problem(404, "no_route");
-  });
+  };
+  const fetch = vi.fn(
+    (...args: Parameters<typeof handle>) =>
+      new Promise<Response>((resolve) => resolve(handle(...args)))
+  );
   const touch = (id: string, patch: Partial<Row>) => {
     const current = rows.get(id)!;
     rows.set(id, {
@@ -382,7 +397,7 @@ async function remoteStore(
   const server = nearby ?? fakeNearby(keys.keyId);
   const persistence = await createRemoteMemoryPersistence({
     baseUrl: "https://nearby.test",
-    getToken: async () => "token",
+    getToken: () => Promise.resolve("token"),
     keyId: keys.keyId,
     ...memoryCipher(keys),
     fetch: server.fetch as unknown as typeof globalThis.fetch,
@@ -390,8 +405,8 @@ async function remoteStore(
   const store = createRemoteMemoryStore({
     persistence,
     embeddingOptions: { apiKey: "test-key", ...embeddingOverrides },
-    graphRanking: async () => [],
-    temporalRanking: async () => [],
+    graphRanking: () => Promise.resolve([]),
+    temporalRanking: () => Promise.resolve([]),
     pollIntervalMs,
     activity,
     subscribeChanges,
@@ -528,9 +543,7 @@ describe("remote MemoryStore", () => {
       active = true;
       listeners.forEach((listener) => listener());
       await vi.waitFor(() =>
-        expect(
-          server.fetch.mock.calls.some(([, init]) => JSON.parse(String(init?.body)).cursor)
-        ).toBe(true)
+        expect(server.fetch.mock.calls.some(([, init]) => parseBody(init?.body).cursor)).toBe(true)
       );
       await vi.advanceTimersByTimeAsync(0);
       stop();
@@ -538,10 +551,9 @@ describe("remote MemoryStore", () => {
       server.fetch.mockClear();
       stop = store.subscribe(vi.fn());
       await vi.waitFor(() => expect(server.fetch).toHaveBeenCalled());
-      expect(JSON.parse(String(server.fetch.mock.calls[0][1]?.body))).toMatchObject({
-        order: "changed",
-        cursor: expect.any(String),
-      });
+      const resumed = parseBody(server.fetch.mock.calls[0][1]?.body);
+      expect(resumed.order).toBe("changed");
+      expect(resumed.cursor).toEqual(expect.any(String));
       active = false;
       listeners.forEach((listener) => listener());
       await vi.advanceTimersByTimeAsync(0);
@@ -740,12 +752,10 @@ describe("remote MemoryStore", () => {
     expect(created.map((m) => m.content)).toEqual(inputs.map((input) => input.content));
     expect(server.rows.size).toBe(120);
     const batches = server.fetch.mock.calls.filter(([input]) =>
-      String(input).endsWith("/memories/batch")
+      requestUrl(input).endsWith("/memories/batch")
     );
     expect(
-      batches.map(
-        ([, init]) => (JSON.parse(String(init!.body)) as { writes: unknown[] }).writes.length
-      )
+      batches.map(([, init]) => parseBody<{ writes: unknown[] }>(init!.body).writes.length)
     ).toEqual([50, 50, 20]);
   });
 
@@ -754,7 +764,7 @@ describe("remote MemoryStore", () => {
     const original = server.fetch.getMockImplementation()!;
     let batches = 0;
     server.fetch.mockImplementation(async (input, init) => {
-      if (String(input).endsWith("/memories/batch") && ++batches === 3)
+      if (requestUrl(input).endsWith("/memories/batch") && ++batches === 3)
         return new Response(JSON.stringify({ code: "boom", detail: "boom" }), { status: 500 });
       return original(input, init);
     });
@@ -783,8 +793,8 @@ describe("remote MemoryStore", () => {
     expect(lean.map((p) => [p.uniqueId, p.embedding])).toEqual([[m.uniqueId, null]]);
     expect(full[0].embedding).not.toBeNull();
     const queries = server.fetch.mock.calls
-      .filter(([input]) => String(input).endsWith("/memories/query"))
-      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+      .filter(([input]) => requestUrl(input).endsWith("/memories/query"))
+      .map(([, init]) => parseBody(init!.body));
     expect(queries.map((q) => q.include_embeddings)).toEqual([false, true]);
   });
 
@@ -811,15 +821,15 @@ describe("remote MemoryStore", () => {
     expect((await store.listArchived()).map((m) => m.uniqueId)).toEqual([work.uniqueId]);
 
     const queries = server.fetch.mock.calls
-      .filter(([input]) => String(input).endsWith("/memories/query"))
-      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+      .filter(([input]) => requestUrl(input).endsWith("/memories/query"))
+      .map(([, init]) => parseBody(init!.body));
     expect(queries).toEqual([
       expect.objectContaining({ scopes: ["work"], order: "created" }),
       expect.objectContaining({ limit: 2 }),
       expect.objectContaining({ topics: ["mt hood"] }),
       expect.objectContaining({ archived_only: true, order: "archived" }),
     ]);
-    expect(server.fetch.mock.calls.some(([input]) => /\/memories\?/.test(String(input)))).toBe(
+    expect(server.fetch.mock.calls.some(([input]) => /\/memories\?/.test(requestUrl(input)))).toBe(
       false
     );
   });
@@ -844,8 +854,8 @@ describe("remote MemoryStore", () => {
       await laptop.update(seeded.uniqueId, { content: "Lives in Lisbon", embedding: axis(2) });
       await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
       const polls = shared.fetch.mock.calls
-        .filter(([input]) => String(input).endsWith("/memories/query"))
-        .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+        .filter(([input]) => requestUrl(input).endsWith("/memories/query"))
+        .map(([, init]) => parseBody(init!.body));
       expect(polls.length).toBeGreaterThan(0);
       expect(
         polls.every((body) => body.order === "changed" && typeof body.cursor === "string")
@@ -874,8 +884,8 @@ describe("remote MemoryStore", () => {
       [outdated.uniqueId, edited.uniqueId, fresh.uniqueId]
     );
     const queries = server.fetch.mock.calls
-      .filter(([input]) => String(input).endsWith("/memories/query"))
-      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+      .filter(([input]) => requestUrl(input).endsWith("/memories/query"))
+      .map(([, init]) => parseBody(init!.body));
     expect(queries).toEqual([
       expect.objectContaining({ topics_due: TOPICS_EXTRACTION_VERSION, topics_extracted: true }),
       expect.objectContaining({ topics_due: TOPICS_EXTRACTION_VERSION, topics_extracted: false }),
@@ -897,8 +907,8 @@ describe("remote MemoryStore", () => {
     const pending = (await store.topicMaintenance.getTopicBacklog({ limit: 2 })).pending;
     expect(pending.map((p) => p.uniqueId)).toEqual([edited[2], edited[1]]);
     const queries = server.fetch.mock.calls
-      .filter(([input]) => String(input).endsWith("/memories/query"))
-      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+      .filter(([input]) => requestUrl(input).endsWith("/memories/query"))
+      .map(([, init]) => parseBody(init!.body));
     expect(queries).toEqual([expect.objectContaining({ topics_extracted: true, limit: 2 })]);
   });
 
@@ -916,18 +926,18 @@ describe("remote MemoryStore", () => {
     const pending = (await store.topicMaintenance.getTopicBacklog({ limit: 3 })).pending;
     expect(pending.map((p) => p.uniqueId)).toEqual([edited.uniqueId, fresh[2], fresh[1]]);
     const queries = server.fetch.mock.calls
-      .filter(([input]) => String(input).endsWith("/memories/query"))
-      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+      .filter(([input]) => requestUrl(input).endsWith("/memories/query"))
+      .map(([, init]) => parseBody(init!.body));
     expect(queries).toEqual([
       expect.objectContaining({ topics_extracted: true, limit: 3 }),
       expect.objectContaining({ topics_extracted: false, limit: 2 }),
     ]);
   });
 
-  const nearbyCalls = (server: { fetch: { mock: { calls: unknown[][] } } }) =>
+  const nearbyCalls = (server: ReturnType<typeof fakeNearby>) =>
     server.fetch.mock.calls.map(([input, init]) => {
-      const path = new URL(String(input)).pathname.replace(/^.*\/api\/private-memories/, "");
-      return `${(init as RequestInit | undefined)?.method ?? "GET"} ${path.replace(/^\/memories\/(?!query$|batch$).+/, "/memories/:id")}`;
+      const path = new URL(requestUrl(input)).pathname.replace(/^.*\/api\/private-memories/, "");
+      return `${init?.method ?? "GET"} ${path.replace(/^\/memories\/(?!query$|batch$).+/, "/memories/:id")}`;
     });
   const hikes = {
     "Hikes Mt Hood": [{ name: "Mt Hood", kind: "place" }],
@@ -972,7 +982,7 @@ describe("remote MemoryStore", () => {
     const handle = server.fetch.getMockImplementation()!;
     let raced = false;
     server.fetch.mockImplementation(async (input, init) => {
-      if (!raced && String(input).endsWith("/memories/batch")) {
+      if (!raced && requestUrl(input).endsWith("/memories/batch")) {
         raced = true;
         const other = server.rows.get(ids[1])!;
         other.memory.topics_user_managed = true;
@@ -1070,7 +1080,7 @@ describe("remote MemoryStore", () => {
     const handle = server.fetch.getMockImplementation()!;
     let batches = 0;
     server.fetch.mockImplementation(async (input, init) =>
-      String(input).endsWith("/memories/batch") && ++batches === 2
+      requestUrl(input).endsWith("/memories/batch") && ++batches === 2
         ? new Response(JSON.stringify({ detail: "boom" }), { status: 500 })
         : handle(input, init)
     );
@@ -1092,7 +1102,7 @@ describe("remote MemoryStore", () => {
       ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
     const handle = server.fetch.getMockImplementation()!;
     server.fetch.mockImplementation(async (input, init) =>
-      String(input).endsWith("/memories/batch")
+      requestUrl(input).endsWith("/memories/batch")
         ? new Response(JSON.stringify({ detail: "slow down" }), { status: 429 })
         : handle(input, init)
     );
@@ -1118,7 +1128,7 @@ describe("remote MemoryStore", () => {
       ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
     const handle = server.fetch.getMockImplementation()!;
     server.fetch.mockImplementation(async (input, init) =>
-      String(input).endsWith("/memories/batch")
+      requestUrl(input).endsWith("/memories/batch")
         ? new Response(JSON.stringify({ detail: "boom" }), { status: 500 })
         : handle(input, init)
     );
@@ -1202,9 +1212,9 @@ describe("remote MemoryStore", () => {
       finish();
       await vi.advanceTimersByTimeAsync(0);
       expect(server.rows.get(memory.uniqueId)!.memory.topics_extracted_at).toBeUndefined();
-      expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
-        false
-      );
+      expect(
+        server.fetch.mock.calls.some(([url]) => requestUrl(url).endsWith("/memories/batch"))
+      ).toBe(false);
     } finally {
       finish();
       vi.useRealTimers();
@@ -1300,7 +1310,7 @@ describe("remote MemoryStore", () => {
     ]);
     await expect(
       store.addTopics(memory.uniqueId, ["Late topic"], {
-        canWrite: async () => false,
+        canWrite: () => Promise.resolve(false),
       })
     ).rejects.toThrow("no longer eligible");
     const controller = new AbortController();
@@ -1363,8 +1373,8 @@ describe("remote MemoryStore", () => {
     const last = [...ids].sort().at(-1)!;
     const handle = server.fetch.getMockImplementation()!;
     server.fetch.mockImplementation(async (input, init) => {
-      const body = init?.body ? (JSON.parse(String(init.body)) as { memory_ids?: string[] }) : {};
-      return String(input).endsWith("/memories/query") &&
+      const body = init?.body ? parseBody<{ memory_ids?: string[] }>(init.body) : {};
+      return requestUrl(input).endsWith("/memories/query") &&
         body.memory_ids?.length === 1 &&
         body.memory_ids[0] === last
         ? new Response(JSON.stringify({ detail: "boom" }), { status: 500 })
@@ -1523,8 +1533,8 @@ describe("remote MemoryStore", () => {
       last.uniqueId,
     ]);
     const bodies = server.fetch.mock.calls
-      .filter(([input]) => String(input).endsWith("/memories/query"))
-      .map(([, init]) => JSON.parse(String(init!.body)) as Record<string, string[]>);
+      .filter(([input]) => requestUrl(input).endsWith("/memories/query"))
+      .map(([, init]) => parseBody<Record<string, string[]>>(init!.body));
     expect(bodies).toHaveLength(4);
     expect(bodies.every((b) => b.scopes.length <= 20 && b.fact_types.length <= 20)).toBe(true);
   });
@@ -1538,7 +1548,7 @@ describe("remote MemoryStore", () => {
     let unreadable = false;
     const persistence = await createRemoteMemoryPersistence({
       baseUrl: "https://nearby.test",
-      getToken: async () => "token",
+      getToken: () => Promise.resolve("token"),
       keyId: ring.keyId,
       encrypt: cipher.encrypt,
       decrypt: async (value) => (unreadable ? value : cipher.decrypt(value)),
@@ -1547,8 +1557,8 @@ describe("remote MemoryStore", () => {
     const phone = createRemoteMemoryStore({
       persistence,
       embeddingOptions: { apiKey: "test-key" },
-      graphRanking: async () => [],
-      temporalRanking: async () => [],
+      graphRanking: () => Promise.resolve([]),
+      temporalRanking: () => Promise.resolve([]),
       pollIntervalMs: 20,
     });
     const onChange = vi.fn();
@@ -1607,7 +1617,7 @@ describe("remote MemoryStore", () => {
     }
   });
 
-  it("releases subscription records while subscribers remain active", async () => {
+  it("releases subscription records and memory rows while subscribers remain active", async () => {
     setFlagsFromString("--expose-gc");
     const collect = runInNewContext("gc") as () => void;
     setFlagsFromString("--no-expose-gc");
@@ -1623,16 +1633,21 @@ describe("remote MemoryStore", () => {
     server.touch(memories[2].uniqueId, { trust_tier: "quarantined" });
     server.touch(memories[3].uniqueId, { superseded_by: memories[4].uniqueId });
     const records: WeakRef<RemoteMemoryRecord>[] = [];
+    const rows: WeakRef<RemoteMemoryRecord["memory"]>[] = [];
+    const observe = (record: RemoteMemoryRecord) => {
+      records.push(new WeakRef(record));
+      rows.push(new WeakRef(record.memory));
+    };
     const query = persistence.query.bind(persistence);
     persistence.query = async (options) => {
       const page = await query(options);
-      records.push(...page.items.map((record) => new WeakRef(record)));
+      page.items.forEach(observe);
       return page;
     };
     const put = persistence.put.bind(persistence);
     persistence.put = async (...args) => {
       const saved = await put(...args);
-      records.push(new WeakRef(saved));
+      observe(saved);
       return saved;
     };
     const stop = store.subscribe(vi.fn());
@@ -1646,6 +1661,7 @@ describe("remote MemoryStore", () => {
       await new Promise((resolve) => setTimeout(resolve, 40));
       collect();
       expect(records.filter((record) => record.deref() !== undefined)).toHaveLength(0);
+      expect(rows.filter((row) => row.deref() !== undefined)).toHaveLength(0);
     } finally {
       stop();
       stopMembership();
@@ -1663,8 +1679,8 @@ describe("remote MemoryStore", () => {
     try {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const baselines = server.fetch.mock.calls.filter(([input, init]) => {
-        if (!String(input).endsWith("/memories/query")) return false;
-        const body = JSON.parse(String(init!.body)) as Record<string, unknown>;
+        if (!requestUrl(input).endsWith("/memories/query")) return false;
+        const body = parseBody(init!.body);
         return body.order === "changed" && body.cursor === undefined;
       });
       expect(baselines).toHaveLength(1);
@@ -1688,14 +1704,14 @@ describe("remote MemoryStore", () => {
     let failCatalog = false;
     const original = shared.fetch.getMockImplementation()!;
     shared.fetch.mockImplementation(async (input, init) => {
-      if (failCatalog && String(input).includes("/topics?"))
+      if (failCatalog && requestUrl(input).includes("/topics?"))
         return new Response(JSON.stringify({ detail: "unavailable" }), { status: 500 });
       return original(input, init);
     });
     const polls = () =>
       shared.fetch.mock.calls
-        .filter(([input]) => String(input).endsWith("/memories/query"))
-        .map(([, init]) => JSON.parse(String(init!.body)) as { cursor?: string });
+        .filter(([input]) => requestUrl(input).endsWith("/memories/query"))
+        .map(([, init]) => parseBody(init!.body));
     const onChange = vi.fn();
     const onTopics = vi.fn();
     const stopChange = phone.subscribe(onChange);
@@ -1798,8 +1814,9 @@ describe("remote MemoryStore", () => {
 function inEventWindow(m: Record<string, unknown>, window: { start: number; end: number }) {
   const start = m.event_time_start as number | null | undefined;
   const end = m.event_time_end as number | null | undefined;
-  if (start == null || start >= window.end) return false;
-  if (m.event_time_kind === "ongoing") return end == null || end >= window.start;
+  if (start === undefined || start === null || start >= window.end) return false;
+  if (m.event_time_kind === "ongoing")
+    return end === undefined || end === null || end >= window.start;
   if (m.event_time_kind === "range") return (end ?? start) >= window.start;
   return start >= window.start;
 }
@@ -1812,13 +1829,13 @@ describe("default recall lanes", () => {
     const decrypt = vi.fn(cipher.decrypt);
     const queried: Record<string, unknown>[] = [];
     const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
-      if (String(url).endsWith("/memories/query") || String(url).endsWith("/temporal"))
-        queried.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      if (requestUrl(url).endsWith("/memories/query") || requestUrl(url).endsWith("/temporal"))
+        queried.push(parseBody(init?.body));
       return server.fetch(url as never, init as never);
     });
     const persistence = await createRemoteMemoryPersistence({
       baseUrl: "https://nearby.test",
-      getToken: async () => "token",
+      getToken: () => Promise.resolve("token"),
       keyId: keys.keyId,
       encrypt: cipher.encrypt,
       decrypt,
@@ -1992,7 +2009,7 @@ describe("repairEmbeddings", () => {
     const decrypt = vi.fn(cipher.decrypt);
     const persistence = await createRemoteMemoryPersistence({
       baseUrl: "https://nearby.test",
-      getToken: async () => "token",
+      getToken: () => Promise.resolve("token"),
       keyId: keys.keyId,
       encrypt: cipher.encrypt,
       decrypt,
@@ -2001,8 +2018,8 @@ describe("repairEmbeddings", () => {
     const store = createRemoteMemoryStore({
       persistence,
       embeddingOptions: { apiKey: "test-key" },
-      graphRanking: async () => [],
-      temporalRanking: async () => [],
+      graphRanking: () => Promise.resolve([]),
+      temporalRanking: () => Promise.resolve([]),
     });
     let seq = server.rows.size;
     const seed = async (id: string, text: string, extra: Record<string, unknown> = {}) => {
@@ -2059,8 +2076,10 @@ describe("repairEmbeddings", () => {
     const { store, server, seed } = await repairStore();
     await seed("good", "Good");
     await seed("bad", "Bad");
-    vi.mocked(generateEmbeddings).mockImplementationOnce(async (texts) =>
-      texts.map((text) => (text === "Bad" ? [] : (JSON.parse(axis(0)) as number[])))
+    vi.mocked(generateEmbeddings).mockImplementationOnce((texts) =>
+      Promise.resolve(
+        texts.map((text) => (text === "Bad" ? [] : (JSON.parse(axis(0)) as number[])))
+      )
     );
     await expect(store.repairEmbeddings!()).resolves.toMatchObject({
       reembedded: 1,
@@ -2080,9 +2099,11 @@ describe("repairEmbeddings", () => {
       skippedConflict: 0,
     });
     const writes = server.fetch.mock.calls.filter(([url]) =>
-      String(url).endsWith("/memories/batch")
+      requestUrl(url).endsWith("/memories/batch")
     );
-    expect(writes.map(([, init]) => JSON.parse(String(init?.body)).writes.length)).toEqual([50, 1]);
+    expect(
+      writes.map(([, init]) => parseBody<{ writes: unknown[] }>(init?.body).writes.length)
+    ).toEqual([50, 1]);
     expect([...server.rows.values()].every((row) => row.version === 2)).toBe(true);
   });
 
@@ -2093,7 +2114,7 @@ describe("repairEmbeddings", () => {
     const original = server.fetch.getMockImplementation()!;
     let raced = false;
     server.fetch.mockImplementation(async (...args) => {
-      if (String(args[0]).endsWith("/memories/batch") && !raced) {
+      if (requestUrl(args[0]).endsWith("/memories/batch") && !raced) {
         raced = true;
         server.touch("raced", { topics: JSON.stringify([{ name: "edited" }]) });
       }
@@ -2122,8 +2143,8 @@ describe("repairEmbeddings", () => {
       );
       const original = server.fetch.getMockImplementation()!;
       server.fetch.mockImplementation(async (...args) => {
-        if (failure !== "unknown_field" && String(args[0]).endsWith("/memories/batch")) {
-          const body = JSON.parse(String(args[1]?.body)) as { writes: { memory: Row }[] };
+        if (failure !== "unknown_field" && requestUrl(args[0]).endsWith("/memories/batch")) {
+          const body = parseBody<{ writes: { memory: Row }[] }>(args[1]?.body);
           if (body.writes.some(({ memory }) => memory.memory_id === "bad"))
             return Response.json(
               { detail: "Invalid memory" },
@@ -2153,9 +2174,9 @@ describe("repairEmbeddings", () => {
         failed: 0,
       });
       expect(generateEmbeddings).not.toHaveBeenCalled();
-      expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
-        false
-      );
+      expect(
+        server.fetch.mock.calls.some(([url]) => requestUrl(url).endsWith("/memories/batch"))
+      ).toBe(false);
     }
   );
 
@@ -2166,9 +2187,9 @@ describe("repairEmbeddings", () => {
     const first = await store.repairEmbeddings!({ maxScan: 1 });
     expect(first).toMatchObject({ reembedded: 0, failed: 1 });
     expect(first.cursor).toBeDefined();
-    expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
-      false
-    );
+    expect(
+      server.fetch.mock.calls.some(([url]) => requestUrl(url).endsWith("/memories/batch"))
+    ).toBe(false);
     await expect(store.repairEmbeddings!({ maxScan: 1 })).resolves.toMatchObject({
       reembedded: 1,
       failed: 0,
@@ -2196,7 +2217,7 @@ describe("repairEmbeddings", () => {
       const original = server.fetch.getMockImplementation()!;
       let reject = true;
       server.fetch.mockImplementation(async (...args) => {
-        if (reject && String(args[0]).endsWith("/memories/batch"))
+        if (reject && requestUrl(args[0]).endsWith("/memories/batch"))
           return Response.json({ code }, { status });
         return original(...args);
       });
@@ -2204,7 +2225,7 @@ describe("repairEmbeddings", () => {
         code === "work_lease_expired" ? { deferred: true } : { reembedded: 0, failed: 3 }
       );
       expect(
-        server.fetch.mock.calls.filter(([url]) => String(url).endsWith("/memories/batch"))
+        server.fetch.mock.calls.filter(([url]) => requestUrl(url).endsWith("/memories/batch"))
       ).toHaveLength(1);
       expect([...server.rows.values()].every((row) => row.version === 1)).toBe(true);
       expect(server.leases.size).toBe(0);
@@ -2226,8 +2247,8 @@ describe("repairEmbeddings", () => {
       const original = server.fetch.getMockImplementation()!;
       let reject = true;
       server.fetch.mockImplementation(async (...args) => {
-        if (reject && String(args[0]).endsWith("/memories/batch")) {
-          const body = JSON.parse(String(args[1]?.body)) as { writes: unknown[] };
+        if (reject && requestUrl(args[0]).endsWith("/memories/batch")) {
+          const body = parseBody<{ writes: unknown[] }>(args[1]?.body);
           return body.writes.length > 1
             ? Response.json({ detail: "Invalid memory" }, { status: 422 })
             : Response.json({ code }, { status });
@@ -2238,7 +2259,7 @@ describe("repairEmbeddings", () => {
         code === "work_lease_expired" ? { deferred: true } : { reembedded: 0, failed: 3 }
       );
       expect(
-        server.fetch.mock.calls.filter(([url]) => String(url).endsWith("/memories/batch"))
+        server.fetch.mock.calls.filter(([url]) => requestUrl(url).endsWith("/memories/batch"))
       ).toHaveLength(2);
       expect(server.leases.size).toBe(0);
       reject = false;
@@ -2330,9 +2351,9 @@ describe("repairEmbeddings", () => {
       finish();
       await vi.advanceTimersByTimeAsync(0);
       expect(server.rows.get("work")!.memory.embedding).toBeUndefined();
-      expect(server.fetch.mock.calls.some(([url]) => String(url).endsWith("/memories/batch"))).toBe(
-        false
-      );
+      expect(
+        server.fetch.mock.calls.some(([url]) => requestUrl(url).endsWith("/memories/batch"))
+      ).toBe(false);
     } finally {
       finish();
       embedding.mockImplementation(original);
@@ -2346,7 +2367,7 @@ describe("repairEmbeddings", () => {
     await seed("raced", "Moved to Lisbon");
     const original = server.fetch.getMockImplementation()!;
     server.fetch.mockImplementation(async (input, init) => {
-      if (String(input).endsWith("/memories/batch")) server.rows.get("raced")!.version++;
+      if (requestUrl(input).endsWith("/memories/batch")) server.rows.get("raced")!.version++;
       return original(input, init);
     });
 
@@ -2444,9 +2465,7 @@ describe("repairEmbeddings", () => {
     const embed = vi.mocked(generateEmbeddings);
     const original = embed.getMockImplementation()!;
     embed.mockClear();
-    embed.mockImplementation(async () => {
-      throw new EmbeddingHttpError("payment required", 402);
-    });
+    embed.mockImplementation(() => Promise.reject(new EmbeddingHttpError("payment required", 402)));
     try {
       const first = await store.repairEmbeddings!({ maxScan: 2 });
       expect(first).toMatchObject({ reembedded: 0, failed: 2 });
@@ -2469,12 +2488,14 @@ describe("repairEmbeddings", () => {
     await seed("b", "Newer memory b");
     const embed = vi.mocked(generateEmbeddings);
     const original = embed.getMockImplementation()!;
-    embed.mockImplementation(async (texts) => {
-      throw new EmbeddingHttpError(
-        texts.length > 1 ? "bad batch" : "payment required",
-        texts.length > 1 ? 400 : 402
-      );
-    });
+    embed.mockImplementation((texts) =>
+      Promise.reject(
+        new EmbeddingHttpError(
+          texts.length > 1 ? "bad batch" : "payment required",
+          texts.length > 1 ? 400 : 402
+        )
+      )
+    );
     try {
       await expect(store.repairEmbeddings!()).resolves.toMatchObject({
         reembedded: 0,
@@ -2497,9 +2518,7 @@ describe("repairEmbeddings", () => {
     const embed = vi.mocked(generateEmbeddings);
     const original = embed.getMockImplementation()!;
     embed.mockClear();
-    embed.mockImplementation(async () => {
-      throw failure();
-    });
+    embed.mockImplementation(() => Promise.reject(failure()));
     try {
       const first = await store.repairEmbeddings!({ maxScan: 2 });
       expect(first).toMatchObject({ reembedded: 0, failed: 2 });
@@ -2522,12 +2541,14 @@ describe("repairEmbeddings", () => {
     await seed("b", "Newer memory b");
     const embed = vi.mocked(generateEmbeddings);
     const original = embed.getMockImplementation()!;
-    embed.mockImplementation(async (texts) => {
-      throw new EmbeddingHttpError(
-        texts.length > 1 ? "bad batch" : "unavailable",
-        texts.length > 1 ? 400 : 503
-      );
-    });
+    embed.mockImplementation((texts) =>
+      Promise.reject(
+        new EmbeddingHttpError(
+          texts.length > 1 ? "bad batch" : "unavailable",
+          texts.length > 1 ? 400 : 503
+        )
+      )
+    );
     try {
       await expect(store.repairEmbeddings!()).resolves.toMatchObject({
         reembedded: 0,
@@ -2565,7 +2586,7 @@ describe("remote decay", () => {
     let afterScan: (() => void) | undefined;
     const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
       const response = await server.fetch(url as never, init as never);
-      if (String(url).endsWith("/memories/query") && afterScan) {
+      if (requestUrl(url).endsWith("/memories/query") && afterScan) {
         const run = afterScan;
         afterScan = undefined;
         run();
@@ -2574,7 +2595,7 @@ describe("remote decay", () => {
     });
     const persistence = await createRemoteMemoryPersistence({
       baseUrl: "https://nearby.test",
-      getToken: async () => "token",
+      getToken: () => Promise.resolve("token"),
       keyId: keys.keyId,
       encrypt: cipher.encrypt,
       decrypt,
@@ -2583,8 +2604,8 @@ describe("remote decay", () => {
     const store = createRemoteMemoryStore({
       persistence,
       embeddingOptions: { apiKey: "test-key" },
-      graphRanking: async () => [],
-      temporalRanking: async () => [],
+      graphRanking: () => Promise.resolve([]),
+      temporalRanking: () => Promise.resolve([]),
       pollIntervalMs: 0,
     });
     const onAfterScan = (run: () => void) => {
@@ -2870,10 +2891,10 @@ describe("account topic catalog", () => {
       ]);
       expect(server.catalog.get("coffee")!.is_deleted).toBe(true);
       const imports = server.fetch.mock.calls.filter(([input]) =>
-        String(input).endsWith("/topics/import")
+        requestUrl(input).endsWith("/topics/import")
       );
       expect(imports).toHaveLength(1);
-      expect(JSON.parse(String(imports[0][1]!.body))).toEqual({
+      expect(parseBody(imports[0][1]!.body)).toEqual({
         topics: [{ name: "gardening", kind: "hobby" }],
       });
     } finally {
