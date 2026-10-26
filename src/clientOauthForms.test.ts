@@ -1,5 +1,7 @@
 // @vitest-environment node
 
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { createClient } from "./client/client";
@@ -64,6 +66,16 @@ const forms: {
 ];
 
 describe("OAuth form bodies", () => {
+  it("documents the consent body as a string", () => {
+    const documentation = readFileSync(
+      new URL("../docs/client/Internal/type-aliases/PostOauthConsentData.md", import.meta.url),
+      "utf8"
+    );
+
+    expect(documentation).toContain("> `optional` **body**: `string`");
+    expect(documentation).not.toContain("Daily spending cap in USD");
+  });
+
   it.each(forms)("sends the encoded $name fields", async ({ path, send, fields }) => {
     const fetch = vi
       .fn<typeof globalThis.fetch>()
