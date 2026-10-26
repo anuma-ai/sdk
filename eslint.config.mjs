@@ -21,6 +21,7 @@ const memoryTelemetryTests = [
 const checkedTestFiles = [
   "src/lib/chatStore/remote.test.ts",
   "src/lib/memory/store/remoteMigration.test.ts",
+  "src/lib/memory/store/remoteStore.test.ts",
   ...appGenerationTests,
   ...memoryTelemetryTests,
   "src/clientHeaders.test.ts",
@@ -36,6 +37,7 @@ const checkedTestFiles = [
   "src/lib/db/memoryVault/operations.profileMetadata.test.ts",
   "src/lib/db/memoryVault/operations.sweeps.test.ts",
   "src/lib/db/memoryVault/operations.test.ts",
+  "src/lib/db/memoryVault/photoIngest.test.ts",
   "src/lib/memory/portalLlm.test.ts",
   "src/lib/memory/synthesizeProfile.taskType.test.ts",
   "src/lib/memory/synthesizeProfile.test.ts",

@@ -117,6 +117,8 @@ describe("evaluateAnswer verdicts", () => {
       ["  correct\n", "correct"],
       ["Verdict: INCORRECT — the answer names the wrong city.", "incorrect"],
       ["This is incorrect.", "incorrect"],
+      ["CORRECT or INCORRECT? It's INCORRECT.", "incorrect"],
+      ['"CORRECT" or "INCORRECT": CORRECT', "correct"],
     ];
 
     for (const [content, expected] of cases) {
