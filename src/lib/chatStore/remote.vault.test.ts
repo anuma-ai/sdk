@@ -165,7 +165,7 @@ async function setup(override?: (call: Call) => Response | undefined) {
     }
     if (path === "/search") {
       const items = [...rows.values()]
-        .filter((s) => s.record.kind === "message" && !s.record.is_deleted)
+        .filter((s) => s.record.kind !== "conversation" && !s.record.is_deleted)
         .map((s, i) => ({ ...s, chunk: 0, score: 1 - i / 10 }));
       return Response.json({ items });
     }
@@ -200,6 +200,22 @@ async function setup(override?: (call: Call) => Response | undefined) {
       });
     if (path === `/attachments/${attachmentId}` && method === "DELETE")
       return new Response(null, { status: 204 });
+    if (path === `/attachments/${attachmentId}` && method === "GET")
+      return Response.json({
+        attachment: {
+          ...attachment,
+          state: "committed",
+          owner_kind: "message",
+          owner_id: "m",
+          committed_at: "2026-10-26T00:01:00Z",
+        },
+        download: {
+          url: "https://r2.test/get",
+          method: "GET",
+          headers: {},
+          expires_at: "2026-10-26T00:05:00Z",
+        },
+      });
     if (path.startsWith("/attachments/") && method === "GET")
       return Response.json({}, { status: 404 });
     return Response.json({}, { status: 500 });
@@ -425,7 +441,24 @@ describe("remote ChatStore against vault's server-only contract", () => {
     expect(upload).toMatchObject({ url: "https://r2.test/put", method: "PUT" });
     const committed = await s.store.attachments.commit(attachmentId, { kind: "message", id: "m" });
     expect(committed).toMatchObject({ state: "committed", ownerKind: "message", ownerId: "m" });
-    expect(await s.store.attachments.get(attachmentId)).toBeNull();
+    expect(await s.store.attachments.get(attachmentId)).toEqual({
+      attachment: {
+        id: attachmentId,
+        sizeBytes: 10,
+        state: "committed",
+        ownerKind: "message",
+        ownerId: "m",
+        createdAt: "2026-10-26T00:00:00Z",
+        committedAt: "2026-10-26T00:01:00Z",
+      },
+      download: {
+        url: "https://r2.test/get",
+        method: "GET",
+        headers: {},
+        expiresAt: "2026-10-26T00:05:00Z",
+      },
+    });
+    expect(await s.store.attachments.get("f".repeat(32))).toBeNull();
     await s.store.attachments.delete(attachmentId);
     expect(s.calls.at(-1)).toMatchObject({
       method: "DELETE",
@@ -455,5 +488,60 @@ describe("remote ChatStore against vault's server-only contract", () => {
         : undefined
     );
     await expect(s.store.attachments.create(10)).rejects.toThrow(ChatStoreError);
+  });
+
+  it("refuses delete results that belong to another write", async () => {
+    let swap = false;
+    const s = await setup((call) => {
+      if (!swap || call.path !== "/records/batch") return undefined;
+      const writes = call.body?.writes as { record: Wire["record"]; expected_version: number }[];
+      return Response.json({
+        items: writes
+          .map((w) => ({
+            record: w.record,
+            version: w.expected_version + 1,
+            server_updated_at: "2026-10-26T00:00:00Z",
+          }))
+          .reverse(),
+      });
+    });
+    await s.store.putMany([
+      { record: record("conversation", "c"), expectedVersion: 0 },
+      { record: record("message", "a", "c", 1), expectedVersion: 0 },
+      { record: record("message", "b", "c", 2), expectedVersion: 0 },
+    ]);
+    swap = true;
+    await expect(
+      s.store.putMany(
+        (["a", "b"] as const).map((id, i) => ({
+          record: { ...record("message", id, "c", i + 1), isDeleted: true, updatedAt: 2 },
+          expectedVersion: 1,
+        }))
+      )
+    ).rejects.toThrow(ChatStoreError);
+  });
+
+  it("refuses a search hit of a kind it did not ask for", async () => {
+    const s = await setup();
+    await s.store.putMany([
+      { record: record("conversation", "c"), expectedVersion: 0 },
+      { record: record("summary", "s", "c", 1), expectedVersion: 0, embeddings: [unit(3)] },
+    ]);
+    expect((await s.store.search(unit(3), { kinds: ["summary"] })).map((h) => h.record.id)).toEqual(
+      ["s"]
+    );
+    await expect(s.store.search(unit(3), { kinds: ["message"] })).rejects.toThrow(ChatStoreError);
+  });
+
+  it("refuses sparse vectors and sparse vector lists", async () => {
+    const s = await setup();
+    const holey = new Array<number>(1536);
+    holey[0] = 1;
+    for (const embeddings of [[holey], new Array<number[]>(1)])
+      await expect(
+        s.store.importRecords([{ record: record("message", "m", "c", 1), embeddings }])
+      ).rejects.toThrow(ChatStoreError);
+    await expect(s.store.search(holey)).rejects.toThrow(ChatStoreError);
+    expect(s.calls.filter((c) => c.path === "/import" || c.path === "/search")).toHaveLength(0);
   });
 });

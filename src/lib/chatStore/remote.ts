@@ -129,14 +129,21 @@ function embeddings(write: {
     write.embeddings.length <= maxChunksPerRecord &&
     (write.embeddingModel === undefined ||
       (typeof write.embeddingModel === "string" && write.embeddingModel.length <= 256)) &&
-    write.embeddings.every(
-      (v) =>
-        Array.isArray(v) &&
-        (v.length === 1536 || v.length === 4096) &&
-        v.every((x) => typeof x === "number" && Number.isFinite(x)) &&
-        v.slice(0, 1536).some((x) => x !== 0)
+    Array.from({ length: write.embeddings.length }, (_, i) => i).every((i) =>
+      vector(write.embeddings?.[i])
     )
   );
+}
+
+function vector(v: unknown): boolean {
+  if (!Array.isArray(v) || (v.length !== 1536 && v.length !== 4096)) return false;
+  let nonZero = false;
+  for (let i = 0; i < v.length; i++) {
+    const x: unknown = v[i];
+    if (typeof x !== "number" || !Number.isFinite(x)) return false;
+    if (i < 1536 && x !== 0) nonZero = true;
+  }
+  return nonZero;
 }
 
 function vectorFields(write: { embeddings?: number[][]; embeddingModel?: string }) {
@@ -366,6 +373,8 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       if (
         !object(value) ||
         !object(value.record) ||
+        value.record.kind !== prepared[i].record.kind ||
+        value.record.id !== prepared[i].record.id ||
         value.record.payload !== prepared[i].record.payload ||
         (deleted
           ? value.record.is_deleted !== true || !integer(value.version, 1)
@@ -644,6 +653,8 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         const snapshot = await decode(item);
         if (
           snapshot.record.isDeleted ||
+          (kindsFilter !== undefined &&
+            !kindsFilter.includes(snapshot.record.kind as "message" | "summary")) ||
           (snapshot.record.kind !== "message" && snapshot.record.kind !== "summary") ||
           (options?.conversationId !== undefined &&
             snapshot.record.conversationId !== options.conversationId)
