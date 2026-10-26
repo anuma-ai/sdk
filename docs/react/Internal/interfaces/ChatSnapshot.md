@@ -2,6 +2,10 @@
 
 Defined in: [src/lib/chatStore/types.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#17)
 
+## Extended by
+
+* [`ChatSearchHit`](ChatSearchHit.md)
+
 ## Properties
 
 ### record
