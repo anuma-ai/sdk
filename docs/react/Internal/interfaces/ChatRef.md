@@ -1,6 +1,6 @@
 # ChatRef
 
-Defined in: [src/lib/chatStore/types.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#30)
+Defined in: [src/lib/chatStore/types.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#31)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:30](https://github.com/anuma-ai/sdk/blob
 
 > **id**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#32)
+Defined in: [src/lib/chatStore/types.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#33)
 
 ***
 
@@ -16,4 +16,4 @@ Defined in: [src/lib/chatStore/types.ts:32](https://github.com/anuma-ai/sdk/blob
 
 > **kind**: [`ChatRecordKind`](../type-aliases/ChatRecordKind.md)
 
-Defined in: [src/lib/chatStore/types.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#31)
+Defined in: [src/lib/chatStore/types.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#32)

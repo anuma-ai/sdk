@@ -1,6 +1,6 @@
 # ChatSearchHit
 
-Defined in: [src/lib/chatStore/types.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#71)
+Defined in: [src/lib/chatStore/types.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#73)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/chatStore/types.ts:71](https://github.com/anuma-ai/sdk/blob
 
 > **chunk**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#72)
+Defined in: [src/lib/chatStore/types.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#74)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/chatStore/types.ts:18](https://github.com/anuma-ai/sdk/blob
 
 > **score**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#73)
+Defined in: [src/lib/chatStore/types.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#75)
 
 ***
 

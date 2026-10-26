@@ -20,6 +20,7 @@ import {
 const kinds = new Set(["conversation", "message", "summary", "project", "memory_links"]);
 const cipherPattern = /^enc:v\d+:(?:[0-9a-f]{2}){28,}$/i;
 const maxPayload = 2 * 1024 * 1024;
+const storedDims = 1536;
 const maxRequestCiphertext = 8 * 1024 * 1024;
 const maxGetRefs = 50;
 const maxImportRecords = 100;
@@ -141,14 +142,16 @@ function vector(v: unknown): boolean {
   for (let i = 0; i < v.length; i++) {
     const x: unknown = v[i];
     if (typeof x !== "number" || !Number.isFinite(x)) return false;
-    if (i < 1536 && x !== 0) nonZero = true;
+    if (i < storedDims && x !== 0) nonZero = true;
   }
   return nonZero;
 }
 
 function vectorFields(write: { embeddings?: number[][]; embeddingModel?: string }) {
   return {
-    ...(write.embeddings !== undefined ? { embeddings: write.embeddings } : {}),
+    ...(write.embeddings !== undefined
+      ? { embeddings: write.embeddings.map((v) => v.slice(0, storedDims)) }
+      : {}),
     ...(write.embeddingModel !== undefined ? { embedding_model: write.embeddingModel } : {}),
   };
 }
@@ -622,6 +625,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         limit > 50 ||
         (kindsFilter !== undefined &&
           (!Array.isArray(kindsFilter) ||
+            kindsFilter.length === 0 ||
             kindsFilter.some((k) => k !== "message" && k !== "summary"))) ||
         (options?.conversationId !== undefined && !id(options.conversationId))
       )
@@ -632,7 +636,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
           method: "POST",
           body: JSON.stringify({
             account_id: accountId,
-            embedding,
+            embedding: embedding.slice(0, storedDims),
             limit,
             ...(kindsFilter ? { kinds: kindsFilter } : {}),
             ...(options?.conversationId ? { conversation_id: options.conversationId } : {}),

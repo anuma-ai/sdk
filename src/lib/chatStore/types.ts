@@ -23,6 +23,7 @@ export interface ChatSnapshot {
 export interface ChatWrite {
   record: ChatRecord;
   expectedVersion: number;
+  /** Sent and stored unencrypted so vault can run vector search. */
   embeddings?: number[][];
   embeddingModel?: string;
 }
@@ -44,6 +45,7 @@ export interface ChatAccount {
 
 export interface ChatImport {
   record: ChatRecord;
+  /** Sent and stored unencrypted so vault can run vector search. */
   embeddings?: number[][];
   embeddingModel?: string;
 }

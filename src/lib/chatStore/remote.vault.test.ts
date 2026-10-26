@@ -331,6 +331,8 @@ describe("remote ChatStore against vault's server-only contract", () => {
       records: { record: Wire["record"]; embeddings?: number[][]; embedding_model?: string }[];
     };
     expect(sent.records[1].embeddings).toHaveLength(2);
+    expect(sent.records[1].embeddings?.map((v) => v.length)).toEqual([1536, 1536]);
+    expect(sent.records[1].embeddings?.[1]).toEqual(unit(2, 4096).slice(0, 1536));
     expect(sent.records[1].embedding_model).toBe("e");
     expect(sent.records[2].record.payload).toBe("");
     expect(sent.records[0].embeddings).toBeUndefined();
@@ -410,6 +412,10 @@ describe("remote ChatStore against vault's server-only contract", () => {
     expect(body).toMatchObject({ limit: 5, kinds: ["message"], conversation_id: "c" });
     await expect(s.store.search(unit(3, 100))).rejects.toThrow(ChatStoreError);
     await expect(s.store.search(unit(3), { limit: 51 })).rejects.toThrow(ChatStoreError);
+    await expect(s.store.search(unit(3), { kinds: [] })).rejects.toThrow(ChatStoreError);
+    expect(s.calls.filter((c) => c.path === "/search")).toHaveLength(1);
+    await s.store.search(unit(3, 4096));
+    expect((s.calls.at(-1)?.body?.embedding as number[]).length).toBe(1536);
   });
 
   it("refuses a search hit from another conversation", async () => {

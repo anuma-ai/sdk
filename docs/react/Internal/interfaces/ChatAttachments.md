@@ -1,6 +1,6 @@
 # ChatAttachments
 
-Defined in: [src/lib/chatStore/types.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#93)
+Defined in: [src/lib/chatStore/types.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#95)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:93](https://github.com/anuma-ai/sdk/blob
 
 > **commit**(`attachmentId`: `string`, `owner`: `object`, `signal?`: `AbortSignal`): `Promise`<[`ChatAttachment`](ChatAttachment.md)>
 
-Defined in: [src/lib/chatStore/types.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#98)
+Defined in: [src/lib/chatStore/types.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#100)
 
 **Parameters**
 
@@ -93,7 +93,7 @@ Defined in: [src/lib/chatStore/types.ts:98](https://github.com/anuma-ai/sdk/blob
 
 > **create**(`sizeBytes`: `number`, `signal?`: `AbortSignal`): `Promise`<{ `attachment`: [`ChatAttachment`](ChatAttachment.md); `upload`: [`ChatPresignedUrl`](ChatPresignedUrl.md); }>
 
-Defined in: [src/lib/chatStore/types.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#94)
+Defined in: [src/lib/chatStore/types.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#96)
 
 **Parameters**
 
@@ -142,7 +142,7 @@ Defined in: [src/lib/chatStore/types.ts:94](https://github.com/anuma-ai/sdk/blob
 
 > **delete**(`attachmentId`: `string`, `signal?`: `AbortSignal`): `Promise`<`void`>
 
-Defined in: [src/lib/chatStore/types.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#107)
+Defined in: [src/lib/chatStore/types.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#109)
 
 **Parameters**
 
@@ -191,7 +191,7 @@ Defined in: [src/lib/chatStore/types.ts:107](https://github.com/anuma-ai/sdk/blo
 
 > **get**(`attachmentId`: `string`, `signal?`: `AbortSignal`): `Promise`<{ `attachment`: [`ChatAttachment`](ChatAttachment.md); `download?`: [`ChatPresignedUrl`](ChatPresignedUrl.md); } | `null`>
 
-Defined in: [src/lib/chatStore/types.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#103)
+Defined in: [src/lib/chatStore/types.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#105)
 
 **Parameters**
 

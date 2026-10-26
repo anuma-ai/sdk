@@ -1,6 +1,6 @@
 # ChatImport
 
-Defined in: [src/lib/chatStore/types.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#45)
+Defined in: [src/lib/chatStore/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#46)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:45](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#48)
+Defined in: [src/lib/chatStore/types.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#50)
 
 ***
 
@@ -16,7 +16,9 @@ Defined in: [src/lib/chatStore/types.ts:48](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **embeddings**: `number`\[]\[]
 
-Defined in: [src/lib/chatStore/types.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#47)
+Defined in: [src/lib/chatStore/types.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#49)
+
+Sent and stored unencrypted so vault can run vector search.
 
 ***
 
@@ -24,4 +26,4 @@ Defined in: [src/lib/chatStore/types.ts:47](https://github.com/anuma-ai/sdk/blob
 
 > **record**: [`ChatRecord`](ChatRecord.md)
 
-Defined in: [src/lib/chatStore/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#46)
+Defined in: [src/lib/chatStore/types.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#47)

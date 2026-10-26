@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:23](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#27)
+Defined in: [src/lib/chatStore/types.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#28)
 
 ***
 
@@ -16,7 +16,9 @@ Defined in: [src/lib/chatStore/types.ts:27](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **embeddings**: `number`\[]\[]
 
-Defined in: [src/lib/chatStore/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#26)
+Defined in: [src/lib/chatStore/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#27)
+
+Sent and stored unencrypted so vault can run vector search.
 
 ***
 
