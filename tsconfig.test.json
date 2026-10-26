@@ -66,20 +66,11 @@
     "src/**/*.spec.tsx"
   ],
   // The root config excludes `**/*.test.ts`; test files are the point here.
-  //
-  // The five entries below are the pre-existing errors this config would otherwise
-  // start reporting in suites that open PRs are mid-rewrite on. Their fixture rot is
-  // the same StoredVaultMemory drift fixed everywhere else, but the fixes land on the
-  // exact lines those branches are rewriting (#834 rewrites retain.test.ts around
-  // both 107 and 576), so fixing them here buys nothing but conflicts. Delete these
-  // five lines and fix the 21 errors once both PRs are in — tracked on #820.
   "exclude": [
     // #832 (query decomposition out of recall)
     "src/lib/memory/recall.test.ts",
     "src/lib/memory/recallTool.test.ts",
-    "src/lib/memoryVault/searchTool.test.ts",
     // #834 (tool-save via retain)
-    "src/lib/memory/retain.test.ts",
     "src/lib/memoryVault/tool.test.ts"
   ]
 }

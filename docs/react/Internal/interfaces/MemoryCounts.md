@@ -1,6 +1,6 @@
 # MemoryCounts
 
-Defined in: [src/lib/memory/store/types.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#143)
+Defined in: [src/lib/memory/store/types.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#142)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/types.ts:143](https://github.com/anuma-ai/sdk/
 
 > **archived**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#145)
+Defined in: [src/lib/memory/store/types.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#144)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/store/types.ts:145](https://github.com/anuma-ai/sdk/
 
 > **live**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#144)
+Defined in: [src/lib/memory/store/types.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#143)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/lib/memory/store/types.ts:144](https://github.com/anuma-ai/sdk/
 
 > **quarantined**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#146)
+Defined in: [src/lib/memory/store/types.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#145)

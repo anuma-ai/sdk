@@ -1,6 +1,6 @@
 # MemoryTopic
 
-Defined in: [src/lib/memory/store/types.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#136)
+Defined in: [src/lib/memory/store/types.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#135)
 
 A topic and how many memories link to it.
 
@@ -10,7 +10,7 @@ A topic and how many memories link to it.
 
 > **kind**: `string` | `null`
 
-Defined in: [src/lib/memory/store/types.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#138)
+Defined in: [src/lib/memory/store/types.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#137)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/memory/store/types.ts:138](https://github.com/anuma-ai/sdk/
 
 > **memoryCount**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#139)
+Defined in: [src/lib/memory/store/types.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#138)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/lib/memory/store/types.ts:139](https://github.com/anuma-ai/sdk/
 
 > **name**: `string`
 
-Defined in: [src/lib/memory/store/types.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#137)
+Defined in: [src/lib/memory/store/types.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#136)

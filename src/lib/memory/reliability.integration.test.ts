@@ -22,6 +22,8 @@ import {
   getAllVaultMemoriesOp,
   getVaultCandidateKeysOp,
   getVaultMemoriesByIdsOp,
+  getVaultMemoryOp,
+  supersedeVaultMemoryOp,
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
@@ -34,6 +36,7 @@ import {
   type DurableAutoExtractorOptions,
   type ExtractionSourceStatus,
 } from "./durableExtraction";
+import { retainWithPersistence } from "./retain";
 
 vi.mock("./autoExtract", () => ({ extractAndRetain: vi.fn() }));
 vi.mock("../db/chat/operations", async (importOriginal) => {
@@ -81,6 +84,69 @@ beforeEach(() => {
 });
 
 describe("memory persistence reliability", () => {
+  it("keeps a user edit after retain reads the merge target", async () => {
+    const memory = await createVaultMemoryOp(ctx, {
+      content: "Works at Acme",
+      embedding: "[1,0]",
+      embeddingModel: "test-model",
+      sourceChunkIds: ["m1"],
+    });
+    let correctionUpdatedAt: Date | undefined;
+
+    const result = await retainWithPersistence(
+      "Works at Acme",
+      {
+        embeddingOptions: { model: "test-model" },
+        vaultCache: new Map(),
+        persistence: {
+          prepare: () =>
+            Promise.resolve({
+              memories: [memory],
+              embeddedItems: [{ id: memory.uniqueId, content: memory.content, embedding: [1, 0] }],
+              queryEmbedding: [1, 0],
+              vaultSize: 1,
+              embeddingsUnavailable: false,
+              embeddingFailure: false,
+              decryptLast: false,
+              rowsDecrypted: 1,
+              queryEmbedMs: 0,
+              rowsEmbedded: 0,
+            }),
+          get: async (id) => {
+            const snapshot = await getVaultMemoryOp(ctx, id);
+            const correction = await updateVaultMemoryOp(ctx, id, {
+              content: "Works at Riverbend",
+              embedding: "[0,1]",
+              embeddingModel: "test-model",
+            });
+            correctionUpdatedAt = correction?.updatedAt;
+            return snapshot;
+          },
+          update: (id, patch) => updateVaultMemoryOp(ctx, id, patch),
+          create: (input) => createVaultMemoryOp(ctx, input),
+          tombstones: () => getAllVaultMemoriesOp(ctx, { includeDeleted: true }),
+          supersede: (id, successor) => supersedeVaultMemoryOp(ctx, id, successor),
+          createSuperseding: (input, target) => createSupersedingMemoryOp(ctx, input, target),
+        },
+      },
+      { sourceChunkIds: ["m2"] }
+    );
+
+    expect(correctionUpdatedAt).toBeDefined();
+    expect(result).toMatchObject({ action: "merge", memoryId: memory.uniqueId, proofCount: 2 });
+    const rows = await getAllVaultMemoriesOp(ctx);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].content).toBe("Works at Riverbend");
+    expect(rows[0]).toMatchObject({
+      embedding: "[0,1]",
+      embeddingModel: "test-model",
+      updatedAt: correctionUpdatedAt,
+      sourceChunkIds: ["m1", "m2"],
+      proofCount: 2,
+    });
+    expect(rows[0].lastObservedAt).toEqual(expect.any(Number));
+  });
+
   it("cannot supersede a fact after the source becomes ineligible", async () => {
     const original = await createVaultMemoryOp(ctx, { content: "Lives in Paris" });
     await expect(
@@ -170,7 +236,6 @@ describe("memory persistence reliability", () => {
     await Promise.all(
       ["m2", "m3"].map((id) =>
         updateVaultMemoryOp(ctx, memory.uniqueId, {
-          content: "Same fact",
           sourceChunkIds: ["m1", id],
           observationSourceIds: [id],
           proofCountIncrement: 1,

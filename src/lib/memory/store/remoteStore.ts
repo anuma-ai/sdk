@@ -1,4 +1,4 @@
-import { v7 as uuidv7 } from "uuid";
+import { v5 as uuidv5, v7 as uuidv7 } from "uuid";
 
 import type { EntityInput } from "../../db/entities/operations.js";
 import {
@@ -209,40 +209,54 @@ function stateFilters(options: MemoryListOptions) {
   };
 }
 
-function hidden(memory: RemoteMemoryRow, options: MemorySubscribeOptions): boolean {
-  if (memory.trust_tier === "quarantined") return true;
-  if (options.includeDeleted) return false;
-  return (
-    !!memory.is_deleted ||
+interface SubscriptionState {
+  version: number;
+  membership?: string;
+  fingerprint?: string;
+}
+
+function subscriptionState({ memory, version }: RemoteMemoryRecord): SubscriptionState {
+  const membership = memory.trust_tier === "quarantined" ? undefined : String(!!memory.is_deleted);
+  const hidden =
+    membership === undefined ||
+    memory.is_deleted ||
     (memory.archived_at !== undefined && memory.archived_at !== null) ||
-    !!memory.superseded_by
-  );
+    !!memory.superseded_by;
+  return {
+    version,
+    membership,
+    fingerprint: hidden
+      ? undefined
+      : uuidv5(
+          JSON.stringify([
+            memory.content,
+            memory.scope,
+            memory.updated_at,
+            memory.fact_type,
+            memory.event_time_start,
+            memory.event_time_end,
+            memory.event_time_kind,
+            memory.trust_tier,
+            memory.visibility,
+            memory.published_at,
+            memory.geohash,
+            memory.topics,
+            memory.topics_user_managed,
+            memory.media,
+            memory.source,
+          ]),
+          uuidv5.URL
+        ),
+  };
 }
 
 function subscriptionKey(
-  { memory, version }: RemoteMemoryRecord,
+  state: SubscriptionState,
   options: MemorySubscribeOptions
 ): string | undefined {
-  if (hidden(memory, options)) return undefined;
-  if (options.includeDeleted) return String(!!memory.is_deleted);
-  return JSON.stringify([
-    options.embeddings ? version : null,
-    memory.content,
-    memory.scope,
-    memory.updated_at,
-    memory.fact_type,
-    memory.event_time_start,
-    memory.event_time_end,
-    memory.event_time_kind,
-    memory.trust_tier,
-    memory.visibility,
-    memory.published_at,
-    memory.geohash,
-    memory.topics,
-    memory.topics_user_managed,
-    memory.media,
-    memory.source,
-  ]);
+  if (options.includeDeleted) return state.membership;
+  if (state.fingerprint === undefined) return undefined;
+  return options.embeddings ? `${state.version}:${state.fingerprint}` : state.fingerprint;
 }
 
 function topicInputs(topics: readonly EntityInput[], source: StoredTopic["source"]): StoredTopic[] {
@@ -313,7 +327,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const subscribers = new Set<Subscriber>();
   const retainTopics = () =>
     pollIntervalMs > 0 && [...subscribers].some((subscriber) => subscriber.options.topics);
-  const seen = new Map<string, RemoteMemoryRecord>();
+  const seen = new Map<string, SubscriptionState>();
   const reads = new Map<string, ReturnType<RemoteMemoryPersistence["query"]>>();
   const metadataReads = new Map<string, ReturnType<RemoteMemoryPersistence["queryMetadata"]>>();
   let topicSnapshot: Promise<MemoryTopic[]> | undefined;
@@ -335,7 +349,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       for (const record of records) {
         const previous = seen.get(record.memory.memory_id);
         if ((previous?.version ?? 0) + 1 === record.version)
-          seen.set(record.memory.memory_id, record);
+          seen.set(record.memory.memory_id, subscriptionState(record));
       }
     for (const subscriber of [...subscribers])
       if (relevant(change, subscriber.options)) safely(subscriber.onChange);
@@ -946,14 +960,15 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     include_superseded: true,
   } as const;
   const changesSince = async (cursor: string | undefined, pending: ReadonlySet<string>) => {
-    const records: RemoteMemoryRecord[] = [];
+    const records: { id: string; state: SubscriptionState }[] = [];
     const failed = new Map<string, number>();
     const collect = (page: {
       items: RemoteMemoryRecord[];
       failed: RemoteMemoryDecodeFailure[];
     }) => {
       warnFailed(page.failed);
-      records.push(...page.items);
+      for (const record of page.items)
+        records.push({ id: record.memory.memory_id, state: subscriptionState(record) });
       for (const failure of page.failed) failed.set(failure.memory_id, failure.version);
     };
     let resume = cursor;
@@ -1070,14 +1085,13 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           for (const subscriber of subscribers)
             if (subscriber.options.topics) changed.add(subscriber);
         if (topicState !== undefined) topicFingerprint = topicState;
-        for (const record of records) {
-          const id = record.memory.memory_id;
+        for (const { id, state } of records) {
           const previous = seen.get(id);
-          seen.set(id, record);
+          seen.set(id, state);
           if (!ready) continue;
           for (const subscriber of subscribers) {
             const before = previous && subscriptionKey(previous, subscriber.options);
-            if (before !== subscriptionKey(record, subscriber.options)) changed.add(subscriber);
+            if (before !== subscriptionKey(state, subscriber.options)) changed.add(subscriber);
           }
         }
         ready = true;

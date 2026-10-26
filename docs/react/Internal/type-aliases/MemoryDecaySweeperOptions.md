@@ -2,4 +2,4 @@
 
 > **MemoryDecaySweeperOptions** = `Pick`<[`CreateDecaySweeperOptions`](../interfaces/CreateDecaySweeperOptions.md), `"now"` | `"policy"` | `"onSwept"` | `"onError"`>
 
-Defined in: [src/lib/memory/store/types.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#170)
+Defined in: [src/lib/memory/store/types.ts:169](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#169)

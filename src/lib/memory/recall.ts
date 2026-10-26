@@ -351,6 +351,7 @@ export async function recall(
         }),
         ...(options.rrfK !== undefined && { rrfK: options.rrfK }),
         ...(options.decryptLast !== undefined && { decryptLast: options.decryptLast }),
+        ...(options.vaultPreparation && { vaultPreparation: options.vaultPreparation }),
         ...(subQueries && { subQueries }),
         ...(options.scopes && { scopes: options.scopes }),
         ...(options.folderId !== undefined && { folderId: options.folderId }),

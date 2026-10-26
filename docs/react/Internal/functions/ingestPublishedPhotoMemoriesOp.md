@@ -2,7 +2,7 @@
 
 > **ingestPublishedPhotoMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `rows`: [`PublishedPhotoMemory`](../interfaces/PublishedPhotoMemory.md)\[]): `Promise`<[`PhotoIngestResult`](../interfaces/PhotoIngestResult.md)>
 
-Defined in: [src/lib/db/memoryVault/photoIngest.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#77)
+Defined in: [src/lib/db/memoryVault/photoIngest.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#93)
 
 Write the published photo memories this vault does not already have.
 

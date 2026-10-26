@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./recall.js", () => ({ recall: vi.fn() }));
-vi.mock("../db/memoryVault/operations.js", () => ({ getAllVaultMemoriesOp: vi.fn() }));
+vi.mock("../db/memoryVault/operations.js", () => ({ getVaultProfileMetadataOp: vi.fn() }));
 vi.mock("../memoryEngine/embeddings.js", () => ({ generateEmbeddings: vi.fn() }));
 
-import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
+import { getVaultProfileMetadataOp } from "../db/memoryVault/operations.js";
 import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
 import { recall } from "./recall.js";
@@ -12,7 +12,7 @@ import { type ProfileFacet, synthesizeProfile } from "./synthesizeProfile.js";
 import type { RankedMemory, RecallContext } from "./types.js";
 
 const mockRecall = vi.mocked(recall);
-const mockGetAll = vi.mocked(getAllVaultMemoriesOp);
+const mockGetMetadata = vi.mocked(getVaultProfileMetadataOp);
 const mockEmbed = vi.mocked(generateEmbeddings);
 
 const ctx = {
@@ -42,7 +42,7 @@ const ranked: RankedMemory = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetAll.mockResolvedValue([]);
+  mockGetMetadata.mockResolvedValue([]);
   mockEmbed.mockResolvedValue([]);
   mockRecall.mockResolvedValue({
     memories: [ranked],
@@ -55,10 +55,9 @@ beforeEach(() => {
 function turnsOf(fetchFn: ReturnType<typeof vi.fn>) {
   return fetchFn.mock.calls.map((call) => {
     const init = call[1] as RequestInit;
-    const messages = JSON.parse(init.body as string).messages as Array<{
-      role: string;
-      content: string;
-    }>;
+    const { messages } = JSON.parse(init.body as string) as {
+      messages: Array<{ role: string; content: string }>;
+    };
     return {
       headers: init.headers as Record<string, string>,
       system: messages.find((m) => m.role === "system")!.content,
@@ -67,13 +66,14 @@ function turnsOf(fetchFn: ReturnType<typeof vi.fn>) {
   });
 }
 
-describe("synthesizeProfile — what facet synthesis puts on the wire", () => {
+describe("synthesizeProfile - facet synthesis requests", () => {
   it("declares memory_profile_synth on every facet request", async () => {
     const fetchFn = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({
-        choices: [{ message: { content: JSON.stringify({ summary: "s", hasEvidence: true }) } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: JSON.stringify({ summary: "s", hasEvidence: true }) } }],
+        }),
     });
     await synthesizeProfile(ctx, {
       apiKey: "k",
@@ -91,9 +91,10 @@ describe("synthesizeProfile — what facet synthesis puts on the wire", () => {
   it("sends one fixed system prompt for every facet, with the facet data on the user turn", async () => {
     const fetchFn = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({
-        choices: [{ message: { content: JSON.stringify({ summary: "s", hasEvidence: true }) } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: JSON.stringify({ summary: "s", hasEvidence: true }) } }],
+        }),
     });
     await synthesizeProfile(ctx, {
       apiKey: "k",

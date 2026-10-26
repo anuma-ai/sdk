@@ -28,9 +28,10 @@ function isRetryableStatus(status: number): boolean {
 }
 
 const NEGATED_VERDICT = /(?:NOT|N['’]T|\bNEVER)\s+(?:\S+\s+){0,6}(?:IN)?CORRECT\b/;
+const ECHOED_CHOICE = /\b(?:IN)?CORRECT\b["'*]*\s+OR\s+["'*]*\b(?:IN)?CORRECT\b/g;
 
 function parseVerdict(content: string): "correct" | "incorrect" | null {
-  const upper = content.toUpperCase();
+  const upper = content.toUpperCase().replace(ECHOED_CHOICE, " ");
   if (NEGATED_VERDICT.test(upper)) return null;
   const matches = upper.match(/\b(?:INCORRECT|CORRECT)\b/g);
   if (!matches) return null;

@@ -1,3 +1,5 @@
+import { Q } from "@nozbe/watermelondb";
+
 import { SOURCE_PHOTO } from "../../memory/decay.js";
 import { encryptVaultMemoryContent } from "./encryption";
 import type { VaultMemoryOperationsContext } from "./operations";
@@ -28,6 +30,7 @@ export interface PublishedPhotoMemory {
 }
 
 const PHOTO_MEMORY_ID_PREFIX = "photo:";
+const PHOTO_ID_QUERY_CHUNK_SIZE = 500;
 
 /** What one ingest pass did, for the caller's logs and tests. */
 export interface PhotoIngestResult {
@@ -35,6 +38,19 @@ export interface PhotoIngestResult {
   inserted: number;
   /** Rows already present, left untouched. */
   skipped: number;
+}
+
+async function getExistingPhotoMemoryIds(
+  ctx: VaultMemoryOperationsContext,
+  rows: readonly PublishedPhotoMemory[]
+): Promise<Set<string>> {
+  const existing = new Set<string>();
+  for (let i = 0; i < rows.length; i += PHOTO_ID_QUERY_CHUNK_SIZE) {
+    const ids = rows.slice(i, i + PHOTO_ID_QUERY_CHUNK_SIZE).map((row) => row.memoryId);
+    const found = await ctx.vaultMemoryCollection.query(Q.where("id", Q.oneOf(ids))).fetchIds();
+    for (const id of found) existing.add(id);
+  }
+  return existing;
 }
 
 /**
@@ -86,10 +102,7 @@ export async function ingestPublishedPhotoMemoriesOp(
   const photoRows = [...byId.values()];
   if (photoRows.length === 0) return { inserted: 0, skipped: 0 };
 
-  const known = await ctx.vaultMemoryCollection
-    .query()
-    .fetchIds()
-    .then((ids: string[]) => new Set(ids));
+  const known = await getExistingPhotoMemoryIds(ctx, photoRows);
 
   const candidates = photoRows.filter((r) => !known.has(r.memoryId));
   if (candidates.length === 0) return { inserted: 0, skipped: photoRows.length };
@@ -112,7 +125,7 @@ export async function ingestPublishedPhotoMemoriesOp(
   const now = Date.now();
   let inserted = 0;
   await ctx.database.write(async () => {
-    const present = new Set(await ctx.vaultMemoryCollection.query().fetchIds());
+    const present = await getExistingPhotoMemoryIds(ctx, fresh);
     const writable = fresh
       .map((row, i) => ({ row, content: contents[i] }))
       .filter(({ row }) => !present.has(row.memoryId));

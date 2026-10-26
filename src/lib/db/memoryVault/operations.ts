@@ -780,17 +780,22 @@ export interface VaultCandidateKey {
 
 function baseVaultSql(
   ctx: VaultMemoryOperationsContext,
-  options?: { includeArchived?: boolean; includeQuarantined?: boolean }
+  options?: {
+    includeArchived?: boolean;
+    includeQuarantined?: boolean;
+    includeDeleted?: boolean;
+    includeSuperseded?: boolean;
+  }
 ): {
   sql: string;
   args: Array<string | number | boolean | null>;
 } {
   const clauses = [
     `"_status" is not 'deleted'`,
-    '"is_deleted" = 0',
+    ...(options?.includeDeleted ? [] : ['"is_deleted" = 0']),
     ...(options?.includeArchived ? [] : ['"archived_at" is null']),
     ...(options?.includeQuarantined ? [] : [`"trust_tier" is not 'quarantined'`]),
-    '"superseded_by" is null',
+    ...(options?.includeSuperseded ? [] : ['"superseded_by" is null']),
   ];
   const args: Array<string | number | boolean | null> = [];
   if (ctx.userId !== undefined) {
@@ -798,6 +803,63 @@ function baseVaultSql(
     args.push(ctx.userId);
   }
   return { sql: clauses.join(" and "), args };
+}
+
+export type VaultProfileMetadata = Pick<
+  StoredVaultMemory,
+  | "uniqueId"
+  | "scope"
+  | "createdAt"
+  | "updatedAt"
+  | "lastObservedAt"
+  | "supersededAt"
+  | "supersededBy"
+  | "isDeleted"
+  | "proofCount"
+>;
+
+export async function getVaultProfileMetadataOp(
+  ctx: VaultMemoryOperationsContext,
+  options?: { scopes?: string[] }
+): Promise<VaultProfileMetadata[]> {
+  const mapRaw = (raw: Record<string, unknown>): VaultProfileMetadata => ({
+    uniqueId: raw.id as string,
+    scope: (raw.scope as string) ?? "",
+    createdAt: new Date(raw.created_at as number),
+    updatedAt: new Date(raw.updated_at as number),
+    lastObservedAt: (raw.last_observed_at as number | null) ?? null,
+    supersededAt: (raw.superseded_at as number | null) ?? null,
+    supersededBy: (raw.superseded_by as string | null) ?? null,
+    isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
+    proofCount: (raw.proof_count as number | null) ?? null,
+  });
+  const listOptions = { ...options, includeDeleted: true, includeSuperseded: true };
+  let rows: Record<string, unknown>[];
+  try {
+    const base = baseVaultSql(ctx, listOptions);
+    const clauses = [base.sql, `"_status" != 'deleted'`];
+    const args = [...base.args];
+    if (options?.scopes?.length) {
+      clauses.push(`"scope" in (${options.scopes.map(() => "?").join(",")})`);
+      args.push(...options.scopes);
+    }
+    const sql =
+      `select "id", "scope", "created_at", "updated_at", "last_observed_at", ` +
+      `"superseded_at", "superseded_by", "is_deleted", "proof_count" ` +
+      `from "memory_vault" where ${clauses.join(" and ")}`;
+    rows = (await ctx.vaultMemoryCollection
+      .query(Q.unsafeSqlQuery(sql, args))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+  } catch (err) {
+    getLogger().debug(
+      "memoryVault: getVaultProfileMetadataOp uses the query fallback: " +
+        (err instanceof Error ? err.message : String(err))
+    );
+    rows = (await ctx.vaultMemoryCollection
+      .query(...vaultListConditions(ctx, listOptions))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+  }
+  return rows.map(mapRaw);
 }
 
 /**
@@ -1067,6 +1129,16 @@ export async function updateVaultMemoryOp(
     const probe = await ctx.vaultMemoryCollection.find(id);
     if (probe.isDeleted || probe.supersededBy || !isOwnedByCtxUser(ctx, probe)) return null;
     if (opts.freeFormOnly && isKinded(probe)) return null;
+    const readStoredContent = probe._getRaw("content");
+    if (opts.expectedContent !== undefined) {
+      const current = await vaultMemoryToStored(
+        probe,
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+      if (current.content !== opts.expectedContent) return null;
+    }
 
     const levelAfter = (current: { level: string | null; scope: string }): MemoryLevel => {
       if (opts.level !== undefined) return opts.level;
@@ -1077,7 +1149,7 @@ export async function updateVaultMemoryOp(
     const encryptedKindValue = await encryptKindValue(ctx, opts.kindValue);
 
     const encryptedContent =
-      ctx.walletAddress && ctx.signMessage
+      opts.content !== undefined && ctx.walletAddress && ctx.signMessage
         ? await encryptVaultMemoryContent(
             opts.content,
             ctx.walletAddress,
@@ -1088,18 +1160,19 @@ export async function updateVaultMemoryOp(
 
     let stale = false;
     const record = probe;
-    const originalUpdatedAt = record.updatedAt.getTime();
     await ctx.database.write(async () => {
       await assertCanWrite(ctx);
       if (
         record.isDeleted ||
         record.supersededBy ||
         !isOwnedByCtxUser(ctx, record) ||
-        (opts.freeFormOnly && isKinded(record))
+        (opts.freeFormOnly && isKinded(record)) ||
+        (opts.expectedContent !== undefined && record._getRaw("content") !== readStoredContent)
       ) {
         stale = true;
         return;
       }
+      const originalUpdatedAt = record.updatedAt.getTime();
       const nextKind = opts.kind !== undefined ? opts.kind : record.kind;
       const nextLevel = levelAfter(record);
       assertValidKindLevel(nextKind, nextLevel);
@@ -1116,7 +1189,7 @@ export async function updateVaultMemoryOp(
         replayedObservation = opts.observationSourceIds.every((id) => observedSources.includes(id));
       }
       await record.update((r) => {
-        r._setRaw("content", encryptedContent);
+        if (encryptedContent !== undefined) r._setRaw("content", encryptedContent);
         if (opts.level !== undefined) {
           r._setRaw("level", nextLevel);
           r._setRaw("scope", scopeForLevel(nextLevel));

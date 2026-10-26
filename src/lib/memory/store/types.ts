@@ -83,7 +83,6 @@ export type MemoryCreate = Pick<
  */
 export type MemoryUpdate = Pick<
   UpdateVaultMemoryOptions,
-  | "content"
   | "scope"
   | "factType"
   | "eventTime"
@@ -92,7 +91,7 @@ export type MemoryUpdate = Pick<
   | "kind"
   | "kindValue"
   | "level"
->;
+> & { content: string };
 
 /**
  * Fact-only recall. Conversation chunks are message storage, not memory, so

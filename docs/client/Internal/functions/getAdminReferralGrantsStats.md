@@ -2,7 +2,7 @@
 
 > **getAdminReferralGrantsStats**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetAdminReferralGrantsStatsData`](../type-aliases/GetAdminReferralGrantsStatsData.md), `ThrowOnError`, `unknown`>): `RequestResult`<[`GetAdminReferralGrantsStatsResponses`](../type-aliases/GetAdminReferralGrantsStatsResponses.md), [`GetAdminReferralGrantsStatsErrors`](../type-aliases/GetAdminReferralGrantsStatsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#33)
+Defined in: [src/client/sdk.gen.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#34)
 
 Referral grant abuse statistics
 

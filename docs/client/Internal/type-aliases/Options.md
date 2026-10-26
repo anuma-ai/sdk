@@ -2,7 +2,7 @@
 
 > **Options**<`TData`, `ThrowOnError`, `TResponse`> = `Options2`<`TData`, `ThrowOnError`, `TResponse`> & `object`
 
-Defined in: [src/client/sdk.gen.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#7)
+Defined in: [src/client/sdk.gen.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#8)
 
 ## Type Declaration
 

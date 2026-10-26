@@ -1,6 +1,6 @@
 # MemoryUpdate
 
-> **MemoryUpdate** = `Pick`<[`UpdateVaultMemoryOptions`](../interfaces/UpdateVaultMemoryOptions.md), `"content"` | `"scope"` | `"factType"` | `"eventTime"` | `"embedding"` | `"embeddingModel"` | `"kind"` | `"kindValue"` | `"level"`>
+> **MemoryUpdate** = `Pick`<[`UpdateVaultMemoryOptions`](../interfaces/UpdateVaultMemoryOptions.md), `"scope"` | `"factType"` | `"eventTime"` | `"embedding"` | `"embeddingModel"` | `"kind"` | `"kindValue"` | `"level"`> & `object`
 
 Defined in: [src/lib/memory/store/types.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#84)
 
@@ -16,3 +16,9 @@ Omitting `embedding` drops the stored vector (and its model tag) and the
 store re-embeds the new content in the background — useChatStorage's edit
 behaviour, so an edit never keeps a vector for text that is gone. Pass
 `embedding` (with `embeddingModel`) only when you already have the new one.
+
+## Type Declaration
+
+### content
+
+> **content**: `string`
