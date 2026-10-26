@@ -31,6 +31,7 @@ const checkedTestFiles = [
   ...appGenerationTests,
   ...memoryTelemetryTests,
   "src/clientHeaders.test.ts",
+  "src/clientOauthForms.test.ts",
   "src/expo/useChatStorage.sendHistoryRead.test.tsx",
   "src/lib/memory/reliability.integration.test.ts",
   "src/lib/memory/retain.test.ts",
