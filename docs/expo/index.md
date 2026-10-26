@@ -166,9 +166,45 @@ Re-exports [capHopsForDensity](../react/Internal/functions/capHopsForDensity.md)
 
 ***
 
+### ChatAccount
+
+Re-exports [ChatAccount](../react/Internal/interfaces/ChatAccount.md)
+
+***
+
+### ChatAccountState
+
+Re-exports [ChatAccountState](../react/Internal/type-aliases/ChatAccountState.md)
+
+***
+
+### ChatAttachment
+
+Re-exports [ChatAttachment](../react/Internal/interfaces/ChatAttachment.md)
+
+***
+
+### ChatAttachments
+
+Re-exports [ChatAttachments](../react/Internal/interfaces/ChatAttachments.md)
+
+***
+
+### ChatChanges
+
+Re-exports [ChatChanges](../react/Internal/interfaces/ChatChanges.md)
+
+***
+
 ### ChatConversation
 
 Re-exports [ChatConversation](../react/Internal/classes/ChatConversation.md)
+
+***
+
+### ChatImport
+
+Re-exports [ChatImport](../react/Internal/interfaces/ChatImport.md)
 
 ***
 
@@ -196,6 +232,12 @@ Re-exports [ChatPage](../react/Internal/interfaces/ChatPage.md)
 
 ***
 
+### ChatPresignedUrl
+
+Re-exports [ChatPresignedUrl](../react/Internal/interfaces/ChatPresignedUrl.md)
+
+***
+
 ### ChatRecord
 
 Re-exports [ChatRecord](../react/Internal/interfaces/ChatRecord.md)
@@ -208,9 +250,33 @@ Re-exports [ChatRecordKind](../react/Internal/type-aliases/ChatRecordKind.md)
 
 ***
 
+### ChatRef
+
+Re-exports [ChatRef](../react/Internal/interfaces/ChatRef.md)
+
+***
+
+### ChatRevision
+
+Re-exports [ChatRevision](../react/Internal/interfaces/ChatRevision.md)
+
+***
+
 ### ChatRole
 
 Re-exports [ChatRole](../react/Internal/type-aliases/ChatRole.md)
+
+***
+
+### ChatSearchHit
+
+Re-exports [ChatSearchHit](../react/Internal/interfaces/ChatSearchHit.md)
+
+***
+
+### ChatSearchOptions
+
+Re-exports [ChatSearchOptions](../react/Internal/interfaces/ChatSearchOptions.md)
 
 ***
 
