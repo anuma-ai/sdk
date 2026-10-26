@@ -163,11 +163,22 @@ export {
 } from "../lib/chat/webSearchClassifier";
 export { xhrTransport } from "../lib/chat/xhrTransport";
 export {
+  type ChatAccount,
+  type ChatAccountState,
+  type ChatAttachment,
+  type ChatAttachments,
+  type ChatChanges,
+  type ChatImport,
   type ChatJson,
   type ChatListOptions,
   type ChatPage,
+  type ChatPresignedUrl,
   type ChatRecord,
   type ChatRecordKind,
+  type ChatRef,
+  type ChatRevision,
+  type ChatSearchHit,
+  type ChatSearchOptions,
   type ChatSnapshot,
   type ChatStore,
   ChatStoreError,

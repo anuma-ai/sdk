@@ -434,6 +434,7 @@ export function createNearbyRequest(
         }
         throw error;
       }
+      if (response.status === 204) return null;
       return (await response.json()) as unknown;
     } catch (error) {
       if (timedOut) throw new RemoteMemoryError("Nearby request timed out", 408, "timeout");

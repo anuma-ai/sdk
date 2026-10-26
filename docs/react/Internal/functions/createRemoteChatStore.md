@@ -2,7 +2,7 @@
 
 > **createRemoteChatStore**(`options`: [`RemoteChatStoreOptions`](../interfaces/RemoteChatStoreOptions.md)): `Promise`<[`ChatStore`](../interfaces/ChatStore.md)>
 
-Defined in: [src/lib/chatStore/remote.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/remote.ts#125)
+Defined in: [src/lib/chatStore/remote.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/remote.ts#229)
 
 Connect to owner-scoped server storage using the account's canonical device-held cipher.
 

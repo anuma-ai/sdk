@@ -4,6 +4,22 @@ Defined in: [src/lib/chatStore/types.ts:23](https://github.com/anuma-ai/sdk/blob
 
 ## Properties
 
+### embeddingModel?
+
+> `optional` **embeddingModel**: `string`
+
+Defined in: [src/lib/chatStore/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#27)
+
+***
+
+### embeddings?
+
+> `optional` **embeddings**: `number`\[]\[]
+
+Defined in: [src/lib/chatStore/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#26)
+
+***
+
 ### expectedVersion
 
 > **expectedVersion**: `number`
