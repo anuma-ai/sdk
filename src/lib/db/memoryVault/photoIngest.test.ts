@@ -1,6 +1,7 @@
-import { Database } from "@nozbe/watermelondb";
+import { Database, Q } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { SOURCE_PHOTO } from "../../memory/decay";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import type { VaultMemory } from "./models";
@@ -14,11 +15,13 @@ import {
 import { ingestPublishedPhotoMemoriesOp, type PublishedPhotoMemory } from "./photoIngest";
 
 vi.mock("./encryption", () => ({
-  encryptVaultMemoryContent: vi.fn(async (content: string) => `encrypted:${content}`),
-  decryptVaultMemoryFields: vi.fn(async (memory: Record<string, unknown>) => ({
-    ...memory,
-    content: String(memory.content).replace("encrypted:", ""),
-  })),
+  encryptVaultMemoryContent: vi.fn((content: string) => Promise.resolve(`encrypted:${content}`)),
+  decryptVaultMemoryFields: vi.fn((memory: Record<string, unknown>) =>
+    Promise.resolve({
+      ...memory,
+      content: String(memory.content).replace("encrypted:", ""),
+    })
+  ),
 }));
 
 function makeRealDatabase(): Database {
@@ -175,6 +178,91 @@ describe("ingestPublishedPhotoMemoriesOp", () => {
       { memoryId: "local-uuid-9", text: "chat memory" },
     ]);
     expect(result).toEqual({ inserted: 1, skipped: 1 });
+    expect(await getAllVaultMemoriesOp(ctx)).toHaveLength(2);
+  });
+
+  it.each([false, true])(
+    "reads only the incoming ID from a large vault when the photo exists: %s",
+    async (exists) => {
+      await db.write(() =>
+        db.batch(
+          Array.from({ length: 1200 }, (_, i) =>
+            ctx.vaultMemoryCollection.prepareCreate((record) => {
+              record._raw.id = `local:${i}`;
+              record._setRaw("content", "unrelated memory");
+            })
+          )
+        )
+      );
+      if (exists) await ingestPublishedPhotoMemoriesOp(ctx, [publishedRow()]);
+      const returnedIds: string[][] = [];
+      const queryIds = db.adapter.underlyingAdapter.queryIds.bind(db.adapter.underlyingAdapter);
+      const read = vi
+        .spyOn(db.adapter.underlyingAdapter, "queryIds")
+        .mockImplementation((query, callback) => {
+          queryIds(query, (result) => {
+            if ("value" in result) returnedIds.push(result.value);
+            callback(result);
+          });
+        });
+
+      const result = await ingestPublishedPhotoMemoriesOp(ctx, [publishedRow()]);
+
+      expect(result).toEqual({ inserted: exists ? 0 : 1, skipped: exists ? 1 : 0 });
+      expect(returnedIds.map((ids) => ids.length)).toEqual(exists ? [1] : [0, 0]);
+      for (const [query] of read.mock.calls) {
+        expect(query.description.where).toContainEqual(Q.where("id", Q.oneOf([FACT_ID])));
+      }
+    }
+  );
+
+  it("checks large photo batches in bounded ID queries before and inside the writer", async () => {
+    const rows = Array.from({ length: 1201 }, (_, i) =>
+      publishedRow({ memoryId: `photo:${i}:caption` })
+    );
+    const existing = [rows[0], rows[500], rows[1000]];
+    await ingestPublishedPhotoMemoriesOp(ctx, existing);
+    const read = vi.spyOn(db.adapter.underlyingAdapter, "queryIds");
+
+    const result = await ingestPublishedPhotoMemoriesOp(ctx, [
+      ...rows,
+      rows[0],
+      { memoryId: "local:ignored", text: "unrelated memory" },
+    ]);
+
+    expect(result).toEqual({ inserted: 1198, skipped: 3 });
+    const fresh = rows.filter((row) => !existing.includes(row));
+    const expectedChunks = [
+      rows.slice(0, 500),
+      rows.slice(500, 1000),
+      rows.slice(1000),
+      fresh.slice(0, 500),
+      fresh.slice(500, 1000),
+      fresh.slice(1000),
+    ];
+    expect(read).toHaveBeenCalledTimes(expectedChunks.length);
+    expectedChunks.forEach((chunk, index) => {
+      expect(read.mock.calls[index][0].description.where).toContainEqual(
+        Q.where("id", Q.oneOf(chunk.map((row) => row.memoryId)))
+      );
+    });
+  });
+
+  it("skips a photo that another ingestion inserts before the writer starts", async () => {
+    const write = db.write.bind(db);
+    vi.spyOn(db, "write").mockImplementationOnce(async (work, description) => {
+      await ingestPublishedPhotoMemoriesOp(ctx, [publishedRow({ text: "concurrent text" })]);
+      return write(work, description);
+    });
+
+    const result = await ingestPublishedPhotoMemoriesOp(ctx, [
+      publishedRow(),
+      publishedRow({ memoryId: CAPTION_ID, text: "caption text" }),
+    ]);
+
+    expect(result).toEqual({ inserted: 1, skipped: 1 });
+    expect((await getVaultMemoryOp(ctx, FACT_ID))?.content).toBe("concurrent text");
+    expect((await getVaultMemoryOp(ctx, CAPTION_ID))?.content).toBe("caption text");
     expect(await getAllVaultMemoriesOp(ctx)).toHaveLength(2);
   });
 });
