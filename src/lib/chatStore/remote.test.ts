@@ -307,7 +307,7 @@ describe("encrypted remote ChatStore", () => {
       )
     ).rejects.toThrow();
     await expect(s.store.list({ kind: "message" })).rejects.toThrow();
-    await expect(s.store.list({ kind: "conversation", limit: 51 })).rejects.toThrow();
+    await expect(s.store.list({ kind: "conversation", limit: 201 })).rejects.toThrow();
     expect(s.bodies).toHaveLength(0);
   });
 

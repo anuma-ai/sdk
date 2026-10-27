@@ -8,6 +8,10 @@ Everything `useChatStorage` reads and writes for chats, so a hook can run on loc
 
 * [`ChatStorageAdapter`](ChatStorageAdapter.md)
 
+## Extended by
+
+* [`VaultChatBackend`](VaultChatBackend.md)
+
 ## Methods
 
 ### addMemoryLinks()

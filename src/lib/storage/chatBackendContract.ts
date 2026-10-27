@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MAX_PER_CONVERSATION } from "../db/conversationMemory/operations";
 import type { ChatBackend } from "./ChatBackend";
 
-function unit(hot: number, dims = 8): number[] {
+function unit(hot: number, dims = 1536): number[] {
   const v = new Array<number>(dims).fill(0);
   v[hot] = 1;
   return v;
@@ -199,6 +199,7 @@ export function runChatBackendContract(
 
     it("stores, replaces and deletes a conversation summary", async () => {
       const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_sum", title: "Summarized" });
       expect(await b.getSummary("conv_sum")).toBeNull();
       await b.upsertSummary("conv_sum", "first", "msg_1", 10);
       await b.upsertSummary("conv_sum", "second", "msg_3", 20);

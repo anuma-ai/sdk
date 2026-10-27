@@ -1,6 +1,6 @@
 # ChatStore
 
-Defined in: [src/lib/chatStore/types.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#128)
+Defined in: [src/lib/chatStore/types.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#130)
 
 Explicit versions protect edits; ambiguous writes are never replayed automatically.
 
@@ -10,7 +10,7 @@ Explicit versions protect edits; ambiguous writes are never replayed automatical
 
 > **attachments**: [`ChatAttachments`](ChatAttachments.md)
 
-Defined in: [src/lib/chatStore/types.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#143)
+Defined in: [src/lib/chatStore/types.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#145)
 
 ## Methods
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/chatStore/types.ts:143](https://github.com/anuma-ai/sdk/blo
 
 > **account**(`signal?`: `AbortSignal`): `Promise`<[`ChatAccount`](ChatAccount.md)>
 
-Defined in: [src/lib/chatStore/types.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#133)
+Defined in: [src/lib/chatStore/types.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#135)
 
 **Parameters**
 
@@ -55,7 +55,7 @@ Defined in: [src/lib/chatStore/types.ts:133](https://github.com/anuma-ai/sdk/blo
 
 > **activate**(`signal?`: `AbortSignal`): `Promise`<`boolean`>
 
-Defined in: [src/lib/chatStore/types.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#136)
+Defined in: [src/lib/chatStore/types.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#138)
 
 **Parameters**
 
@@ -92,7 +92,7 @@ Defined in: [src/lib/chatStore/types.ts:136](https://github.com/anuma-ai/sdk/blo
 
 > **changes**(`cursor?`: `string`, `options?`: `object`): `Promise`<[`ChatChanges`](ChatChanges.md)>
 
-Defined in: [src/lib/chatStore/types.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#137)
+Defined in: [src/lib/chatStore/types.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#139)
 
 **Parameters**
 
@@ -165,7 +165,7 @@ Defined in: [src/lib/chatStore/types.ts:137](https://github.com/anuma-ai/sdk/blo
 
 > **deleteAll**(`signal?`: `AbortSignal`): `Promise`<`number`>
 
-Defined in: [src/lib/chatStore/types.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#142)
+Defined in: [src/lib/chatStore/types.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#144)
 
 **Parameters**
 
@@ -202,7 +202,7 @@ Defined in: [src/lib/chatStore/types.ts:142](https://github.com/anuma-ai/sdk/blo
 
 > **get**(`kind`: [`ChatRecordKind`](../type-aliases/ChatRecordKind.md), `id`: `string`, `signal?`: `AbortSignal`): `Promise`<[`ChatSnapshot`](ChatSnapshot.md) | `null`>
 
-Defined in: [src/lib/chatStore/types.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#129)
+Defined in: [src/lib/chatStore/types.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#131)
 
 **Parameters**
 
@@ -263,7 +263,7 @@ Defined in: [src/lib/chatStore/types.ts:129](https://github.com/anuma-ai/sdk/blo
 
 > **getMany**(`refs`: readonly [`ChatRef`](ChatRef.md)\[], `signal?`: `AbortSignal`): `Promise`<[`ChatSnapshot`](ChatSnapshot.md)\[]>
 
-Defined in: [src/lib/chatStore/types.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#132)
+Defined in: [src/lib/chatStore/types.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#134)
 
 **Parameters**
 
@@ -312,7 +312,7 @@ readonly [`ChatRef`](ChatRef.md)\[]
 
 > **importRecords**(`records`: readonly [`ChatImport`](ChatImport.md)\[], `signal?`: `AbortSignal`): `Promise`<`number`>
 
-Defined in: [src/lib/chatStore/types.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#134)
+Defined in: [src/lib/chatStore/types.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#136)
 
 **Parameters**
 
@@ -361,7 +361,7 @@ readonly [`ChatImport`](ChatImport.md)\[]
 
 > **list**(`options`: [`ChatListOptions`](ChatListOptions.md)): `Promise`<[`ChatPage`](ChatPage.md)>
 
-Defined in: [src/lib/chatStore/types.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#130)
+Defined in: [src/lib/chatStore/types.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#132)
 
 **Parameters**
 
@@ -398,7 +398,7 @@ Defined in: [src/lib/chatStore/types.ts:130](https://github.com/anuma-ai/sdk/blo
 
 > **putMany**(`writes`: readonly [`ChatWrite`](ChatWrite.md)\[], `signal?`: `AbortSignal`): `Promise`<[`ChatSnapshot`](ChatSnapshot.md)\[]>
 
-Defined in: [src/lib/chatStore/types.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#131)
+Defined in: [src/lib/chatStore/types.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#133)
 
 **Parameters**
 
@@ -447,7 +447,7 @@ readonly [`ChatWrite`](ChatWrite.md)\[]
 
 > **search**(`embedding`: readonly `number`\[], `options?`: [`ChatSearchOptions`](ChatSearchOptions.md)): `Promise`<[`ChatSearchHit`](ChatSearchHit.md)\[]>
 
-Defined in: [src/lib/chatStore/types.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#141)
+Defined in: [src/lib/chatStore/types.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#143)
 
 **Parameters**
 
@@ -496,7 +496,7 @@ readonly `number`\[]
 
 > **verify**(`revisions`: readonly [`ChatRevision`](ChatRevision.md)\[], `signal?`: `AbortSignal`): `Promise`<[`ChatRef`](ChatRef.md)\[]>
 
-Defined in: [src/lib/chatStore/types.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#135)
+Defined in: [src/lib/chatStore/types.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#137)
 
 **Parameters**
 

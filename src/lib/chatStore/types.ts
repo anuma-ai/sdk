@@ -41,6 +41,8 @@ export interface ChatAccount {
   recordCount: number;
   storageBytes: number;
   vectorCount: number;
+  /** The newest change; read it before loading history and poll `changes` from it. Absent before the first record. */
+  changesCursor?: string;
 }
 
 export interface ChatImport {

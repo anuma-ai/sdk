@@ -4,6 +4,16 @@ Defined in: [src/lib/chatStore/types.ts:38](https://github.com/anuma-ai/sdk/blob
 
 ## Properties
 
+### changesCursor?
+
+> `optional` **changesCursor**: `string`
+
+Defined in: [src/lib/chatStore/types.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#45)
+
+The newest change; read it before loading history and poll `changes` from it. Absent before the first record.
+
+***
+
 ### keyId
 
 > **keyId**: `string`

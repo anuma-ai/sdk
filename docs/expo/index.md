@@ -250,6 +250,36 @@ Re-exports [ChatMessage](../react/Internal/classes/ChatMessage.md)
 
 ***
 
+### ChatMigrationOptions
+
+Re-exports [ChatMigrationOptions](../react/Internal/interfaces/ChatMigrationOptions.md)
+
+***
+
+### ChatMigrationProgress
+
+Re-exports [ChatMigrationProgress](../react/Internal/interfaces/ChatMigrationProgress.md)
+
+***
+
+### ChatMigrationResult
+
+Re-exports [ChatMigrationResult](../react/Internal/interfaces/ChatMigrationResult.md)
+
+***
+
+### ChatMigrationSkip
+
+Re-exports [ChatMigrationSkip](../react/Internal/interfaces/ChatMigrationSkip.md)
+
+***
+
+### ChatOutboxStorage
+
+Re-exports [ChatOutboxStorage](../react/Internal/interfaces/ChatOutboxStorage.md)
+
+***
+
 ### ChatPage
 
 Re-exports [ChatPage](../react/Internal/interfaces/ChatPage.md)
@@ -685,6 +715,12 @@ Re-exports [CreateSelectPaymentWalletToolOptions](../react/Internal/type-aliases
 ### createStockPricePreProcessor
 
 Re-exports [createStockPricePreProcessor](../react/Internal/functions/createStockPricePreProcessor.md)
+
+***
+
+### createVaultChatBackend
+
+Re-exports [createVaultChatBackend](../react/Internal/functions/createVaultChatBackend.md)
 
 ***
 
@@ -1675,6 +1711,12 @@ Re-exports [MemoryVerification](../react/Internal/type-aliases/MemoryVerificatio
 ### MessageSkeleton
 
 Re-exports [MessageSkeleton](../react/Internal/interfaces/MessageSkeleton.md)
+
+***
+
+### migrateChatsToRemote
+
+Re-exports [migrateChatsToRemote](../react/Internal/functions/migrateChatsToRemote.md)
 
 ***
 
@@ -2761,6 +2803,36 @@ Re-exports [UseModelsResult](../react/Internal/type-aliases/UseModelsResult.md)
 ### VAULT\_SIZE\_HOP\_CAP
 
 Re-exports [VAULT\_SIZE\_HOP\_CAP](../react/Internal/variables/VAULT_SIZE_HOP_CAP.md)
+
+***
+
+### VaultChatActivity
+
+Re-exports [VaultChatActivity](../react/Internal/interfaces/VaultChatActivity.md)
+
+***
+
+### vaultChatBackend
+
+Re-exports [vaultChatBackend](../react/Internal/functions/vaultChatBackend.md)
+
+***
+
+### VaultChatBackend
+
+Re-exports [VaultChatBackend](../react/Internal/interfaces/VaultChatBackend.md)
+
+***
+
+### VaultChatBackendOptions
+
+Re-exports [VaultChatBackendOptions](../react/Internal/interfaces/VaultChatBackendOptions.md)
+
+***
+
+### VaultChatEvent
+
+Re-exports [VaultChatEvent](../react/Internal/type-aliases/VaultChatEvent.md)
 
 ***
 
