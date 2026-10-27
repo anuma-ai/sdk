@@ -284,12 +284,15 @@ describe("vault chat backend", () => {
     });
     await other.createConversation({ conversationId: "conv_2", title: "New elsewhere" });
     await other.flush();
+    expect(events).toContainEqual({ type: "conversations", origin: "local" });
     events.length = 0;
     await b.poll();
 
     expect((await b.getMessages("conv_1")).map((m) => m.content)).toEqual(["from phone"]);
     expect((await b.getConversations()).map((c) => c.conversationId)).toContain("conv_2");
-    expect(events).toContainEqual({ type: "messages", conversationId: "conv_1" });
+    expect(events).toContainEqual({ type: "messages", conversationId: "conv_1", origin: "remote" });
+    expect(events).toContainEqual({ type: "conversations", origin: "remote" });
+    expect(events.filter((e) => "origin" in e && e.origin === "local")).toEqual([]);
     const polled = await (changes.mock.results[0].value as ReturnType<typeof fake.store.changes>);
     expect(polled.items.map((s) => s.record.id)).not.toContain("conv_old");
   });
@@ -644,6 +647,59 @@ describe("vault chat backend", () => {
     expect((await fake.row("conversation", "conv_1"))?.record.data.title).toBe("Written offline");
   });
 
+  it("reads messages by id without loading their threads and leaves out deleted ones", async () => {
+    const fake = await createChatStoreHarness();
+    const writer = backend(fake).b;
+    for (const [conversationId, uniqueId] of [
+      ["conv_1", "msg_a"],
+      ["conv_1", "msg_b"],
+      ["conv_2", "msg_c"],
+    ])
+      await writer.createMessage({ conversationId, role: "user", content: uniqueId, uniqueId });
+    await writer.flush();
+    await writer.deleteMessage("msg_b");
+    await writer.deleteConversation("conv_2");
+    expect(await writer.getMessagesByIds(["msg_c", "msg_a"])).toHaveLength(1);
+    await writer.flush();
+
+    const { b: reader } = backend(fake);
+    await reader.getConversations();
+    const list = vi.spyOn(fake.store, "list");
+    const getMany = vi.spyOn(fake.store, "getMany");
+    expect(
+      (await reader.getMessagesByIds(["msg_c", "msg_a", "msg_b", "msg_none"])).map((m) => [
+        m.uniqueId,
+        m.conversationId,
+      ])
+    ).toEqual([["msg_a", "conv_1"]]);
+    expect(await reader.getMessagesByIds(["msg_none", "msg_a"])).toHaveLength(1);
+    expect(getMany).toHaveBeenCalledTimes(1);
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it("keeps the later of two devices' recalls of the same memory", async () => {
+    const fake = await createChatStoreHarness();
+    const later = backend(fake, { now: () => 2_000_000 }).b;
+    await later.createConversation({ conversationId: "conv_1" });
+    await later.flush();
+    const earlier = backend(fake, { now: () => 1_000_000 }).b;
+    expect(await earlier.getMemoryLinks("conv_1")).toEqual([]);
+
+    await later.addMemoryLinks("conv_1", [{ memoryId: "mem_x", score: 0.9 }]);
+    await later.flush();
+    await earlier.addMemoryLinks("conv_1", [
+      { memoryId: "mem_x", score: 0.1 },
+      { memoryId: "mem_y", score: 0.5 },
+    ]);
+    await earlier.flush();
+
+    const links = await backend(fake).b.getMemoryLinks("conv_1");
+    expect(links.map((l) => [l.memoryId, l.score, l.createdAt.getTime()]).sort()).toEqual([
+      ["mem_x", 0.9, 2_000_000],
+      ["mem_y", 0.5, 1_000_001],
+    ]);
+  });
+
   it("tells the account's other tabs to poll after a write", async () => {
     const fake = await createChatStoreHarness();
     const channel = `chat-test-${Math.random()}`;
@@ -653,9 +709,12 @@ describe("vault chat backend", () => {
     await writer.createConversation({ conversationId: "conv_1", title: "From another tab" });
     await writer.flush();
 
-    await vi.waitFor(() => expect(events).toContainEqual({ type: "conversations" }), {
-      timeout: 2_000,
-    });
+    await vi.waitFor(
+      () => expect(events).toContainEqual({ type: "conversations", origin: "remote" }),
+      {
+        timeout: 2_000,
+      }
+    );
     expect((await reader.getConversations()).map((c) => c.title)).toEqual(["From another tab"]);
   });
 });

@@ -139,14 +139,18 @@ export function applyLinkOps(data: ChatData, ops: readonly LinkOp[]): ChatData {
       current = [];
       continue;
     }
-    const seen = new Set(current.map((l) => l.memoryId));
-    const added: Link[] = [];
-    for (const item of op.add) {
-      if (!item.memoryId || seen.has(item.memoryId)) continue;
-      seen.add(item.memoryId);
-      added.push({ memoryId: item.memoryId, score: item.score, createdAt: op.at + added.length });
-    }
-    current = [...current, ...added].slice(-MAX_PER_CONVERSATION);
+    const byId = new Map(current.map((l) => [l.memoryId, l]));
+    const turn = new Set<string>();
+    op.add.forEach((item, i) => {
+      if (!item.memoryId || turn.has(item.memoryId)) return;
+      turn.add(item.memoryId);
+      const known = byId.get(item.memoryId);
+      if (known && known.createdAt >= op.at + i) return;
+      byId.set(item.memoryId, { memoryId: item.memoryId, score: item.score, createdAt: op.at + i });
+    });
+    current = [...byId.values()]
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .slice(-MAX_PER_CONVERSATION);
   }
   return plain({ links: current });
 }

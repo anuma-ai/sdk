@@ -1,6 +1,6 @@
 # VaultChatBackendOptions
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#78)
+Defined in: [src/lib/chatStore/vaultBackend.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#79)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/vaultBackend.ts:78](https://github.com/anuma-ai/s
 
 > `optional` **activity**: [`VaultChatActivity`](VaultChatActivity.md)
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#82)
+Defined in: [src/lib/chatStore/vaultBackend.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#83)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/vaultBackend.ts:82](https://github.com/anuma-ai/s
 
 > `optional` **channel**: `string`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#86)
+Defined in: [src/lib/chatStore/vaultBackend.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#87)
 
 BroadcastChannel name shared by this account's tabs, so one tab's writes prompt the others to poll.
 
@@ -26,7 +26,7 @@ BroadcastChannel name shared by this account's tabs, so one tab's writes prompt 
 
 > `optional` **now**: () => `number`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#88)
+Defined in: [src/lib/chatStore/vaultBackend.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#89)
 
 **Returns**
 
@@ -38,7 +38,7 @@ Defined in: [src/lib/chatStore/vaultBackend.ts:88](https://github.com/anuma-ai/s
 
 > `optional` **outbox**: `object`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#81)
+Defined in: [src/lib/chatStore/vaultBackend.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#82)
 
 Persists unsent writes, sealed with `seal`, so they survive a reload.
 
@@ -56,7 +56,7 @@ Persists unsent writes, sealed with `seal`, so they survive a reload.
 
 > `optional` **pollIntervalMs**: `number`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#84)
+Defined in: [src/lib/chatStore/vaultBackend.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#85)
 
 Polls `/changes` this often while active; 0 polls only on activity and broadcast hints.
 
@@ -66,7 +66,7 @@ Polls `/changes` this often while active; 0 polls only on activity and broadcast
 
 > **store**: [`ChatStore`](ChatStore.md)
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#79)
+Defined in: [src/lib/chatStore/vaultBackend.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#80)
 
 ***
 
@@ -74,4 +74,4 @@ Defined in: [src/lib/chatStore/vaultBackend.ts:79](https://github.com/anuma-ai/s
 
 > `optional` **threadCacheSize**: `number`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#87)
+Defined in: [src/lib/chatStore/vaultBackend.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#88)

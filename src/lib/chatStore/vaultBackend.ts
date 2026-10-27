@@ -56,11 +56,12 @@ import {
   toSummary,
 } from "./vaultRecords";
 
+/** A change to the cached chats; `origin` is "remote" when another device or tab made it. */
 export type VaultChatEvent =
-  | { type: "conversations" }
-  | { type: "messages"; conversationId: string }
-  | { type: "summary"; conversationId: string }
-  | { type: "links"; conversationId: string }
+  | { type: "conversations"; origin: "local" | "remote" }
+  | { type: "messages"; conversationId: string; origin: "local" | "remote" }
+  | { type: "summary"; conversationId: string; origin: "local" | "remote" }
+  | { type: "links"; conversationId: string; origin: "local" | "remote" }
   | { type: "outbox"; pending: number; stopped?: string }
   | {
       type: "dropped";
@@ -316,11 +317,14 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         index = true;
         if (r.isDeleted) conversations.add(r.id);
       } else if (r.kind === "message") conversations.add(r.conversationId);
-      else if (r.kind === "summary") emit({ type: "summary", conversationId: r.conversationId });
-      else if (r.kind === "memory_links") emit({ type: "links", conversationId: r.conversationId });
+      else if (r.kind === "summary")
+        emit({ type: "summary", conversationId: r.conversationId, origin: "remote" });
+      else if (r.kind === "memory_links")
+        emit({ type: "links", conversationId: r.conversationId, origin: "remote" });
     }
-    if (index) emit({ type: "conversations" });
-    for (const conversationId of conversations) emit({ type: "messages", conversationId });
+    if (index) emit({ type: "conversations", origin: "remote" });
+    for (const conversationId of conversations)
+      emit({ type: "messages", conversationId, origin: "remote" });
   };
 
   const send = async (batch: ChatPatch[]) => {
@@ -688,7 +692,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       conversationId: record.conversationId,
       ...patch,
     });
-    emit({ type: "messages", conversationId: record.conversationId });
+    emit({ type: "messages", conversationId: record.conversationId, origin: "local" });
     const updated = view(key("message", uniqueId));
     return updated && !updated.isDeleted ? toMessage(updated) : null;
   };
@@ -754,7 +758,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
           }),
         },
       });
-      emit({ type: "conversations" });
+      emit({ type: "conversations", origin: "local" });
       return toConversation(view(key("conversation", conversationId))!);
     },
     async updateConversationTitle(conversationId, title) {
@@ -773,8 +777,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         if (patch.conversationId === conversationId) pending.delete(k);
       await enqueue({ kind: "conversation", id: conversationId, conversationId: "", delete: true });
       threads.delete(conversationId);
-      emit({ type: "conversations" });
-      emit({ type: "messages", conversationId });
+      emit({ type: "conversations", origin: "local" });
+      emit({ type: "messages", conversationId, origin: "local" });
       return true;
     },
     observeConversations(query) {
@@ -802,6 +806,20 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     },
     async getMessageSkeletons(conversationId): Promise<MessageSkeleton[]> {
       return toSkeletons(await thread(conversationId));
+    },
+    async getMessagesByIds(uniqueIds) {
+      await ready();
+      const ids = [...new Set(uniqueIds)];
+      const unknown = ids
+        .map((id) => key("message", id))
+        .filter((k) => !view(k) && !checked.has(k));
+      await refresh(unknown);
+      return ids.flatMap((id) => {
+        const record = view(key("message", id));
+        return record && !record.isDeleted && conversationLive(record.conversationId)
+          ? [toMessage(record)]
+          : [];
+      });
     },
     async getMessageCount(conversationId) {
       return (await thread(conversationId)).length;
@@ -857,8 +875,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         conversationId: "",
         set: { lastActivityAt: at },
       });
-      emit({ type: "messages", conversationId: create.conversationId });
-      emit({ type: "conversations" });
+      emit({ type: "messages", conversationId: create.conversationId, origin: "local" });
+      emit({ type: "conversations", origin: "local" });
       return toMessage(view(key("message", uniqueId))!);
     },
     async upsertMessage(upsert) {
@@ -906,7 +924,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     async clearMessages(conversationId) {
       for (const record of await thread(conversationId))
         await enqueue({ kind: "message", id: record.id, conversationId, delete: true });
-      emit({ type: "messages", conversationId });
+      emit({ type: "messages", conversationId, origin: "local" });
     },
     async deleteMessage(uniqueId) {
       const record = await message(uniqueId);
@@ -917,7 +935,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         conversationId: record.conversationId,
         delete: true,
       });
-      emit({ type: "messages", conversationId: record.conversationId });
+      emit({ type: "messages", conversationId: record.conversationId, origin: "local" });
       return uniqueId;
     },
     observeMessages(conversationId) {
@@ -988,7 +1006,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         create: { sortKey: 0, createdAt: now(), data },
         set: data,
       });
-      emit({ type: "summary", conversationId });
+      emit({ type: "summary", conversationId, origin: "local" });
       return toSummary(view(key("summary", conversationId))!);
     },
     async deleteSummary(conversationId) {
@@ -1000,7 +1018,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         conversationId,
         set: { summary: "", summarizedUpTo: "", tokenCount: 0 },
       });
-      emit({ type: "summary", conversationId });
+      emit({ type: "summary", conversationId, origin: "local" });
     },
     async getMemoryLinks(conversationId) {
       const record = await child("memory_links", conversationId);
@@ -1016,7 +1034,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         create: { sortKey: 0, createdAt: now(), data: { links: [] } },
         linkOps: [{ add: items.map((i) => ({ memoryId: i.memoryId, score: i.score })), at: now() }],
       });
-      emit({ type: "links", conversationId });
+      emit({ type: "links", conversationId, origin: "local" });
     },
     async clearMemoryLinks(conversationId) {
       const record = await child("memory_links", conversationId);
@@ -1027,7 +1045,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         conversationId,
         linkOps: [{ clear: true }],
       });
-      emit({ type: "links", conversationId });
+      emit({ type: "links", conversationId, origin: "local" });
     },
     subscribe(listener) {
       listeners.add(listener);
@@ -1051,7 +1069,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     const record = await conversation(conversationId);
     if (!record || record.isDeleted) return false;
     await enqueue({ kind: "conversation", id: conversationId, conversationId: "", set });
-    emit({ type: "conversations" });
+    emit({ type: "conversations", origin: "local" });
     return true;
   };
 
