@@ -24,6 +24,7 @@ import type { MemoryStore } from "../../memory/store/types";
 import type { NerDetector } from "../../pii/ner";
 import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
 import type { FileProcessor } from "../../processors/types";
+import type { ChatBackendFactory } from "../../storage/ChatBackend";
 import type { DeferLoadingConfig, ServerTool, ToolsCacheBackend } from "../../tools";
 
 /**
@@ -496,6 +497,8 @@ export interface BaseUseChatStorageOptions {
   database: Database;
   /** Route memory operations through this store; `null` disables memory access while `undefined` uses the local vault. Folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` or its memory calls throw. */
   memoryStore?: MemoryStore | null;
+  /** Builds the chat storage backend (default: this `database`); keep it stable across renders, since a new factory rebuilds the backend and every callback. */
+  chatBackend?: ChatBackendFactory;
   /** ID of an existing conversation to load and continue */
   conversationId?: string;
   /** Automatically create a new conversation if none is set (default: true) */

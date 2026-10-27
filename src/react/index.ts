@@ -141,6 +141,12 @@ export {
   type ChatImport,
   type ChatJson,
   type ChatListOptions,
+  type ChatMigrationOptions,
+  type ChatMigrationProgress,
+  type ChatMigrationResult,
+  type ChatMigrationSkip,
+  type ChatOutboxLocks,
+  type ChatOutboxStorage,
   type ChatPage,
   type ChatPresignedUrl,
   type ChatRecord,
@@ -154,7 +160,14 @@ export {
   ChatStoreError,
   type ChatWrite,
   createRemoteChatStore,
+  createVaultChatBackend,
+  migrateChatsToRemote,
   type RemoteChatStoreOptions,
+  type VaultChatActivity,
+  type VaultChatBackend,
+  vaultChatBackend,
+  type VaultChatBackendOptions,
+  type VaultChatEvent,
 } from "../lib/chatStore";
 export {
   AppFile as AppFileModel,
@@ -723,6 +736,10 @@ export {
   ZipProcessor,
 } from "../lib/processors";
 export type {
+  ChatBackend,
+  ChatBackendFactory,
+  ChatBackendSigner,
+  ChatChunkSearchOptions,
   ChatStorageAdapter,
   ChatStorageObservable,
   ConversationQueryOptions,
@@ -743,7 +760,7 @@ export {
   resolveFilePlaceholders,
   writeEncryptedFile,
 } from "../lib/storage";
-export { WatermelonChatStorageAdapter } from "../lib/storage";
+export { localChatBackend, WatermelonChatStorageAdapter } from "../lib/storage";
 export type {
   CachedServerTools,
   CreateServerToolsFilterOptions,

@@ -1,6 +1,6 @@
 # StoredChatCompletionUsage
 
-Defined in: [src/lib/db/chat/types.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#136)
+Defined in: [src/lib/db/chat/types.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#137)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/types.ts:136](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **completionTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#138)
+Defined in: [src/lib/db/chat/types.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#139)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/types.ts:138](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **costMicroUsd**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#140)
+Defined in: [src/lib/db/chat/types.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#141)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/chat/types.ts:140](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **creditsExhausted**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#145)
+Defined in: [src/lib/db/chat/types.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#146)
 
 Per-step out-of-credits marker (ai-portal #1146): true when the run ended
 via the mid-loop wrap-up. Passed through like creditsUsed (not summed) so
@@ -36,7 +36,7 @@ it reaches message.usage for the out-of-credits UX.
 
 > `optional` **creditsUsed**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#141)
+Defined in: [src/lib/db/chat/types.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#142)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/lib/db/chat/types.ts:141](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **promptTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#137)
+Defined in: [src/lib/db/chat/types.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#138)
 
 ***
 
@@ -52,4 +52,4 @@ Defined in: [src/lib/db/chat/types.ts:137](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **totalTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#139)
+Defined in: [src/lib/db/chat/types.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#140)

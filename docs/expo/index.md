@@ -190,9 +190,33 @@ Re-exports [ChatAttachments](../react/Internal/interfaces/ChatAttachments.md)
 
 ***
 
+### ChatBackend
+
+Re-exports [ChatBackend](../react/Internal/interfaces/ChatBackend.md)
+
+***
+
+### ChatBackendFactory
+
+Re-exports [ChatBackendFactory](../react/Internal/type-aliases/ChatBackendFactory.md)
+
+***
+
+### ChatBackendSigner
+
+Re-exports [ChatBackendSigner](../react/Internal/interfaces/ChatBackendSigner.md)
+
+***
+
 ### ChatChanges
 
 Re-exports [ChatChanges](../react/Internal/interfaces/ChatChanges.md)
+
+***
+
+### ChatChunkSearchOptions
+
+Re-exports [ChatChunkSearchOptions](../react/Internal/interfaces/ChatChunkSearchOptions.md)
 
 ***
 
@@ -223,6 +247,42 @@ Re-exports [ChatListOptions](../react/Internal/interfaces/ChatListOptions.md)
 ### ChatMessage
 
 Re-exports [ChatMessage](../react/Internal/classes/ChatMessage.md)
+
+***
+
+### ChatMigrationOptions
+
+Re-exports [ChatMigrationOptions](../react/Internal/interfaces/ChatMigrationOptions.md)
+
+***
+
+### ChatMigrationProgress
+
+Re-exports [ChatMigrationProgress](../react/Internal/interfaces/ChatMigrationProgress.md)
+
+***
+
+### ChatMigrationResult
+
+Re-exports [ChatMigrationResult](../react/Internal/interfaces/ChatMigrationResult.md)
+
+***
+
+### ChatMigrationSkip
+
+Re-exports [ChatMigrationSkip](../react/Internal/interfaces/ChatMigrationSkip.md)
+
+***
+
+### ChatOutboxLocks
+
+Re-exports [ChatOutboxLocks](../react/Internal/interfaces/ChatOutboxLocks.md)
+
+***
+
+### ChatOutboxStorage
+
+Re-exports [ChatOutboxStorage](../react/Internal/interfaces/ChatOutboxStorage.md)
 
 ***
 
@@ -661,6 +721,12 @@ Re-exports [CreateSelectPaymentWalletToolOptions](../react/Internal/type-aliases
 ### createStockPricePreProcessor
 
 Re-exports [createStockPricePreProcessor](../react/Internal/functions/createStockPricePreProcessor.md)
+
+***
+
+### createVaultChatBackend
+
+Re-exports [createVaultChatBackend](../react/Internal/functions/createVaultChatBackend.md)
 
 ***
 
@@ -1354,6 +1420,12 @@ Re-exports [LlmNeighborRefinerOptions](../react/Internal/interfaces/LlmNeighborR
 
 ***
 
+### localChatBackend
+
+Re-exports [localChatBackend](../react/Internal/functions/localChatBackend.md)
+
+***
+
 ### LocalMemoryStoreOptions
 
 Re-exports [LocalMemoryStoreOptions](../react/Internal/interfaces/LocalMemoryStoreOptions.md)
@@ -1645,6 +1717,12 @@ Re-exports [MemoryVerification](../react/Internal/type-aliases/MemoryVerificatio
 ### MessageSkeleton
 
 Re-exports [MessageSkeleton](../react/Internal/interfaces/MessageSkeleton.md)
+
+***
+
+### migrateChatsToRemote
+
+Re-exports [migrateChatsToRemote](../react/Internal/functions/migrateChatsToRemote.md)
 
 ***
 
@@ -2731,6 +2809,36 @@ Re-exports [UseModelsResult](../react/Internal/type-aliases/UseModelsResult.md)
 ### VAULT\_SIZE\_HOP\_CAP
 
 Re-exports [VAULT\_SIZE\_HOP\_CAP](../react/Internal/variables/VAULT_SIZE_HOP_CAP.md)
+
+***
+
+### VaultChatActivity
+
+Re-exports [VaultChatActivity](../react/Internal/interfaces/VaultChatActivity.md)
+
+***
+
+### vaultChatBackend
+
+Re-exports [vaultChatBackend](../react/Internal/functions/vaultChatBackend.md)
+
+***
+
+### VaultChatBackend
+
+Re-exports [VaultChatBackend](../react/Internal/interfaces/VaultChatBackend.md)
+
+***
+
+### VaultChatBackendOptions
+
+Re-exports [VaultChatBackendOptions](../react/Internal/interfaces/VaultChatBackendOptions.md)
+
+***
+
+### VaultChatEvent
+
+Re-exports [VaultChatEvent](../react/Internal/type-aliases/VaultChatEvent.md)
 
 ***
 

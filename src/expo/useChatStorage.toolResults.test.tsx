@@ -26,8 +26,8 @@ vi.mock("../lib/chat/summarize", async (importOriginal) => {
   };
 });
 
-vi.mock("../lib/db/chat", async (importOriginal) => {
-  const orig = await importOriginal<typeof import("../lib/db/chat")>();
+vi.mock("../lib/db/chat/operations", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("../lib/db/chat/operations")>();
   return { ...orig, createMessageOp: vi.fn(orig.createMessageOp) };
 });
 
@@ -244,7 +244,9 @@ describe("useChatStorage tool-results row (expo)", () => {
     mockRunToolLoop.mockResolvedValue(
       loopResult([{ name: "display_people_map", result: PEOPLE_RESULT }])
     );
-    const actual = await vi.importActual<typeof import("../lib/db/chat")>("../lib/db/chat");
+    const actual = await vi.importActual<typeof import("../lib/db/chat/operations")>(
+      "../lib/db/chat/operations"
+    );
     let writes = 0;
     mockCreateMessageOp.mockImplementation(async (ctx, opts) => {
       writes += 1;

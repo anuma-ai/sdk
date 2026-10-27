@@ -11,6 +11,10 @@ are exposed as separate methods rather than a generic `update()` because
 several of them have special semantics (encryption bypass for embeddings,
 unique constraints on feedback, etc).
 
+## Extended by
+
+* [`ChatBackend`](ChatBackend.md)
+
 ## Methods
 
 ### clearMessages()

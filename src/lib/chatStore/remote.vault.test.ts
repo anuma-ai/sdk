@@ -263,7 +263,7 @@ describe("remote ChatStore against vault's server-only contract", () => {
     expect(moved.record.sortKey).toBe(900);
   });
 
-  it("pages messages up to 200 with a total and keeps 50 for other kinds", async () => {
+  it("pages every kind up to 200, with a total for messages", async () => {
     const s = await setup();
     await s.store.putMany([
       { record: record("conversation", "c"), expectedVersion: 0 },
@@ -274,7 +274,21 @@ describe("remote ChatStore against vault's server-only contract", () => {
     await expect(
       s.store.list({ kind: "message", conversationId: "c", limit: 201 })
     ).rejects.toThrow(ChatStoreError);
-    await expect(s.store.list({ kind: "conversation", limit: 51 })).rejects.toThrow(ChatStoreError);
+    expect((await s.store.list({ kind: "conversation", limit: 200 })).items).toHaveLength(1);
+    await expect(s.store.list({ kind: "conversation", limit: 201 })).rejects.toThrow(
+      ChatStoreError
+    );
+  });
+
+  it("reads the head changes cursor from the account", async () => {
+    const s = await setup();
+    expect((await s.store.account()).changesCursor).toBeUndefined();
+    const withCursor = await setup((call) =>
+      call.method === "GET" && call.path === "/account"
+        ? Response.json({ ...s.account, changes_cursor: "head" })
+        : undefined
+    );
+    expect((await withCursor.store.account()).changesCursor).toBe("head");
   });
 
   it("reads many records in request order, following remaining and skipping missing", async () => {

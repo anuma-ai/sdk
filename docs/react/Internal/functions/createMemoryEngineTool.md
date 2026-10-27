@@ -1,8 +1,8 @@
 # createMemoryEngineTool
 
-> **createMemoryEngineTool**(`storageCtx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `searchOptions?`: `Partial`<[`MemoryEngineSearchOptions`](../interfaces/MemoryEngineSearchOptions.md)>, `callbacks?`: `object`): `ToolConfig`
+> **createMemoryEngineTool**(`storage`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md) | `Pick`<[`ChatBackend`](../interfaces/ChatBackend.md), `"searchChunks"` | `"getMessages"`>, `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `searchOptions?`: `Partial`<[`MemoryEngineSearchOptions`](../interfaces/MemoryEngineSearchOptions.md)>, `callbacks?`: `object`): `ToolConfig`
 
-Defined in: [src/lib/memoryEngine/tool.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/tool.ts#77)
+Defined in: [src/lib/memoryEngine/tool.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/tool.ts#78)
 
 Creates a memory engine tool for use with chat completions.
 
@@ -23,17 +23,17 @@ using semantic similarity. Messages must have embeddings stored to be searchable
 <tr>
 <td>
 
-`storageCtx`
+`storage`
 
 </td>
 <td>
 
-[`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)
+[`StorageOperationsContext`](../interfaces/StorageOperationsContext.md) | `Pick`<[`ChatBackend`](../interfaces/ChatBackend.md), `"searchChunks"` | `"getMessages"`>
 
 </td>
 <td>
 
-Storage operations context for database access
+Chat storage: a WatermelonDB operations context or a chat backend
 
 </td>
 </tr>

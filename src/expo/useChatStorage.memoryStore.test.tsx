@@ -125,7 +125,7 @@ describe("useChatStorage with a memoryStore", () => {
     const [, ctx] = vi.mocked(recallBase).mock.calls[0];
     expect(ctx.factSource).toBe(store.factSource);
     expect(ctx.vaultCtx).toBeUndefined();
-    expect(ctx.storageCtx).toBeDefined();
+    expect(ctx.chats).toBeDefined();
     await expect(result.current.recall("x", { folderId: "f1" })).rejects.toThrow(/Folders/);
   });
 
@@ -157,7 +157,7 @@ describe("useChatStorage with a memoryStore", () => {
     expect(store.retain).toHaveBeenCalled();
     const [, ctx] = vi.mocked(recallBase).mock.calls[0];
     expect(ctx.factSource).toBe(store.factSource);
-    expect(ctx.storageCtx).toBeUndefined();
+    expect(ctx.chats).toBeUndefined();
     expect(() => result.current.createRecallTool()).not.toThrow();
   });
 

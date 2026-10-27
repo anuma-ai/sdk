@@ -1,6 +1,6 @@
 # RecallTelemetryCallbacks
 
-Defined in: [src/lib/memory/types.ts:515](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#515)
+Defined in: [src/lib/memory/types.ts:518](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#518)
 
 ## Extended by
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/memory/types.ts:515](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **onDiagnostics**: (`diagnostics`: [`RecallDiagnostics`](RecallDiagnostics.md)) => `void`
 
-Defined in: [src/lib/memory/types.ts:516](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#516)
+Defined in: [src/lib/memory/types.ts:519](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#519)
 
 **Parameters**
 
@@ -49,7 +49,7 @@ Defined in: [src/lib/memory/types.ts:516](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/lib/memory/types.ts:518](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#518)
+Defined in: [src/lib/memory/types.ts:521](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#521)
 
 **Parameters**
 
@@ -86,7 +86,7 @@ Defined in: [src/lib/memory/types.ts:518](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **onTruncated**: (`truncation`: [`RecallTruncation`](RecallTruncation.md)) => `void`
 
-Defined in: [src/lib/memory/types.ts:517](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#517)
+Defined in: [src/lib/memory/types.ts:520](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#520)
 
 **Parameters**
 

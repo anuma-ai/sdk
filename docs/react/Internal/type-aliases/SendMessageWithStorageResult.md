@@ -2,7 +2,7 @@
 
 > **SendMessageWithStorageResult** = { `assistantMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `toolResultsMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); `userMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); } | { `assistantMessage?`: `undefined`; `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `skipped`: `true`; `userMessage?`: `undefined`; } | { `assistantMessage?`: `undefined`; `data`: `null`; `error`: `string`; `userMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); }
 
-Defined in: [src/react/useChatStorage.ts:720](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#720)
+Defined in: [src/react/useChatStorage.ts:705](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#705)
 
 Result from sendMessage with storage (React version)
 The `data` field contains the raw server response which includes `tools_checksum`.

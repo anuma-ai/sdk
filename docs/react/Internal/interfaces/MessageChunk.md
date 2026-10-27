@@ -1,6 +1,6 @@
 # MessageChunk
 
-Defined in: [src/lib/db/chat/types.ts:353](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#353)
+Defined in: [src/lib/db/chat/types.ts:354](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#354)
 
 A chunk of a message with its own embedding for fine-grained search
 
@@ -10,7 +10,7 @@ A chunk of a message with its own embedding for fine-grained search
 
 > **endOffset**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:390](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#390)
+Defined in: [src/lib/db/chat/types.ts:391](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#391)
 
 Character offset where this chunk ends in the original message
 
@@ -20,7 +20,7 @@ Character offset where this chunk ends in the original message
 
 > **startOffset**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:388](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#388)
+Defined in: [src/lib/db/chat/types.ts:389](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#389)
 
 Character offset where this chunk starts in the original message
 
@@ -30,7 +30,7 @@ Character offset where this chunk starts in the original message
 
 > `optional` **text**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:373](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#373)
+Defined in: [src/lib/db/chat/types.ts:374](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#374)
 
 The chunk text — IN MEMORY ONLY. Not persisted (sdk#880).
 
@@ -56,7 +56,7 @@ readers prefer a stored value when present. It is populated in memory by
 
 > **vector**: `number`\[]
 
-Defined in: [src/lib/db/chat/types.ts:386](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#386)
+Defined in: [src/lib/db/chat/types.ts:387](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#387)
 
 Embedding vector for this chunk.
 

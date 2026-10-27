@@ -1025,6 +1025,27 @@ export async function getMessageOp(
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
+/** Reads messages by id in the order asked, leaving out ids that are not stored. */
+export async function getMessagesByIdsOp(
+  ctx: StorageOperationsContext,
+  uniqueIds: readonly string[]
+): Promise<StoredMessage[]> {
+  const ids = [...new Set(uniqueIds)];
+  const rows = new Map((await fetchRowsByIds(ctx, ids)).map((raw) => [raw.id, raw]));
+  return Promise.all(
+    ids
+      .filter((id) => rows.has(id))
+      .map((id) =>
+        messageRawToStored(
+          rows.get(id)!,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        )
+      )
+  );
+}
+
 export async function updateMessageEmbeddingOp(
   ctx: StorageOperationsContext,
   uniqueId: string,

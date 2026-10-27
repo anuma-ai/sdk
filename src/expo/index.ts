@@ -171,6 +171,12 @@ export {
   type ChatImport,
   type ChatJson,
   type ChatListOptions,
+  type ChatMigrationOptions,
+  type ChatMigrationProgress,
+  type ChatMigrationResult,
+  type ChatMigrationSkip,
+  type ChatOutboxLocks,
+  type ChatOutboxStorage,
   type ChatPage,
   type ChatPresignedUrl,
   type ChatRecord,
@@ -184,7 +190,14 @@ export {
   ChatStoreError,
   type ChatWrite,
   createRemoteChatStore,
+  createVaultChatBackend,
+  migrateChatsToRemote,
   type RemoteChatStoreOptions,
+  type VaultChatActivity,
+  type VaultChatBackend,
+  vaultChatBackend,
+  type VaultChatBackendOptions,
+  type VaultChatEvent,
 } from "../lib/chatStore";
 export {
   Conversation as ChatConversation,
@@ -587,6 +600,13 @@ export {
 } from "../lib/pii";
 export { formatFileProcessingNotes } from "../lib/processors/fileStatusNotes";
 export type { FileProcessingReason, FileProcessingStatus } from "../lib/processors/types";
+export type {
+  ChatBackend,
+  ChatBackendFactory,
+  ChatBackendSigner,
+  ChatChunkSearchOptions,
+} from "../lib/storage/ChatBackend";
+export { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
 export type { CachedServerTools, ServerToolsOptions, ServerToolsResponse } from "../lib/tools";
 export {
   clearServerToolsCache,

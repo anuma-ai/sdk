@@ -2,7 +2,7 @@
 
 > **getConversationMemoriesOp**(`ctx`: [`ConversationMemoryOperationsContext`](../interfaces/ConversationMemoryOperationsContext.md), `conversationId`: `string`): `Promise`<[`StoredConversationMemory`](../interfaces/StoredConversationMemory.md)\[]>
 
-Defined in: [src/lib/db/conversationMemory/operations.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/conversationMemory/operations.ts#84)
+Defined in: [src/lib/db/conversationMemory/operations.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/conversationMemory/operations.ts#134)
 
 List a conversation's recorded memories, oldest first.
 

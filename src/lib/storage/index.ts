@@ -3,6 +3,12 @@
  */
 
 export type {
+  ChatBackend,
+  ChatBackendFactory,
+  ChatBackendSigner,
+  ChatChunkSearchOptions,
+} from "./ChatBackend";
+export type {
   ChatStorageAdapter,
   ChatStorageObservable,
   ConversationQueryOptions,
@@ -23,4 +29,4 @@ export {
 } from "./opfs";
 export { isR2UrlExpired, R2_DEFAULT_TTL_MS } from "./r2Expiry";
 export type { WatermelonChatStorageAdapterOptions } from "./WatermelonChatStorageAdapter";
-export { WatermelonChatStorageAdapter } from "./WatermelonChatStorageAdapter";
+export { localChatBackend, WatermelonChatStorageAdapter } from "./WatermelonChatStorageAdapter";

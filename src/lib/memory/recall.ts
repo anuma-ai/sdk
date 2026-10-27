@@ -15,6 +15,7 @@ import { normalizeSubQueries } from "../memoryVault/decomposeQuery.js";
 import type { CorpusStats, VaultSearchResult } from "../memoryVault/searchTool.js";
 import { searchVaultMemoriesWithSize } from "../memoryVault/searchTool.js";
 import { nowMs } from "../scheduling.js";
+import type { ChatBackend } from "../storage/ChatBackend.js";
 import {
   createLlmNeighborRefiner,
   type NeighborRefiner,
@@ -90,6 +91,12 @@ export async function recall(
   ctx: RecallContext,
   options: RecallOptions = {}
 ): Promise<RecallResult> {
+  const storageCtx = ctx.storageCtx;
+  const searchChunks: ChatBackend["searchChunks"] | undefined = ctx.chats
+    ? (vector, searchOptions) => ctx.chats!.searchChunks(vector, searchOptions)
+    : storageCtx
+      ? (vector, searchOptions) => searchChunksOp(storageCtx, vector, searchOptions)
+      : undefined;
   const requestedTypes: MemoryKind[] = options.types ?? ["fact"];
   const chunksScopeRestricted = options.memoryIds !== undefined && requestedTypes.includes("chunk");
   const types: MemoryKind[] =
@@ -145,7 +152,7 @@ export async function recall(
     if (admitted > 0) return "";
     if (!query || typeof query !== "string" || query.trim().length === 0) return "empty-query";
     if (!laneRan) return "no-lanes";
-    const chunkLaneCouldAnswer = types.includes("chunk") && !!ctx.storageCtx;
+    const chunkLaneCouldAnswer = types.includes("chunk") && !!searchChunks;
     if (vaultSize === 0 && !chunkLaneCouldAnswer) return "vault-empty";
     return "no-candidates";
   };
@@ -166,8 +173,8 @@ export async function recall(
     if (chunksScopeRestricted) degraded.push("chunks-scope-restricted");
     const laneRan =
       (types.includes("fact") && (!!ctx.factSource || (!!ctx.vaultCtx && !!ctx.vaultCache))) ||
-      (types.includes("chunk") && !!ctx.storageCtx) ||
-      (chunksScopeRestricted && !!ctx.storageCtx);
+      (types.includes("chunk") && !!searchChunks) ||
+      (chunksScopeRestricted && !!searchChunks);
     const scores = admitted.map((m) => m.score);
     const minScoreApplied =
       factResults.length > 0
@@ -232,7 +239,7 @@ export async function recall(
     return { memories: [], usedBudget, reranked: false, candidateCount: 0 };
   }
 
-  const needsChunkEmbedding = types.includes("chunk") && ctx.storageCtx;
+  const needsChunkEmbedding = types.includes("chunk") && !!searchChunks;
   const wantsTemporal = types.includes("fact") && (ctx.factSource || ctx.vaultCtx);
   const queryEmbedTotalTimeoutMs =
     options.queryEmbedTotalTimeoutMs ?? DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS;
@@ -388,11 +395,11 @@ export async function recall(
 
   if (chunkEmbedFailed && !factLaneRankedOnCosine) embeddingsUnavailable = true;
 
-  if (types.includes("chunk") && ctx.storageCtx && queryEmbedding) {
+  if (types.includes("chunk") && searchChunks && queryEmbedding) {
     const chunkStart = nowMs();
     const chunkMinScore = options.minScore ?? DEFAULT_CHUNK_MIN_SCORE;
     chunkFloor = chunkMinScore;
-    const results = await searchChunksOp(ctx.storageCtx, queryEmbedding, {
+    const results = await searchChunks(queryEmbedding, {
       limit: types.includes("fact") ? Math.max(limit * 2, 16) : limit,
       minSimilarity: chunkMinScore,
       embeddingModel: ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL,

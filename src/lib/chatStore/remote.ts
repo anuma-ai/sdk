@@ -54,6 +54,11 @@ function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+/** Whether vault accepts `value` as a record or conversation id. */
+export function validChatId(value: unknown): value is string {
+  return id(value);
+}
+
 function id(value: unknown): value is string {
   return (
     typeof value === "string" &&
@@ -416,7 +421,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         !kinds.has(query.kind) ||
         !integer(limit, 1) ||
         (query.includeDeleted !== undefined && typeof query.includeDeleted !== "boolean") ||
-        limit > (query.kind === "message" ? 200 : 50) ||
+        limit > 200 ||
         (query.cursor?.length ?? 0) > 2048 ||
         (query.kind === "conversation" || query.kind === "project" ? parent !== "" : !id(parent))
       )
@@ -511,7 +516,9 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         (value.state !== "none" && value.state !== "migrating" && value.state !== "active") ||
         !integer(value.record_count) ||
         !integer(value.storage_bytes) ||
-        !integer(value.vector_count)
+        !integer(value.vector_count) ||
+        (value.changes_cursor !== undefined &&
+          (!text(value.changes_cursor) || value.changes_cursor.length > 2048))
       )
         invalid();
       if (value.key_id && value.key_id !== keyId)
@@ -522,6 +529,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         recordCount: value.record_count,
         storageBytes: value.storage_bytes,
         vectorCount: value.vector_count,
+        ...(value.changes_cursor ? { changesCursor: value.changes_cursor } : {}),
       };
       return out;
     },
@@ -627,7 +635,10 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
           (!Array.isArray(kindsFilter) ||
             kindsFilter.length === 0 ||
             kindsFilter.some((k) => k !== "message" && k !== "summary"))) ||
-        (options?.conversationId !== undefined && !id(options.conversationId))
+        (options?.conversationId !== undefined && !id(options.conversationId)) ||
+        (options?.excludeConversationId !== undefined && !id(options.excludeConversationId)) ||
+        (options?.embeddingModel !== undefined &&
+          (!text(options.embeddingModel) || options.embeddingModel.length > 256))
       )
         invalid();
       const value = await request(
@@ -640,6 +651,10 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
             limit,
             ...(kindsFilter ? { kinds: kindsFilter } : {}),
             ...(options?.conversationId ? { conversation_id: options.conversationId } : {}),
+            ...(options?.excludeConversationId
+              ? { exclude_conversation_id: options.excludeConversationId }
+              : {}),
+            ...(options?.embeddingModel ? { embedding_model: options.embeddingModel } : {}),
           }),
         },
         options?.signal
@@ -661,7 +676,8 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
             !kindsFilter.includes(snapshot.record.kind as "message" | "summary")) ||
           (snapshot.record.kind !== "message" && snapshot.record.kind !== "summary") ||
           (options?.conversationId !== undefined &&
-            snapshot.record.conversationId !== options.conversationId)
+            snapshot.record.conversationId !== options.conversationId) ||
+          snapshot.record.conversationId === options?.excludeConversationId
         )
           invalid();
         hits.push({ ...snapshot, chunk: item.chunk, score: item.score });

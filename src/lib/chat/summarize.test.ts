@@ -2,6 +2,7 @@ import type { Database } from "@nozbe/watermelondb";
 import type { WriterInterface } from "@nozbe/watermelondb/Database/WorkQueue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { advanceConversationRevision } from "../db/chat/summaryRevision";
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
 import {
   getConversationSummaryOp,
@@ -841,6 +842,76 @@ describe("maybeSummarizeHistory", () => {
     expect(result.summarySystemMessage).not.toBeNull();
     expect(result.messagesToConvert.length).toBeLessThan(msgs.length);
     expect(mockedUpsertSummary).toHaveBeenCalled();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("saves to a supplied summary store unless the conversation changed meanwhile", async () => {
+    const msgs = Array.from({ length: 10 }, (_, i) =>
+      makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 500)
+    );
+    const summaries = {
+      getSummary: vi.fn(async () => null),
+      upsertSummary: vi.fn(async () => ({}) as StoredConversationSummary),
+    };
+    const { database } = baseOptions;
+    let changeDuringCall = false;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      if (changeDuringCall) advanceConversationRevision(database, "conv-test");
+      return {
+        ok: true,
+        json: () => Promise.resolve({ choices: [{ message: { content: "Test summary." } }] }),
+      } as Response;
+    });
+
+    await maybeSummarizeHistory({ ...baseOptions, database, summaries, messages: msgs });
+    expect(summaries.upsertSummary).toHaveBeenCalledTimes(1);
+
+    changeDuringCall = true;
+    await expect(
+      maybeSummarizeHistory({ ...baseOptions, database, summaries, messages: msgs })
+    ).rejects.toThrow("The conversation changed during summarization");
+    expect(summaries.upsertSummary).toHaveBeenCalledTimes(1);
+    expect(mockedGetSummary).not.toHaveBeenCalled();
+    expect(mockedUpsertSummary).not.toHaveBeenCalled();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("does not save a compacted summary to a supplied store once the conversation changed", async () => {
+    const summaries = {
+      getSummary: vi.fn(async () => ({
+        uniqueId: "sum-1",
+        conversationId: "conv-compact",
+        summary: "A long running summary.",
+        summarizedUpTo: "msg-1",
+        tokenCount: 4000,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })),
+      upsertSummary: vi.fn(async () => ({}) as StoredConversationSummary),
+    };
+    const { database } = baseOptions;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      advanceConversationRevision(database, "conv-compact");
+      return {
+        ok: true,
+        json: () => Promise.resolve({ choices: [{ message: { content: "Shorter." } }] }),
+      } as Response;
+    });
+
+    await expect(
+      maybeSummarizeHistory({
+        ...baseOptions,
+        conversationId: "conv-compact",
+        database,
+        summaries,
+        messages: Array.from({ length: 10 }, (_, i) =>
+          makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 100)
+        ),
+      })
+    ).rejects.toThrow("The conversation changed during summarization");
+    expect(summaries.upsertSummary).not.toHaveBeenCalled();
 
     fetchSpy.mockRestore();
   });

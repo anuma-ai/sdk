@@ -9,14 +9,18 @@ import {
   createConversationOp,
   createMessageOp,
   deleteConversationOp,
+  deleteMessageOp,
   getAllFilesOp,
   getConversationOp,
   getConversationsByProjectOp,
   getConversationsOp,
   getMessageCountOp,
+  getMessagesByIdsOp,
   getMessageSkeletonsOp,
   getMessagesOp,
   getMessagesPageOp,
+  getToolCallEventIdsOp,
+  searchChunksOp,
   type StorageOperationsContext,
   updateConversationPinnedOp,
   updateConversationProjectOp,
@@ -26,8 +30,16 @@ import {
   updateMessageErrorOp,
   updateMessageFeedbackOp,
   updateMessageFileIdsOp,
+  upsertMessageOp,
 } from "../db/chat/operations";
+import {
+  createSummaryContext,
+  deleteConversationSummaryOp,
+  getConversationSummaryOp,
+  upsertConversationSummaryOp,
+} from "../db/chat/summaryOperations";
 import type {
+  ChunkSearchResult,
   CreateConversationOptions,
   CreateMessageOptions,
   GetMessagesPageOptions,
@@ -35,9 +47,22 @@ import type {
   MessageFeedback,
   MessageSkeleton,
   StoredConversation,
+  StoredConversationSummary,
   StoredFileWithContext,
   StoredMessage,
 } from "../db/chat/types";
+import { ConversationMemory } from "../db/conversationMemory/models";
+import {
+  clearConversationMemoriesOp,
+  type ConversationMemoryOperationsContext,
+  getConversationMemoriesOp,
+  recordConversationMemoriesOp,
+} from "../db/conversationMemory/operations";
+import type {
+  ConversationMemoryInput,
+  StoredConversationMemory,
+} from "../db/conversationMemory/types";
+import type { ChatBackend, ChatBackendFactory, ChatChunkSearchOptions } from "./ChatBackend";
 import type {
   ChatStorageAdapter,
   ChatStorageObservable,
@@ -61,7 +86,7 @@ export interface WatermelonChatStorageAdapterOptions {
   embeddedWalletSigner?: EmbeddedWalletSignerFn;
 }
 
-export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
+export class WatermelonChatStorageAdapter implements ChatBackend {
   private readonly ctx: StorageOperationsContext;
   private readonly messages: Collection<Message>;
   private readonly conversations: Collection<Conversation>;
@@ -90,8 +115,11 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
     return getConversationsOp(this.ctx);
   }
 
-  createConversation(options?: CreateConversationOptions): Promise<StoredConversation> {
-    return createConversationOp(this.ctx, options);
+  createConversation(
+    options?: CreateConversationOptions,
+    defaultTitle?: string
+  ): Promise<StoredConversation> {
+    return createConversationOp(this.ctx, options, defaultTitle);
   }
 
   updateConversationTitle(conversationId: string, title: string): Promise<boolean> {
@@ -144,6 +172,10 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
     options: GetMessagesPageOptions
   ): Promise<StoredMessage[]> {
     return getMessagesPageOp(this.ctx, conversationId, options);
+  }
+
+  getMessagesByIds(uniqueIds: readonly string[]): Promise<StoredMessage[]> {
+    return getMessagesByIdsOp(this.ctx, uniqueIds);
   }
 
   getMessageSkeletons(conversationId: string): Promise<MessageSkeleton[]> {
@@ -227,8 +259,71 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
     };
   }
 
-  getAllFiles(): Promise<StoredFileWithContext[]> {
-    return getAllFilesOp(this.ctx);
+  getAllFiles(options?: Parameters<typeof getAllFilesOp>[1]): Promise<StoredFileWithContext[]> {
+    return getAllFilesOp(this.ctx, options);
+  }
+
+  getToolCallEventIds(conversationId: string): Promise<Set<string>> {
+    return getToolCallEventIdsOp(this.ctx, conversationId);
+  }
+
+  upsertMessage(options: CreateMessageOptions & { uniqueId: string }): Promise<StoredMessage> {
+    return upsertMessageOp(this.ctx, options);
+  }
+
+  searchChunks(
+    queryVector: number[],
+    options?: ChatChunkSearchOptions
+  ): Promise<ChunkSearchResult[]> {
+    return searchChunksOp(this.ctx, queryVector, options);
+  }
+
+  getSummary(conversationId: string): Promise<StoredConversationSummary | null> {
+    return getConversationSummaryOp(createSummaryContext(this.ctx.database), conversationId);
+  }
+
+  upsertSummary(
+    conversationId: string,
+    summary: string,
+    summarizedUpTo: string,
+    tokenCount: number
+  ): Promise<StoredConversationSummary> {
+    return upsertConversationSummaryOp(
+      createSummaryContext(this.ctx.database),
+      conversationId,
+      summary,
+      summarizedUpTo,
+      tokenCount
+    );
+  }
+
+  deleteSummary(conversationId: string): Promise<void> {
+    return deleteConversationSummaryOp(createSummaryContext(this.ctx.database), conversationId);
+  }
+
+  deleteMessage(uniqueId: string): Promise<string | null> {
+    return deleteMessageOp(this.ctx, uniqueId);
+  }
+
+  getMemoryLinks(conversationId: string): Promise<StoredConversationMemory[]> {
+    return getConversationMemoriesOp(this.memoryCtx(), conversationId);
+  }
+
+  addMemoryLinks(conversationId: string, items: ConversationMemoryInput[]): Promise<void> {
+    return recordConversationMemoriesOp(this.memoryCtx(), conversationId, items);
+  }
+
+  clearMemoryLinks(conversationId: string): Promise<void> {
+    return clearConversationMemoriesOp(this.memoryCtx(), conversationId);
+  }
+
+  private memoryCtx(): ConversationMemoryOperationsContext {
+    return {
+      database: this.ctx.database,
+      conversationMemoryCollection: this.ctx.database.get<ConversationMemory>(
+        ConversationMemory.table
+      ),
+    };
   }
 
   /**
@@ -240,4 +335,8 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
   write<T>(fn: (adapter: ChatStorageAdapter) => Promise<T>): Promise<T> {
     return this.ctx.database.write(() => fn(this));
   }
+}
+
+export function localChatBackend(database: Database): ChatBackendFactory {
+  return (signer) => new WatermelonChatStorageAdapter({ database, ...signer });
 }

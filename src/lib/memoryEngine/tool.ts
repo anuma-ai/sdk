@@ -1,6 +1,7 @@
 import type { ToolConfig } from "../chat/useChat/types";
 import type { StorageOperationsContext } from "../db/chat/operations";
 import { getMessagesOp, searchChunksOp } from "../db/chat/operations";
+import type { ChatBackend } from "../storage/ChatBackend";
 import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
 import { generateEmbedding } from "./embeddings";
 import type { EmbeddingOptions, MemoryEngineSearchOptions } from "./types";
@@ -54,7 +55,7 @@ function formatSessionResults(
  * The tool allows the LLM to search through past conversation messages
  * using semantic similarity. Messages must have embeddings stored to be searchable.
  *
- * @param storageCtx - Storage operations context for database access
+ * @param storage - Chat storage: a WatermelonDB operations context or a chat backend
  * @param embeddingOptions - Options for embedding generation
  * @param searchOptions - Default search options (can be overridden per-call)
  * @returns A ToolConfig that can be passed to chat completion tools
@@ -75,7 +76,7 @@ function formatSessionResults(
  * ```
  */
 export function createMemoryEngineTool(
-  storageCtx: StorageOperationsContext,
+  storage: StorageOperationsContext | Pick<ChatBackend, "searchChunks" | "getMessages">,
   embeddingOptions: EmbeddingOptions,
   searchOptions?: Partial<MemoryEngineSearchOptions>,
   callbacks?: {
@@ -84,6 +85,13 @@ export function createMemoryEngineTool(
   }
 ): ToolConfig {
   const defaultOpts = { ...DEFAULT_SEARCH_OPTIONS, ...searchOptions };
+  const chats: Pick<ChatBackend, "searchChunks" | "getMessages"> =
+    "searchChunks" in storage
+      ? storage
+      : {
+          searchChunks: (vector, options) => searchChunksOp(storage, vector, options),
+          getMessages: (conversationId) => getMessagesOp(storage, conversationId),
+        };
 
   return {
     type: "function",
@@ -144,7 +152,7 @@ export function createMemoryEngineTool(
           3 * (includeAssistant ? 1 : 2) * (defaultOpts.excludeConversationId ? 1.5 : 1);
         const fetchLimit = Math.ceil(topK * fetchMultiplier);
 
-        const results = await searchChunksOp(storageCtx, queryEmbedding, {
+        const results = await chats.searchChunks(queryEmbedding, {
           limit: fetchLimit,
           minSimilarity: defaultOpts.minSimilarity,
           conversationId: defaultOpts.conversationId,
@@ -205,7 +213,7 @@ export function createMemoryEngineTool(
 
         const convEntries = Array.from(convMeta.entries());
         const allConvMessages = await Promise.all(
-          convEntries.map(([convId]) => getMessagesOp(storageCtx, convId))
+          convEntries.map(([convId]) => chats.getMessages(convId))
         );
 
         const sessionResults: Array<{

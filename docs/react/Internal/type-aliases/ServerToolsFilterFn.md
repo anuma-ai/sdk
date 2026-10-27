@@ -2,7 +2,7 @@
 
 > **ServerToolsFilterFn** = (`embeddings`: `number`\[] | `number`\[]\[], `tools`: [`ServerTool`](../interfaces/ServerTool.md)\[]) => `string`\[]
 
-Defined in: [src/lib/db/chat/types.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#37)
+Defined in: [src/lib/db/chat/types.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#38)
 
 Function type for dynamic server tools filtering based on prompt embeddings.
 Receives the prompt embedding(s) and all available tools, returns tool names to include.
