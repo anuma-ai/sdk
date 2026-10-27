@@ -8,6 +8,7 @@ import {
   getConversationSummaryOp,
   upsertConversationSummaryOp,
 } from "../db/chat/summaryOperations";
+import { assertConversationRevision, getConversationRevision } from "../db/chat/summaryRevision";
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
 import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 import { getLogger } from "../logger";
@@ -435,16 +436,20 @@ interface MaybeSummarizeHistoryResult {
   summarySystemMessage: LlmapiMessage | null;
 }
 
-/**
- * Shared summarization logic for both React and Expo useChatStorage hooks.
- *
- * Checks if history needs summarization, calls the LLM if so, persists the result,
- * and returns the window messages + optional summary system message.
- *
- * Falls back to sending all messages verbatim on any error.
- */
+/** Returns the history window and summary, or rejects if the conversation changes. */
 export async function maybeSummarizeHistory(
   options: MaybeSummarizeHistoryOptions
+): Promise<MaybeSummarizeHistoryResult> {
+  const { database, conversationId } = options;
+  const revision = getConversationRevision(database, conversationId);
+  const result = await summarizeHistoryAtRevision(options, revision);
+  assertConversationRevision(database, conversationId, revision);
+  return result;
+}
+
+async function summarizeHistoryAtRevision(
+  options: MaybeSummarizeHistoryOptions,
+  revision: number
 ): Promise<MaybeSummarizeHistoryResult> {
   const { conversationId, messages, summarizeHistory, summaryMinWindowMessages, token } = options;
 
@@ -492,7 +497,7 @@ export async function maybeSummarizeHistory(
     }
   }
 
-  const promise = doSummarizeHistory(options);
+  const promise = doSummarizeHistory(options, revision);
   summarizationLocks.set(conversationId, promise);
 
   try {
@@ -510,9 +515,11 @@ Summary to condense:
 Condensed summary:`;
 
 async function doSummarizeHistory(
-  options: MaybeSummarizeHistoryOptions
+  options: MaybeSummarizeHistoryOptions,
+  revision: number
 ): Promise<MaybeSummarizeHistoryResult> {
   const {
+    database,
     conversationId,
     messages,
     summaryTokenThreshold,
@@ -526,7 +533,15 @@ async function doSummarizeHistory(
 
   try {
     const summaries = summaryStore(options);
+    const persistSummary = (summary: string, summarizedUpTo: string, tokenCount: number) =>
+      database.write(async (writer) => {
+        assertConversationRevision(database, conversationId, revision);
+        await writer.callWriter(() =>
+          summaries.upsertSummary(conversationId, summary, summarizedUpTo, tokenCount)
+        );
+      });
     let cachedSummary = await summaries.getSummary(conversationId);
+    assertConversationRevision(database, conversationId, revision);
 
     const lastCompacted = lastCompactionTime.get(conversationId) ?? 0;
     const compactionCooledDown = Date.now() - lastCompacted > COMPACTION_COOLDOWN_MS;
@@ -547,12 +562,7 @@ async function doSummarizeHistory(
         );
         const compactedSummary = redactor ? redactor.deAnonymize(rawCompacted) : rawCompacted;
         const compactedTokens = estimateTokens(compactedSummary);
-        await summaries.upsertSummary(
-          conversationId,
-          compactedSummary,
-          cachedSummary.summarizedUpTo,
-          compactedTokens
-        );
+        await persistSummary(compactedSummary, cachedSummary.summarizedUpTo, compactedTokens);
         cachedSummary = {
           ...cachedSummary,
           summary: compactedSummary,
@@ -560,6 +570,7 @@ async function doSummarizeHistory(
         };
         lastCompactionTime.set(conversationId, Date.now());
       } catch {
+        assertConversationRevision(database, conversationId, revision);
         lastCompactionTime.set(conversationId, Date.now());
         getLogger().warn(
           "[summarize] Summary compaction failed, proceeding with oversized summary"
@@ -596,10 +607,10 @@ async function doSummarizeHistory(
       redactor,
       onPiiRedacted,
     });
+    assertConversationRevision(database, conversationId, revision);
 
     if (summarizeResult.didSummarize && summarizeResult.summary && summarizeResult.summarizedUpTo) {
-      await summaries.upsertSummary(
-        conversationId,
+      await persistSummary(
         summarizeResult.summary,
         summarizeResult.summarizedUpTo,
         summarizeResult.summaryTokenCount
@@ -626,6 +637,7 @@ async function doSummarizeHistory(
         : null,
     };
   } catch (err) {
+    assertConversationRevision(database, conversationId, revision);
     getLogger().warn("[summarize] Summarization failed, falling back to verbatim:", err);
     return { messagesToConvert: messages, summarySystemMessage: null };
   }

@@ -40,6 +40,7 @@ const checkedTestFiles = [
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
   "src/lib/db/chat/operations.chunkText.test.ts",
   "src/lib/db/chat/operations.embeddingEncryption.test.ts",
+  "src/lib/db/chat/operations.summary.test.ts",
   "src/lib/db/chat/operations.eventIdIndex.test.ts",
   "src/lib/db/memoryVault/operations.profileMetadata.test.ts",
   "src/lib/db/memoryVault/operations.sweeps.test.ts",
