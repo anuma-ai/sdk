@@ -618,10 +618,7 @@ async function computeStaleFacetKeys(
     if (!previous.sections.some((s) => s.key === facet.key)) stale.add(facet.key);
   }
 
-  const citedIds = new Set(previous.sections.flatMap((s) => s.sourceMemoryIds));
-  let toAttribute = changed.filter(
-    (m) => !m.isDeleted && !m.supersededBy && !citedIds.has(m.uniqueId)
-  );
+  let toAttribute = changed.filter((m) => !m.isDeleted && !m.supersededBy);
   if (reviewedMemoryIds !== undefined) {
     const allowed = new Set(reviewedMemoryIds);
     toAttribute = toAttribute.filter((m) => allowed.has(m.uniqueId));

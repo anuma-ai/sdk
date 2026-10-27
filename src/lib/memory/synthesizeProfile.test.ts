@@ -245,9 +245,9 @@ describe("synthesizeProfile", () => {
     }
   );
 
-  it("loads embeddings only for uncited changed facts that pass the review gate", async () => {
+  it("loads embeddings only for live changed facts that pass the review gate", async () => {
     setMemories([
-      mem("a", { updatedAt: new Date(4000) }),
+      mem("a", { updatedAt: new Date(4000), embedding: "[1,0]" }),
       mem("b"),
       mem("c", { updatedAt: new Date(6000), embedding: "[1,0]" }),
       mem("unreviewed", { updatedAt: new Date(9000) }),
@@ -273,7 +273,7 @@ describe("synthesizeProfile", () => {
       reviewedMemoryIds,
     });
 
-    expect(mockGetEmbeddings).toHaveBeenCalledExactlyOnceWith(ctx.vaultCtx, ["c"]);
+    expect(mockGetEmbeddings).toHaveBeenCalledExactlyOnceWith(ctx.vaultCtx, ["a", "c"]);
     expect(mockGetAll).not.toHaveBeenCalled();
     expect(mockReflect).toHaveBeenCalledTimes(1);
     expect(doc.sections.map((s) => s.text)).toEqual(["new bio", "old interests"]);
@@ -585,10 +585,14 @@ describe("synthesizeProfile", () => {
     expect(mockReflect).not.toHaveBeenCalled();
   });
 
-  it("delta-refreshes only facets whose cited facts changed (no new facts)", async () => {
+  it("refreshes only the cited section when the edited fact matches no other section", async () => {
     setMemories([
-      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500) }),
+      mem("a", { updatedAt: new Date(5000), createdAt: new Date(500), embedding: "[1,0]" }),
       mem("b", { updatedAt: new Date(1000) }),
+    ]);
+    mockEmbed.mockResolvedValue([
+      [1, 0],
+      [0, 1],
     ]);
     mockReflect.mockResolvedValueOnce(reflectResult("fresh bio", ["a"]));
 
@@ -605,10 +609,77 @@ describe("synthesizeProfile", () => {
     expect(doc.vaultWatermark).toBe(5000);
   });
 
+  it.each(["vault", "store"] as const)(
+    "refreshes previous and newly relevant sections for an edited cited fact through the %s",
+    async (source) => {
+      const facets = [...FACETS, WORK_ROLE];
+      const memories = [
+        mem("a", {
+          content: "I work as a professional photographer.",
+          updatedAt: new Date(5000),
+          embedding: "[0,0,1]",
+        }),
+        mem("b"),
+        mem("c"),
+      ];
+      setMemories(memories);
+      mockEmbed.mockResolvedValue([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ]);
+      mockReflect.mockResolvedValueOnce(reflectResult("", [], false)).mockResolvedValueOnce(
+        reflectResult("Professional photographer.", ["a"], true, {
+          occupation: "Professional photographer",
+        })
+      );
+      const reviewedMemoryIds = ["a", "b", "c"];
+      const previous = priorDoc(
+        [
+          section("bio", "old bio", ["b"]),
+          section("interests", "Hobby photography", ["a"]),
+          section("work_role", "Teacher", ["c"]),
+        ],
+        2000,
+        fingerprint(facets, false, reviewedMemoryIds)
+      );
+      const store =
+        source === "store"
+          ? {
+              list: vi.fn().mockResolvedValue(memories),
+              listProjections: vi.fn().mockResolvedValue(memories),
+              factSource: {} as RecallFactSource,
+            }
+          : undefined;
+
+      const doc = await synthesizeProfile(ctx, {
+        apiKey: "k",
+        facets,
+        previous,
+        reviewedMemoryIds,
+        store,
+      });
+
+      expect(doc.sections[2]).toMatchObject({
+        text: "Professional photographer.",
+        occupation: "Professional photographer",
+        sourceMemoryIds: ["a"],
+      });
+      expect(doc.sections[1]).toMatchObject({ text: "", sourceMemoryIds: [] });
+      expect(doc.sections[0]).toBe(previous.sections[0]);
+      expect(doc.vaultWatermark).toBe(5000);
+      expect(mockReflect).toHaveBeenCalledTimes(2);
+    }
+  );
+
   it("delta-refreshes a facet when its fact was re-observed (last_observed_at)", async () => {
     setMemories([
-      mem("a", { updatedAt: new Date(1000), lastObservedAt: 5000 }),
+      mem("a", { updatedAt: new Date(1000), lastObservedAt: 5000, embedding: "[1,0]" }),
       mem("b", { updatedAt: new Date(1000) }),
+    ]);
+    mockEmbed.mockResolvedValue([
+      [1, 0],
+      [0, 1],
     ]);
     mockReflect.mockResolvedValueOnce(reflectResult("reinforced bio", ["a"]));
 
