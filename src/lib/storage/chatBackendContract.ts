@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MAX_PER_CONVERSATION } from "../db/conversationMemory/operations";
 import type { ChatBackend } from "./ChatBackend";
 
-function unit(hot: number, dims = 8): number[] {
+function unit(hot: number, dims = 1536): number[] {
   const v = new Array<number>(dims).fill(0);
   v[hot] = 1;
   return v;
@@ -197,8 +197,47 @@ export function runChatBackendContract(
       ).toEqual([]);
     });
 
+    it("filters by conversation and embedding model before taking the top matches", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_open", title: "Open" });
+      await b.createConversation({ conversationId: "conv_past", title: "Past" });
+      for (const id of ["msg_o1", "msg_o2", "msg_o3", "msg_o4"]) {
+        await b.createMessage({
+          conversationId: "conv_open",
+          role: "user",
+          content: id,
+          uniqueId: id,
+        });
+        await b.updateMessageEmbedding(id, unit(1), "model-b");
+      }
+      for (const [id, model, weight] of [
+        ["msg_a", "model-a", 0.8],
+        ["msg_b", "model-b", 1],
+      ] as const) {
+        await b.createMessage({
+          conversationId: "conv_past",
+          role: "user",
+          content: id,
+          uniqueId: id,
+        });
+        const vector = unit(1);
+        vector[2] = weight;
+        await b.updateMessageEmbedding(id, vector, model);
+      }
+      const top = async (options: Parameters<ChatBackend["searchChunks"]>[1]) =>
+        (await b.searchChunks(unit(1), { minSimilarity: 0.5, limit: 1, ...options })).map(
+          (h) => h.message.uniqueId
+        );
+
+      expect(await top({ excludeConversationId: "conv_open" })).toEqual(["msg_a"]);
+      expect(await top({ excludeConversationId: "conv_open", embeddingModel: "model-b" })).toEqual([
+        "msg_b",
+      ]);
+    });
+
     it("stores, replaces and deletes a conversation summary", async () => {
       const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_sum", title: "Summarized" });
       expect(await b.getSummary("conv_sum")).toBeNull();
       await b.upsertSummary("conv_sum", "first", "msg_1", 10);
       await b.upsertSummary("conv_sum", "second", "msg_3", 20);
@@ -210,6 +249,45 @@ export function runChatBackendContract(
       });
       await b.deleteSummary("conv_sum");
       expect(await b.getSummary("conv_sum")).toBeNull();
+    });
+
+    it("clears a summary when a message it covers is deleted or edited, or the thread is cleared", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_sv", title: "SV" });
+      for (const id of ["msg_s0", "msg_s1", "msg_s2"])
+        await b.createMessage({
+          conversationId: "conv_sv",
+          role: "user",
+          content: id,
+          uniqueId: id,
+        });
+      const summary = async () => (await b.getSummary("conv_sv"))?.summary ?? null;
+
+      await b.upsertSummary("conv_sv", "up to s1", "msg_s1", 5);
+      await b.deleteMessage("msg_s2");
+      await b.upsertMessage({
+        conversationId: "conv_sv",
+        role: "user",
+        content: "msg_s0",
+        uniqueId: "msg_s0",
+      });
+      expect(await summary()).toBe("up to s1");
+
+      await b.upsertMessage({
+        conversationId: "conv_sv",
+        role: "user",
+        content: "edited",
+        uniqueId: "msg_s0",
+      });
+      expect(await summary()).toBeNull();
+
+      await b.upsertSummary("conv_sv", "again", "msg_s1", 5);
+      await b.deleteMessage("msg_s1");
+      expect(await summary()).toBeNull();
+
+      await b.upsertSummary("conv_sv", "third", "msg_s0", 5);
+      await b.clearMessages("conv_sv");
+      expect(await summary()).toBeNull();
     });
 
     it("deletes one message and leaves the rest", async () => {

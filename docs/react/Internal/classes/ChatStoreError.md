@@ -1,6 +1,6 @@
 # ChatStoreError
 
-Defined in: [src/lib/chatStore/types.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#157)
+Defined in: [src/lib/chatStore/types.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#162)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/chatStore/types.ts:157](https://github.com/anuma-ai/sdk/blo
 
 > **new ChatStoreError**(`message`: `string`, `status`: `number`, `code?`: `string`, `retryAfterMs?`: `number`): `ChatStoreError`
 
-Defined in: [src/lib/chatStore/types.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#158)
+Defined in: [src/lib/chatStore/types.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#163)
 
 **Parameters**
 
@@ -89,7 +89,7 @@ Defined in: [src/lib/chatStore/types.ts:158](https://github.com/anuma-ai/sdk/blo
 
 > `readonly` `optional` **code**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#161)
+Defined in: [src/lib/chatStore/types.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#166)
 
 ***
 
@@ -121,7 +121,7 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 
 > `readonly` `optional` **retryAfterMs**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#162)
+Defined in: [src/lib/chatStore/types.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#167)
 
 ***
 
@@ -141,7 +141,7 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 
 > `readonly` **status**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#160)
+Defined in: [src/lib/chatStore/types.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#165)
 
 ***
 

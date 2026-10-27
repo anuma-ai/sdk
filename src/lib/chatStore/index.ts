@@ -1,3 +1,10 @@
+export {
+  type ChatMigrationOptions,
+  type ChatMigrationProgress,
+  type ChatMigrationResult,
+  type ChatMigrationSkip,
+  migrateChatsToRemote,
+} from "./migrateChats.js";
 export { createRemoteChatStore } from "./remote.js";
 export {
   type ChatAccount,
@@ -22,3 +29,12 @@ export {
   type ChatWrite,
   type RemoteChatStoreOptions,
 } from "./types.js";
+export {
+  createVaultChatBackend,
+  type VaultChatActivity,
+  type VaultChatBackend,
+  vaultChatBackend,
+  type VaultChatBackendOptions,
+  type VaultChatEvent,
+} from "./vaultBackend.js";
+export type { ChatOutboxLocks, ChatOutboxStorage } from "./vaultOutbox.js";
