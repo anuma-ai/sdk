@@ -1124,28 +1124,47 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     poll,
     async importChats(chats) {
       await ready();
+      const seen = new Set<string>();
+      const unique = <T extends { record: ChatRecord }>(items: T[]) =>
+        items.filter(({ record }) => {
+          const k = key(record.kind, record.id);
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
       const valid = chats.filter((c) => validChatId(c.conversation.conversationId));
-      const conversations = valid.map((c) => conversationRecord(c.conversation, c.messages));
-      const messages = valid.flatMap((c) =>
-        c.messages
-          .filter(
-            (m) =>
-              m.conversationId === c.conversation.conversationId &&
-              validChatId(m.uniqueId) &&
-              Number.isSafeInteger(m.messageId)
-          )
-          .map(messageRecord)
+      const conversations = unique(
+        valid.map((c) => conversationRecord(c.conversation, c.messages))
+      );
+      const messages = unique(
+        valid.flatMap((c) =>
+          c.messages
+            .filter(
+              (m) =>
+                m.conversationId === c.conversation.conversationId &&
+                validChatId(m.uniqueId) &&
+                Number.isSafeInteger(m.messageId)
+            )
+            .map((m) => messageRecord({ ...m, vector: undefined, chunks: undefined }))
+        )
       );
       let conversationCount = 0;
-      for (const batch of batches(conversations))
-        conversationCount += await store.importRecords(batch);
       let messageCount = 0;
-      for (const batch of batches(messages)) messageCount += await store.importRecords(batch);
-      await refresh(conversations.map(({ record }) => key("conversation", record.id)));
-      for (const { conversation } of valid) threads.delete(conversation.conversationId);
-      emit({ type: "conversations", origin: "local" });
-      for (const { conversation } of valid)
-        emit({ type: "messages", conversationId: conversation.conversationId, origin: "local" });
+      try {
+        for (const batch of batches(conversations))
+          conversationCount += await store.importRecords(batch);
+        for (const batch of batches(messages)) messageCount += await store.importRecords(batch);
+      } finally {
+        for (const { record } of messages) checked.delete(key("message", record.id));
+        await refresh(conversations.map(({ record }) => key("conversation", record.id))).catch(
+          () => undefined
+        );
+        for (const { record } of conversations) threads.delete(record.id);
+        channel?.postMessage("changed");
+        emit({ type: "conversations", origin: "local" });
+        for (const { record } of conversations)
+          emit({ type: "messages", conversationId: record.id, origin: "local" });
+      }
       return { conversations: conversationCount, messages: messageCount };
     },
     status: () => ({ pending: pending.size + inflight.size, ...(stopped ? { stopped } : {}) }),

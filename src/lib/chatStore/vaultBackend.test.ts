@@ -882,6 +882,58 @@ describe("vault chat backend", () => {
     ]);
   });
 
+  it("imports overlapping chats once, without vectors, and shows them everywhere even after a failed batch", async () => {
+    const fake = await createChatStoreHarness();
+    const channel = `chat-import-${Math.random()}`;
+    const { b } = backend(fake, { channel });
+    const { b: otherTab, events } = backend(fake, { channel });
+    await otherTab.getConversations();
+    expect(await b.getMessagesByIds(["msg_o1"])).toEqual([]);
+
+    const chat = (title: string) => ({
+      conversation: {
+        conversationId: "conv_o",
+        title,
+        createdAt: new Date(1_000),
+        updatedAt: new Date(1_000),
+        isDeleted: false,
+      } as StoredConversation,
+      messages: [
+        {
+          uniqueId: "msg_o1",
+          messageId: 1,
+          conversationId: "conv_o",
+          role: "user",
+          content: "overlap",
+          vector: unit(1),
+          embeddingModel: "m",
+          createdAt: new Date(2_000),
+          updatedAt: new Date(2_000),
+        } as StoredMessage,
+      ],
+    });
+    expect(await b.importChats([chat("First"), chat("Second")])).toEqual({
+      conversations: 1,
+      messages: 1,
+    });
+    expect((await b.getMessagesByIds(["msg_o1"])).map((m) => m.content)).toEqual(["overlap"]);
+    expect(await b.searchChunks(unit(1), { minSimilarity: 0.5 })).toEqual([]);
+    await vi.waitFor(
+      () => expect(events).toContainEqual({ type: "conversations", origin: "remote" }),
+      {
+        timeout: 2_000,
+      }
+    );
+
+    fake.fail({ op: "importRecords", error: new TypeError("connection reset"), after: true });
+    const late = {
+      conversation: { ...chat("Late").conversation, conversationId: "conv_late" },
+      messages: [],
+    };
+    await expect(b.importChats([late])).rejects.toThrow("connection reset");
+    expect((await b.getConversations()).map((c) => c.conversationId)).toContain("conv_late");
+  });
+
   it("tells the account's other tabs to poll after a write", async () => {
     const fake = await createChatStoreHarness();
     const channel = `chat-test-${Math.random()}`;

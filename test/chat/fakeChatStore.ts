@@ -32,6 +32,10 @@ type Operation =
   | "deleteAll";
 
 /** Fails an operation before it runs, or after it applies when `after` is set, like a dropped response. */
+function repeats(items: readonly { record: Pick<ChatRecord, "kind" | "id"> }[]): boolean {
+  return new Set(items.map(({ record }) => `${record.kind}/${record.id}`)).size !== items.length;
+}
+
 export interface FakeChatStoreFault {
   op: Operation;
   error: ChatStoreError | Error;
@@ -252,7 +256,8 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
       run(
         "putMany",
         () => {
-          if (writes.length < 1 || writes.length > 25) throw conflict("validation_failed", 400);
+          if (writes.length < 1 || writes.length > 25 || repeats(writes))
+            throw conflict("validation_failed", 400);
           accountRow = true;
           return transaction(() => writes.map(apply));
         },
@@ -279,6 +284,7 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
     importRecords: (records: readonly ChatImport[]) =>
       run("importRecords", () =>
         transaction(() => {
+          if (repeats(records)) throw conflict("validation_failed", 400);
           if (!accountRow) {
             accountRow = true;
             account.state = "migrating";
