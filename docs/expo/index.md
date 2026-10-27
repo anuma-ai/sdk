@@ -190,9 +190,33 @@ Re-exports [ChatAttachments](../react/Internal/interfaces/ChatAttachments.md)
 
 ***
 
+### ChatBackend
+
+Re-exports [ChatBackend](../react/Internal/interfaces/ChatBackend.md)
+
+***
+
+### ChatBackendFactory
+
+Re-exports [ChatBackendFactory](../react/Internal/type-aliases/ChatBackendFactory.md)
+
+***
+
+### ChatBackendSigner
+
+Re-exports [ChatBackendSigner](../react/Internal/interfaces/ChatBackendSigner.md)
+
+***
+
 ### ChatChanges
 
 Re-exports [ChatChanges](../react/Internal/interfaces/ChatChanges.md)
+
+***
+
+### ChatChunkSearchOptions
+
+Re-exports [ChatChunkSearchOptions](../react/Internal/interfaces/ChatChunkSearchOptions.md)
 
 ***
 
@@ -1351,6 +1375,12 @@ Re-exports [LlmDecayClassifierOptions](../react/Internal/interfaces/LlmDecayClas
 ### LlmNeighborRefinerOptions
 
 Re-exports [LlmNeighborRefinerOptions](../react/Internal/interfaces/LlmNeighborRefinerOptions.md)
+
+***
+
+### localChatBackend
+
+Re-exports [localChatBackend](../react/Internal/functions/localChatBackend.md)
 
 ***
 

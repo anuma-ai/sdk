@@ -5,6 +5,7 @@ import type { EmbeddingOptions } from "../memoryEngine/types.js";
 import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 import type { VaultPreparation } from "../memoryVault/vaultPreparation.js";
 import type { PiiRedactor } from "../pii/redactor.js";
+import type { ChatBackend } from "../storage/ChatBackend.js";
 import type { FactType } from "./autoExtract.js";
 import type { ObservationTrend } from "./observationTrend.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
@@ -255,8 +256,10 @@ export interface RecallContext {
   factSource?: RecallFactSource;
   /** Required when `types` includes 'fact'. */
   vaultCtx?: VaultMemoryOperationsContext;
-  /** Required when `types` includes 'chunk'. */
+  /** Required when `types` includes 'chunk', unless `chats` is given. */
   storageCtx?: StorageOperationsContext;
+  /** Chat chunk search; takes precedence over `storageCtx`. */
+  chats?: Pick<ChatBackend, "searchChunks">;
   /** Embedding API options. */
   embeddingOptions: EmbeddingOptions;
   /** Vault embedding LRU cache. */

@@ -12,6 +12,7 @@ import type { StoredConversationSummary, StoredMessage } from "../db/chat/types"
 import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 import { getLogger } from "../logger";
 import type { PiiMatch, PiiRedactor } from "../pii/redactor";
+import type { ChatBackend } from "../storage/ChatBackend";
 import { taskTypeHeader } from "../taskType.js";
 
 /** Default token threshold before summarization triggers */
@@ -405,6 +406,7 @@ const MAX_SUMMARY_TOKEN_RATIO = 0.8;
 /** Options for `maybeSummarizeHistory` */
 interface MaybeSummarizeHistoryOptions {
   database: Database;
+  summaries?: Pick<ChatBackend, "getSummary" | "upsertSummary">;
   conversationId: string;
   messages: StoredMessage[];
   summarizeHistory: boolean;
@@ -444,8 +446,7 @@ interface MaybeSummarizeHistoryResult {
 export async function maybeSummarizeHistory(
   options: MaybeSummarizeHistoryOptions
 ): Promise<MaybeSummarizeHistoryResult> {
-  const { database, conversationId, messages, summarizeHistory, summaryMinWindowMessages, token } =
-    options;
+  const { conversationId, messages, summarizeHistory, summaryMinWindowMessages, token } = options;
 
   if (!summarizeHistory) {
     return { messagesToConvert: messages, summarySystemMessage: null };
@@ -458,8 +459,7 @@ export async function maybeSummarizeHistory(
 
   if (messages.length <= summaryMinWindowMessages) {
     try {
-      const summaryCtx = createSummaryContext(database);
-      const cachedSummary = await getConversationSummaryOp(summaryCtx, conversationId);
+      const cachedSummary = await summaryStore(options).getSummary(conversationId);
       return {
         messagesToConvert: messages,
         summarySystemMessage: cachedSummary?.summary
@@ -513,7 +513,6 @@ async function doSummarizeHistory(
   options: MaybeSummarizeHistoryOptions
 ): Promise<MaybeSummarizeHistoryResult> {
   const {
-    database,
     conversationId,
     messages,
     summaryTokenThreshold,
@@ -526,8 +525,8 @@ async function doSummarizeHistory(
   } = options;
 
   try {
-    const summaryCtx = createSummaryContext(database);
-    let cachedSummary = await getConversationSummaryOp(summaryCtx, conversationId);
+    const summaries = summaryStore(options);
+    let cachedSummary = await summaries.getSummary(conversationId);
 
     const lastCompacted = lastCompactionTime.get(conversationId) ?? 0;
     const compactionCooledDown = Date.now() - lastCompacted > COMPACTION_COOLDOWN_MS;
@@ -548,8 +547,7 @@ async function doSummarizeHistory(
         );
         const compactedSummary = redactor ? redactor.deAnonymize(rawCompacted) : rawCompacted;
         const compactedTokens = estimateTokens(compactedSummary);
-        await upsertConversationSummaryOp(
-          summaryCtx,
+        await summaries.upsertSummary(
           conversationId,
           compactedSummary,
           cachedSummary.summarizedUpTo,
@@ -600,8 +598,7 @@ async function doSummarizeHistory(
     });
 
     if (summarizeResult.didSummarize && summarizeResult.summary && summarizeResult.summarizedUpTo) {
-      await upsertConversationSummaryOp(
-        summaryCtx,
+      await summaries.upsertSummary(
         conversationId,
         summarizeResult.summary,
         summarizeResult.summarizedUpTo,
@@ -639,14 +636,26 @@ async function doSummarizeHistory(
  * rather than throwing, since this is a cascade cleanup operation.
  */
 export async function cleanupConversationSummary(
-  database: Database,
+  storage: Database | Pick<ChatBackend, "deleteSummary">,
   conversationId: string
 ): Promise<void> {
   try {
-    const summaryCtx = createSummaryContext(database);
-    await deleteConversationSummaryOp(summaryCtx, conversationId);
+    if ("deleteSummary" in storage) await storage.deleteSummary(conversationId);
+    else await deleteConversationSummaryOp(createSummaryContext(storage), conversationId);
     lastCompactionTime.delete(conversationId);
   } catch (err) {
     getLogger().warn("[summarize] Failed to delete conversation summary cache:", err);
   }
+}
+
+function summaryStore(
+  options: Pick<MaybeSummarizeHistoryOptions, "database" | "summaries">
+): Pick<ChatBackend, "getSummary" | "upsertSummary"> {
+  if (options.summaries) return options.summaries;
+  const ctx = createSummaryContext(options.database);
+  return {
+    getSummary: (conversationId) => getConversationSummaryOp(ctx, conversationId),
+    upsertSummary: (conversationId, summary, summarizedUpTo, tokenCount) =>
+      upsertConversationSummaryOp(ctx, conversationId, summary, summarizedUpTo, tokenCount),
+  };
 }

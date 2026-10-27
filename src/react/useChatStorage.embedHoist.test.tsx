@@ -40,8 +40,8 @@ vi.mock("../lib/tools", async (importOriginal) => {
   };
 });
 
-vi.mock("../lib/db/chat", async (importOriginal) => {
-  const orig = await importOriginal<typeof import("../lib/db/chat")>();
+vi.mock("../lib/db/chat/operations", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("../lib/db/chat/operations")>();
   return { ...orig, createMessageOp: vi.fn() };
 });
 
@@ -130,7 +130,9 @@ describe("useChatStorage hoisted tool-selection work (react)", () => {
     catalogImpl = async () => [];
     unhandled = [];
     process.on("unhandledRejection", onUnhandled);
-    const actual = await vi.importActual<typeof import("../lib/db/chat")>("../lib/db/chat");
+    const actual = await vi.importActual<typeof import("../lib/db/chat/operations")>(
+      "../lib/db/chat/operations"
+    );
     realCreateMessageOp = actual.createMessageOp;
     mockCreateMessageOp.mockImplementation(realCreateMessageOp);
     mockRunToolLoop.mockResolvedValue({

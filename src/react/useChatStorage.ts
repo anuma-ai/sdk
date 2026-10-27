@@ -36,26 +36,14 @@ import {
   type BaseSendMessageWithStorageArgs,
   type BaseUseChatStorageOptions,
   type BaseUseChatStorageResult,
-  clearMessagesOp,
   Conversation,
   convertUsageToStored,
-  createConversationOp,
   type CreateConversationOptions,
-  createMessageOp,
   type CreateMessageOptions,
-  deleteConversationOp,
   extractUserMessageFromMessages,
   finalizeThoughtProcess,
   generateConversationId,
-  getAllFilesOp,
-  getConversationOp,
-  getConversationsOp,
-  getMessageCountOp,
-  getMessageSkeletonsOp,
-  getMessagesOp,
-  getMessagesPageOp,
   type GetMessagesPageOptions,
-  getToolCallEventIdsOp,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
   Message,
@@ -68,11 +56,6 @@ import {
   type StoredConversation,
   type StoredFileWithContext,
   type StoredMessage,
-  updateConversationPinnedOp,
-  updateConversationTitleOp,
-  updateMessageChunksOp,
-  updateMessageEmbeddingOp,
-  updateMessageErrorOp,
 } from "../lib/db/chat";
 import { maskScopedEmbeddingCache } from "../lib/db/chat/embeddingCache";
 import { hasEncryptedToolPayload } from "../lib/db/encryption-utils";
@@ -152,12 +135,14 @@ import { formatFileProcessingNotes, preprocessFiles } from "../lib/processors";
 import { DEFAULT_MAX_FILE_SIZE_BYTES } from "../lib/processors/fileStatusNotes";
 import {
   BlobUrlManager,
+  type ChatBackend,
   createFilePlaceholder,
   deleteEncryptedFile,
   extractFileIds,
   extractMCPImageUrls,
   isOPFSSupported,
   isR2UrlExpired,
+  localChatBackend,
   readEncryptedFile,
 } from "../lib/storage";
 import { toolOutputForModel } from "../lib/storage/mcpImages";
@@ -1089,6 +1074,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     embeddedWalletSigner,
     getWalletAddress,
     memoryStore,
+    chatBackend,
     enableQueue = true,
     autoFlushOnKeyAvailable = true,
     extraToolSets,
@@ -1191,6 +1177,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const storageCtxRef = useRef(storageCtx);
   storageCtxRef.current = storageCtx;
 
+  const backendFactory = useMemo(
+    () => chatBackend ?? localChatBackend(database),
+    [chatBackend, database]
+  );
+  const backend = useMemo(
+    () => backendFactory({ walletAddress, signMessage, embeddedWalletSigner }),
+    [backendFactory, walletAddress, signMessage, embeddedWalletSigner]
+  );
+  const backendRef = useRef(backend);
+  backendRef.current = backend;
+
   const mediaCtx = useMemo(
     () => ({
       database,
@@ -1256,15 +1253,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const executeQueuedOperation = useCallback(
     async (operation: QueuedOperation, encCtx: QueueEncryptionContext) => {
-      const ctx = {
-        ...storageCtx,
+      const queued = backendFactory({
         walletAddress: encCtx.walletAddress,
         signMessage: encCtx.signMessage,
         embeddedWalletSigner: encCtx.embeddedWalletSigner,
-      };
+      });
 
       const mCtx = {
-        database: ctx.database,
+        database,
         walletAddress: encCtx.walletAddress,
         signMessage: encCtx.signMessage,
         embeddedWalletSigner: encCtx.embeddedWalletSigner,
@@ -1272,27 +1268,26 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       switch (operation.type) {
         case "createConversation":
-          await createConversationOp(
-            ctx,
-            operation.payload as Parameters<typeof createConversationOp>[1]
+          await queued.createConversation(
+            operation.payload as Parameters<typeof queued.createConversation>[0]
           );
           break;
         case "updateConversationTitle":
-          await updateConversationTitleOp(
-            ctx,
+          await queued.updateConversationTitle(
             operation.payload.conversationId as string,
             operation.payload.title as string
           );
           break;
         case "updateConversationPinned":
-          await updateConversationPinnedOp(
-            ctx,
+          await queued.updateConversationPinned(
             operation.payload.conversationId as string,
             operation.payload.pinned as boolean
           );
           break;
         case "createMessage":
-          await createMessageOp(ctx, operation.payload as Parameters<typeof createMessageOp>[1]);
+          await queued.createMessage(
+            operation.payload as Parameters<typeof queued.createMessage>[0]
+          );
           break;
         case "createMediaBatch":
           await createMediaBatchOp(
@@ -1304,7 +1299,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           getLogger().warn(`[QueueManager] Unknown operation type: ${operation.type}`);
       }
     },
-    [storageCtx]
+    [backendFactory, database]
   );
 
   const flushQueue = useCallback(async (): Promise<FlushResult> => {
@@ -1394,11 +1389,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       opType: QueuedOperationType,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       payload: Record<string, any>,
-      directWrite: (ctx: StorageOperationsContext) => Promise<T>,
+      directWrite: (backend: ChatBackend) => Promise<T>,
       makeSynthetic: () => T,
       dependencies: string[] = []
     ): Promise<{ result: T; queued: boolean; queueId?: string }> => {
       const currentStorageCtx = storageCtx.walletAddress ? storageCtx : storageCtxRef.current;
+      const currentBackend = storageCtx.walletAddress ? backend : backendRef.current;
       const currentWalletAddress = currentStorageCtx.walletAddress;
 
       if (enableQueue && signMessage && !currentWalletAddress && getWalletAddress) {
@@ -1411,12 +1407,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         !currentStorageCtx.signMessage ||
         hasEncryptionKey(currentWalletAddress)
       ) {
-        const result = await directWrite(currentStorageCtx);
+        const result = await directWrite(currentBackend);
         return { result, queued: false };
       }
 
       if (!enableQueue) {
-        const result = await directWrite(currentStorageCtx);
+        const result = await directWrite(currentBackend);
         return { result, queued: false };
       }
 
@@ -1429,17 +1425,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         );
         if (queueId === null) {
           getLogger().warn("[useChatStorage] Queue full, falling back to direct write");
-          const result = await directWrite(currentStorageCtx);
+          const result = await directWrite(currentBackend);
           return { result, queued: false };
         }
         setQueueStatus(queueManager.getStatus(currentWalletAddress));
         return { result: makeSynthetic(), queued: true, queueId };
       }
 
-      const result = await directWrite(currentStorageCtx);
+      const result = await directWrite(currentBackend);
       return { result, queued: false };
     },
-    [storageCtx, enableQueue, signMessage, getWalletAddress]
+    [storageCtx, backend, enableQueue, signMessage, getWalletAddress]
   );
 
   const embedMessageAsync = useCallback(
@@ -1465,10 +1461,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             endOffset: chunk.endOffset,
           }));
 
-          await updateMessageChunksOp(storageCtx, message.uniqueId, messageChunks, embeddingModel);
+          await backend.updateMessageChunks(message.uniqueId, messageChunks, embeddingModel);
         } else {
           const embedding = await generateEmbedding(mask(message.content), embeddingOptions);
-          await updateMessageEmbeddingOp(storageCtx, message.uniqueId, embedding, embeddingModel);
+          await backend.updateMessageEmbedding(message.uniqueId, embedding, embeddingModel);
         }
       } catch (err) {
         getLogger().warn("[useChatStorage] Failed to embed message:", err);
@@ -1479,7 +1475,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       getToken,
       baseUrl,
       embeddingModel,
-      storageCtx,
+      backend,
       minContentLength,
       maskForEmbedding,
     ]
@@ -1490,9 +1486,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (!getToken) {
         throw new Error("getToken is required for memory engine tool");
       }
-      return createMemoryEngineToolBase(storageCtx, vaultEmbeddingOptions, searchOptions);
+      return createMemoryEngineToolBase(backend, vaultEmbeddingOptions, searchOptions);
     },
-    [storageCtx, getToken, vaultEmbeddingOptions]
+    [backend, getToken, vaultEmbeddingOptions]
   );
 
   const retainVaultMemory = useCallback(
@@ -1684,13 +1680,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         memoryStore
           ? {
               factSource: memoryStore.factSource,
-              ...(getToken && { storageCtx }),
+              ...(getToken && { chats: backend }),
               embeddingOptions: vaultEmbeddingOptions,
               chunkCache: chunkVectorCacheRef.current,
             }
           : {
               vaultCtx,
-              storageCtx,
+              chats: backend,
               embeddingOptions: vaultEmbeddingOptions,
               vaultCache: vaultEmbeddingCache,
               chunkCache: chunkVectorCacheRef.current,
@@ -1702,7 +1698,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     },
     [
       vaultCtx,
-      storageCtx,
+      backend,
       entityCtx,
       getToken,
       vaultEmbeddingOptions,
@@ -1754,13 +1750,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         memoryStore
           ? {
               factSource: memoryStore.factSource,
-              ...(getToken && { storageCtx }),
+              ...(getToken && { chats: backend }),
               embeddingOptions: vaultEmbeddingOptions,
               chunkCache: chunkVectorCacheRef.current,
             }
           : {
               vaultCtx,
-              storageCtx,
+              chats: backend,
               embeddingOptions: vaultEmbeddingOptions,
               vaultCache: vaultEmbeddingCache,
               chunkCache: chunkVectorCacheRef.current,
@@ -1771,7 +1767,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     },
     [
       vaultCtx,
-      storageCtx,
+      backend,
       entityCtx,
       getToken,
       currentConversationId,
@@ -1814,7 +1810,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const { result, queued, queueId } = await writeOrQueue(
         "createConversation",
         conversationOpts,
-        (ctx) => createConversationOp(ctx, conversationOpts, defaultConversationTitle),
+        (b) => b.createConversation(conversationOpts, defaultConversationTitle),
         () => makeSyntheticStoredConversation(conversationOpts, defaultConversationTitle)
       );
       if (queued) {
@@ -1831,21 +1827,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const getConversation = useCallback(
     async (id: string): Promise<StoredConversation | null> => {
-      return getConversationOp(storageCtx, id);
+      return backend.getConversation(id);
     },
-    [storageCtx]
+    [backend]
   );
 
   const getConversations = useCallback(async (): Promise<StoredConversation[]> => {
-    return getConversationsOp(storageCtx);
-  }, [storageCtx]);
+    return backend.getConversations();
+  }, [backend]);
 
   const updateConversationTitle = useCallback(
     async (id: string, title: string): Promise<boolean> => {
       const { result } = await writeOrQueue(
         "updateConversationTitle",
         { conversationId: id, title },
-        (ctx) => updateConversationTitleOp(ctx, id, title),
+        (b) => b.updateConversationTitle(id, title),
         () => true
       );
       return result;
@@ -1858,7 +1854,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const { result } = await writeOrQueue(
         "updateConversationPinned",
         { conversationId: id, pinned },
-        (ctx) => updateConversationPinnedOp(ctx, id, pinned),
+        (b) => b.updateConversationPinned(id, pinned),
         () => true
       );
       return result;
@@ -1868,18 +1864,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const deleteConversation = useCallback(
     async (id: string): Promise<boolean> => {
-      const deleted = await deleteConversationOp(storageCtx, id);
+      const deleted = await backend.deleteConversation(id);
       if (deleted) {
-        await clearMessagesOp(storageCtx, id);
+        await backend.clearMessages(id);
         await deleteMediaByConversationOp(mediaCtx, id);
-        await cleanupConversationSummary(database, id);
+        await cleanupConversationSummary(backend, id);
         if (currentConversationId === id) {
           setCurrentConversationId(null);
         }
       }
       return deleted;
     },
-    [storageCtx, mediaCtx, database, currentConversationId]
+    [backend, mediaCtx, currentConversationId]
   );
 
   const resolveMessageFiles = useCallback(
@@ -1957,32 +1953,32 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const getMessages = useCallback(
     async (convId: string): Promise<StoredMessage[]> => {
-      const messages = await getMessagesOp(storageCtx, convId);
+      const messages = await backend.getMessages(convId);
       return resolveMessageFiles(messages);
     },
-    [storageCtx, resolveMessageFiles]
+    [backend, resolveMessageFiles]
   );
 
   const getMessagesPage = useCallback(
     async (convId: string, options: GetMessagesPageOptions): Promise<StoredMessage[]> => {
-      const messages = await getMessagesPageOp(storageCtx, convId, options);
+      const messages = await backend.getMessagesPage(convId, options);
       return resolveMessageFiles(messages);
     },
-    [storageCtx, resolveMessageFiles]
+    [backend, resolveMessageFiles]
   );
 
   const getMessageSkeletons = useCallback(
     (convId: string): Promise<MessageSkeleton[]> => {
-      return getMessageSkeletonsOp(storageCtx, convId);
+      return backend.getMessageSkeletons(convId);
     },
-    [storageCtx]
+    [backend]
   );
 
   const getMessageCount = useCallback(
     (convId: string): Promise<number> => {
-      return getMessageCountOp(storageCtx, convId);
+      return backend.getMessageCount(convId);
     },
-    [storageCtx]
+    [backend]
   );
 
   const ensureConversation = useCallback(async (): Promise<string> => {
@@ -2424,7 +2420,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       let messagesToSend: LlmapiMessage[];
 
-      const knownToolCallEventIds = await getToolCallEventIdsOp(storageCtx, convId);
+      const knownToolCallEventIds = await backend.getToolCallEventIds(convId);
 
       if (includeHistory) {
         let tail: StoredMessage[] = [];
@@ -2432,7 +2428,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         let beforeMessageId: number | undefined;
         let boundaryExcludeUniqueIds: string[] | undefined;
         for (;;) {
-          const page = await getMessagesPageOp(storageCtx, convId, {
+          const page = await backend.getMessagesPage(convId, {
             limit: maxHistoryMessages,
             beforeMessageId,
             boundaryExcludeUniqueIds,
@@ -2484,6 +2480,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const summaryToken = summarizeHistory && getToken ? await getToken() : null;
         const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
           database,
+          summaries: backend,
           conversationId: convId,
           messages: foldedHistory,
           summarizeHistory,
@@ -2633,7 +2630,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const userMsgResult = await writeOrQueue(
           "createMessage",
           userMsgOpts,
-          (ctx) => createMessageOp(ctx, userMsgOpts),
+          (b) => b.createMessage(userMsgOpts),
           () => makeSyntheticStoredMessage(userMsgOpts),
           convId && syntheticConvQueueIdsRef.current.has(convId)
             ? [syntheticConvQueueIdsRef.current.get(convId)!]
@@ -2750,29 +2747,27 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               startOffset: chunk.startOffset,
               endOffset: chunk.endOffset,
             }));
-            updateMessageChunksOp(
-              storageCtx,
-              storedUserMessage.uniqueId,
-              messageChunks,
-              embeddingModel
-            ).catch((err) => {
-              getLogger().warn(
-                "[useChatStorage] Failed to persist chunked embeddings for user message:",
-                err
-              );
-            });
+            backend
+              .updateMessageChunks(storedUserMessage.uniqueId, messageChunks, embeddingModel)
+              .catch((err) => {
+                getLogger().warn(
+                  "[useChatStorage] Failed to persist chunked embeddings for user message:",
+                  err
+                );
+              });
           } else {
-            updateMessageEmbeddingOp(
-              storageCtx,
-              storedUserMessage.uniqueId,
-              userMessageEmbeddings as number[],
-              embeddingModel
-            ).catch((err) => {
-              getLogger().warn(
-                "[useChatStorage] Failed to persist embedding for user message:",
-                err
-              );
-            });
+            backend
+              .updateMessageEmbedding(
+                storedUserMessage.uniqueId,
+                userMessageEmbeddings as number[],
+                embeddingModel
+              )
+              .catch((err) => {
+                getLogger().warn(
+                  "[useChatStorage] Failed to persist embedding for user message:",
+                  err
+                );
+              });
           }
         } else {
           void embedMessageAsync(storedUserMessage, maskForCall);
@@ -2850,7 +2845,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
           let storedAssistantMessage: StoredMessage;
           try {
-            storedAssistantMessage = await createMessageOp(storageCtx, {
+            storedAssistantMessage = await backend.createMessage({
               conversationId: convId,
               role: "assistant",
               content: assistantContent,
@@ -2901,8 +2896,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         const errorMessage = result.error || "No response data received";
         try {
-          await updateMessageErrorOp(storageCtx, storedUserMessage.uniqueId, errorMessage);
-          await createMessageOp(storageCtx, {
+          await backend.updateMessageError(storedUserMessage.uniqueId, errorMessage);
+          await backend.createMessage({
             conversationId: convId,
             role: "assistant",
             content: "",
@@ -3010,7 +3005,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const assistantMsgResult = await writeOrQueue(
           "createMessage",
           assistantMsgOpts,
-          (ctx) => createMessageOp(ctx, assistantMsgOpts),
+          (b) => b.createMessage(assistantMsgOpts),
           () => makeSyntheticStoredMessage(assistantMsgOpts),
           userMsgQueueId ? [userMsgQueueId] : []
         );
@@ -3068,7 +3063,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           const toolResultsWrite = await writeOrQueue(
             "createMessage",
             toolResultsOpts,
-            (ctx) => createMessageOp(ctx, toolResultsOpts),
+            (b) => b.createMessage(toolResultsOpts),
             () => makeSyntheticStoredMessage(toolResultsOpts),
             assistantMsgQueueId ? [assistantMsgQueueId] : []
           );
@@ -3109,7 +3104,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [
       ensureConversation,
       getMessages,
-      storageCtx,
+      backend,
       baseSendMessage,
       walletAddress,
       signMessage,
@@ -3129,9 +3124,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       conversationId?: string;
       limit?: number;
     }): Promise<StoredFileWithContext[]> => {
-      return getAllFilesOp(storageCtx, options);
+      return backend.getAllFiles(options);
     },
-    [storageCtx]
+    [backend]
   );
 
   return {

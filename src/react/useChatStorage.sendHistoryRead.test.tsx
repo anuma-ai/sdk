@@ -12,8 +12,8 @@ vi.mock("../lib/chat/toolLoop", async (importOriginal) => {
   return { ...orig, runToolLoop: vi.fn() };
 });
 
-vi.mock("../lib/db/chat", async (importOriginal) => {
-  const orig = await importOriginal<typeof import("../lib/db/chat")>();
+vi.mock("../lib/db/chat/operations", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("../lib/db/chat/operations")>();
   return {
     ...orig,
     getMessagesOp: vi.fn(orig.getMessagesOp),

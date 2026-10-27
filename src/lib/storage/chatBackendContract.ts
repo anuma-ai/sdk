@@ -1,0 +1,225 @@
+import { describe, expect, it } from "vitest";
+
+import type { ChatBackend } from "./ChatBackend";
+
+function unit(hot: number, dims = 8): number[] {
+  const v = new Array<number>(dims).fill(0);
+  v[hot] = 1;
+  return v;
+}
+
+export function runChatBackendContract(
+  name: string,
+  makeBackend: () => Promise<ChatBackend>
+): void {
+  describe(`${name} satisfies the chat backend contract`, () => {
+    it("creates, reads, renames, pins and deletes a conversation", async () => {
+      const b = await makeBackend();
+      const created = await b.createConversation({ conversationId: "conv_a", title: "Trip" });
+      expect(created).toMatchObject({ conversationId: "conv_a", title: "Trip", isDeleted: false });
+      expect((await b.getConversation("conv_a"))?.title).toBe("Trip");
+
+      expect(await b.updateConversationTitle("conv_a", "Trip to Lisbon")).toBe(true);
+      expect((await b.getConversation("conv_a"))?.title).toBe("Trip to Lisbon");
+
+      expect(await b.updateConversationPinned("conv_a", true)).toBe(true);
+      expect((await b.getConversation("conv_a"))?.pinnedAt).toBeInstanceOf(Date);
+      expect(await b.updateConversationPinned("conv_a", false)).toBe(true);
+      expect((await b.getConversation("conv_a"))?.pinnedAt ?? null).toBeNull();
+
+      expect((await b.getConversations()).map((c) => c.conversationId)).toContain("conv_a");
+      expect(await b.deleteConversation("conv_a")).toBe(true);
+      expect(await b.getConversation("conv_a")).toBeNull();
+      expect((await b.getConversations()).map((c) => c.conversationId)).not.toContain("conv_a");
+    });
+
+    it("uses the caller's default title only when none is given", async () => {
+      const b = await makeBackend();
+      expect((await b.createConversation({ conversationId: "conv_t" }, "Untitled")).title).toBe(
+        "Untitled"
+      );
+      expect(
+        (await b.createConversation({ conversationId: "conv_u", title: "Named" }, "Untitled")).title
+      ).toBe("Named");
+    });
+
+    it("numbers messages in order and pages newest first in ascending order", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_m", title: "M" });
+      const ids: number[] = [];
+      for (let i = 0; i < 5; i++) {
+        const m = await b.createMessage({
+          conversationId: "conv_m",
+          role: i % 2 ? "assistant" : "user",
+          content: `message ${i}`,
+          uniqueId: `msg_${i}`,
+          ...(i > 0 && { parentMessageId: `msg_${i - 1}` }),
+        });
+        ids.push(m.messageId);
+      }
+      expect([...ids].sort((x, y) => x - y)).toEqual(ids);
+      expect(new Set(ids).size).toBe(5);
+
+      expect((await b.getMessages("conv_m")).map((m) => m.content)).toEqual([
+        "message 0",
+        "message 1",
+        "message 2",
+        "message 3",
+        "message 4",
+      ]);
+      const newest = await b.getMessagesPage("conv_m", { limit: 2 });
+      expect(newest.map((m) => m.content)).toEqual(["message 3", "message 4"]);
+      const older = await b.getMessagesPage("conv_m", {
+        limit: 2,
+        beforeMessageId: newest[0].messageId,
+      });
+      expect(older.map((m) => m.content)).toEqual(["message 1", "message 2"]);
+      expect(await b.getMessageCount("conv_m")).toBe(5);
+
+      const skeletons = await b.getMessageSkeletons("conv_m");
+      expect(skeletons.map((s) => [s.uniqueId, s.role, s.parentMessageId])).toEqual([
+        ["msg_0", "user", undefined],
+        ["msg_1", "assistant", "msg_0"],
+        ["msg_2", "user", "msg_1"],
+        ["msg_3", "assistant", "msg_2"],
+        ["msg_4", "user", "msg_3"],
+      ]);
+    });
+
+    it("returns the existing message for a repeated uniqueId", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_i", title: "I" });
+      const first = await b.createMessage({
+        conversationId: "conv_i",
+        role: "user",
+        content: "once",
+        uniqueId: "msg_once",
+      });
+      const again = await b.createMessage({
+        conversationId: "conv_i",
+        role: "user",
+        content: "twice",
+        uniqueId: "msg_once",
+      });
+      expect(again.messageId).toBe(first.messageId);
+      expect(again.content).toBe("once");
+      expect(await b.getMessageCount("conv_i")).toBe(1);
+    });
+
+    it("upserts a message in place and creates it when missing", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_up", title: "U" });
+      const created = await b.upsertMessage({
+        conversationId: "conv_up",
+        role: "assistant",
+        content: "partial",
+        uniqueId: "msg_up",
+        wasStopped: true,
+      });
+      const updated = await b.upsertMessage({
+        conversationId: "conv_up",
+        role: "assistant",
+        content: "partial and the rest",
+        uniqueId: "msg_up",
+        wasStopped: false,
+      });
+      expect(updated.messageId).toBe(created.messageId);
+      expect(updated.content).toBe("partial and the rest");
+      expect(updated.wasStopped).toBe(false);
+      expect(await b.getMessageCount("conv_up")).toBe(1);
+    });
+
+    it("records errors, feedback, file ids and tool call ids on messages", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_f", title: "F" });
+      await b.createMessage({
+        conversationId: "conv_f",
+        role: "assistant",
+        content: "answer",
+        uniqueId: "msg_f",
+        toolCallEvents: [
+          { id: "call_1", name: "search" },
+          { id: "call_2", name: "map" },
+        ],
+      });
+      expect((await b.updateMessageError("msg_f", "boom"))?.error).toBe("boom");
+      expect((await b.updateMessageFeedback("msg_f", "like"))?.feedback).toBe("like");
+      expect((await b.updateMessageFileIds!("msg_f", ["media_1"]))?.fileIds).toEqual(["media_1"]);
+      const [stored] = await b.getMessages("conv_f");
+      expect(stored).toMatchObject({ error: "boom", feedback: "like", fileIds: ["media_1"] });
+      expect([...(await b.getToolCallEventIds("conv_f"))].sort()).toEqual(["call_1", "call_2"]);
+    });
+
+    it("finds embedded messages by chunk search and honours the conversation filters", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_s1", title: "S1" });
+      await b.createConversation({ conversationId: "conv_s2", title: "S2" });
+      await b.createMessage({
+        conversationId: "conv_s1",
+        role: "user",
+        content: "lisbon trip",
+        uniqueId: "msg_s1",
+      });
+      await b.createMessage({
+        conversationId: "conv_s2",
+        role: "user",
+        content: "porto trip",
+        uniqueId: "msg_s2",
+      });
+      await b.updateMessageEmbedding("msg_s1", unit(1), "test-model");
+      await b.updateMessageEmbedding("msg_s2", unit(1), "test-model");
+
+      const hits = await b.searchChunks(unit(1), {
+        minSimilarity: 0.5,
+        embeddingModel: "test-model",
+      });
+      expect(hits.map((h) => h.message.uniqueId).sort()).toEqual(["msg_s1", "msg_s2"]);
+      expect(hits[0].similarity).toBeCloseTo(1);
+
+      const excluded = await b.searchChunks(unit(1), {
+        minSimilarity: 0.5,
+        embeddingModel: "test-model",
+        excludeConversationId: "conv_s1",
+      });
+      expect(excluded.map((h) => h.message.uniqueId)).toEqual(["msg_s2"]);
+      const only = await b.searchChunks(unit(1), {
+        minSimilarity: 0.5,
+        embeddingModel: "test-model",
+        conversationId: "conv_s1",
+      });
+      expect(only.map((h) => h.message.uniqueId)).toEqual(["msg_s1"]);
+      expect(
+        await b.searchChunks(unit(2), { minSimilarity: 0.5, embeddingModel: "test-model" })
+      ).toEqual([]);
+    });
+
+    it("stores, replaces and deletes a conversation summary", async () => {
+      const b = await makeBackend();
+      expect(await b.getSummary("conv_sum")).toBeNull();
+      await b.upsertSummary("conv_sum", "first", "msg_1", 10);
+      await b.upsertSummary("conv_sum", "second", "msg_3", 20);
+      expect(await b.getSummary("conv_sum")).toMatchObject({
+        conversationId: "conv_sum",
+        summary: "second",
+        summarizedUpTo: "msg_3",
+        tokenCount: 20,
+      });
+      await b.deleteSummary("conv_sum");
+      expect(await b.getSummary("conv_sum")).toBeNull();
+    });
+
+    it("clears a conversation's messages", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_c", title: "C" });
+      await b.createMessage({
+        conversationId: "conv_c",
+        role: "user",
+        content: "x",
+        uniqueId: "msg_c",
+      });
+      await b.clearMessages("conv_c");
+      expect(await b.getMessages("conv_c")).toEqual([]);
+      expect(await b.getMessageCount("conv_c")).toBe(0);
+    });
+  });
+}

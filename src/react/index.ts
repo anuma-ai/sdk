@@ -723,6 +723,10 @@ export {
   ZipProcessor,
 } from "../lib/processors";
 export type {
+  ChatBackend,
+  ChatBackendFactory,
+  ChatBackendSigner,
+  ChatChunkSearchOptions,
   ChatStorageAdapter,
   ChatStorageObservable,
   ConversationQueryOptions,
@@ -743,7 +747,7 @@ export {
   resolveFilePlaceholders,
   writeEncryptedFile,
 } from "../lib/storage";
-export { WatermelonChatStorageAdapter } from "../lib/storage";
+export { localChatBackend, WatermelonChatStorageAdapter } from "../lib/storage";
 export type {
   CachedServerTools,
   CreateServerToolsFilterOptions,

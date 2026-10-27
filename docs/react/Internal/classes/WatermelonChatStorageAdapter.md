@@ -1,19 +1,12 @@
 # WatermelonChatStorageAdapter
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#64)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#76)
 
-Backend-agnostic interface for chat/conversation storage.
-
-The method set mirrors the operations we actually use across the SDK:
-`*Op` functions in `src/lib/db/chat/operations.ts` plus the `observe*`
-patterns used by react hooks. Targeted updates (e.g., `updateMessageError`)
-are exposed as separate methods rather than a generic `update()` because
-several of them have special semantics (encryption bypass for embeddings,
-unique constraints on feedback, etc).
+Everything `useChatStorage` reads and writes for chats, so a hook can run on local or server storage.
 
 ## Implements
 
-* [`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md)
+* [`ChatBackend`](../interfaces/ChatBackend.md)
 
 ## Constructors
 
@@ -21,7 +14,7 @@ unique constraints on feedback, etc).
 
 > **new WatermelonChatStorageAdapter**(`options`: [`WatermelonChatStorageAdapterOptions`](../interfaces/WatermelonChatStorageAdapterOptions.md)): `WatermelonChatStorageAdapter`
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#69)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#81)
 
 **Parameters**
 
@@ -58,7 +51,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:69](https://github.
 
 > **clearMessages**(`conversationId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:192](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#192)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#207)
 
 Clears all messages in a conversation (used for the "clear chat" action).
 
@@ -93,15 +86,15 @@ Clears all messages in a conversation (used for the "clear chat" action).
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`clearMessages`](../interfaces/ChatStorageAdapter.md#clearmessages)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`clearMessages`](../interfaces/ChatBackend.md#clearmessages)
 
 ***
 
 ### createConversation()
 
-> **createConversation**(`options?`: [`CreateConversationOptions`](../interfaces/CreateConversationOptions.md)): `Promise`<[`StoredConversation`](../interfaces/StoredConversation.md)>
+> **createConversation**(`options?`: [`CreateConversationOptions`](../interfaces/CreateConversationOptions.md), `defaultTitle?`: `string`): `Promise`<[`StoredConversation`](../interfaces/StoredConversation.md)>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#93)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#105)
 
 **Parameters**
 
@@ -125,6 +118,18 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:93](https://github.
 
 </td>
 </tr>
+<tr>
+<td>
+
+`defaultTitle?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -134,7 +139,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:93](https://github.
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`createConversation`](../interfaces/ChatStorageAdapter.md#createconversation)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`createConversation`](../interfaces/ChatBackend.md#createconversation)
 
 ***
 
@@ -142,7 +147,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:93](https://github.
 
 > **createMessage**(`options`: [`CreateMessageOptions`](../interfaces/CreateMessageOptions.md)): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md)>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#157)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#172)
 
 **Parameters**
 
@@ -175,7 +180,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:157](https://github
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`createMessage`](../interfaces/ChatStorageAdapter.md#createmessage)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`createMessage`](../interfaces/ChatBackend.md#createmessage)
 
 ***
 
@@ -183,7 +188,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:157](https://github
 
 > **deleteConversation**(`conversationId`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#109)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#124)
 
 Soft delete. Implementations are responsible for cascading to messages/media.
 
@@ -218,15 +223,121 @@ Soft delete. Implementations are responsible for cascading to messages/media.
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`deleteConversation`](../interfaces/ChatStorageAdapter.md#deleteconversation)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`deleteConversation`](../interfaces/ChatBackend.md#deleteconversation)
+
+***
+
+### deleteSummary()
+
+> **deleteSummary**(`conversationId`: `string`): `Promise`<`void`>
+
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:283](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#283)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`conversationId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`void`>
+
+**Implementation of**
+
+[`ChatBackend`](../interfaces/ChatBackend.md).[`deleteSummary`](../interfaces/ChatBackend.md#deletesummary)
 
 ***
 
 ### getAllFiles()
 
-> **getAllFiles**(): `Promise`<[`StoredFileWithContext`](../interfaces/StoredFileWithContext.md)\[]>
+> **getAllFiles**(`options?`: `object`): `Promise`<[`StoredFileWithContext`](../interfaces/StoredFileWithContext.md)\[]>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#230)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:245](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#245)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+`object`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.conversationId?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Filter files by conversation ID
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.limit?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+Maximum number of files to return
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -234,7 +345,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:230](https://github
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`getAllFiles`](../interfaces/ChatStorageAdapter.md#getallfiles)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`getAllFiles`](../interfaces/ChatBackend.md#getallfiles)
 
 ***
 
@@ -242,7 +353,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:230](https://github
 
 > **getConversation**(`conversationId`: `string`): `Promise`<[`StoredConversation`](../interfaces/StoredConversation.md) | `null`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#82)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#94)
 
 **Parameters**
 
@@ -275,7 +386,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:82](https://github.
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`getConversation`](../interfaces/ChatStorageAdapter.md#getconversation)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`getConversation`](../interfaces/ChatBackend.md#getconversation)
 
 ***
 
@@ -283,7 +394,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:82](https://github.
 
 > **getConversations**(`options?`: [`ConversationQueryOptions`](../interfaces/ConversationQueryOptions.md)): `Promise`<[`StoredConversation`](../interfaces/StoredConversation.md)\[]>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#86)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#98)
 
 **Parameters**
 
@@ -316,7 +427,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:86](https://github.
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`getConversations`](../interfaces/ChatStorageAdapter.md#getconversations)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`getConversations`](../interfaces/ChatBackend.md#getconversations)
 
 ***
 
@@ -324,7 +435,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:86](https://github.
 
 > **getMessageCount**(`conversationId`: `string`): `Promise`<`number`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#153)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#168)
 
 Total message count for a conversation. Optional (additive change).
 
@@ -359,7 +470,7 @@ Total message count for a conversation. Optional (additive change).
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`getMessageCount`](../interfaces/ChatStorageAdapter.md#getmessagecount)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`getMessageCount`](../interfaces/ChatBackend.md#getmessagecount)
 
 ***
 
@@ -367,7 +478,7 @@ Total message count for a conversation. Optional (additive change).
 
 > **getMessages**(`conversationId`: `string`): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md)\[]>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#138)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#153)
 
 **Parameters**
 
@@ -400,7 +511,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:138](https://github
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`getMessages`](../interfaces/ChatStorageAdapter.md#getmessages)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`getMessages`](../interfaces/ChatBackend.md#getmessages)
 
 ***
 
@@ -408,7 +519,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:138](https://github
 
 > **getMessageSkeletons**(`conversationId`: `string`): `Promise`<[`MessageSkeleton`](../interfaces/MessageSkeleton.md)\[]>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:149](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#149)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#164)
 
 Whole-thread branch-tree skeleton (no decrypt). See
 `getMessageSkeletonsOp`. Optional for the same additive-change rationale.
@@ -444,7 +555,7 @@ Whole-thread branch-tree skeleton (no decrypt). See
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`getMessageSkeletons`](../interfaces/ChatStorageAdapter.md#getmessageskeletons)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`getMessageSkeletons`](../interfaces/ChatBackend.md#getmessageskeletons)
 
 ***
 
@@ -452,7 +563,7 @@ Whole-thread branch-tree skeleton (no decrypt). See
 
 > **getMessagesPage**(`conversationId`: `string`, `options`: [`GetMessagesPageOptions`](../interfaces/GetMessagesPageOptions.md)): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md)\[]>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#142)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#157)
 
 Paginated display read: newest `limit` messages (optionally below
 `beforeMessageId`), ascending, with embeddings skipped. See
@@ -505,7 +616,89 @@ WatermelonChatStorageAdapter provides it.
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`getMessagesPage`](../interfaces/ChatStorageAdapter.md#getmessagespage)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`getMessagesPage`](../interfaces/ChatBackend.md#getmessagespage)
+
+***
+
+### getSummary()
+
+> **getSummary**(`conversationId`: `string`): `Promise`<`StoredConversationSummary` | `null`>
+
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:264](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#264)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`conversationId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`StoredConversationSummary` | `null`>
+
+**Implementation of**
+
+[`ChatBackend`](../interfaces/ChatBackend.md).[`getSummary`](../interfaces/ChatBackend.md#getsummary)
+
+***
+
+### getToolCallEventIds()
+
+> **getToolCallEventIds**(`conversationId`: `string`): `Promise`<`Set`<`string`>>
+
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:249](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#249)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`conversationId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`Set`<`string`>>
+
+**Implementation of**
+
+[`ChatBackend`](../interfaces/ChatBackend.md).[`getToolCallEventIds`](../interfaces/ChatBackend.md#gettoolcalleventids)
 
 ***
 
@@ -513,7 +706,7 @@ WatermelonChatStorageAdapter provides it.
 
 > **observeConversations**(`options?`: [`ConversationQueryOptions`](../interfaces/ConversationQueryOptions.md)): [`ChatStorageObservable`](../interfaces/ChatStorageObservable.md)<[`StoredConversation`](../interfaces/StoredConversation.md)\[]>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#113)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#128)
 
 **Parameters**
 
@@ -546,7 +739,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:113](https://github
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`observeConversations`](../interfaces/ChatStorageAdapter.md#observeconversations)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`observeConversations`](../interfaces/ChatBackend.md#observeconversations)
 
 ***
 
@@ -554,7 +747,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:113](https://github
 
 > **observeMessages**(`conversationId`: `string`): [`ChatStorageObservable`](../interfaces/ChatStorageObservable.md)<[`StoredMessage`](../interfaces/StoredMessage.md)\[]>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:196](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#196)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#211)
 
 **Parameters**
 
@@ -587,7 +780,60 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:196](https://github
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`observeMessages`](../interfaces/ChatStorageAdapter.md#observemessages)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`observeMessages`](../interfaces/ChatBackend.md#observemessages)
+
+***
+
+### searchChunks()
+
+> **searchChunks**(`queryVector`: `number`\[], `options?`: [`ChatChunkSearchOptions`](../interfaces/ChatChunkSearchOptions.md)): `Promise`<[`ChunkSearchResult`](../interfaces/ChunkSearchResult.md)\[]>
+
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:257](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#257)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`queryVector`
+
+</td>
+<td>
+
+`number`\[]
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`ChatChunkSearchOptions`](../interfaces/ChatChunkSearchOptions.md)
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<[`ChunkSearchResult`](../interfaces/ChunkSearchResult.md)\[]>
+
+**Implementation of**
+
+[`ChatBackend`](../interfaces/ChatBackend.md).[`searchChunks`](../interfaces/ChatBackend.md#searchchunks)
 
 ***
 
@@ -595,7 +841,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:196](https://github
 
 > **updateConversationPinned**(`conversationId`: `string`, `pinned`: `boolean`): `Promise`<`boolean`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#105)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#120)
 
 Pin or unpin a conversation. Pinning stamps `pinnedAt`; list queries are
 NOT reordered — consumers sort pinned chats first using `pinnedAt`.
@@ -643,7 +889,7 @@ NOT reordered — consumers sort pinned chats first using `pinnedAt`.
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`updateConversationPinned`](../interfaces/ChatStorageAdapter.md#updateconversationpinned)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`updateConversationPinned`](../interfaces/ChatBackend.md#updateconversationpinned)
 
 ***
 
@@ -651,7 +897,7 @@ NOT reordered — consumers sort pinned chats first using `pinnedAt`.
 
 > **updateConversationProject**(`conversationId`: `string`, `projectId`: `string` | `null`): `Promise`<`boolean`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#101)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#116)
 
 **Parameters**
 
@@ -696,7 +942,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:101](https://github
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`updateConversationProject`](../interfaces/ChatStorageAdapter.md#updateconversationproject)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`updateConversationProject`](../interfaces/ChatBackend.md#updateconversationproject)
 
 ***
 
@@ -704,7 +950,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:101](https://github
 
 > **updateConversationTitle**(`conversationId`: `string`, `title`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#97)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#112)
 
 **Parameters**
 
@@ -749,7 +995,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:97](https://github.
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`updateConversationTitle`](../interfaces/ChatStorageAdapter.md#updateconversationtitle)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`updateConversationTitle`](../interfaces/ChatBackend.md#updateconversationtitle)
 
 ***
 
@@ -757,7 +1003,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:97](https://github.
 
 > **updateMessageChunks**(`uniqueId`: `string`, `chunks`: [`MessageChunk`](../interfaces/MessageChunk.md)\[], `embeddingModel`: `string`): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:169](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#169)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#184)
 
 **Parameters**
 
@@ -814,7 +1060,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:169](https://github
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`updateMessageChunks`](../interfaces/ChatStorageAdapter.md#updatemessagechunks)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`updateMessageChunks`](../interfaces/ChatBackend.md#updatemessagechunks)
 
 ***
 
@@ -822,7 +1068,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:169](https://github
 
 > **updateMessageEmbedding**(`uniqueId`: `string`, `vector`: `number`\[], `embeddingModel`: `string`): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#161)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#176)
 
 **Parameters**
 
@@ -879,7 +1125,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:161](https://github
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`updateMessageEmbedding`](../interfaces/ChatStorageAdapter.md#updatemessageembedding)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`updateMessageEmbedding`](../interfaces/ChatBackend.md#updatemessageembedding)
 
 ***
 
@@ -887,7 +1133,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:161](https://github
 
 > **updateMessageError**(`uniqueId`: `string`, `error`: `string`): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#177)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:192](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#192)
 
 **Parameters**
 
@@ -932,7 +1178,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:177](https://github
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`updateMessageError`](../interfaces/ChatStorageAdapter.md#updatemessageerror)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`updateMessageError`](../interfaces/ChatBackend.md#updatemessageerror)
 
 ***
 
@@ -940,7 +1186,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:177](https://github
 
 > **updateMessageFeedback**(`uniqueId`: `string`, `feedback`: [`MessageFeedback`](../type-aliases/MessageFeedback.md)): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#181)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:196](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#196)
 
 **Parameters**
 
@@ -985,7 +1231,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:181](https://github
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`updateMessageFeedback`](../interfaces/ChatStorageAdapter.md#updatemessagefeedback)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`updateMessageFeedback`](../interfaces/ChatBackend.md#updatemessagefeedback)
 
 ***
 
@@ -993,7 +1239,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:181](https://github
 
 > **updateMessageFileIds**(`uniqueId`: `string`, `fileIds`: `string`\[]): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:188](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#188)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:203](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#203)
 
 Replace a message's attached media ids (`fileIds`). Used to attach a
 generated artifact (e.g. a rendered document PDF) to the assistant message
@@ -1047,7 +1293,125 @@ WatermelonChatStorageAdapter provides it.
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`updateMessageFileIds`](../interfaces/ChatStorageAdapter.md#updatemessagefileids)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`updateMessageFileIds`](../interfaces/ChatBackend.md#updatemessagefileids)
+
+***
+
+### upsertMessage()
+
+> **upsertMessage**(`options`: [`CreateMessageOptions`](../interfaces/CreateMessageOptions.md) & `object`): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md)>
+
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#253)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+[`CreateMessageOptions`](../interfaces/CreateMessageOptions.md) & `object`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<[`StoredMessage`](../interfaces/StoredMessage.md)>
+
+**Implementation of**
+
+[`ChatBackend`](../interfaces/ChatBackend.md).[`upsertMessage`](../interfaces/ChatBackend.md#upsertmessage)
+
+***
+
+### upsertSummary()
+
+> **upsertSummary**(`conversationId`: `string`, `summary`: `string`, `summarizedUpTo`: `string`, `tokenCount`: `number`): `Promise`<`StoredConversationSummary`>
+
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:268](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#268)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`conversationId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`summary`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`summarizedUpTo`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`tokenCount`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`StoredConversationSummary`>
+
+**Implementation of**
+
+[`ChatBackend`](../interfaces/ChatBackend.md).[`upsertSummary`](../interfaces/ChatBackend.md#upsertsummary)
 
 ***
 
@@ -1055,7 +1419,7 @@ WatermelonChatStorageAdapter provides it.
 
 > **write**<`T`>(`fn`: (`adapter`: [`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md)) => `Promise`<`T`>): `Promise`<`T`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:240](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#240)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:293](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#293)
 
 WatermelonDB nests `database.write()` safely: each method we call inside
 the callback already wraps its own writes, and Watermelon collapses the
@@ -1112,4 +1476,4 @@ instance.
 
 **Implementation of**
 
-[`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md).[`write`](../interfaces/ChatStorageAdapter.md#write)
+[`ChatBackend`](../interfaces/ChatBackend.md).[`write`](../interfaces/ChatBackend.md#write)

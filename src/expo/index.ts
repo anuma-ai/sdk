@@ -587,6 +587,13 @@ export {
 } from "../lib/pii";
 export { formatFileProcessingNotes } from "../lib/processors/fileStatusNotes";
 export type { FileProcessingReason, FileProcessingStatus } from "../lib/processors/types";
+export type {
+  ChatBackend,
+  ChatBackendFactory,
+  ChatBackendSigner,
+  ChatChunkSearchOptions,
+} from "../lib/storage/ChatBackend";
+export { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
 export type { CachedServerTools, ServerToolsOptions, ServerToolsResponse } from "../lib/tools";
 export {
   clearServerToolsCache,
