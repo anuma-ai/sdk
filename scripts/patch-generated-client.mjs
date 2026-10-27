@@ -131,7 +131,10 @@ for (const patch of patches) {
   const absolute = path.join(PROJECT_ROOT, patch.file);
   const original = readFileSync(absolute, "utf-8");
 
-  if (original.includes(patch.replace)) {
+  if (
+    original.includes(patch.replace) &&
+    (!original.includes(patch.find) || patch.replace.includes(patch.find))
+  ) {
     continue;
   }
 
