@@ -181,4 +181,55 @@ describe.each([
     expect(await rows(hookDatabase)).toEqual({ conversations: 0, messages: 0 });
     expect(backend.signers.some((s) => s.walletAddress === walletAddress)).toBe(true);
   });
+
+  it.each([false, true])(
+    "replays a queued write through the backend that queued it, whichever hook flushes (buffered before the wallet: %s)",
+    async (buffered) => {
+      const hookDatabase = makeDatabase();
+      const firstDatabase = makeDatabase();
+      const secondDatabase = makeDatabase();
+      const signMessage = vi.fn().mockRejectedValue(new Error("Encryption key unavailable"));
+      const getWalletAddress = vi.fn().mockResolvedValue(null);
+      const render = (factory: ChatBackendFactory, address?: string) =>
+        renderHook(
+          (props: { address?: string }) =>
+            useChatStorage({
+              database: hookDatabase,
+              chatBackend: factory,
+              walletAddress: props.address,
+              signMessage,
+              getWalletAddress,
+              enableQueue: true,
+              defaultConversationTitle: "Untitled chat",
+              getToken: () => Promise.resolve("token"),
+              autoEmbedMessages: false,
+            }),
+          { initialProps: { address } }
+        );
+      const first = render(
+        recordingBackend(firstDatabase).factory,
+        buffered ? undefined : walletAddress
+      );
+      const second = render(recordingBackend(secondDatabase).factory, walletAddress);
+
+      const queued = await act(async () => first.result.current.createConversation());
+      if (buffered) first.rerender({ address: walletAddress });
+      await waitFor(() => expect(second.result.current.queueStatus.pending).toBe(1));
+      first.unmount();
+      await act(() =>
+        Promise.resolve(
+          seedEncryptionKeys(walletAddress, { legacy: "11".repeat(32), current: "22".repeat(32) })
+        )
+      );
+      await waitFor(() => expect(second.result.current.queueStatus.pending).toBe(0));
+
+      expect(await rows(firstDatabase)).toMatchObject({ conversations: 1 });
+      expect(await rows(secondDatabase)).toEqual({ conversations: 0, messages: 0 });
+      const stored = await localChatBackend(firstDatabase)({
+        walletAddress,
+        signMessage,
+      }).getConversation(queued.conversationId);
+      expect(stored?.title).toBe("Untitled chat");
+    }
+  );
 });

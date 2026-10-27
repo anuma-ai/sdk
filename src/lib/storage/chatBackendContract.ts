@@ -144,9 +144,12 @@ export function runChatBackendContract(
       });
       expect((await b.updateMessageError("msg_f", "boom"))?.error).toBe("boom");
       expect((await b.updateMessageFeedback("msg_f", "like"))?.feedback).toBe("like");
-      expect((await b.updateMessageFileIds!("msg_f", ["media_1"]))?.fileIds).toEqual(["media_1"]);
+      if (b.updateMessageFileIds) {
+        expect((await b.updateMessageFileIds("msg_f", ["media_1"]))?.fileIds).toEqual(["media_1"]);
+      }
       const [stored] = await b.getMessages("conv_f");
-      expect(stored).toMatchObject({ error: "boom", feedback: "like", fileIds: ["media_1"] });
+      expect(stored).toMatchObject({ error: "boom", feedback: "like" });
+      if (b.updateMessageFileIds) expect(stored?.fileIds).toEqual(["media_1"]);
       expect([...(await b.getToolCallEventIds("conv_f"))].sort()).toEqual(["call_1", "call_2"]);
     });
 
@@ -206,6 +209,43 @@ export function runChatBackendContract(
       });
       await b.deleteSummary("conv_sum");
       expect(await b.getSummary("conv_sum")).toBeNull();
+    });
+
+    it("deletes one message and leaves the rest", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_d", title: "D" });
+      for (const id of ["msg_keep", "msg_drop"])
+        await b.createMessage({
+          conversationId: "conv_d",
+          role: "user",
+          content: id,
+          uniqueId: id,
+        });
+      expect(await b.deleteMessage("msg_drop")).toBe("msg_drop");
+      expect(await b.deleteMessage("msg_missing")).toBeNull();
+      expect((await b.getMessages("conv_d")).map((m) => m.uniqueId)).toEqual(["msg_keep"]);
+    });
+
+    it("links memories to a conversation once each and clears them", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_l", title: "L" });
+      await b.addMemoryLinks("conv_l", [
+        { memoryId: "mem_a", score: 0.9 },
+        { memoryId: "mem_b", score: 0.4 },
+      ]);
+      await b.addMemoryLinks("conv_l", [
+        { memoryId: "mem_a", score: 0.1 },
+        { memoryId: "mem_c", score: 0.7 },
+      ]);
+      const links = await b.getMemoryLinks("conv_l");
+      expect(links.map((l) => [l.memoryId, l.score]).sort()).toEqual([
+        ["mem_a", 0.9],
+        ["mem_b", 0.4],
+        ["mem_c", 0.7],
+      ]);
+      expect(links.every((l) => l.conversationId === "conv_l")).toBe(true);
+      await b.clearMemoryLinks("conv_l");
+      expect(await b.getMemoryLinks("conv_l")).toEqual([]);
     });
 
     it("clears a conversation's messages", async () => {

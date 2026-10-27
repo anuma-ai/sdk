@@ -118,7 +118,7 @@ Base URL for the chat API endpoint
 
 Defined in: [src/lib/db/chat/types.ts:501](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#501)
 
-Build the chat storage backend; defaults to this `database`. Keep the factory stable across renders, since a new one rebuilds the backend and every callback.
+Builds the chat storage backend (default: this `database`); keep it stable across renders, since a new factory rebuilds the backend and every callback.
 
 **Inherited from**
 

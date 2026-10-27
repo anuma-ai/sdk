@@ -1,6 +1,6 @@
 # ChatBackendSigner
 
-Defined in: [src/lib/storage/ChatBackend.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#55)
+Defined in: [src/lib/storage/ChatBackend.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#63)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:55](https://github.com/anuma-ai/sdk/
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/lib/storage/ChatBackend.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#58)
+Defined in: [src/lib/storage/ChatBackend.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#66)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:58](https://github.com/anuma-ai/sdk/
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: [src/lib/storage/ChatBackend.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#57)
+Defined in: [src/lib/storage/ChatBackend.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#65)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/lib/storage/ChatBackend.ts:57](https://github.com/anuma-ai/sdk/
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/lib/storage/ChatBackend.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#56)
+Defined in: [src/lib/storage/ChatBackend.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#64)

@@ -497,7 +497,7 @@ export interface BaseUseChatStorageOptions {
   database: Database;
   /** Route memory operations through this store; `null` disables memory access while `undefined` uses the local vault. Folders are unsupported. With `piiRedaction` on, build the store with `embeddingOptions.maskInput` or its memory calls throw. */
   memoryStore?: MemoryStore | null;
-  /** Build the chat storage backend; defaults to this `database`. Keep the factory stable across renders, since a new one rebuilds the backend and every callback. */
+  /** Builds the chat storage backend (default: this `database`); keep it stable across renders, since a new factory rebuilds the backend and every callback. */
   chatBackend?: ChatBackendFactory;
   /** ID of an existing conversation to load and continue */
   conversationId?: string;

@@ -9,6 +9,7 @@ import {
   createConversationOp,
   createMessageOp,
   deleteConversationOp,
+  deleteMessageOp,
   getAllFilesOp,
   getConversationOp,
   getConversationsByProjectOp,
@@ -49,6 +50,17 @@ import type {
   StoredFileWithContext,
   StoredMessage,
 } from "../db/chat/types";
+import { ConversationMemory } from "../db/conversationMemory/models";
+import {
+  addConversationMemoriesOp,
+  clearConversationMemoriesOp,
+  type ConversationMemoryOperationsContext,
+  getConversationMemoriesOp,
+} from "../db/conversationMemory/operations";
+import type {
+  ConversationMemoryInput,
+  StoredConversationMemory,
+} from "../db/conversationMemory/types";
 import type { ChatBackend, ChatBackendFactory, ChatChunkSearchOptions } from "./ChatBackend";
 import type {
   ChatStorageAdapter,
@@ -282,6 +294,31 @@ export class WatermelonChatStorageAdapter implements ChatBackend {
 
   deleteSummary(conversationId: string): Promise<void> {
     return deleteConversationSummaryOp(createSummaryContext(this.ctx.database), conversationId);
+  }
+
+  deleteMessage(uniqueId: string): Promise<string | null> {
+    return deleteMessageOp(this.ctx, uniqueId);
+  }
+
+  getMemoryLinks(conversationId: string): Promise<StoredConversationMemory[]> {
+    return getConversationMemoriesOp(this.memoryCtx(), conversationId);
+  }
+
+  addMemoryLinks(conversationId: string, items: ConversationMemoryInput[]): Promise<void> {
+    return addConversationMemoriesOp(this.memoryCtx(), conversationId, items);
+  }
+
+  clearMemoryLinks(conversationId: string): Promise<void> {
+    return clearConversationMemoriesOp(this.memoryCtx(), conversationId);
+  }
+
+  private memoryCtx(): ConversationMemoryOperationsContext {
+    return {
+      database: this.ctx.database,
+      conversationMemoryCollection: this.ctx.database.get<ConversationMemory>(
+        ConversationMemory.table
+      ),
+    };
   }
 
   /**

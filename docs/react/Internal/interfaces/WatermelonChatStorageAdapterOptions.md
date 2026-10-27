@@ -1,6 +1,6 @@
 # WatermelonChatStorageAdapterOptions
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#66)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#78)
 
 Context needed to construct a `WatermelonChatStorageAdapter`.
 
@@ -14,7 +14,7 @@ know the table names.
 
 > **database**: `Database`
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#67)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#79)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:67](https://github.
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#73)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#85)
 
 Silent signing function for embedded wallets (optional).
 
@@ -32,7 +32,7 @@ Silent signing function for embedded wallets (optional).
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#71)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#83)
 
 Signing function for deriving encryption keys (optional).
 
@@ -42,6 +42,6 @@ Signing function for deriving encryption keys (optional).
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#69)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#81)
 
 Wallet address for field-level encryption (optional).

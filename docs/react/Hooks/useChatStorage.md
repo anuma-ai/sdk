@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1055](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1055)
+Defined in: [src/react/useChatStorage.ts:1056](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1056)
 
 A React hook that wraps useChat and persists messages and conversations to WatermelonDB as they are sent and received.
 
@@ -177,7 +177,7 @@ Base URL for the chat API endpoint
 </td>
 <td>
 
-Build the chat storage backend; defaults to this `database`. Keep the factory stable across renders, since a new one rebuilds the backend and every callback.
+Builds the chat storage backend (default: this `database`); keep it stable across renders, since a new factory rebuilds the backend and every callback.
 
 </td>
 </tr>

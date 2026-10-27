@@ -2,7 +2,7 @@
 
 > **localChatBackend**(`database`: `Database`): [`ChatBackendFactory`](../type-aliases/ChatBackendFactory.md)
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:298](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#298)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#335)
 
 ## Parameters
 

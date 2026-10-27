@@ -11,6 +11,10 @@ import type {
   StoredFileWithContext,
   StoredMessage,
 } from "../db/chat/types";
+import type {
+  ConversationMemoryInput,
+  StoredConversationMemory,
+} from "../db/conversationMemory/types";
 import type { ChatStorageAdapter } from "./ChatStorageAdapter";
 
 export interface ChatChunkSearchOptions {
@@ -50,6 +54,10 @@ export interface ChatBackend extends ChatStorageAdapter {
     tokenCount: number
   ): Promise<StoredConversationSummary>;
   deleteSummary(conversationId: string): Promise<void>;
+  deleteMessage(uniqueId: string): Promise<string | null>;
+  getMemoryLinks(conversationId: string): Promise<StoredConversationMemory[]>;
+  addMemoryLinks(conversationId: string, items: ConversationMemoryInput[]): Promise<void>;
+  clearMemoryLinks(conversationId: string): Promise<void>;
 }
 
 export interface ChatBackendSigner {

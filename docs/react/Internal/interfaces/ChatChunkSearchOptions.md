@@ -1,6 +1,6 @@
 # ChatChunkSearchOptions
 
-Defined in: [src/lib/storage/ChatBackend.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#16)
+Defined in: [src/lib/storage/ChatBackend.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#20)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:16](https://github.com/anuma-ai/sdk/
 
 > `optional` **chunkCache**: [`ChunkVectorCache`](../type-aliases/ChunkVectorCache.md)
 
-Defined in: [src/lib/storage/ChatBackend.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#22)
+Defined in: [src/lib/storage/ChatBackend.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#26)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:22](https://github.com/anuma-ai/sdk/
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/storage/ChatBackend.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#19)
+Defined in: [src/lib/storage/ChatBackend.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#23)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:19](https://github.com/anuma-ai/sdk/
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/storage/ChatBackend.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#21)
+Defined in: [src/lib/storage/ChatBackend.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#25)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:21](https://github.com/anuma-ai/sdk/
 
 > `optional` **excludeConversationId**: `string`
 
-Defined in: [src/lib/storage/ChatBackend.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#20)
+Defined in: [src/lib/storage/ChatBackend.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#24)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:20](https://github.com/anuma-ai/sdk/
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/storage/ChatBackend.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#17)
+Defined in: [src/lib/storage/ChatBackend.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#21)
 
 ***
 
@@ -48,7 +48,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:17](https://github.com/anuma-ai/sdk/
 
 > `optional` **minSimilarity**: `number`
 
-Defined in: [src/lib/storage/ChatBackend.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#18)
+Defined in: [src/lib/storage/ChatBackend.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#22)
 
 ***
 
@@ -56,7 +56,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:18](https://github.com/anuma-ai/sdk/
 
 > `optional` **onStats**: (`stats`: [`ChunkSearchStats`](ChunkSearchStats.md)) => `void`
 
-Defined in: [src/lib/storage/ChatBackend.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#23)
+Defined in: [src/lib/storage/ChatBackend.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#27)
 
 **Parameters**
 

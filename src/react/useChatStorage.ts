@@ -947,6 +947,7 @@ const NO_STORE_FOLDERS = "Folders are not supported with a memoryStore";
 const NO_STORE_MASK = "piiRedaction needs a memoryStore built with embeddingOptions.maskInput";
 const MEMORY_STORE_NOT_READY = "Memory store is not ready";
 const conversationRedactors = new Map<string, { redactor: PiiRedactor; detector?: NerDetector }>();
+const queuedBackends = new WeakMap<object, ChatBackend>();
 
 function getConversationRedactor(
   conversationId: string | null,
@@ -1253,11 +1254,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const executeQueuedOperation = useCallback(
     async (operation: QueuedOperation, encCtx: QueueEncryptionContext) => {
-      const queued = backendFactory({
-        walletAddress: encCtx.walletAddress,
-        signMessage: encCtx.signMessage,
-        embeddedWalletSigner: encCtx.embeddedWalletSigner,
-      });
+      const queued =
+        queuedBackends.get(operation.payload) ??
+        backendFactory({
+          walletAddress: encCtx.walletAddress,
+          signMessage: encCtx.signMessage,
+          embeddedWalletSigner: encCtx.embeddedWalletSigner,
+        });
 
       const mCtx = {
         database,
@@ -1368,6 +1371,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     const pending = pendingOpsRef.current;
     if (pending.length === 0) return;
     for (const op of pending) {
+      queuedBackends.set(op.payload, backendRef.current);
       queueManager.queueOperation(walletAddress, op.type, op.payload, op.dependencies);
     }
     pendingOpsRef.current = [];
@@ -1417,6 +1421,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
 
       if (currentWalletAddress) {
+        queuedBackends.set(payload, currentBackend);
         const queueId = queueManager.queueOperation(
           currentWalletAddress,
           opType,
@@ -1809,7 +1814,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       };
       const { result, queued, queueId } = await writeOrQueue(
         "createConversation",
-        conversationOpts,
+        { ...conversationOpts, title: conversationOpts.title || defaultConversationTitle },
         (b) => b.createConversation(conversationOpts, defaultConversationTitle),
         () => makeSyntheticStoredConversation(conversationOpts, defaultConversationTitle)
       );
