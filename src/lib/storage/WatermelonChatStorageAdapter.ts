@@ -15,6 +15,7 @@ import {
   getConversationsByProjectOp,
   getConversationsOp,
   getMessageCountOp,
+  getMessagesByIdsOp,
   getMessageSkeletonsOp,
   getMessagesOp,
   getMessagesPageOp,
@@ -52,10 +53,10 @@ import type {
 } from "../db/chat/types";
 import { ConversationMemory } from "../db/conversationMemory/models";
 import {
-  addConversationMemoriesOp,
   clearConversationMemoriesOp,
   type ConversationMemoryOperationsContext,
   getConversationMemoriesOp,
+  recordConversationMemoriesOp,
 } from "../db/conversationMemory/operations";
 import type {
   ConversationMemoryInput,
@@ -171,6 +172,10 @@ export class WatermelonChatStorageAdapter implements ChatBackend {
     options: GetMessagesPageOptions
   ): Promise<StoredMessage[]> {
     return getMessagesPageOp(this.ctx, conversationId, options);
+  }
+
+  getMessagesByIds(uniqueIds: readonly string[]): Promise<StoredMessage[]> {
+    return getMessagesByIdsOp(this.ctx, uniqueIds);
   }
 
   getMessageSkeletons(conversationId: string): Promise<MessageSkeleton[]> {
@@ -305,7 +310,7 @@ export class WatermelonChatStorageAdapter implements ChatBackend {
   }
 
   addMemoryLinks(conversationId: string, items: ConversationMemoryInput[]): Promise<void> {
-    return addConversationMemoriesOp(this.memoryCtx(), conversationId, items);
+    return recordConversationMemoriesOp(this.memoryCtx(), conversationId, items);
   }
 
   clearMemoryLinks(conversationId: string): Promise<void> {

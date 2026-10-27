@@ -80,6 +80,56 @@ export async function addConversationMemoriesOp(
   });
 }
 
+/** Records the memories a turn drew on in recall order, moving already-linked ones to this turn with their new score. */
+export async function recordConversationMemoriesOp(
+  ctx: ConversationMemoryOperationsContext,
+  conversationId: string,
+  items: ConversationMemoryInput[],
+  now = Date.now()
+): Promise<void> {
+  const turn = new Map<string, { score: number; createdAt: number }>();
+  items.forEach((item, i) => {
+    if (item.memoryId && !turn.has(item.memoryId))
+      turn.set(item.memoryId, { score: item.score, createdAt: now + i });
+  });
+  if (!conversationId || turn.size === 0) return;
+  const kept = new Map([...turn].slice(-MAX_PER_CONVERSATION));
+
+  await ctx.database.write(async () => {
+    const existing = await ctx.conversationMemoryCollection
+      .query(Q.where("conversation_id", conversationId), Q.sortBy("created_at", Q.asc))
+      .fetch();
+    const earlier = existing.filter((r) => !turn.has(r.memoryId));
+    const linked = new Set(existing.map((r) => r.memoryId));
+    await ctx.database.batch(
+      ...earlier
+        .slice(0, Math.max(0, earlier.length - (MAX_PER_CONVERSATION - kept.size)))
+        .map((r) => r.prepareDestroyPermanently()),
+      ...existing
+        .filter((r) => turn.has(r.memoryId) && !kept.has(r.memoryId))
+        .map((r) => r.prepareDestroyPermanently()),
+      ...existing
+        .filter((r) => kept.has(r.memoryId))
+        .map((r) =>
+          r.prepareUpdate((row) => {
+            row._setRaw("score", kept.get(r.memoryId)!.score);
+            row._setRaw("created_at", kept.get(r.memoryId)!.createdAt);
+          })
+        ),
+      ...[...kept]
+        .filter(([memoryId]) => !linked.has(memoryId))
+        .map(([memoryId, link]) =>
+          ctx.conversationMemoryCollection.prepareCreate((row) => {
+            row._setRaw("conversation_id", conversationId);
+            row._setRaw("memory_id", memoryId);
+            row._setRaw("score", link.score);
+            row._setRaw("created_at", link.createdAt);
+          })
+        )
+    );
+  });
+}
+
 /** List a conversation's recorded memories, oldest first. */
 export async function getConversationMemoriesOp(
   ctx: ConversationMemoryOperationsContext,

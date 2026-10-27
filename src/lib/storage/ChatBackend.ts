@@ -39,6 +39,8 @@ export interface ChatBackend extends ChatStorageAdapter {
     options: GetMessagesPageOptions
   ): Promise<StoredMessage[]>;
   getMessageSkeletons(conversationId: string): Promise<MessageSkeleton[]>;
+  /** Reads messages by id in the order asked, leaving out ids that are not stored. */
+  getMessagesByIds(uniqueIds: readonly string[]): Promise<StoredMessage[]>;
   getMessageCount(conversationId: string): Promise<number>;
   getToolCallEventIds(conversationId: string): Promise<Set<string>>;
   upsertMessage(options: CreateMessageOptions & { uniqueId: string }): Promise<StoredMessage>;
@@ -56,6 +58,7 @@ export interface ChatBackend extends ChatStorageAdapter {
   deleteSummary(conversationId: string): Promise<void>;
   deleteMessage(uniqueId: string): Promise<string | null>;
   getMemoryLinks(conversationId: string): Promise<StoredConversationMemory[]>;
+  /** Records the memories a turn drew on in recall order, moving already-linked ones to this turn with their new score. */
   addMemoryLinks(conversationId: string, items: ConversationMemoryInput[]): Promise<void>;
   clearMemoryLinks(conversationId: string): Promise<void>;
 }

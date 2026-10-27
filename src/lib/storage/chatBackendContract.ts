@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import { MAX_PER_CONVERSATION } from "../db/conversationMemory/operations";
 import type { ChatBackend } from "./ChatBackend";
 
 function unit(hot: number, dims = 8): number[] {
@@ -226,26 +227,92 @@ export function runChatBackendContract(
       expect((await b.getMessages("conv_d")).map((m) => m.uniqueId)).toEqual(["msg_keep"]);
     });
 
-    it("links memories to a conversation once each and clears them", async () => {
+    it("reads messages by id in the order asked and skips unknown ids", async () => {
       const b = await makeBackend();
-      await b.createConversation({ conversationId: "conv_l", title: "L" });
-      await b.addMemoryLinks("conv_l", [
-        { memoryId: "mem_a", score: 0.9 },
-        { memoryId: "mem_b", score: 0.4 },
+      await b.createConversation({ conversationId: "conv_r1", title: "R1" });
+      await b.createConversation({ conversationId: "conv_r2", title: "R2" });
+      for (const [conversationId, uniqueId] of [
+        ["conv_r1", "msg_r1"],
+        ["conv_r2", "msg_r2"],
+      ])
+        await b.createMessage({ conversationId, role: "user", content: uniqueId, uniqueId });
+
+      const found = await b.getMessagesByIds(["msg_r2", "msg_none", "msg_r1", "msg_r2"]);
+      expect(found.map((m) => [m.uniqueId, m.conversationId, m.content])).toEqual([
+        ["msg_r2", "conv_r2", "msg_r2"],
+        ["msg_r1", "conv_r1", "msg_r1"],
       ]);
-      await b.addMemoryLinks("conv_l", [
-        { memoryId: "mem_a", score: 0.1 },
-        { memoryId: "mem_c", score: 0.7 },
-      ]);
-      const links = await b.getMemoryLinks("conv_l");
-      expect(links.map((l) => [l.memoryId, l.score]).sort()).toEqual([
-        ["mem_a", 0.9],
-        ["mem_b", 0.4],
-        ["mem_c", 0.7],
-      ]);
-      expect(links.every((l) => l.conversationId === "conv_l")).toBe(true);
-      await b.clearMemoryLinks("conv_l");
-      expect(await b.getMemoryLinks("conv_l")).toEqual([]);
+      expect(await b.getMessagesByIds([])).toEqual([]);
+    });
+
+    it("links memories once each, moves a relinked memory to the latest turn, and clears them", async () => {
+      const base = Date.now() - 10_000;
+      vi.useFakeTimers({ toFake: ["Date"], now: base });
+      try {
+        const b = await makeBackend();
+        await b.createConversation({ conversationId: "conv_l", title: "L" });
+        vi.setSystemTime(base);
+        await b.addMemoryLinks("conv_l", [
+          { memoryId: "mem_a", score: 0.9 },
+          { memoryId: "mem_b", score: 0.4 },
+        ]);
+        vi.setSystemTime(base + 1_000);
+        await b.addMemoryLinks("conv_l", [
+          { memoryId: "mem_c", score: 0.7 },
+          { memoryId: "mem_a", score: 0.1 },
+          { memoryId: "mem_c", score: 0.2 },
+        ]);
+        const links = (await b.getMemoryLinks("conv_l")).sort(
+          (x, y) => x.createdAt.getTime() - y.createdAt.getTime()
+        );
+        expect(links.map((l) => [l.memoryId, l.score, l.createdAt.getTime()])).toEqual([
+          ["mem_b", 0.4, base + 1],
+          ["mem_c", 0.7, base + 1_000],
+          ["mem_a", 0.1, base + 1_001],
+        ]);
+        expect(links.every((l) => l.conversationId === "conv_l")).toBe(true);
+        await b.clearMemoryLinks("conv_l");
+        expect(await b.getMemoryLinks("conv_l")).toEqual([]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("keeps a conversation's newest memory links within the cap", async () => {
+      const base = Date.now() - 10_000;
+      vi.useFakeTimers({ toFake: ["Date"], now: base });
+      try {
+        const b = await makeBackend();
+        await b.createConversation({ conversationId: "conv_cap", title: "Cap" });
+        const ids = Array.from({ length: MAX_PER_CONVERSATION }, (_, i) => `mem_${i}`);
+        vi.setSystemTime(base);
+        await b.addMemoryLinks(
+          "conv_cap",
+          ids.map((memoryId) => ({ memoryId, score: 0.5 }))
+        );
+        vi.setSystemTime(base + 1_000);
+        await b.addMemoryLinks("conv_cap", [
+          { memoryId: "mem_new", score: 0.5 },
+          { memoryId: "mem_0", score: 0.6 },
+        ]);
+        const kept = new Set((await b.getMemoryLinks("conv_cap")).map((l) => l.memoryId));
+        expect(kept.size).toBe(MAX_PER_CONVERSATION);
+        expect(kept.has("mem_0") && kept.has("mem_new")).toBe(true);
+        expect(kept.has("mem_1")).toBe(false);
+        expect(kept.has("mem_2")).toBe(true);
+
+        const flood = Array.from({ length: MAX_PER_CONVERSATION }, (_, i) => `mem_f${i}`);
+        vi.setSystemTime(base + 2_000);
+        await b.addMemoryLinks(
+          "conv_cap",
+          ["mem_0", ...flood].map((memoryId) => ({ memoryId, score: 0.5 }))
+        );
+        expect((await b.getMemoryLinks("conv_cap")).map((l) => l.memoryId).sort()).toEqual(
+          [...flood].sort()
+        );
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("clears a conversation's messages", async () => {
