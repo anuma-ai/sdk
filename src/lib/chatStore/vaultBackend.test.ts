@@ -8,6 +8,7 @@ import {
   conformance,
   createChatStoreHarness,
 } from "../../../test/chat/vaultHarness";
+import type { StoredConversation, StoredMessage } from "../db/chat/types";
 import { ChatStoreError } from "./types";
 import { createVaultChatBackend, type VaultChatBackend, type VaultChatEvent } from "./vaultBackend";
 import type { ChatOutboxLocks, ChatOutboxStorage } from "./vaultOutbox";
@@ -782,6 +783,102 @@ describe("vault chat backend", () => {
     expect(links.map((l) => [l.memoryId, l.score, l.createdAt.getTime()]).sort()).toEqual([
       ["mem_x", 0.9, 2_000_000],
       ["mem_y", 0.5, 1_000_001],
+    ]);
+  });
+
+  it("imports chats with their own times and order, and a re-import changes nothing", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: "conv_live", title: "Live" });
+    await b.flush();
+    expect(await b.getMessages("conv_imp")).toEqual([]);
+
+    const at = (minute: number) => new Date(Date.UTC(2024, 0, 1, 0, minute));
+    const imported = [
+      {
+        conversation: {
+          uniqueId: "conv_imp",
+          conversationId: "conv_imp",
+          title: "From ChatGPT",
+          createdAt: at(0),
+          updatedAt: at(0),
+          isDeleted: false,
+        } as StoredConversation,
+        messages: [
+          { uniqueId: "msg_i1", messageId: 1, role: "user", content: "first", createdAt: at(1) },
+          {
+            uniqueId: "msg_i2",
+            messageId: 2,
+            role: "assistant",
+            content: "second",
+            createdAt: at(2),
+          },
+          { uniqueId: "bad/id", messageId: 3, role: "user", content: "skipped", createdAt: at(3) },
+        ].map(
+          (m) => ({ ...m, conversationId: "conv_imp", updatedAt: m.createdAt }) as StoredMessage
+        ),
+      },
+      {
+        conversation: {
+          conversationId: "bad/conv",
+          title: "x",
+          createdAt: at(0),
+        } as StoredConversation,
+        messages: [],
+      },
+    ];
+
+    expect(await b.importChats(imported)).toEqual({ conversations: 1, messages: 2 });
+    expect(
+      (await b.getMessages("conv_imp")).map((m) => [m.content, m.createdAt.toISOString()])
+    ).toEqual([
+      ["first", at(1).toISOString()],
+      ["second", at(2).toISOString()],
+    ]);
+
+    await b.updateMessageFeedback("msg_i2", "like");
+    await b.flush();
+    expect(await b.importChats(imported)).toEqual({ conversations: 0, messages: 0 });
+
+    expect(await b.getMessages("conv_live")).toEqual([]);
+    await b.importChats([
+      {
+        conversation: {
+          conversationId: "conv_live",
+          title: "Ignored",
+          createdAt: at(0),
+        } as StoredConversation,
+        messages: [
+          {
+            uniqueId: "msg_l1",
+            messageId: 1,
+            conversationId: "conv_live",
+            role: "user",
+            content: "added to an open thread",
+            createdAt: at(5),
+            updatedAt: at(5),
+          } as StoredMessage,
+        ],
+      },
+    ]);
+    expect((await b.getMessages("conv_live")).map((m) => m.content)).toEqual([
+      "added to an open thread",
+    ]);
+    expect((await b.getConversation("conv_live"))?.title).toBe("Live");
+
+    const fresh = backend(fake).b;
+    const conversation = await fresh.getConversation("conv_imp");
+    expect(conversation?.title).toBe("From ChatGPT");
+    expect(conversation?.createdAt.toISOString()).toBe(at(0).toISOString());
+    expect(
+      (await fresh.getMessages("conv_imp")).map((m) => [m.uniqueId, m.feedback ?? null])
+    ).toEqual([
+      ["msg_i1", null],
+      ["msg_i2", "like"],
+    ]);
+    expect((await fresh.getConversations()).map((c) => c.conversationId).sort()).toEqual([
+      "conv_imp",
+      "conv_live",
     ]);
   });
 

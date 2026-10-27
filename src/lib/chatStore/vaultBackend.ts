@@ -9,6 +9,7 @@ import {
   type GetMessagesPageOptions,
   type MessageFeedback,
   type MessageSkeleton,
+  type StoredConversation,
   type StoredConversationSummary,
   type StoredFileWithContext,
   type StoredMessage,
@@ -23,6 +24,8 @@ import type {
   ChatStorageObservable,
   ConversationQueryOptions,
 } from "../storage/ChatStorageAdapter";
+import { batches, conversationRecord, messageRecord } from "./chatImports";
+import { validChatId } from "./remote";
 import {
   type ChatJson,
   type ChatRecord,
@@ -106,6 +109,10 @@ export interface VaultChatBackend extends ChatBackend {
   flush(): Promise<void>;
   /** Applies changes other devices made since the last poll. */
   poll(): Promise<void>;
+  /** Copies imported conversations and messages into vault with their own ids, times and order, leaving ids vault already holds as they are. */
+  importChats(
+    chats: readonly { conversation: StoredConversation; messages: readonly StoredMessage[] }[]
+  ): Promise<{ conversations: number; messages: number }>;
   status(): { pending: number; stopped?: string };
   close(): void;
 }
@@ -1115,6 +1122,32 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     },
     flush,
     poll,
+    async importChats(chats) {
+      await ready();
+      const valid = chats.filter((c) => validChatId(c.conversation.conversationId));
+      const conversations = valid.map((c) => conversationRecord(c.conversation, c.messages));
+      const messages = valid.flatMap((c) =>
+        c.messages
+          .filter(
+            (m) =>
+              m.conversationId === c.conversation.conversationId &&
+              validChatId(m.uniqueId) &&
+              Number.isSafeInteger(m.messageId)
+          )
+          .map(messageRecord)
+      );
+      let conversationCount = 0;
+      for (const batch of batches(conversations))
+        conversationCount += await store.importRecords(batch);
+      let messageCount = 0;
+      for (const batch of batches(messages)) messageCount += await store.importRecords(batch);
+      await refresh(conversations.map(({ record }) => key("conversation", record.id)));
+      for (const { conversation } of valid) threads.delete(conversation.conversationId);
+      emit({ type: "conversations", origin: "local" });
+      for (const { conversation } of valid)
+        emit({ type: "messages", conversationId: conversation.conversationId, origin: "local" });
+      return { conversations: conversationCount, messages: messageCount };
+    },
     status: () => ({ pending: pending.size + inflight.size, ...(stopped ? { stopped } : {}) }),
     close() {
       closed = true;
