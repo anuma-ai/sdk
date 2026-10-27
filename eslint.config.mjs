@@ -18,6 +18,11 @@ const memoryTelemetryTests = [
   "src/lib/memoryVault/searchToolExecutor.store.test.ts",
 ];
 
+const checkedAgentRuntimeFiles = [
+  "packages/agents/runtime/src/runAgentRequest.ts",
+  "packages/agents/runtime/test/e2e.test.ts",
+];
+
 const checkedTestFiles = [
   "src/lib/chatStore/remote.test.ts",
   "src/lib/memory/store/remoteMigration.test.ts",
@@ -72,7 +77,7 @@ export default tseslint.config(
       "scripts/**/*",
       "!scripts/patch-generated-client.mjs",
       "patches/**",
-      "packages/**",
+      "packages/**/*",
       "test/**/*",
       "!test/tools/",
       "**/*.test.ts",
@@ -85,6 +90,11 @@ export default tseslint.config(
       "!scripts/excluded-test-suites.mjs",
       "!test/",
       "!test/**/",
+      "!packages/agents/",
+      "!packages/agents/runtime/",
+      "!packages/agents/runtime/src/",
+      "!packages/agents/runtime/test/",
+      ...checkedAgentRuntimeFiles.map((file) => `!${file}`),
       ...checkedTestFiles.map((file) => `!${file}`),
     ],
   },
@@ -135,6 +145,15 @@ export default tseslint.config(
       parserOptions: {
         projectService: false,
         project: "./tsconfig.test.json",
+      },
+    },
+  },
+  {
+    files: checkedAgentRuntimeFiles,
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: "./packages/agents/runtime/tsconfig.test.json",
       },
     },
   },
