@@ -33,6 +33,7 @@ import {
 } from "./types";
 import {
   applyPatch,
+  type ChatOutboxLocks,
   type ChatOutboxStorage,
   type ChatPatch,
   loadOutbox,
@@ -78,8 +79,12 @@ export interface VaultChatActivity {
 
 export interface VaultChatBackendOptions {
   store: ChatStore;
-  /** Persists unsent writes, sealed with `seal`, so they survive a reload. */
-  outbox?: { storage: ChatOutboxStorage; seal: Pick<SealingCipher, "encrypt" | "decrypt"> };
+  /** Persists unsent writes, sealed with `seal`, so they survive a reload; `locks` defaults to `navigator.locks`. */
+  outbox?: {
+    storage: ChatOutboxStorage;
+    seal: Pick<SealingCipher, "encrypt" | "decrypt">;
+    locks?: ChatOutboxLocks;
+  };
   activity?: VaultChatActivity;
   /** Polls `/changes` this often while active; 0 polls only on activity and broadcast hints. */
   pollIntervalMs?: number;
@@ -184,6 +189,18 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   let pollFailures = 0;
   let persisting: Promise<void> = Promise.resolve();
   let readyPromise: Promise<void> | null = null;
+  let adopting: Promise<void> | null = null;
+  const slot = uuidv7();
+  const locks =
+    options.outbox?.locks ??
+    (globalThis as { navigator?: { locks?: ChatOutboxLocks } }).navigator?.locks;
+  let releaseSlot: (() => void) | undefined;
+  if (options.outbox && locks)
+    void locks.request(
+      `chat-outbox:${slot}`,
+      {},
+      () => new Promise<void>((resolve) => (releaseSlot = resolve))
+    );
 
   const channel =
     options.channel && typeof BroadcastChannel !== "undefined"
@@ -239,7 +256,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
           const earlier = intents.get(k);
           intents.set(k, earlier ? mergePatch(earlier, patch) : patch);
         }
-        return saveOutbox(storage.storage, storage.seal.encrypt, [...intents.values()]);
+        return saveOutbox(storage.storage, slot, storage.seal.encrypt, [...intents.values()]);
       });
     return persisting;
   };
@@ -472,6 +489,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       })
       .finally(() => {
         flushing = null;
+        if (pending.size && !retryTimer) scheduleFlush();
       });
     return flushing;
   };
@@ -597,14 +615,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         result.items.forEach(merge);
         page = result.nextCursor;
       } while (page);
-      if (options.outbox) {
-        for (const patch of await loadOutbox(options.outbox.storage, options.outbox.seal.decrypt)) {
-          const k = patchKey(patch);
-          if (!pending.has(k)) pending.set(k, patch);
-          seq = Math.max(seq, patch.seq);
-        }
-        if (pending.size) scheduleFlush();
-      }
+      await adopt();
       schedulePoll();
     })();
     readyPromise.catch(() => {
@@ -613,8 +624,44 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     return readyPromise;
   };
 
+  const adoptSlot = async (
+    outbox: NonNullable<VaultChatBackendOptions["outbox"]>,
+    other: string
+  ) => {
+    const patches = await loadOutbox(outbox.storage, other, outbox.seal.decrypt);
+    for (const patch of patches) {
+      const k = patchKey(patch);
+      const mine = pending.get(k);
+      pending.set(k, mine ? mergePatch(patch, mine) : patch);
+      seq = Math.max(seq, patch.seq);
+    }
+    await persist();
+    await outbox.storage.set(other, null);
+  };
+
+  const adopt = (): Promise<void> => {
+    const outbox = options.outbox;
+    if (!outbox) return Promise.resolve();
+    adopting ??= (async () => {
+      for (const other of await outbox.storage.slots()) {
+        if (other === slot) continue;
+        const take = () => adoptSlot(outbox, other).catch(() => undefined);
+        if (!locks) await take();
+        else
+          await locks.request(`chat-outbox:${other}`, { ifAvailable: true }, (lock) =>
+            lock ? take() : undefined
+          );
+      }
+      if (pending.size) scheduleFlush();
+    })().finally(() => {
+      adopting = null;
+    });
+    return adopting;
+  };
+
   const unsubscribeActivity = activity.subscribe(() => {
     if (!activity.isActive()) return;
+    if (readyPromise) void readyPromise.then(adopt).catch(() => undefined);
     void poll();
     if (pending.size && !flushing && Date.now() >= heldUntil) {
       clearTimeout(retryTimer);
@@ -1075,6 +1122,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       clearTimeout(retryTimer);
       clearTimeout(pollTimer);
       unsubscribeActivity();
+      releaseSlot?.();
       channel?.close();
       listeners.clear();
     },

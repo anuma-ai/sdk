@@ -7,7 +7,6 @@ import {
   type LinkOp,
 } from "./vaultRecords";
 
-/** A pending change to one record: applied to whatever version the server holds when it is sent. */
 export interface ChatPatch {
   seq: number;
   kind: ChatRecordKind;
@@ -20,14 +19,23 @@ export interface ChatPatch {
   embeddings?: number[][];
   embeddingModel?: string;
   updatedAt: number;
-  /** Set once a send was tried, so the server may hold its result even though no response said so. */
   attempted?: true;
 }
 
-/** Durable home for the sealed outbox, so writes survive a reload while vault is unreachable. */
+/** Durable home for sealed outbox slots, one per running backend, so writes survive a reload while vault is unreachable. */
 export interface ChatOutboxStorage {
-  get(): Promise<string | null>;
-  set(sealed: string | null): Promise<void>;
+  slots(): Promise<string[]>;
+  get(slot: string): Promise<string | null>;
+  set(slot: string, sealed: string | null): Promise<void>;
+}
+
+/** The part of the Web Locks API the outbox uses to tell a live tab's slot from an orphaned one. */
+export interface ChatOutboxLocks {
+  request<T>(
+    name: string,
+    options: { ifAvailable?: boolean },
+    callback: (lock: object | null) => Promise<T> | T
+  ): Promise<T>;
 }
 
 export function patchKey(patch: Pick<ChatPatch, "kind" | "id">): string {
@@ -61,7 +69,6 @@ function withoutNulls(data: ChatData): ChatData {
   return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== null));
 }
 
-/** The record a patch produces on top of `base`; `undefined` when there is nothing to write it onto. */
 export function applyPatch(base: ChatRecord | undefined, patch: ChatPatch): ChatRecord | undefined {
   if (base?.isDeleted) return base;
   if (patch.delete && !base) return undefined;
@@ -105,7 +112,6 @@ function sameRecord(a: ChatRecord, b: ChatRecord): boolean {
   return a.sortKey === b.sortKey && a.isDeleted === b.isDeleted && sameJson(a.data, b.data);
 }
 
-/** The write that sends `patch`, or `null` when the server already holds its result. */
 export function toWrite(
   base: { record: ChatRecord; version: number } | undefined,
   patch: ChatPatch
@@ -129,7 +135,6 @@ const maxWrites = 25;
 const maxChunks = 200;
 const maxPlaintextBytes = 3_900_000;
 
-/** Takes the next batch in queue order within vault's per-request write, vector and size limits. */
 export function nextBatch(patches: Iterable<ChatPatch>, limit = maxWrites): ChatPatch[] {
   const batch: ChatPatch[] = [];
   let chunks = 0;
@@ -151,17 +156,22 @@ export function nextBatch(patches: Iterable<ChatPatch>, limit = maxWrites): Chat
 
 export async function saveOutbox(
   storage: ChatOutboxStorage,
+  slot: string,
   encrypt: (plaintext: string) => Promise<string>,
   patches: readonly ChatPatch[]
 ): Promise<void> {
-  await storage.set(patches.length ? await encrypt(JSON.stringify({ schema: 1, patches })) : null);
+  await storage.set(
+    slot,
+    patches.length ? await encrypt(JSON.stringify({ schema: 1, patches })) : null
+  );
 }
 
 export async function loadOutbox(
   storage: ChatOutboxStorage,
+  slot: string,
   decrypt: (ciphertext: string) => Promise<string>
 ): Promise<ChatPatch[]> {
-  const sealed = await storage.get();
+  const sealed = await storage.get(slot);
   if (!sealed) return [];
   const parsed = JSON.parse(await decrypt(sealed)) as { schema?: number; patches?: ChatPatch[] };
   return parsed.schema === 1 && Array.isArray(parsed.patches) ? parsed.patches : [];

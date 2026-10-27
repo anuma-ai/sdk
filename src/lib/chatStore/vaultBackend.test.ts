@@ -10,7 +10,7 @@ import {
 } from "../../../test/chat/vaultHarness";
 import { ChatStoreError } from "./types";
 import { createVaultChatBackend, type VaultChatBackend, type VaultChatEvent } from "./vaultBackend";
-import type { ChatOutboxStorage } from "./vaultOutbox";
+import type { ChatOutboxLocks, ChatOutboxStorage } from "./vaultOutbox";
 
 beforeAll(() => {
   vi.stubGlobal("crypto", webcrypto);
@@ -44,14 +44,33 @@ function backend(
   return { b, events };
 }
 
-function memoryStorage(): ChatOutboxStorage & { value: string | null } {
+function memoryStorage(): ChatOutboxStorage & { values: Map<string, string> } {
+  const values = new Map<string, string>();
   return {
-    value: null,
-    async get() {
-      return this.value;
+    values,
+    slots: async () => [...values.keys()],
+    get: async (slot) => values.get(slot) ?? null,
+    set: async (slot, sealed) => {
+      if (sealed === null) values.delete(slot);
+      else values.set(slot, sealed);
     },
-    async set(sealed) {
-      this.value = sealed;
+  };
+}
+
+function memoryLocks(): ChatOutboxLocks {
+  const held = new Set<string>();
+  return {
+    async request(name, { ifAvailable }, callback) {
+      if (held.has(name)) {
+        if (ifAvailable) return callback(null);
+        throw new Error(`lock ${name} is already held`);
+      }
+      held.add(name);
+      try {
+        return await callback({});
+      } finally {
+        held.delete(name);
+      }
     },
   };
 }
@@ -310,15 +329,81 @@ describe("vault chat backend", () => {
     await b.flush();
     b.close();
 
-    expect(storage.value).toMatch(/^enc:v\d+:/);
-    expect(storage.value).not.toContain("Secret plans");
+    const [sealed] = [...storage.values.values()];
+    expect(storage.values.size).toBe(1);
+    expect(sealed).toMatch(/^enc:v\d+:/);
+    expect(sealed).not.toContain("Secret plans");
     expect(await fake.row("conversation", "conv_1")).toBeUndefined();
 
     fake.heal();
     const reloaded = backend(fake, { outbox: { storage, seal } }).b;
     await reloaded.flush();
     expect((await fake.row("conversation", "conv_1"))?.record.data.title).toBe("Secret plans");
-    expect(storage.value).toBeNull();
+    expect(storage.values.size).toBe(0);
+  });
+
+  it("keeps each tab's unsent writes and leaves a live tab's queue to that tab", async () => {
+    const seal = memoryCipher(await deriveMemoryKeyRing("0x" + "57".repeat(65)));
+    const storage = memoryStorage();
+    const locks = memoryLocks();
+    const fake = await createChatStoreHarness();
+    const tab = () => backend(fake, { outbox: { storage, seal, locks } }).b;
+    const first = tab();
+    const second = tab();
+    await Promise.all([first.flush(), second.flush()]);
+    fake.fail({ op: "putMany", error: new TypeError("offline"), sticky: true });
+    fake.fail({ op: "getMany", error: new TypeError("offline"), sticky: true });
+    await first.createConversation({ conversationId: "conv_a", title: "From the first tab" });
+    await second.createConversation({ conversationId: "conv_b", title: "From the second tab" });
+    await Promise.all([first.flush(), second.flush()]);
+    expect(storage.values.size).toBe(2);
+
+    first.close();
+    fake.heal();
+    const third = tab();
+    await third.flush();
+    expect((await fake.row("conversation", "conv_a"))?.record.data.title).toBe(
+      "From the first tab"
+    );
+    expect(await fake.row("conversation", "conv_b")).toBeUndefined();
+    expect(storage.values.size).toBe(1);
+
+    second.close();
+    const fourth = tab();
+    await fourth.flush();
+    expect((await fake.row("conversation", "conv_b"))?.record.data.title).toBe(
+      "From the second tab"
+    );
+    expect(storage.values.size).toBe(0);
+  });
+
+  it("sends a write that lands while the outbox is being saved", async () => {
+    const seal = memoryCipher(await deriveMemoryKeyRing("0x" + "58".repeat(65)));
+    const base = memoryStorage();
+    let saving: (() => void) | undefined;
+    const storage: ChatOutboxStorage = {
+      ...base,
+      set: async (slot, sealed) => {
+        if (sealed === null && !saving) await new Promise<void>((resolve) => (saving = resolve));
+        await base.set(slot, sealed);
+      },
+    };
+    const fake = await createChatStoreHarness();
+    const b = backend(fake, { outbox: { storage, seal } }).b;
+    await b.createConversation({ conversationId: "conv_1", title: "First" });
+    const draining = b.flush();
+    await vi.waitFor(() => expect(saving).toBeDefined());
+    const second = b.createConversation({ conversationId: "conv_2", title: "Second" });
+    await vi.waitFor(() => expect(b.status().pending).toBe(1));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    saving!();
+    await Promise.all([draining, second]);
+
+    await vi.waitFor(
+      async () =>
+        expect((await fake.row("conversation", "conv_2"))?.record.data.title).toBe("Second"),
+      { timeout: 1_000, interval: 10 }
+    );
   });
 
   it("returns chunk text from stored offsets and folds long messages into 16 vectors", async () => {

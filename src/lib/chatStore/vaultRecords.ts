@@ -82,7 +82,6 @@ export function toMessage(record: ChatRecord): StoredMessage {
   };
 }
 
-/** Byte offsets of each stored vector's chunk in the content; absent means the whole message. */
 export function chunkOffsets(record: ChatRecord): [number, number][] | undefined {
   const offsets = record.data.chunkOffsets;
   return Array.isArray(offsets) ? (offsets as [number, number][]) : undefined;
@@ -169,7 +168,6 @@ function bytes(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value)).length;
 }
 
-/** Shrinks a message until its record fits vault's payload limit, marking what it dropped. */
 export function fitRecord(record: ChatRecord): ChatRecord {
   if (record.kind !== "message" || bytes(record) <= recordBudgetBytes) return record;
   const data: ChatData = { ...record.data };
@@ -204,7 +202,6 @@ function normalized(vector: number[]): number[] {
   return vector.map((x) => x / norm);
 }
 
-/** Folds a message's chunks into at most 16 by averaging neighbours, so long messages stay searchable. */
 export function fitChunks(chunks: readonly MessageChunk[]): MessageChunk[] | undefined {
   const usable = chunks.map((c) => ({ ...c, vector: acceptedVector(c.vector) }));
   if (usable.length === 0 || usable.some((c) => !c.vector)) return undefined;

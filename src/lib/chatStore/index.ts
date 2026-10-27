@@ -37,4 +37,4 @@ export {
   type VaultChatBackendOptions,
   type VaultChatEvent,
 } from "./vaultBackend.js";
-export type { ChatOutboxStorage } from "./vaultOutbox.js";
+export type { ChatOutboxLocks, ChatOutboxStorage } from "./vaultOutbox.js";

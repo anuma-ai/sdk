@@ -274,6 +274,12 @@ Re-exports [ChatMigrationSkip](../react/Internal/interfaces/ChatMigrationSkip.md
 
 ***
 
+### ChatOutboxLocks
+
+Re-exports [ChatOutboxLocks](../react/Internal/interfaces/ChatOutboxLocks.md)
+
+***
+
 ### ChatOutboxStorage
 
 Re-exports [ChatOutboxStorage](../react/Internal/interfaces/ChatOutboxStorage.md)

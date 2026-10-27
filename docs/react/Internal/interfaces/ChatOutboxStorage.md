@@ -1,28 +1,16 @@
 # ChatOutboxStorage
 
-Defined in: [src/lib/chatStore/vaultOutbox.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultOutbox.ts#28)
+Defined in: [src/lib/chatStore/vaultOutbox.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultOutbox.ts#26)
 
-Durable home for the sealed outbox, so writes survive a reload while vault is unreachable.
+Durable home for sealed outbox slots, one per running backend, so writes survive a reload while vault is unreachable.
 
 ## Methods
 
 ### get()
 
-> **get**(): `Promise`<`string` | `null`>
+> **get**(`slot`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/chatStore/vaultOutbox.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultOutbox.ts#29)
-
-**Returns**
-
-`Promise`<`string` | `null`>
-
-***
-
-### set()
-
-> **set**(`sealed`: `string` | `null`): `Promise`<`void`>
-
-Defined in: [src/lib/chatStore/vaultOutbox.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultOutbox.ts#30)
+Defined in: [src/lib/chatStore/vaultOutbox.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultOutbox.ts#28)
 
 **Parameters**
 
@@ -34,6 +22,55 @@ Defined in: [src/lib/chatStore/vaultOutbox.ts:30](https://github.com/anuma-ai/sd
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+
+`slot`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`string` | `null`>
+
+***
+
+### set()
+
+> **set**(`slot`: `string`, `sealed`: `string` | `null`): `Promise`<`void`>
+
+Defined in: [src/lib/chatStore/vaultOutbox.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultOutbox.ts#29)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`slot`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
 <tr>
 <td>
 
@@ -52,3 +89,15 @@ Defined in: [src/lib/chatStore/vaultOutbox.ts:30](https://github.com/anuma-ai/sd
 **Returns**
 
 `Promise`<`void`>
+
+***
+
+### slots()
+
+> **slots**(): `Promise`<`string`\[]>
+
+Defined in: [src/lib/chatStore/vaultOutbox.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultOutbox.ts#27)
+
+**Returns**
+
+`Promise`<`string`\[]>

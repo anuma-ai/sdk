@@ -1,6 +1,6 @@
 # VaultChatBackend
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#98)
+Defined in: [src/lib/chatStore/vaultBackend.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#103)
 
 A [ChatBackend](ChatBackend.md) over vault: a cache, an optimistic outbox and a change poller.
 
@@ -153,7 +153,7 @@ Clears all messages in a conversation (used for the "clear chat" action).
 
 > **close**(): `void`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#105)
+Defined in: [src/lib/chatStore/vaultBackend.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#110)
 
 **Returns**
 
@@ -384,7 +384,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:58](https://github.com/anuma-ai/sdk/
 
 > **flush**(): `Promise`<`void`>
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#101)
+Defined in: [src/lib/chatStore/vaultBackend.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#106)
 
 Sends queued writes now; resolves once the outbox is empty, waiting on a retry, or stopped.
 
@@ -998,7 +998,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:127](https://github.com/anuma
 
 > **poll**(): `Promise`<`void`>
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#103)
+Defined in: [src/lib/chatStore/vaultBackend.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#108)
 
 Applies changes other devices made since the last poll.
 
@@ -1065,7 +1065,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:47](https://github.com/anuma-ai/sdk/
 
 > **status**(): `object`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#104)
+Defined in: [src/lib/chatStore/vaultBackend.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#109)
 
 **Returns**
 
@@ -1085,7 +1085,7 @@ Defined in: [src/lib/chatStore/vaultBackend.ts:104](https://github.com/anuma-ai/
 
 > **subscribe**(`listener`: (`event`: [`VaultChatEvent`](../type-aliases/VaultChatEvent.md)) => `void`): () => `void`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#99)
+Defined in: [src/lib/chatStore/vaultBackend.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#104)
 
 **Parameters**
 

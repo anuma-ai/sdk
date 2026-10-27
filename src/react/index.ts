@@ -145,6 +145,7 @@ export {
   type ChatMigrationProgress,
   type ChatMigrationResult,
   type ChatMigrationSkip,
+  type ChatOutboxLocks,
   type ChatOutboxStorage,
   type ChatPage,
   type ChatPresignedUrl,

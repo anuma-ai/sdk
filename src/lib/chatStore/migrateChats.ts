@@ -341,6 +341,11 @@ function ref(k: string): ChatRef {
   return { kind: k.slice(0, at) as ChatRecordKind, id: k.slice(at + 1) };
 }
 
+const emptied: Partial<Record<ChatRecordKind, ChatRecord["data"]>> = {
+  summary: { summary: "", summarizedUpTo: "", tokenCount: 0 },
+  memory_links: { links: [] },
+};
+
 async function deletedSinceUpload(
   store: ChatStore,
   journal: UploadJournal,
@@ -353,15 +358,18 @@ async function deletedSinceUpload(
   const live = (await store.getMany(gone.map(ref), signal)).filter((s) => !s.record.isDeleted);
   const tombstoning = new Set(live.map((s) => key(s.record)));
   await journal.drop(gone.filter((k) => !tombstoning.has(k)));
-  return live.map(({ record, version }) => ({
-    record: {
-      ...record,
-      isDeleted: true,
-      data: {},
-      updatedAt: Math.max(Date.now(), record.updatedAt + 1),
-    },
-    expectedVersion: version,
-  }));
+  return live.map(({ record, version }) => {
+    const empty = emptied[record.kind];
+    return {
+      record: {
+        ...record,
+        isDeleted: !empty,
+        data: empty ?? {},
+        updatedAt: Math.max(Date.now(), record.updatedAt + 1),
+      },
+      expectedVersion: version,
+    };
+  });
 }
 
 function batches(records: readonly ChatImport[]): ChatImport[][] {
@@ -391,7 +399,6 @@ function batches(records: readonly ChatImport[]): ChatImport[][] {
   return out;
 }
 
-/** Strips vectors from the oldest messages until the upload fits the account's vector quota. */
 function fitVectors(
   records: ChatImport[],
   available: number,

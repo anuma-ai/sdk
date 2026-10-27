@@ -167,13 +167,18 @@ describe("migrateChatsToRemote", () => {
     const result = await migrate(database, harness);
 
     expect(result.state).toBe("active");
-    for (const [kind, id] of [
-      ["message", "msg_1"],
-      ["summary", "conv_trip"],
-      ["memory_links", "conv_trip"],
-    ] as const)
-      expect((await harness.row(kind, id))?.record.isDeleted).toBe(true);
+    expect((await harness.row("message", "msg_1"))?.record.isDeleted).toBe(true);
+    for (const kind of ["summary", "memory_links"] as const)
+      expect((await harness.row(kind, "conv_trip"))?.record.isDeleted).toBe(false);
     expect(await observeAll(vault(harness), ids)).toEqual(await observeAll(local, ids));
+
+    const after = vault(harness);
+    await after.upsertSummary("conv_trip", "summary after handoff", "msg_2", 4);
+    await after.addMemoryLinks("conv_trip", [{ memoryId: "mem_after", score: 0.7 }]);
+    await after.flush();
+    const fresh = vault(harness);
+    expect((await fresh.getSummary("conv_trip"))?.summary).toBe("summary after handoff");
+    expect((await fresh.getMemoryLinks("conv_trip")).map((l) => l.memoryId)).toEqual(["mem_after"]);
   });
 
   it("deletes from vault a message the device deleted while the copy ran", async () => {
