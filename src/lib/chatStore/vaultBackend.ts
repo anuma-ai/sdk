@@ -675,6 +675,17 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     if (!existing) await backend.createConversation({ conversationId });
   };
 
+  const invalidateSummary = async (conversationId: string, changed?: ChatRecord) => {
+    const summary = await child("summary", conversationId);
+    const upTo = summary && !summary.isDeleted ? summary.data.summarizedUpTo : undefined;
+    if (typeof upTo !== "string" || !upTo) return;
+    if (changed) {
+      const boundary = await message(upTo);
+      if (boundary?.conversationId === conversationId && changed.sortKey > boundary.sortKey) return;
+    }
+    await backend.deleteSummary(conversationId);
+  };
+
   const storedMessage = async (uniqueId: string) => {
     const record = await message(uniqueId);
     return record ? toMessage(record) : null;
@@ -884,6 +895,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       await thread(upsert.conversationId);
       const existing = view(key("message", upsert.uniqueId));
       if (!existing || existing.isDeleted) return backend.createMessage(upsert);
+      if (upsert.content !== undefined && upsert.content !== existing.data.content)
+        await invalidateSummary(upsert.conversationId, existing);
       const vector = acceptedVector(upsert.vector);
       return (await patchMessage(upsert.uniqueId, {
         set: resumedFields(upsert),
@@ -922,6 +935,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       return patchMessage(uniqueId, { set: { fileIds } });
     },
     async clearMessages(conversationId) {
+      await invalidateSummary(conversationId);
       for (const record of await thread(conversationId))
         await enqueue({ kind: "message", id: record.id, conversationId, delete: true });
       emit({ type: "messages", conversationId, origin: "local" });
@@ -929,6 +943,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     async deleteMessage(uniqueId) {
       const record = await message(uniqueId);
       if (!record) return null;
+      await invalidateSummary(record.conversationId, record);
       await enqueue({
         kind: "message",
         id: uniqueId,

@@ -251,6 +251,45 @@ export function runChatBackendContract(
       expect(await b.getSummary("conv_sum")).toBeNull();
     });
 
+    it("clears a summary when a message it covers is deleted or edited, or the thread is cleared", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_sv", title: "SV" });
+      for (const id of ["msg_s0", "msg_s1", "msg_s2"])
+        await b.createMessage({
+          conversationId: "conv_sv",
+          role: "user",
+          content: id,
+          uniqueId: id,
+        });
+      const summary = async () => (await b.getSummary("conv_sv"))?.summary ?? null;
+
+      await b.upsertSummary("conv_sv", "up to s1", "msg_s1", 5);
+      await b.deleteMessage("msg_s2");
+      await b.upsertMessage({
+        conversationId: "conv_sv",
+        role: "user",
+        content: "msg_s0",
+        uniqueId: "msg_s0",
+      });
+      expect(await summary()).toBe("up to s1");
+
+      await b.upsertMessage({
+        conversationId: "conv_sv",
+        role: "user",
+        content: "edited",
+        uniqueId: "msg_s0",
+      });
+      expect(await summary()).toBeNull();
+
+      await b.upsertSummary("conv_sv", "again", "msg_s1", 5);
+      await b.deleteMessage("msg_s1");
+      expect(await summary()).toBeNull();
+
+      await b.upsertSummary("conv_sv", "third", "msg_s0", 5);
+      await b.clearMessages("conv_sv");
+      expect(await summary()).toBeNull();
+    });
+
     it("deletes one message and leaves the rest", async () => {
       const b = await makeBackend();
       await b.createConversation({ conversationId: "conv_d", title: "D" });
