@@ -1,3 +1,5 @@
+import type { Database } from "@nozbe/watermelondb";
+import type { WriterInterface } from "@nozbe/watermelondb/Database/WorkQueue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
@@ -738,7 +740,10 @@ describe("maybeSummarizeHistory", () => {
   const mockedUpsertSummary = vi.mocked(upsertConversationSummaryOp);
 
   const baseOptions = {
-    database: {} as any,
+    database: {
+      write: <T>(work: (writer: WriterInterface) => Promise<T>) =>
+        work({ callWriter: (write) => write() } as WriterInterface),
+    } as Database,
     conversationId: "conv-test",
     summarizeHistory: true,
     summaryTokenThreshold: 4000,
