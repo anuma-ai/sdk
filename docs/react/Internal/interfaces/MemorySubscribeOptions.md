@@ -1,6 +1,6 @@
 # MemorySubscribeOptions
 
-Defined in: [src/lib/memory/store/types.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#143)
+Defined in: [src/lib/memory/store/types.ts:149](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#149)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/types.ts:143](https://github.com/anuma-ai/sdk/
 
 > `optional` **embeddings**: `boolean`
 
-Defined in: [src/lib/memory/store/types.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#159)
+Defined in: [src/lib/memory/store/types.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#165)
 
 Also fire for embedding vector/model changes. Default `false`.
 Ignored when `includeDeleted` is `true`, which remains membership-only.
@@ -19,7 +19,7 @@ Ignored when `includeDeleted` is `true`, which remains membership-only.
 
 > `optional` **includeDeleted**: `boolean`
 
-Defined in: [src/lib/memory/store/types.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#152)
+Defined in: [src/lib/memory/store/types.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#158)
 
 Watch the whole table, soft-deleted rows included, and fire on row-SET
 changes only (create / delete / undelete) — the Memory Graph's mode. A
@@ -34,6 +34,6 @@ trigger default notifications.
 
 > `optional` **topics**: `boolean`
 
-Defined in: [src/lib/memory/store/types.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#154)
+Defined in: [src/lib/memory/store/types.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#160)
 
 Also fire when topic (entity / link) state changes. Default `false`.

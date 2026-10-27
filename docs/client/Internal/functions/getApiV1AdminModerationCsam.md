@@ -2,7 +2,7 @@
 
 > **getApiV1AdminModerationCsam**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminModerationCsamData`](../type-aliases/GetApiV1AdminModerationCsamData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminModerationCsamResponses`](../type-aliases/GetApiV1AdminModerationCsamResponses.md), [`GetApiV1AdminModerationCsamErrors`](../type-aliases/GetApiV1AdminModerationCsamErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:257](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#257)
+Defined in: [src/client/sdk.gen.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#258)
 
 List CSAM moderation events (admin)
 

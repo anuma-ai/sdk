@@ -166,9 +166,57 @@ Re-exports [capHopsForDensity](../react/Internal/functions/capHopsForDensity.md)
 
 ***
 
+### ChatAccount
+
+Re-exports [ChatAccount](../react/Internal/interfaces/ChatAccount.md)
+
+***
+
+### ChatAccountState
+
+Re-exports [ChatAccountState](../react/Internal/type-aliases/ChatAccountState.md)
+
+***
+
+### ChatAttachment
+
+Re-exports [ChatAttachment](../react/Internal/interfaces/ChatAttachment.md)
+
+***
+
+### ChatAttachments
+
+Re-exports [ChatAttachments](../react/Internal/interfaces/ChatAttachments.md)
+
+***
+
+### ChatChanges
+
+Re-exports [ChatChanges](../react/Internal/interfaces/ChatChanges.md)
+
+***
+
 ### ChatConversation
 
 Re-exports [ChatConversation](../react/Internal/classes/ChatConversation.md)
+
+***
+
+### ChatImport
+
+Re-exports [ChatImport](../react/Internal/interfaces/ChatImport.md)
+
+***
+
+### ChatJson
+
+Re-exports [ChatJson](../react/Internal/type-aliases/ChatJson.md)
+
+***
+
+### ChatListOptions
+
+Re-exports [ChatListOptions](../react/Internal/interfaces/ChatListOptions.md)
 
 ***
 
@@ -178,9 +226,63 @@ Re-exports [ChatMessage](../react/Internal/classes/ChatMessage.md)
 
 ***
 
+### ChatPage
+
+Re-exports [ChatPage](../react/Internal/interfaces/ChatPage.md)
+
+***
+
+### ChatPresignedUrl
+
+Re-exports [ChatPresignedUrl](../react/Internal/interfaces/ChatPresignedUrl.md)
+
+***
+
+### ChatRecord
+
+Re-exports [ChatRecord](../react/Internal/interfaces/ChatRecord.md)
+
+***
+
+### ChatRecordKind
+
+Re-exports [ChatRecordKind](../react/Internal/type-aliases/ChatRecordKind.md)
+
+***
+
+### ChatRef
+
+Re-exports [ChatRef](../react/Internal/interfaces/ChatRef.md)
+
+***
+
+### ChatRevision
+
+Re-exports [ChatRevision](../react/Internal/interfaces/ChatRevision.md)
+
+***
+
 ### ChatRole
 
 Re-exports [ChatRole](../react/Internal/type-aliases/ChatRole.md)
+
+***
+
+### ChatSearchHit
+
+Re-exports [ChatSearchHit](../react/Internal/interfaces/ChatSearchHit.md)
+
+***
+
+### ChatSearchOptions
+
+Re-exports [ChatSearchOptions](../react/Internal/interfaces/ChatSearchOptions.md)
+
+***
+
+### ChatSnapshot
+
+Re-exports [ChatSnapshot](../react/Internal/interfaces/ChatSnapshot.md)
 
 ***
 
@@ -193,6 +295,24 @@ Re-exports [chatStorageMigrations](../react/Internal/variables/chatStorageMigrat
 ### chatStorageSchema
 
 Re-exports [chatStorageSchema](../react/Internal/variables/chatStorageSchema.md)
+
+***
+
+### ChatStore
+
+Re-exports [ChatStore](../react/Internal/interfaces/ChatStore.md)
+
+***
+
+### ChatStoreError
+
+Re-exports [ChatStoreError](../react/Internal/classes/ChatStoreError.md)
+
+***
+
+### ChatWrite
+
+Re-exports [ChatWrite](../react/Internal/interfaces/ChatWrite.md)
 
 ***
 
@@ -502,6 +622,12 @@ Re-exports [createRecallTool](../react/Internal/functions/createRecallTool.md)
 
 ***
 
+### createRemoteChatStore
+
+Re-exports [createRemoteChatStore](../react/Internal/functions/createRemoteChatStore.md)
+
+***
+
 ### createRemoteMemoryPersistence
 
 Re-exports [createRemoteMemoryPersistence](../react/Internal/functions/createRemoteMemoryPersistence.md)
@@ -517,6 +643,18 @@ Re-exports [createRemoteMemoryPipeline](../react/Internal/functions/createRemote
 ### createRemoteMemoryStore
 
 Re-exports [createRemoteMemoryStore](../react/Internal/functions/createRemoteMemoryStore.md)
+
+***
+
+### createSelectPaymentWalletTool
+
+Re-exports [createSelectPaymentWalletTool](../react/Internal/functions/createSelectPaymentWalletTool.md)
+
+***
+
+### CreateSelectPaymentWalletToolOptions
+
+Re-exports [CreateSelectPaymentWalletToolOptions](../react/Internal/type-aliases/CreateSelectPaymentWalletToolOptions.md)
 
 ***
 
@@ -559,6 +697,18 @@ Re-exports [createVaultMemoryOp](../react/Internal/functions/createVaultMemoryOp
 ### CreateVaultMemoryOptions
 
 Re-exports [CreateVaultMemoryOptions](../react/Internal/interfaces/CreateVaultMemoryOptions.md)
+
+***
+
+### createWalletPaymentTool
+
+Re-exports [createWalletPaymentTool](../react/Internal/functions/createWalletPaymentTool.md)
+
+***
+
+### CreateWalletPaymentToolOptions
+
+Re-exports [CreateWalletPaymentToolOptions](../react/Internal/type-aliases/CreateWalletPaymentToolOptions.md)
 
 ***
 
@@ -1300,6 +1450,12 @@ Re-exports [MemoryContextResult](../react/Internal/interfaces/MemoryContextResul
 
 ***
 
+### MemoryCounts
+
+Re-exports [MemoryCounts](../react/Internal/interfaces/MemoryCounts.md)
+
+***
+
 ### MemoryCreate
 
 Re-exports [MemoryCreate](../react/Internal/type-aliases/MemoryCreate.md)
@@ -1561,6 +1717,12 @@ Re-exports [parseMedia](../react/Internal/functions/parseMedia.md)
 ### PAST\_EVENT\_GRACE\_MS
 
 Re-exports [PAST\_EVENT\_GRACE\_MS](../react/Internal/variables/PAST_EVENT_GRACE_MS.md)
+
+***
+
+### PaymentWallet
+
+Re-exports [PaymentWallet](../react/Internal/type-aliases/PaymentWallet.md)
 
 ***
 
@@ -1852,6 +2014,12 @@ Re-exports [relinkMemoryTopicsOp](../react/Internal/functions/relinkMemoryTopics
 
 ***
 
+### RemoteChatStoreOptions
+
+Re-exports [RemoteChatStoreOptions](../react/Internal/interfaces/RemoteChatStoreOptions.md)
+
+***
+
 ### RemoteMemoryCandidateOptions
 
 Re-exports [RemoteMemoryCandidateOptions](../react/Internal/interfaces/RemoteMemoryCandidateOptions.md)
@@ -1957,6 +2125,36 @@ Re-exports [RemoteMemoryRow](../react/Internal/interfaces/RemoteMemoryRow.md)
 ### RemoteMemoryStoreOptions
 
 Re-exports [RemoteMemoryStoreOptions](../react/Internal/interfaces/RemoteMemoryStoreOptions.md)
+
+***
+
+### RemoteMemoryTopic
+
+Re-exports [RemoteMemoryTopic](../react/Internal/interfaces/RemoteMemoryTopic.md)
+
+***
+
+### RemoteMemoryWorkKind
+
+Re-exports [RemoteMemoryWorkKind](../react/Internal/type-aliases/RemoteMemoryWorkKind.md)
+
+***
+
+### RemoteMemoryWorkLease
+
+Re-exports [RemoteMemoryWorkLease](../react/Internal/interfaces/RemoteMemoryWorkLease.md)
+
+***
+
+### RemoteMemoryWorkPersistence
+
+Re-exports [RemoteMemoryWorkPersistence](../react/Internal/interfaces/RemoteMemoryWorkPersistence.md)
+
+***
+
+### RemoteTopicPersistence
+
+Re-exports [RemoteTopicPersistence](../react/Internal/interfaces/RemoteTopicPersistence.md)
 
 ***
 
@@ -2125,6 +2323,18 @@ Re-exports [searchVaultMemories](../react/Internal/functions/searchVaultMemories
 ### seedEncryptionKeys
 
 Re-exports [seedEncryptionKeys](../react/Internal/functions/seedEncryptionKeys.md)
+
+***
+
+### SELECT\_PAYMENT\_WALLET\_TOOL\_NAME
+
+Re-exports [SELECT\_PAYMENT\_WALLET\_TOOL\_NAME](../react/Internal/variables/SELECT_PAYMENT_WALLET_TOOL_NAME.md)
+
+***
+
+### SelectPaymentWalletResult
+
+Re-exports [SelectPaymentWalletResult](../react/Internal/type-aliases/SelectPaymentWalletResult.md)
 
 ***
 
@@ -2617,6 +2827,36 @@ Re-exports [verifyMemoriesForPublish](../react/Internal/functions/verifyMemories
 ### VerifyMemoriesForPublishOptions
 
 Re-exports [VerifyMemoriesForPublishOptions](../react/Internal/interfaces/VerifyMemoriesForPublishOptions.md)
+
+***
+
+### WALLET\_PAYMENT\_TOOL\_NAME
+
+Re-exports [WALLET\_PAYMENT\_TOOL\_NAME](../react/Internal/variables/WALLET_PAYMENT_TOOL_NAME.md)
+
+***
+
+### WalletPaymentOutcome
+
+Re-exports [WalletPaymentOutcome](../react/Internal/type-aliases/WalletPaymentOutcome.md)
+
+***
+
+### WalletPaymentPassenger
+
+Re-exports [WalletPaymentPassenger](../react/Internal/type-aliases/WalletPaymentPassenger.md)
+
+***
+
+### WalletPaymentRequest
+
+Re-exports [WalletPaymentRequest](../react/Internal/type-aliases/WalletPaymentRequest.md)
+
+***
+
+### WalletPaymentResult
+
+Re-exports [WalletPaymentResult](../react/Internal/type-aliases/WalletPaymentResult.md)
 
 ***
 

@@ -83,7 +83,6 @@ export type MemoryCreate = Pick<
  */
 export type MemoryUpdate = Pick<
   UpdateVaultMemoryOptions,
-  | "content"
   | "scope"
   | "factType"
   | "eventTime"
@@ -92,7 +91,7 @@ export type MemoryUpdate = Pick<
   | "kind"
   | "kindValue"
   | "level"
->;
+> & { content: string };
 
 /**
  * Fact-only recall. Conversation chunks are message storage, not memory, so
@@ -137,6 +136,13 @@ export interface MemoryTopic {
   name: string;
   kind: string | null;
   memoryCount: number;
+}
+
+/** @public */
+export interface MemoryCounts {
+  live: number;
+  archived: number;
+  quarantined: number;
 }
 
 /** @public */
@@ -241,6 +247,8 @@ export interface EmbeddingRepairOptions {
 
 /** @public */
 export interface EmbeddingRepairResult {
+  /** Another device owns the work; preserve the cursor and retry later. */
+  deferred?: boolean;
   scanned: number;
   reembedded: number;
   failed: number;
@@ -269,6 +277,12 @@ export interface EmbeddingRepairResult {
  * @public
  */
 export interface MemoryStore {
+  /** Creates an account-scoped topic without requiring a memory. */
+  createTopic?(name: string): Promise<string | null>;
+  /** Imports local topic metadata without replacing server entries or tombstones. */
+  importTopics?(topics: readonly { name: string; kind?: string }[]): Promise<void>;
+  /** Metadata-only counts for the live, archived and quarantined lists. */
+  counts?(): Promise<MemoryCounts>;
   /** Memories newest-first, decrypted, WITH `embedding` (Memory Graph edges read it). */
   list(options?: MemoryListOptions): Promise<StoredVaultMemory[]>;
   get(id: string): Promise<StoredVaultMemory | null>;

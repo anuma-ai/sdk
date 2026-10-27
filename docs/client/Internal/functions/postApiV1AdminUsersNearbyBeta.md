@@ -2,7 +2,7 @@
 
 > **postApiV1AdminUsersNearbyBeta**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminUsersNearbyBetaData`](../type-aliases/PostApiV1AdminUsersNearbyBetaData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminUsersNearbyBetaResponses`](../type-aliases/PostApiV1AdminUsersNearbyBetaResponses.md), [`PostApiV1AdminUsersNearbyBetaErrors`](../type-aliases/PostApiV1AdminUsersNearbyBetaErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:588](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#588)
+Defined in: [src/client/sdk.gen.ts:589](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#589)
 
 Grant or revoke People Nearby beta admission for an account
 

@@ -1,7 +1,9 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { noopLogger, setLogger } from "../logger";
-
 import {
   classifyDecay,
   type DecayInput,
@@ -18,7 +20,13 @@ import {
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 6, 1);
 
-const NEVER_TYPES = ["identity", "preference", "relationship", "constraint"] as const;
+const NEVER_TYPES = [
+  "identity",
+  "preference",
+  "relationship",
+  "constraint",
+  "instruction",
+] as const;
 const SHORT_TYPES = ["plan", "ongoing_context"] as const;
 const MEDIUM_TYPES = ["other", null] as const;
 
@@ -33,6 +41,19 @@ function input(overrides: Partial<DecayInput> = {}): DecayInput {
     ...overrides,
   };
 }
+
+describe("classifyDecay documentation", () => {
+  it("documents the inclusive event grace boundary in the age-rule exception", () => {
+    const source = readFileSync(join(__dirname, "decay.ts"), "utf8");
+    const declarationStart = source.indexOf("export function classifyDecay");
+    const documentation = source.slice(
+      source.lastIndexOf("/**", declarationStart),
+      declarationStart
+    );
+
+    expect(documentation).toContain("`eventTimeEnd >= now - pastEventGraceMs`");
+  });
+});
 
 describe("ttlForType", () => {
   it("maps durable identity-class types to Infinity", () => {
@@ -181,6 +202,38 @@ describe("classifyDecay — plan/ongoing_context event-past archiving", () => {
       expect(verdict).toBe("keep");
     });
 
+    it.each([
+      ["keep", DAY],
+      ["keep", PAST_EVENT_GRACE_MS],
+      ["archive", PAST_EVENT_GRACE_MS + 1],
+    ] as const)(`returns %s for stale ${t} %i ms after its event ends`, (expected, elapsed) => {
+      const verdict = classifyDecay(
+        input({
+          factType: t,
+          eventTimeEnd: NOW - elapsed,
+          eventTimeKind: "range",
+          updatedAt: NOW - (SHORT_TTL_MS + DAY),
+        }),
+        NOW
+      );
+      expect(verdict).toBe(expected);
+    });
+
+    it(`uses the custom grace period for an old ${t}`, () => {
+      const memory = input({
+        factType: t,
+        eventTimeEnd: NOW - 2 * DAY,
+        eventTimeKind: "range",
+        updatedAt: NOW - (SHORT_TTL_MS + DAY),
+      });
+      const policy = { pastEventGraceMs: 2 * DAY };
+
+      expect(classifyDecay(memory, NOW - 1, policy)).toBe("keep");
+      expect(classifyDecay(memory, NOW, policy)).toBe("keep");
+      expect(classifyDecay(memory, NOW + 1, policy)).toBe("archive");
+      expect(classifyDecay(memory, NOW + 1)).toBe("keep");
+    });
+
     it(`keeps ${t} whose event is in the future`, () => {
       const verdict = classifyDecay(
         input({ factType: t, eventTimeEnd: NOW + 30 * DAY, eventTimeKind: "range" }),
@@ -263,7 +316,7 @@ describe("classifyDecay — degenerate timestamps", () => {
   });
 });
 
-describe("classifyDecay — age fallback matrix (7 types + null × event × age)", () => {
+describe("classifyDecay — age fallback matrix (8 types + null × event × age)", () => {
   const eventVariants: Array<{ label: string; eventTimeEnd: number | null }> = [
     { label: "event-past", eventTimeEnd: NOW - (PAST_EVENT_GRACE_MS + DAY) },
     { label: "event-future", eventTimeEnd: NOW + 30 * DAY },

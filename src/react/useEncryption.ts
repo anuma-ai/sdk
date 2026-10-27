@@ -495,6 +495,7 @@ export async function getEncryptionKey(
     return cachedKey;
   }
 
+  const startEpoch = sessionEpoch;
   const keyHex = getStoredKeyByVersion(address, version);
   if (!keyHex) {
     throw new EncryptionKeyMissingError(address, version);
@@ -509,6 +510,10 @@ export async function getEncryptionKey(
     false,
     ["encrypt", "decrypt"]
   );
+
+  if (sessionEpoch !== startEpoch || getStoredKeyByVersion(address, version) !== keyHex) {
+    throw new EncryptionKeyMissingError(address, version);
+  }
 
   cryptoKeyCache.set(cacheKey, cryptoKey);
 
@@ -1065,16 +1070,17 @@ export async function refreshEncryptionKeyIfMatches(
     return false;
   }
 
+  const startEpoch = sessionEpoch;
   const cached = refreshCandidatesByAddress.get(walletAddress);
   if (cached) {
-    return tryCommitCandidatesIfProbeMatches(walletAddress, parsed, cached);
+    return tryCommitCandidatesIfProbeMatches(walletAddress, parsed, cached, startEpoch);
   }
 
   let derivePromise = pendingCandidateDerives.get(walletAddress);
   if (!derivePromise) {
     derivePromise = (async () => {
       const candidates = await deriveRefreshCandidates(signMessage, embeddedWalletSigner);
-      if (candidates) {
+      if (candidates && sessionEpoch === startEpoch) {
         refreshCandidatesByAddress.set(walletAddress, candidates);
       }
       return candidates;
@@ -1087,11 +1093,11 @@ export async function refreshEncryptionKeyIfMatches(
   }
 
   const candidates = await derivePromise;
-  if (!candidates) {
+  if (!candidates || sessionEpoch !== startEpoch) {
     return false;
   }
 
-  return tryCommitCandidatesIfProbeMatches(walletAddress, parsed, candidates);
+  return tryCommitCandidatesIfProbeMatches(walletAddress, parsed, candidates, startEpoch);
 }
 
 function parsePrefixedCiphertext(
@@ -1152,7 +1158,8 @@ async function deriveRefreshCandidates(
 async function tryCommitCandidatesIfProbeMatches(
   walletAddress: string,
   parsed: { version: EncryptionKeyVersion; encryptedData: string },
-  candidates: DerivedKeyPair
+  candidates: DerivedKeyPair,
+  startEpoch: number
 ): Promise<boolean> {
   const candidateHex = parsed.version === "v2" ? candidates.legacy : candidates.current;
   const keyBytes = hexToBytes(candidateHex);
@@ -1170,6 +1177,10 @@ async function tryCommitCandidatesIfProbeMatches(
     getLogger().warn(
       "refreshEncryptionKeyIfMatches: candidate keys failed to decrypt probe; leaving store unchanged"
     );
+    return false;
+  }
+
+  if (sessionEpoch !== startEpoch) {
     return false;
   }
 

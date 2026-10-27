@@ -7,7 +7,6 @@ import tseslint from "typescript-eslint";
 const appGenerationTests = [
   "src/tools/appBuilderPrompt.test.ts",
   "src/tools/appGeneration.test.ts",
-  "test/tools/app-generation/precision-updates.test.ts",
 ];
 
 const memoryTelemetryTests = [
@@ -19,22 +18,52 @@ const memoryTelemetryTests = [
   "src/lib/memoryVault/searchToolExecutor.store.test.ts",
 ];
 
+const checkedAgentRuntimeFiles = [
+  "packages/agents/runtime/src/runAgentRequest.ts",
+  "packages/agents/runtime/test/e2e.test.ts",
+];
+
 const checkedTestFiles = [
+  "src/lib/chatStore/remote.test.ts",
+  "src/lib/memory/store/remoteMigration.test.ts",
+  "src/lib/memory/store/remoteStore.test.ts",
   ...appGenerationTests,
   ...memoryTelemetryTests,
+  "src/clientHeaders.test.ts",
+  "src/expo/useChatStorage.sendHistoryRead.test.tsx",
+  "src/lib/memory/reliability.integration.test.ts",
+  "src/lib/memory/retain.test.ts",
+  "src/lib/memory/synthesizeProfile.test.ts",
   "src/lib/backup/icloud/backup.test.ts",
   "src/lib/chat/toolLoop.detach.test.ts",
+  "src/lib/chat/toolLoop.gmailConfirmation.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
   "src/lib/db/chat/operations.chunkText.test.ts",
   "src/lib/db/chat/operations.embeddingEncryption.test.ts",
   "src/lib/db/chat/operations.summary.test.ts",
+  "src/lib/db/chat/operations.eventIdIndex.test.ts",
+  "src/lib/db/memoryVault/operations.profileMetadata.test.ts",
+  "src/lib/db/memoryVault/operations.sweeps.test.ts",
+  "src/lib/db/memoryVault/operations.test.ts",
+  "src/lib/db/memoryVault/photoIngest.test.ts",
+  "src/lib/memory/portalLlm.test.ts",
+  "src/lib/memory/synthesizeProfile.taskType.test.ts",
+  "src/lib/memory/synthesizeProfile.test.ts",
+  "src/lib/memoryVault/searchTool.concurrent.test.ts",
+  "src/lib/memoryVault/searchTool.test.ts",
+  "src/lib/memory/decay.test.ts",
+  "src/lib/processors/preprocessor.remoteUrls.test.ts",
   "src/react/useChatStorage.fileSize.test.tsx",
   "src/react/useChatStorage.queueIdentifiers.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",
+  "src/react/useChatStorage.sendHistoryRead.test.tsx",
+  "src/react/useEncryption.import.test.ts",
+  "src/react/useEncryption.refresh.test.ts",
+  "src/react/useTools.test.tsx",
   "src/server/pg-adapter.inequality.test.ts",
   "src/server/pg-adapter.integration.test.ts",
   "src/server/pg-adapter.test.ts",
-  "test/tools/slide-generation/models.ts",
+  "src/tools/gmail.test.ts",
 ];
 
 export default tseslint.config(
@@ -42,15 +71,16 @@ export default tseslint.config(
     ignores: [
       ".claude/**",
       "dist/**",
-      "src/client/**",
+      "src/client/**/*",
+      "!src/client/sdk.gen.ts",
       "docs/**",
       "coverage/**",
-      "scripts/**",
+      "scripts/**/*",
+      "!scripts/patch-generated-client.mjs",
       "patches/**",
-      "packages/**",
+      "packages/**/*",
       "test/**/*",
       "!test/tools/",
-      "!test/tools/app-generation/",
       "**/*.test.ts",
       "**/*.test.tsx",
       "**/*.security.test.ts",
@@ -58,8 +88,14 @@ export default tseslint.config(
       ".prettierrc.mjs",
       ".dependency-cruiser.cjs",
       "!eslint.config.mjs",
+      "!scripts/excluded-test-suites.mjs",
       "!test/",
       "!test/**/",
+      "!packages/agents/",
+      "!packages/agents/runtime/",
+      "!packages/agents/runtime/src/",
+      "!packages/agents/runtime/test/",
+      ...checkedAgentRuntimeFiles.map((file) => `!${file}`),
       ...checkedTestFiles.map((file) => `!${file}`),
     ],
   },
@@ -114,13 +150,37 @@ export default tseslint.config(
     },
   },
   {
-    files: ["eslint.config.mjs"],
+    files: checkedAgentRuntimeFiles,
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: "./packages/agents/runtime/tsconfig.test.json",
+      },
+    },
+  },
+  {
+    files: [
+      "eslint.config.mjs",
+      "scripts/excluded-test-suites.mjs",
+      "scripts/patch-generated-client.mjs",
+    ],
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
-    files: ["test/tools/app-generation/precision-updates.test.ts"],
+    files: ["scripts/patch-generated-client.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+      },
+    },
     rules: {
       "no-console": ["warn", { allow: ["log", "warn", "error"] }],
+    },
+  },
+  {
+    files: ["src/client/sdk.gen.ts"],
+    rules: {
+      "simple-import-sort/imports": "off",
     },
   },
   {

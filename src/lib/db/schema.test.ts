@@ -203,3 +203,26 @@ describe("memory_vault kind / level (v48)", () => {
     db.close();
   });
 });
+
+describe("userPreferences external_wallets (v49)", () => {
+  it("is added by a migration AND declared on the table", () => {
+    const addsExternalWallets = sdkMigrations.sortedMigrations
+      .filter((migration) => migration.toVersion === 49)
+      .flatMap((migration) => migration.steps)
+      .some(
+        (step) =>
+          step.type === "add_columns" &&
+          step.table === "userPreferences" &&
+          step.columns.some((column) => column.name === "external_wallets")
+      );
+
+    expect(addsExternalWallets).toBe(true);
+    expect(sdkSchema.tables.userPreferences.columns.external_wallets).toBeDefined();
+  });
+
+  it("is optional, so existing rows migrate to NULL rather than a value", () => {
+    const column = sdkSchema.tables.userPreferences.columns.external_wallets;
+    expect(column.type).toBe("string");
+    expect(column.isOptional).toBe(true);
+  });
+});

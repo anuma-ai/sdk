@@ -192,6 +192,7 @@ export type {
   GmailMessageSummary,
   GmailRequestAccess,
   GmailSearchArgs,
+  GmailSendConfirmation,
   GmailSendMessageArgs,
   GmailTokenGetter,
 } from "./gmail";
@@ -322,6 +323,21 @@ export type {
   UIInteractionContext,
 } from "./uiInteraction";
 export { createDisplayTool, createInteractiveTool, migrateDisplayResult } from "./uiInteraction";
+export type {
+  CreateSelectPaymentWalletToolOptions,
+  CreateWalletPaymentToolOptions,
+  PaymentWallet,
+  SelectPaymentWalletResult,
+  WalletPaymentOutcome,
+  WalletPaymentPassenger,
+  WalletPaymentRequest,
+  WalletPaymentResult,
+} from "./walletPayment";
+export { createSelectPaymentWalletTool, createWalletPaymentTool } from "./walletPayment";
+export {
+  SELECT_PAYMENT_WALLET_TOOL_NAME,
+  WALLET_PAYMENT_TOOL_NAME,
+} from "./walletPaymentConstants";
 export type { CreateWeatherToolOptions, DisplayWeatherResult, ForecastDay } from "./weather";
 export { createWeatherTool } from "./weather";
 export type { XGetMeArgs, XGetMyPostsArgs, XProxyCaller } from "./x";

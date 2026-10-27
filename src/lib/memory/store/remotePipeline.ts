@@ -361,19 +361,24 @@ export function createRemoteMemoryPipeline(
         const existing = await get(id);
         if (
           !existing ||
+          (patch.expectedContent !== undefined && existing.content !== patch.expectedContent) ||
           (patch.freeFormOnly && existing.kind !== null && existing.kind !== undefined)
         )
           return null;
         const snapshot = snapshots.get(id)!;
         const memory = {
           ...snapshot.memory,
-          content: patch.content,
+          content: patch.content ?? snapshot.memory.content,
           updated_at: patch.preserveUpdatedAt
             ? snapshot.memory.updated_at
             : Math.max(Date.now(), (snapshot.memory.topics_extracted_at ?? 0) + 1),
         };
         if (patch.scope !== undefined) memory.scope = patch.scope;
-        if (patch.embedding === undefined && patch.content !== snapshot.memory.content) {
+        if (
+          patch.embedding === undefined &&
+          patch.content !== undefined &&
+          patch.content !== snapshot.memory.content
+        ) {
           delete memory.embedding;
           delete memory.embedding_model;
         }

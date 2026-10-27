@@ -1,6 +1,6 @@
 name: E2E Tools
 
-# Live-LLM tool / app-generation / slide tests (vitest.e2e.config.mts).
+# Live-LLM tool tests (vitest.e2e.config.mts).
 #
 # Three ways in:
 #   - merge_group: always runs (the queue has no paths filter).

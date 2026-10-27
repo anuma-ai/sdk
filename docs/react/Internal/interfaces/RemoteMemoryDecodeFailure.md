@@ -1,6 +1,6 @@
 # RemoteMemoryDecodeFailure
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#64)
+Defined in: [src/lib/memory/store/remotePersistence.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#67)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:64](https://github.com/an
 
 > **error**: `Error`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#67)
+Defined in: [src/lib/memory/store/remotePersistence.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#70)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:67](https://github.com/an
 
 > **memory\_id**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#65)
+Defined in: [src/lib/memory/store/remotePersistence.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#68)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:65](https://github.com/an
 
 > **version**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#66)
+Defined in: [src/lib/memory/store/remotePersistence.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#69)

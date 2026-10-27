@@ -1,6 +1,6 @@
 # AutoExtractMessage
 
-Defined in: [src/lib/memory/autoExtract.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#119)
+Defined in: [src/lib/memory/autoExtract.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#126)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/autoExtract.ts:119](https://github.com/anuma-ai/sdk/
 
 > **content**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#123)
+Defined in: [src/lib/memory/autoExtract.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#130)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/autoExtract.ts:123](https://github.com/anuma-ai/sdk/
 
 > **id**: `string`
 
-Defined in: [src/lib/memory/autoExtract.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#121)
+Defined in: [src/lib/memory/autoExtract.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#128)
 
 Stable message identifier — used for source\_chunk\_ids provenance.
 
@@ -26,7 +26,7 @@ Stable message identifier — used for source\_chunk\_ids provenance.
 
 > **role**: `"user"` | `"assistant"`
 
-Defined in: [src/lib/memory/autoExtract.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#122)
+Defined in: [src/lib/memory/autoExtract.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#129)
 
 ***
 
@@ -34,6 +34,6 @@ Defined in: [src/lib/memory/autoExtract.ts:122](https://github.com/anuma-ai/sdk/
 
 > `optional` **seq**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#125)
+Defined in: [src/lib/memory/autoExtract.ts:132](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#132)
 
 Position in the conversation, for a conversation outside local chat history.

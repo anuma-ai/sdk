@@ -14,6 +14,8 @@ import { toPromise } from "@nozbe/watermelondb/utils/fp/Result";
 import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { Conversation, Message } from "../lib/db/chat/models";
+import { createMessageOp, deleteMessageOp, getToolCallEventIdsOp } from "../lib/db/chat/operations";
 import type { VaultMemory } from "../lib/db/memoryVault/models";
 import {
   countActiveVaultMemoriesOp,
@@ -478,6 +480,44 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
     }
     const { rows } = await pool.query<{ search_path: string }>("SHOW search_path");
     expect(rows[0].search_path).not.toContain("anuma_");
+  });
+
+  it("reads tool call event IDs from empty and populated conversations", async () => {
+    const database = new Database({
+      adapter: createAdapter(`${integrationDbName}-tool-events`, sdkSchema),
+      modelClasses: sdkModelClasses,
+    });
+    const ctx = {
+      database,
+      messagesCollection: database.get<Message>("history"),
+      conversationsCollection: database.get<Conversation>("conversations"),
+    };
+    expect(await getToolCallEventIdsOp(ctx, "empty")).toEqual(new Set());
+
+    const conversationId = "conv-'1?";
+    for (const [uniqueId, convId, eventId] of [
+      ["event-message", conversationId, "call-1"],
+      ["deleted-message", conversationId, "deleted-call"],
+      ["other-message", "other-conversation", "other-call"],
+    ]) {
+      await createMessageOp(ctx, {
+        uniqueId,
+        conversationId: convId,
+        role: "assistant",
+        content: "reply",
+        toolCallEvents: [{ id: eventId, name: "search" }],
+      });
+    }
+    await createMessageOp(ctx, { conversationId, role: "user", content: "prompt" });
+    await createMessageOp(ctx, {
+      conversationId,
+      role: "assistant",
+      content: "reply",
+      toolCallEvents: [],
+    });
+    await deleteMessageOp(ctx, "deleted-message");
+
+    expect(await getToolCallEventIdsOp(ctx, conversationId)).toEqual(new Set(["call-1"]));
   });
 
   it("keeps NULL and trusted vault memories and excludes quarantined memories", async () => {

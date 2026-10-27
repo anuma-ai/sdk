@@ -74,6 +74,25 @@ The SDK provides entry points for different platforms:
 * `@anuma/sdk/expo` — React Native / Expo
 * `@anuma/sdk/client` — Generated API client and types
 
+### Encrypted remote chat storage
+
+`createRemoteChatStore` is available from the main, React and Expo entry points. Pass the account's
+canonical `keyId` and `memoryCipher` callbacks, the Nearby base URL and an authenticated `getToken`.
+The store encrypts each complete JSON record, including titles, messages, tool events, attachment
+references and vectors. It preserves routing/order metadata in an authenticated envelope and binds
+every request to the account that opened the store. The server never receives the content key.
+
+`get`, `list` and `putMany` always use the server. Creates use `expectedVersion: 0`; edits and
+tombstones use the returned `version`. Conflicts and ambiguous network outcomes are surfaced to
+the caller without automatic write retries. Use `AbortSignal` to cancel work when its account or
+screen changes. Failed decryption rejects the read rather than returning an empty history.
+
+Records have kinds `conversation`, `message`, `summary`, `project` and `memory_links`; `data` contains
+complete JSON-compatible fields, with dates serialized explicitly. Create the conversation before
+its children. Follow `nextCursor` for complete lists. Batches accept at most 25 records and 8 MiB of
+ciphertext; each record accepts 2 MiB. Existing `useChatStorage` hooks still use their current local
+persistence until the separate verified app migration lands. See [the migration epic](https://github.com/anuma-ai/nearby/issues/1001).
+
 ### iCloud backups
 
 Add a `backupRevision` field with type `String` to the `ConversationBackup`
@@ -110,7 +129,7 @@ Contributions are welcome. Please open an issue or pull request on
 
 Before opening a PR, run `pnpm test` and `pnpm check`.
 
-### Tool, app-generation and slide e2e tests
+### Tool e2e tests
 
 `pnpm e2e:tools` runs the live-model tests in `test/tools/` and
 `test/classifier/` (`vitest.e2e.config.mts`) against a real portal. Copy
@@ -120,10 +139,9 @@ point at a portal other than dev). Pass a file-name filter to run a subset:
 ```sh
 pnpm e2e:tools              # everything
 pnpm e2e:tools weather      # test/tools/weather.ts only
-pnpm e2e:tools slide        # the slide-generation tests
 ```
 
-CI runs the same suite on PRs that touch the tool, app-generation or slide code
+CI runs the same suite on PRs that touch the tool code
 (see the `changes` job in `.github/workflows/e2e-tools.yml` for the exact paths)
 and again in the merge queue. PRs without access to the `PORTAL_API_KEY` secret
 (forks, Dependabot) skip it and get their result in the queue. On a PR the result

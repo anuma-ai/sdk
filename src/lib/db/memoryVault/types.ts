@@ -338,7 +338,8 @@ export interface CreateVaultMemoryOptions {
 }
 
 export interface UpdateVaultMemoryOptions {
-  content: string;
+  content?: string;
+  expectedContent?: string;
   /** When true, the write is skipped (returns null) if the row carries a profile kind. */
   freeFormOnly?: boolean;
   /**

@@ -135,7 +135,7 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v48: Added kind, kind_value (encrypted) and level to memory_vault; level is
  *   backfilled from scope where SQL steps run
  */
-export const SDK_SCHEMA_VERSION = 48;
+export const SDK_SCHEMA_VERSION = 49;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -252,6 +252,7 @@ export const sdkSchema = appSchema({
         { name: "description", type: "string", isOptional: true },
         { name: "models", type: "string", isOptional: true },
         { name: "personality", type: "string", isOptional: true },
+        { name: "external_wallets", type: "string", isOptional: true },
         { name: "created_at", type: "number" },
         { name: "updated_at", type: "number" },
       ],
@@ -1011,6 +1012,15 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql(
           "UPDATE memory_vault SET level = CASE WHEN scope IN ('shared', 'public') THEN 'matching' ELSE 'private' END WHERE level IS NULL;"
         ),
+      ],
+    },
+    {
+      toVersion: 49,
+      steps: [
+        addColumns({
+          table: "userPreferences",
+          columns: [{ name: "external_wallets", type: "string", isOptional: true }],
+        }),
       ],
     },
   ],

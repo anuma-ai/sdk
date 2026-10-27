@@ -18,6 +18,7 @@ export class UserPreference extends Model {
 
   @text("models") models?: string;
   @text("personality") personality?: string;
+  @text("external_wallets") externalWallets?: string;
 
   @field("created_at") createdAt!: number;
   @field("updated_at") updatedAt!: number;

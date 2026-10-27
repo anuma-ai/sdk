@@ -1,12 +1,116 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  createNearbyRequest,
   createRemoteMemoryPersistence,
   RemoteMemoryError,
   type RemoteMemoryPersistenceOptions,
   type RemoteMemoryRecord,
   type RemoteMemoryRow,
 } from "./remotePersistence";
+
+describe("private memory rate budgets", () => {
+  it("shares read cooldowns across query, topics, counts and leases while allowing writes", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () => Response.json({}));
+    fetch.mockResolvedValueOnce(
+      Response.json(
+        { code: "rate_limited", rate_limit_bucket: "private-memory-read" },
+        {
+          status: 429,
+          headers: { "Retry-After": "2" },
+        }
+      )
+    );
+    const request = createNearbyRequest({
+      baseUrl: "https://nearby.test",
+      getToken: async () => "token",
+      fetch,
+    });
+    vi.useFakeTimers();
+    try {
+      await expect(request("/memories/query", { method: "POST" })).rejects.toMatchObject({
+        status: 429,
+        rateLimitBucket: "private-memory-read",
+      });
+      for (const [path, method] of [
+        ["/topics?limit=200", "GET"],
+        ["/counts", "GET"],
+        ["/work/claim", "POST"],
+      ])
+        await expect(request(path, { method })).rejects.toMatchObject({
+          status: 429,
+          retryAfterMs: 2_000,
+        });
+      expect(fetch).toHaveBeenCalledTimes(1);
+      await request("/memories/a", { method: "PUT" });
+      await request("/memories/batch", { method: "POST" });
+      expect(fetch).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await request("/counts");
+      expect(fetch).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps import and single-write budgets independent and IP cooldowns cover both", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () => Response.json({}));
+    const request = createNearbyRequest({
+      baseUrl: "https://nearby.test",
+      getToken: async () => "token",
+      fetch,
+    });
+    fetch.mockResolvedValueOnce(
+      Response.json(
+        { code: "rate_limited", rate_limit_bucket: "private-memory-import" },
+        { status: 429, headers: { "Retry-After": "60" } }
+      )
+    );
+    await expect(request("/memories/batch", { method: "POST" })).rejects.toMatchObject({
+      status: 429,
+    });
+    await expect(request("/topics", { method: "PUT" })).rejects.toMatchObject({ status: 429 });
+    await request("/memories/a", { method: "PUT" });
+    await request("/counts");
+    expect(fetch).toHaveBeenCalledTimes(3);
+    fetch.mockResolvedValueOnce(
+      Response.json(
+        { code: "rate_limited", rate_limit_bucket: "private-memory-ip" },
+        { status: 429, headers: { "Retry-After": "60" } }
+      )
+    );
+    await expect(request("/counts")).rejects.toMatchObject({ status: 429 });
+    await expect(request("/memories/a", { method: "PUT" })).rejects.toMatchObject({
+      rateLimitBucket: "private-memory-ip",
+    });
+    expect(fetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("isolates cooldowns between persistence instances and honors cancellation during a cooldown", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () => Response.json({}));
+    const options = { baseUrl: "https://nearby.test", getToken: async () => "token", fetch };
+    const first = createNearbyRequest(options);
+    const second = createNearbyRequest(options);
+    fetch.mockResolvedValueOnce(
+      Response.json(
+        { code: "rate_limited", rate_limit_bucket: "private-memory-read" },
+        { status: 429, headers: { "Retry-After": "60" } }
+      )
+    );
+    await expect(first("/counts")).rejects.toMatchObject({ status: 429 });
+    await second("/counts");
+    const controller = new AbortController();
+    controller.abort(new Error("Cancelled"));
+    await expect(first("/topics", {}, controller.signal)).rejects.toThrow("Cancelled");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
 
 const vector = () => [1, ...new Array<number>(1535).fill(0)];
 
@@ -639,5 +743,51 @@ describe("remote private-memory persistence", () => {
     expect(h.requests.at(-1)!.init.redirect).toBe("error");
     expect(h.getToken.mock.calls.length).toBeGreaterThan(h.requests.length);
     expect(new RemoteMemoryError("Conflict", 409, "version_conflict")).toBeInstanceOf(Error);
+  });
+});
+
+describe("metadata-only reads", () => {
+  it("reads counts and temporal ids without encryption or decryption", async () => {
+    const s = setup();
+    const persistence = await createRemoteMemoryPersistence(s.options);
+    s.fetch.mockResolvedValueOnce(Response.json({ live: 4, archived: 2, quarantined: 1 }));
+    expect(await persistence.counts()).toEqual({ live: 4, archived: 2, quarantined: 1 });
+    expect(String(s.fetch.mock.calls.at(-1)![0])).toMatch(/\/counts$/);
+    s.fetch.mockResolvedValueOnce(
+      Response.json({
+        items: [
+          { memory_id: "best", score: 1 },
+          { memory_id: "partial", score: 0.25 },
+        ],
+      })
+    );
+    expect(await persistence.temporal({ start: 100, end: 200 })).toEqual(["best", "partial"]);
+    expect(s.encrypt).not.toHaveBeenCalled();
+    expect(s.decrypt).not.toHaveBeenCalled();
+    const [url, init] = s.fetch.mock.calls.at(-1)!;
+    expect(String(url)).toMatch(/\/temporal$/);
+    expect(JSON.parse(String(init?.body))).toEqual({ start: 100, end: 200, limit: 100 });
+  });
+
+  it.each([
+    { live: -1, archived: 0, quarantined: 0 },
+    { live: 1, archived: "2", quarantined: 0 },
+    { live: 1 },
+  ])("rejects invalid count responses: %j", async (response) => {
+    const s = setup();
+    const persistence = await createRemoteMemoryPersistence(s.options);
+    s.fetch.mockResolvedValueOnce(Response.json(response));
+    await expect(persistence.counts()).rejects.toThrow("Invalid nearby memory counts");
+  });
+
+  it("rejects invalid windows before making a request", async () => {
+    const s = setup();
+    const persistence = await createRemoteMemoryPersistence(s.options);
+    const calls = s.fetch.mock.calls.length;
+    await expect(persistence.temporal({ start: 100, end: 100 })).rejects.toThrow("Temporal window");
+    await expect(persistence.temporal({ start: 100, end: 200 }, 101)).rejects.toThrow(
+      "Temporal window"
+    );
+    expect(s.fetch).toHaveBeenCalledTimes(calls);
   });
 });

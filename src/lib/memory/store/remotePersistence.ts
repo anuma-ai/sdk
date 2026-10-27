@@ -1,4 +1,7 @@
 import { parseRetryAfterMs } from "../portalLlm.js";
+import { createRemoteTopicPersistence, type RemoteTopicPersistence } from "./remoteTopics.js";
+import { createRemoteWorkPersistence, type RemoteMemoryWorkPersistence } from "./remoteWork.js";
+import type { MemoryCounts } from "./types.js";
 
 /** The nearby private-memory row. Content and kind_value are plaintext ONLY on the device. */
 export interface RemoteMemoryRow {
@@ -141,7 +144,8 @@ export class RemoteMemoryError extends Error {
     message: string,
     public readonly status: number,
     public readonly code?: string,
-    public readonly retryAfterMs?: number
+    public readonly retryAfterMs?: number,
+    public readonly rateLimitBucket?: string
   ) {
     super(message);
     this.name = "RemoteMemoryError";
@@ -154,7 +158,11 @@ export class RemoteMemoryError extends Error {
  * No local database or replica, import/activation, automatic conflict retry or rollback.
  * Migration must have activated the account under the canonical key before construction.
  */
-export interface RemoteMemoryPersistence {
+export interface RemoteMemoryPersistence
+  extends RemoteTopicPersistence, RemoteMemoryWorkPersistence {
+  supportsRealtimeChanges?: boolean;
+  counts(): Promise<MemoryCounts>;
+  temporal(window: { start: number; end: number }, limit?: number): Promise<string[]>;
   get(memoryId: string, signal?: AbortSignal): Promise<RemoteMemoryRecord | null>;
   /** One stable memory-id page; follow next_cursor to enumerate. Embeddings are opt-in. */
   list(options?: RemoteMemoryListOptions): Promise<RemoteMemoryPage>;
@@ -174,7 +182,8 @@ export interface RemoteMemoryPersistence {
   /** 1–50 writes in one server transaction; never split or replay a batch. */
   putMany(
     writes: { memory: RemoteMemoryRow; expectedVersion: number | RemoteMemoryRecord }[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    leaseToken?: string
   ): Promise<RemoteMemoryRecord[]>;
   /** Candidate window plus counts for distinguishing empty storage from unavailable vectors. */
   candidateSet(
@@ -307,7 +316,8 @@ export type NearbyRequest = (
 ) => Promise<unknown>;
 
 export function createNearbyRequest(
-  options: Pick<RemoteMemoryPersistenceOptions, "baseUrl" | "getToken" | "fetch" | "timeoutMs">
+  options: Pick<RemoteMemoryPersistenceOptions, "baseUrl" | "getToken" | "fetch" | "timeoutMs">,
+  apiPath = "/api/private-memories"
 ): NearbyRequest {
   const base = new URL(options.baseUrl);
   if (
@@ -324,8 +334,16 @@ export function createNearbyRequest(
   const timeoutMs = options.timeoutMs ?? 30_000;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
     throw new Error("timeoutMs must be a positive number");
-  const root = base.href.replace(/\/$/, "") + "/api/private-memories";
+  const root = base.href.replace(/\/$/, "") + apiPath;
   const fetcher = options.fetch ?? globalThis.fetch;
+  const cooldowns = new Map<string, { until: number; error: RemoteMemoryError }>();
+  const memoryBudget = (path: string, method: string) => {
+    if (method === "PUT")
+      return path === "/topics" ? "private-memory-import" : "private-memory-write";
+    if (method === "POST" && ["/import", "/memories/batch", "/topics/import"].includes(path))
+      return "private-memory-import";
+    return "private-memory-read";
+  };
   const request = async (
     path: string,
     init: RequestInit = {},
@@ -356,6 +374,25 @@ export function createNearbyRequest(
       const token = await Promise.race([options.getToken(), aborted]);
       if (controller.signal.aborted) await aborted;
       if (!token) throw new RemoteMemoryError("Authentication required", 401);
+      const pathname = path.split("?")[0];
+      const route = `${init.method ?? "GET"} ${pathname}`;
+      const budgets = ["*", route];
+      if (apiPath === "/api/private-memories")
+        budgets.push("private-memory-ip", memoryBudget(pathname, init.method ?? "GET"));
+      for (const bucket of budgets) {
+        const cooldown = cooldowns.get(bucket);
+        if (!cooldown) continue;
+        const remaining = cooldown.until - Date.now();
+        if (remaining > 0)
+          throw new RemoteMemoryError(
+            cooldown.error.message,
+            429,
+            cooldown.error.code,
+            remaining,
+            cooldown.error.rateLimitBucket
+          );
+        cooldowns.delete(bucket);
+      }
       const response = await fetcher(root + path, {
         ...init,
         headers: {
@@ -368,15 +405,36 @@ export function createNearbyRequest(
       if (!response.ok) {
         const body: unknown = await response.json().catch(() => null);
         const retryAfter = parseRetryAfterMs(response.headers.get("Retry-After"));
-        throw new RemoteMemoryError(
+        const error = new RemoteMemoryError(
           record(body) && typeof body.detail === "string"
             ? body.detail
             : `Nearby request failed (${response.status})`,
           response.status,
           record(body) && typeof body.code === "string" ? body.code : undefined,
-          retryAfter ?? undefined
+          retryAfter ?? undefined,
+          record(body) && typeof body.rate_limit_bucket === "string"
+            ? body.rate_limit_bucket
+            : undefined
         );
+        if (
+          response.status === 429 &&
+          retryAfter !== null &&
+          retryAfter > 0 &&
+          (!error.code || error.code === "rate_limited")
+        ) {
+          const bucket =
+            error.rateLimitBucket && budgets.includes(error.rateLimitBucket)
+              ? error.rateLimitBucket
+              : record(body) &&
+                  (body.limit_scope === "account" || body.limit_scope === "ip") &&
+                  !error.rateLimitBucket
+                ? "*"
+                : route;
+          cooldowns.set(bucket, { until: Date.now() + retryAfter, error });
+        }
+        throw error;
       }
+      if (response.status === 204) return null;
       return (await response.json()) as unknown;
     } catch (error) {
       if (timedOut) throw new RemoteMemoryError("Nearby request timed out", 408, "timeout");
@@ -689,6 +747,55 @@ export async function createRemoteMemoryPersistence(
   };
 
   return {
+    ...createRemoteTopicPersistence(request),
+    ...createRemoteWorkPersistence(request),
+    supportsRealtimeChanges: account.realtime_changes === true,
+    counts: async () => {
+      const result = await request("/counts", {});
+      if (
+        !record(result) ||
+        ["live", "archived", "quarantined"].some(
+          (key) => !Number.isSafeInteger(result[key]) || (result[key] as number) < 0
+        )
+      )
+        throw new Error("Invalid nearby memory counts");
+      return {
+        live: result.live as number,
+        archived: result.archived as number,
+        quarantined: result.quarantined as number,
+      };
+    },
+    temporal: async (window, limit = 100) => {
+      if (
+        !Number.isFinite(window.start) ||
+        !Number.isFinite(window.end) ||
+        window.end <= window.start ||
+        !Number.isInteger(limit) ||
+        limit < 1 ||
+        limit > 100
+      )
+        throw new Error("Temporal window must have end > start and limit must be 1–100");
+      const result = await request("/temporal", {
+        method: "POST",
+        body: JSON.stringify({ ...window, limit }),
+      });
+      if (
+        !record(result) ||
+        !Array.isArray(result.items) ||
+        result.items.some(
+          (item) =>
+            !record(item) ||
+            typeof item.memory_id !== "string" ||
+            !item.memory_id ||
+            typeof item.score !== "number" ||
+            !Number.isFinite(item.score) ||
+            item.score <= 0 ||
+            item.score > 1
+        )
+      )
+        throw new Error("Invalid nearby temporal candidates");
+      return result.items.map((item) => (item as { memory_id: string }).memory_id);
+    },
     get: async (id, signal) => {
       try {
         return await decode(await request(memoryPath(id), {}, signal));
@@ -744,7 +851,7 @@ export async function createRemoteMemoryPersistence(
         write
       );
     },
-    putMany: async (writes, signal) => {
+    putMany: async (writes, signal, leaseToken) => {
       if (
         writes.length < 1 ||
         writes.length > 50 ||
@@ -758,7 +865,11 @@ export async function createRemoteMemoryPersistence(
         "/memories/batch",
         {
           method: "POST",
-          body: JSON.stringify({ key_id: options.keyId, writes: prepared.map((w) => w.body) }),
+          body: JSON.stringify({
+            key_id: options.keyId,
+            writes: prepared.map((w) => w.body),
+            ...(leaseToken && { lease_token: leaseToken }),
+          }),
         },
         signal
       );

@@ -62,6 +62,7 @@ export const DEFAULT_DECAY_POLICY: DecayPolicy = {
     preference: NEVER_TTL_MS,
     relationship: NEVER_TTL_MS,
     constraint: NEVER_TTL_MS,
+    instruction: NEVER_TTL_MS,
     plan: SHORT_TTL_MS,
     ongoing_context: SHORT_TTL_MS,
     other: MEDIUM_TTL_MS,
@@ -168,9 +169,10 @@ function hasFiniteTimestamps(m: DecayInput, now: number): boolean {
  *     null `eventTimeEnd` is still ongoing, so this rule does not fire for it.
  *  4. Age fallback — `now - updatedAt > TTL(factType)` → archive. Durable types
  *     have Infinity TTL, so this never fires for them; null/unknown use medium.
- *     EXCEPTION: a `plan`/`ongoing_context` with a still-upcoming event
- *     (`eventTimeEnd >= now`) is kept — it must not age-archive before the event
- *     happens; only rule 3 (after it passes) may archive it.
+ *     EXCEPTION: a `plan` / `ongoing_context` with an upcoming event or an event
+ *     within the grace period (`eventTimeEnd >= now - pastEventGraceMs`) stays
+ *     active, even after its activity TTL expires. Rule 3 archives it after the
+ *     grace period ends.
  *  5. Otherwise → keep.
  *
  * @param m     Plaintext decay inputs for one row.
@@ -202,7 +204,7 @@ export function classifyDecay(
 
   if (isTimeSensitiveType(m.factType) && m.eventTimeEnd !== null) {
     if (m.eventTimeEnd < now - resolved.pastEventGraceMs) return "archive";
-    if (m.eventTimeEnd >= now) return "keep";
+    return "keep";
   }
 
   if (now - lastActivityAt(m) > ttlForType(m.factType, resolved)) return "archive";

@@ -2,7 +2,7 @@
 
 > **putApiV1AdminModerationCsamByIdReview**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PutApiV1AdminModerationCsamByIdReviewData`](../type-aliases/PutApiV1AdminModerationCsamByIdReviewData.md), `ThrowOnError`>): `RequestResult`<[`PutApiV1AdminModerationCsamByIdReviewResponses`](../type-aliases/PutApiV1AdminModerationCsamByIdReviewResponses.md), [`PutApiV1AdminModerationCsamByIdReviewErrors`](../type-aliases/PutApiV1AdminModerationCsamByIdReviewErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:271](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#271)
+Defined in: [src/client/sdk.gen.ts:272](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#272)
 
 Record a CSAM event disposition (admin)
 

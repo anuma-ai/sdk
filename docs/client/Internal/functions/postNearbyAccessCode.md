@@ -2,7 +2,7 @@
 
 > **postNearbyAccessCode**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostNearbyAccessCodeData`](../type-aliases/PostNearbyAccessCodeData.md), `ThrowOnError`>): `RequestResult`<[`PostNearbyAccessCodeResponses`](../type-aliases/PostNearbyAccessCodeResponses.md), [`PostNearbyAccessCodeErrors`](../type-aliases/PostNearbyAccessCodeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1882](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1882)
+Defined in: [src/client/sdk.gen.ts:1883](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1883)
 
 Redeem a People Nearby beta access code
 

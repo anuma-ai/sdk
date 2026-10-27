@@ -1,6 +1,6 @@
 # MemoryMaintenance
 
-Defined in: [src/lib/memory/store/types.ts:192](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#192)
+Defined in: [src/lib/memory/store/types.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#198)
 
 Background jobs that keep a LOCAL store healthy.
 
@@ -25,7 +25,7 @@ from the main interface.
 
 > **backfillTopics**(`memoryIds`: readonly `string`\[]): `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/types.ts:229](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#229)
+Defined in: [src/lib/memory/store/types.ts:235](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#235)
 
 Fill `topics` on pre-v42 rows from their existing links. Returns the ids filled.
 
@@ -68,7 +68,7 @@ readonly `string`\[]
 
 > **createDecaySweeper**(`options?`: `Omit`<[`CreateDecaySweeperOptions`](CreateDecaySweeperOptions.md), `"vaultCtx"`>): [`DecaySweeper`](DecaySweeper.md)
 
-Defined in: [src/lib/memory/store/types.ts:194](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#194)
+Defined in: [src/lib/memory/store/types.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#200)
 
 Decay sweeper bound to this store's vault (see `createDecaySweeper`).
 
@@ -107,7 +107,7 @@ Decay sweeper bound to this store's vault (see `createDecaySweeper`).
 
 > **extractTopics**(`memoryIds`: readonly `string`\[], `options`: [`TopicExtractOptions`](TopicExtractOptions.md) & `object`): `Promise`<[`TopicExtractionRunResult`](TopicExtractionRunResult.md)>
 
-Defined in: [src/lib/memory/store/types.ts:216](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#216)
+Defined in: [src/lib/memory/store/types.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#222)
 
 LLM topic extraction + link + stamp for these memories.
 
@@ -162,7 +162,7 @@ readonly `string`\[]
 
 > **getTopicBacklog**(`options?`: `object`): `Promise`<[`MemoriesNeedingTopicExtraction`](MemoriesNeedingTopicExtraction.md)>
 
-Defined in: [src/lib/memory/store/types.ts:196](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#196)
+Defined in: [src/lib/memory/store/types.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#202)
 
 One page of the topic-extraction backlog (see `getMemoriesNeedingTopicExtractionOp`).
 
@@ -217,7 +217,7 @@ One page of the topic-extraction backlog (see `getMemoriesNeedingTopicExtraction
 
 > **relinkTopics**(`memoryIds`: readonly `string`\[]): `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/types.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#227)
+Defined in: [src/lib/memory/store/types.ts:233](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#233)
 
 Rebuild the local link index from each row's synced `topics`. Returns the ids relinked.
 
@@ -260,7 +260,7 @@ readonly `string`\[]
 
 > **stampTopicsExtracted**(`memoryIds`: readonly `string`\[], `extractedAt`: `number`, `version?`: `number`): `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/types.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#221)
+Defined in: [src/lib/memory/store/types.ts:227](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#227)
 
 Grandfather already-linked rows without an LLM call. Returns the ids stamped.
 

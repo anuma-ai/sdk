@@ -133,6 +133,30 @@ export {
   createWebSearchPreProcessor,
 } from "../lib/chat/webSearchClassifier";
 export {
+  type ChatAccount,
+  type ChatAccountState,
+  type ChatAttachment,
+  type ChatAttachments,
+  type ChatChanges,
+  type ChatImport,
+  type ChatJson,
+  type ChatListOptions,
+  type ChatPage,
+  type ChatPresignedUrl,
+  type ChatRecord,
+  type ChatRecordKind,
+  type ChatRef,
+  type ChatRevision,
+  type ChatSearchHit,
+  type ChatSearchOptions,
+  type ChatSnapshot,
+  type ChatStore,
+  ChatStoreError,
+  type ChatWrite,
+  createRemoteChatStore,
+  type RemoteChatStoreOptions,
+} from "../lib/chatStore";
+export {
   AppFile as AppFileModel,
   type AppFileOperationsContext,
   appFileToStored,
@@ -508,6 +532,7 @@ export {
   type EmbeddingRepairResult,
   type LocalMemoryStoreOptions,
   memoryCipher,
+  type MemoryCounts,
   type MemoryCreate,
   type MemoryDecay,
   type MemoryDecaySweeperOptions,
@@ -547,6 +572,11 @@ export {
   type RemoteMemoryRecord,
   type RemoteMemoryRow,
   type RemoteMemoryStoreOptions,
+  type RemoteMemoryTopic,
+  type RemoteMemoryWorkKind,
+  type RemoteMemoryWorkLease,
+  type RemoteMemoryWorkPersistence,
+  type RemoteTopicPersistence,
 } from "../lib/memory";
 export {
   capHopsForDensity,
@@ -776,6 +806,21 @@ export {
 } from "../tools/slides";
 export type { DisplayToolMigrations } from "../tools/uiInteraction";
 export { migrateDisplayResult } from "../tools/uiInteraction";
+export type {
+  CreateSelectPaymentWalletToolOptions,
+  CreateWalletPaymentToolOptions,
+  PaymentWallet,
+  SelectPaymentWalletResult,
+  WalletPaymentOutcome,
+  WalletPaymentPassenger,
+  WalletPaymentRequest,
+  WalletPaymentResult,
+} from "../tools/walletPayment";
+export { createSelectPaymentWalletTool, createWalletPaymentTool } from "../tools/walletPayment";
+export {
+  SELECT_PAYMENT_WALLET_TOOL_NAME,
+  WALLET_PAYMENT_TOOL_NAME,
+} from "../tools/walletPaymentConstants";
 export type {
   AnumaShadowIsolationProviderProps,
   AnumaTheme,

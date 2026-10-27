@@ -205,6 +205,8 @@ jobs:
           fi
 
   eval:
+    permissions:
+      contents: write
     needs: resolve-strategies
     runs-on: ubuntu-latest
     timeout-minutes: 240
@@ -441,6 +443,8 @@ jobs:
           done
 
   aggregate:
+    permissions:
+      contents: write
     needs: eval
     if: always() && contains(needs.eval.result, 'success')
     runs-on: ubuntu-latest

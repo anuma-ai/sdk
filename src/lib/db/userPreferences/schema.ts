@@ -23,6 +23,8 @@ export const userPreferencesStorageSchema = appSchema({
 
         { name: "personality", type: "string", isOptional: true },
 
+        { name: "external_wallets", type: "string", isOptional: true },
+
         { name: "created_at", type: "number" },
         { name: "updated_at", type: "number" },
       ],

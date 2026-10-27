@@ -2,7 +2,7 @@
 
 > **getServerTools**(`options`: [`ServerToolsOptions`](../interfaces/ServerToolsOptions.md)): `Promise`<[`ServerTool`](../interfaces/ServerTool.md)\[]>
 
-Defined in: [src/lib/tools/serverTools.ts:437](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#437)
+Defined in: [src/lib/tools/serverTools.ts:438](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#438)
 
 Get server tools with caching support.
 

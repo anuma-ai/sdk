@@ -118,8 +118,10 @@ export interface TopicExtractOptions extends PortalLlmAuth {
  */
 export async function extractEntitiesForMemories(
   memories: readonly TopicExtractionInput[],
-  options: TopicExtractOptions
+  options: TopicExtractOptions,
+  signal?: AbortSignal
 ): Promise<Map<string, ExtractedEntity[]>> {
+  signal?.throwIfAborted();
   const out = new Map<string, ExtractedEntity[]>();
   if (memories.length === 0) return out;
   const redactor = resolvePiiRedactor(options.piiRedaction);
@@ -136,6 +138,7 @@ export async function extractEntitiesForMemories(
       : "";
 
   for (let i = 0; i < memories.length; i += TOPIC_EXTRACTION_BATCH_SIZE) {
+    signal?.throwIfAborted();
     const batch = memories.slice(i, i + TOPIC_EXTRACTION_BATCH_SIZE);
     const start = Date.now();
     let attempts = 0;
@@ -180,6 +183,7 @@ export async function extractEntitiesForMemories(
       ...(options.totalTimeoutMs !== undefined && { totalTimeoutMs: options.totalTimeoutMs }),
       ...(options.backoffMs && { backoffMs: options.backoffMs }),
     });
+    signal?.throwIfAborted();
     if (parsed === null) {
       reportBatch(batch.length);
       getLogger().warn(
@@ -295,6 +299,8 @@ export function isDegradedTopicSkip(reason: TopicSkipReason): boolean {
 
 /** Outcome of one {@link extractAndLinkEntitiesForMemoriesOp} run. */
 export interface TopicExtractionRunResult {
+  /** Another device owns the work; retry later without counting a failed attempt. */
+  deferred?: boolean;
   batchCount: number;
   durationMs: number;
   batches: TopicExtractionBatchDiagnostics[];

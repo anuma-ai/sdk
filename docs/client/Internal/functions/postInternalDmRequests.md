@@ -2,7 +2,7 @@
 
 > **postInternalDmRequests**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostInternalDmRequestsData`](../type-aliases/PostInternalDmRequestsData.md), `ThrowOnError`>): `RequestResult`<[`PostInternalDmRequestsResponses`](../type-aliases/PostInternalDmRequestsResponses.md), [`PostInternalDmRequestsErrors`](../type-aliases/PostInternalDmRequestsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:1791](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1791)
+Defined in: [src/client/sdk.gen.ts:1792](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#1792)
 
 Report a new DM request (internal)
 

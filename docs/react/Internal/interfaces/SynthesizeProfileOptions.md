@@ -1,6 +1,6 @@
 # SynthesizeProfileOptions
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#258)
+Defined in: [src/lib/memory/synthesizeProfile.ts:265](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#265)
 
 Options for [synthesizeProfile](../functions/synthesizeProfile.md). Auth is the dual [PortalLlmAuth](PortalLlmAuth.md)
 pattern — one of `apiKey` / `getToken` is required at runtime.
@@ -29,7 +29,7 @@ Direct API key — sent as `x-api-key` (server-side / CLI usage). Wins when both
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#266)
+Defined in: [src/lib/memory/synthesizeProfile.ts:273](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#273)
 
 LLM endpoint override.
 
@@ -39,7 +39,7 @@ LLM endpoint override.
 
 > `optional` **facets**: [`ProfileFacet`](ProfileFacet.md)\[]
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:260](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#260)
+Defined in: [src/lib/memory/synthesizeProfile.ts:267](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#267)
 
 Facets to synthesize. Defaults to [DEFAULT\_PROFILE\_FACETS](../variables/DEFAULT_PROFILE_FACETS.md).
 
@@ -47,9 +47,9 @@ Facets to synthesize. Defaults to [DEFAULT\_PROFILE\_FACETS](../variables/DEFAUL
 
 ### factTypeWeights?
 
-> `optional` **factTypeWeights**: `Partial`<`Record`<`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"`, `number`>>
+> `optional` **factTypeWeights**: `Partial`<`Record`<`"other"` | `"identity"` | `"preference"` | `"relationship"` | `"plan"` | `"ongoing_context"` | `"constraint"` | `"instruction"`, `number`>>
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:283](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#283)
+Defined in: [src/lib/memory/synthesizeProfile.ts:290](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#290)
 
 Per-FactType score multipliers for facet recall. Default:
 [DEFAULT\_PROFILE\_FACT\_TYPE\_WEIGHTS](../variables/DEFAULT_PROFILE_FACT_TYPE_WEIGHTS.md) (durable types boosted).
@@ -61,7 +61,7 @@ Does not change global chat `recall()` defaults.
 
 > `optional` **fetchFn**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:272](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#272)
+Defined in: [src/lib/memory/synthesizeProfile.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#279)
 
 Override fetch (tests).
 
@@ -183,7 +183,7 @@ Function to get an auth token (e.g., Privy's getIdentityToken). Token is sent as
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:270](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#270)
+Defined in: [src/lib/memory/synthesizeProfile.ts:277](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#277)
 
 Facts recalled per facet before synthesis. Default: 20.
 
@@ -193,7 +193,7 @@ Facts recalled per facet before synthesis. Default: 20.
 
 > `optional` **llmModel**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:264](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#264)
+Defined in: [src/lib/memory/synthesizeProfile.ts:271](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#271)
 
 Synthesis model. Default: open-weights ling-2.6-flash.
 
@@ -203,7 +203,7 @@ Synthesis model. Default: open-weights ling-2.6-flash.
 
 > `optional` **previous**: [`ProfileDoc`](ProfileDoc.md)
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#262)
+Defined in: [src/lib/memory/synthesizeProfile.ts:269](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#269)
 
 Prior doc for delta refresh. Unchanged sections are reused verbatim.
 
@@ -213,7 +213,7 @@ Prior doc for delta refresh. Unchanged sections are reused verbatim.
 
 > `optional` **proofCountAlpha**: `number`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:288](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#288)
+Defined in: [src/lib/memory/synthesizeProfile.ts:295](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#295)
 
 Proof-count α for facet recall. Default: [DEFAULT\_PROFILE\_PROOF\_ALPHA](../variables/DEFAULT_PROFILE_PROOF_ALPHA.md)
 (0.2). Chat recall stays at 0.1.
@@ -224,7 +224,7 @@ Proof-count α for facet recall. Default: [DEFAULT\_PROFILE\_PROOF\_ALPHA](../va
 
 > `optional` **redactor**: [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:277](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#277)
+Defined in: [src/lib/memory/synthesizeProfile.ts:284](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#284)
 
 Pre-publish PII gate. When supplied, each section's text is run through
 [PiiRedactor.redactTextAsync](../../../expo/Internal/classes/PiiRedactor.md#redacttextasync) (regex + NER) before it's returned.
@@ -237,7 +237,7 @@ server-side, but the client should never publish un-gated text.
 
 > `optional` **reviewedMemoryIds**: readonly `string`\[]
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:305](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#305)
+Defined in: [src/lib/memory/synthesizeProfile.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#312)
 
 Publish-review gate: when SUPPLIED, each facet's recalled evidence is
 intersected with this id set before the LLM runs, so synthesis can only draw
@@ -259,7 +259,7 @@ never accidentally disable the gate by finding it empty.
 
 > `optional` **scopes**: `string`\[]
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:268](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#268)
+Defined in: [src/lib/memory/synthesizeProfile.ts:275](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#275)
 
 Scopes to draw facts from. Default: \["private"].
 
@@ -269,7 +269,7 @@ Scopes to draw facts from. Default: \["private"].
 
 > `optional` **store**: `Pick`<[`MemoryStore`](MemoryStore.md), `"list"` | `"listProjections"` | `"factSource"`>
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#311)
+Defined in: [src/lib/memory/synthesizeProfile.ts:318](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#318)
 
 Read facts and recall through this store instead of `ctx.vaultCtx` and
 `ctx.vaultCache`, so a remote store works. Only `ctx.embeddingOptions` is

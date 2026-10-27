@@ -20,6 +20,7 @@ import {
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getMemoriesNeedingTopicExtractionOp,
+  getVaultMemoryCountsOp,
   getVaultMemoryOp,
   getVaultMemoryProjectionsOp,
   relinkMemoryTopicsOp,
@@ -193,6 +194,7 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
   };
 
   return {
+    counts: () => getVaultMemoryCountsOp(vaultCtx),
     masksEmbeddingInput: options.embeddingOptions.maskInput !== undefined,
     list: (listOptions?: MemoryListOptions) => getAllVaultMemoriesOp(vaultCtx, listOptions),
     get: (id: string) => getVaultMemoryOp(vaultCtx, id),

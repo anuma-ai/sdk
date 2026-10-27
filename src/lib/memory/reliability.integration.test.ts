@@ -1,20 +1,10 @@
+import { createRequire } from "node:module";
+
 import { appSchema, Database, Q } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sdkSchema, sdkModelClasses } from "../db/schema";
-import {
-  createVaultMemoryOp,
-  createSupersedingMemoryOp,
-  updateVaultMemoryOp,
-  archiveVaultMemoryOp,
-  getAllVaultMemoriesOp,
-  getVaultCandidateKeysOp,
-  findQuarantinedDuplicateOp,
-  getVaultMemoriesByIdsOp,
-  updateVaultMemoryEmbeddingOp,
-  type VaultMemoryOperationsContext,
-} from "../db/memoryVault/operations";
-import { MemorySourceIneligibleError } from "../db/memoryVault/types";
+
+import { clearEncryptionKey, seedEncryptionKeys } from "../../react/useEncryption";
 import { Conversation, Message } from "../db/chat/models";
 import {
   clearMessagesOp,
@@ -24,9 +14,29 @@ import {
   type StorageOperationsContext,
 } from "../db/chat/operations";
 import { ExtractionJob } from "../db/extractionJobs/models";
+import {
+  archiveVaultMemoryOp,
+  createSupersedingMemoryOp,
+  createVaultMemoryOp,
+  findQuarantinedDuplicateOp,
+  getAllVaultMemoriesOp,
+  getVaultCandidateKeysOp,
+  getVaultMemoriesByIdsOp,
+  getVaultMemoryOp,
+  supersedeVaultMemoryOp,
+  updateVaultMemoryEmbeddingOp,
+  updateVaultMemoryOp,
+  type VaultMemoryOperationsContext,
+} from "../db/memoryVault/operations";
+import { MemorySourceIneligibleError } from "../db/memoryVault/types";
+import { sdkModelClasses, sdkSchema } from "../db/schema";
 import { extractAndRetain } from "./autoExtract";
-import { createDurableAutoExtractor, type ExtractionSourceStatus } from "./durableExtraction";
-import { clearEncryptionKey, seedEncryptionKeys } from "../../react/useEncryption";
+import {
+  createDurableAutoExtractor,
+  type DurableAutoExtractorOptions,
+  type ExtractionSourceStatus,
+} from "./durableExtraction";
+import { retainWithPersistence } from "./retain";
 
 vi.mock("./autoExtract", () => ({ extractAndRetain: vi.fn() }));
 vi.mock("../db/chat/operations", async (importOriginal) => {
@@ -74,13 +84,76 @@ beforeEach(() => {
 });
 
 describe("memory persistence reliability", () => {
+  it("keeps a user edit after retain reads the merge target", async () => {
+    const memory = await createVaultMemoryOp(ctx, {
+      content: "Works at Acme",
+      embedding: "[1,0]",
+      embeddingModel: "test-model",
+      sourceChunkIds: ["m1"],
+    });
+    let correctionUpdatedAt: Date | undefined;
+
+    const result = await retainWithPersistence(
+      "Works at Acme",
+      {
+        embeddingOptions: { model: "test-model" },
+        vaultCache: new Map(),
+        persistence: {
+          prepare: () =>
+            Promise.resolve({
+              memories: [memory],
+              embeddedItems: [{ id: memory.uniqueId, content: memory.content, embedding: [1, 0] }],
+              queryEmbedding: [1, 0],
+              vaultSize: 1,
+              embeddingsUnavailable: false,
+              embeddingFailure: false,
+              decryptLast: false,
+              rowsDecrypted: 1,
+              queryEmbedMs: 0,
+              rowsEmbedded: 0,
+            }),
+          get: async (id) => {
+            const snapshot = await getVaultMemoryOp(ctx, id);
+            const correction = await updateVaultMemoryOp(ctx, id, {
+              content: "Works at Riverbend",
+              embedding: "[0,1]",
+              embeddingModel: "test-model",
+            });
+            correctionUpdatedAt = correction?.updatedAt;
+            return snapshot;
+          },
+          update: (id, patch) => updateVaultMemoryOp(ctx, id, patch),
+          create: (input) => createVaultMemoryOp(ctx, input),
+          tombstones: () => getAllVaultMemoriesOp(ctx, { includeDeleted: true }),
+          supersede: (id, successor) => supersedeVaultMemoryOp(ctx, id, successor),
+          createSuperseding: (input, target) => createSupersedingMemoryOp(ctx, input, target),
+        },
+      },
+      { sourceChunkIds: ["m2"] }
+    );
+
+    expect(correctionUpdatedAt).toBeDefined();
+    expect(result).toMatchObject({ action: "merge", memoryId: memory.uniqueId, proofCount: 2 });
+    const rows = await getAllVaultMemoriesOp(ctx);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].content).toBe("Works at Riverbend");
+    expect(rows[0]).toMatchObject({
+      embedding: "[0,1]",
+      embeddingModel: "test-model",
+      updatedAt: correctionUpdatedAt,
+      sourceChunkIds: ["m1", "m2"],
+      proofCount: 2,
+    });
+    expect(rows[0].lastObservedAt).toEqual(expect.any(Number));
+  });
+
   it("cannot supersede a fact after the source becomes ineligible", async () => {
     const original = await createVaultMemoryOp(ctx, { content: "Lives in Paris" });
     await expect(
       createSupersedingMemoryOp(
-        { ...ctx, canWrite: async () => false },
+        { ...ctx, canWrite: () => Promise.resolve(false) },
         { content: "Lives in Rome" },
-        original!.uniqueId
+        original.uniqueId
       )
     ).rejects.toThrow("no longer eligible");
     const rows = await getAllVaultMemoriesOp(ctx);
@@ -90,7 +163,7 @@ describe("memory persistence reliability", () => {
   it("reports an ineligible source on update instead of a silent miss", async () => {
     const original = await createVaultMemoryOp(ctx, { content: "Lives in Paris" });
     await expect(
-      updateVaultMemoryOp({ ...ctx, canWrite: async () => false }, original!.uniqueId, {
+      updateVaultMemoryOp({ ...ctx, canWrite: () => Promise.resolve(false) }, original.uniqueId, {
         content: "Lives in Paris",
         proofCountIncrement: 1,
       })
@@ -103,7 +176,7 @@ describe("memory persistence reliability", () => {
       sourceChunkIds: ["m1"],
     });
     expect(memory).not.toBeNull();
-    const fresh = await updateVaultMemoryOp(ctx, memory!.uniqueId, {
+    const fresh = await updateVaultMemoryOp(ctx, memory.uniqueId, {
       content: "Works at Acme",
       sourceChunkIds: ["m2"],
       observationSourceIds: ["m2"],
@@ -111,7 +184,7 @@ describe("memory persistence reliability", () => {
       lastObservedAt: 100,
       preserveUpdatedAt: true,
     });
-    const replay = await updateVaultMemoryOp(ctx, memory!.uniqueId, {
+    const replay = await updateVaultMemoryOp(ctx, memory.uniqueId, {
       content: "Works at Acme Corp as a staff engineer",
       embedding: JSON.stringify([0.5, 0.25]),
       embeddingModel: "test-embed",
@@ -133,7 +206,7 @@ describe("memory persistence reliability", () => {
       sourceChunkIds: ["m7"],
     });
     for (const content of ["Works at Acme in Berlin", "Works at Acme in Berlin as a designer"])
-      await updateVaultMemoryOp(ctx, memory!.uniqueId, {
+      await updateVaultMemoryOp(ctx, memory.uniqueId, {
         content,
         sourceChunkIds: ["m7"],
         observationSourceIds: ["m7"],
@@ -148,8 +221,8 @@ describe("memory persistence reliability", () => {
       content: "Runs every morning",
       sourceChunkIds: ["m3"],
     });
-    expect(await archiveVaultMemoryOp(ctx, memory!.uniqueId, {})).toBe(true);
-    const restored = await updateVaultMemoryOp(ctx, memory!.uniqueId, {
+    expect(await archiveVaultMemoryOp(ctx, memory.uniqueId, {})).toBe(true);
+    const restored = await updateVaultMemoryOp(ctx, memory.uniqueId, {
       content: "Runs every morning before work",
       sourceChunkIds: ["m3"],
       observationSourceIds: ["m3"],
@@ -162,8 +235,7 @@ describe("memory persistence reliability", () => {
     const memory = await createVaultMemoryOp(ctx, { content: "Same fact", sourceChunkIds: ["m1"] });
     await Promise.all(
       ["m2", "m3"].map((id) =>
-        updateVaultMemoryOp(ctx, memory!.uniqueId, {
-          content: "Same fact",
+        updateVaultMemoryOp(ctx, memory.uniqueId, {
           sourceChunkIds: ["m1", id],
           observationSourceIds: [id],
           proofCountIncrement: 1,
@@ -176,14 +248,14 @@ describe("memory persistence reliability", () => {
   });
   it("a re-observation between decay scan and archive wins even with unchanged updatedAt", async () => {
     const memory = await createVaultMemoryOp(ctx, { content: "Still working on this" });
-    await updateVaultMemoryOp(ctx, memory!.uniqueId, {
-      content: memory!.content,
+    await updateVaultMemoryOp(ctx, memory.uniqueId, {
+      content: memory.content,
       lastObservedAt: Date.now(),
       preserveUpdatedAt: true,
     });
     expect(
-      await archiveVaultMemoryOp(ctx, memory!.uniqueId, {
-        expectedUpdatedAt: memory!.updatedAt.getTime(),
+      await archiveVaultMemoryOp(ctx, memory.uniqueId, {
+        expectedUpdatedAt: memory.updatedAt.getTime(),
         expectedLastObservedAt: null,
       })
     ).toBe(false);
@@ -192,11 +264,11 @@ describe("memory persistence reliability", () => {
     const keep = await createVaultMemoryOp(ctx, { content: "allowed" });
     await createVaultMemoryOp(ctx, { content: "outside" });
     expect(
-      (await getAllVaultMemoriesOp(ctx, { memoryIds: [keep!.uniqueId] })).map((m) => m.uniqueId)
-    ).toEqual([keep!.uniqueId]);
+      (await getAllVaultMemoriesOp(ctx, { memoryIds: [keep.uniqueId] })).map((m) => m.uniqueId)
+    ).toEqual([keep.uniqueId]);
     expect(
-      (await getVaultCandidateKeysOp(ctx, { memoryIds: [keep!.uniqueId] })).map((m) => m.uniqueId)
-    ).toEqual([keep!.uniqueId]);
+      (await getVaultCandidateKeysOp(ctx, { memoryIds: [keep.uniqueId] })).map((m) => m.uniqueId)
+    ).toEqual([keep.uniqueId]);
     expect(await getAllVaultMemoriesOp(ctx, { memoryIds: [] })).toEqual([]);
     expect(await getVaultCandidateKeysOp(ctx, { memoryIds: [] })).toEqual([]);
   });
@@ -326,6 +398,113 @@ describe("durable extraction outbox", () => {
     role: "user" as const,
     content: `secret-${i}`,
   }));
+  it.each(["sql", "loki"] as const)(
+    "reads enqueue metadata without history models and loads only the tail on %s",
+    async (adapterType) => {
+      await conversation();
+      await db.write(() =>
+        db.get<ExtractionJob>(ExtractionJob.table).create((row) => {
+          row._setRaw("owner_key", "owner");
+          row._setRaw("conversation_id", "conversation");
+          row._setRaw("scope", "private");
+          row._setRaw("folder_id", null);
+          row._setRaw("message_ids", "[]");
+          row._setRaw("watermark", "m19");
+          row._setRaw("watermark_seq", 20);
+        })
+      );
+      const { DatabaseSync } = createRequire(import.meta.url)(
+        "node:sqlite"
+      ) as typeof import("node:sqlite");
+      const sqlDb = new DatabaseSync(":memory:");
+      sqlDb.exec(
+        'create table "history" ("id" text, "conversation_id" text, "message_id" integer, "_status" text)'
+      );
+      const insert = sqlDb.prepare('insert into "history" values (?, ?, ?, ?)');
+      for (const [index, message] of messages.entries())
+        insert.run(message.id, "conversation", index + 1, "created");
+      const adapter = db.adapter.underlyingAdapter;
+      const fetch = vi.spyOn(adapter, "query");
+      const queryRaw = adapter.unsafeQueryRaw.bind(adapter);
+      const projections: Record<string, unknown>[][] = [];
+      const raw = vi.spyOn(adapter, "unsafeQueryRaw").mockImplementation((query, callback) => {
+        const sql = query.description.sql;
+        if (adapterType === "sql" && query.table === "history" && sql) {
+          const rows = sqlDb.prepare(sql.sql).all(...(sql.values as string[]));
+          projections.push(rows);
+          callback({ value: rows });
+        } else queryRaw(query, callback);
+      });
+      const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
+      const worker = createDurableAutoExtractor({ ...options(), onError });
+      try {
+        expect(worker.processTurn(messages, "conversation")).toBe(true);
+        const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+        await vi.waitFor(() => expect(job._getRaw("watermark")).toBe("m24"));
+        const tail = messages.slice(18).map((message) => message.id);
+        expect(vi.mocked(getMessageOp).mock.calls.map(([, id]) => id)).toEqual(tail);
+        expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((message) => message.id)).toEqual(
+          tail
+        );
+        expect(fetch.mock.calls.filter(([query]) => query.table === "history")).toEqual([]);
+        expect(onError).not.toHaveBeenCalled();
+        if (adapterType === "sql") {
+          expect(projections).toHaveLength(1);
+          expect(projections[0]).toHaveLength(messages.length);
+          for (const row of projections[0])
+            expect(Object.keys(row).sort()).toEqual(["conversation_id", "id", "message_id"]);
+        }
+      } finally {
+        worker.dispose();
+        fetch.mockRestore();
+        raw.mockRestore();
+        sqlDb.close();
+      }
+    }
+  );
+  it("does not read history models or content for an acknowledged window", async () => {
+    await conversation();
+    await db.write(() =>
+      db.get<ExtractionJob>(ExtractionJob.table).create((row) => {
+        row._setRaw("owner_key", "owner");
+        row._setRaw("conversation_id", "conversation");
+        row._setRaw("scope", "private");
+        row._setRaw("folder_id", null);
+        row._setRaw("message_ids", "[]");
+        row._setRaw("watermark", "m24");
+        row._setRaw("watermark_seq", 25);
+      })
+    );
+    const adapter = db.adapter.underlyingAdapter;
+    const fetch = vi.spyOn(adapter, "query");
+    const raw = vi.spyOn(adapter, "unsafeQueryRaw");
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
+    const worker = createDurableAutoExtractor({ ...options(), onError });
+    try {
+      expect(worker.processTurn(messages, "conversation")).toBe(true);
+      await vi.waitFor(() =>
+        expect(
+          [...fetch.mock.calls, ...raw.mock.calls].some(([query]) => query.table === "history")
+        ).toBe(true)
+      );
+      await db.write(() => Promise.resolve());
+      expect(fetch.mock.calls.filter(([query]) => query.table === "history")).toEqual([]);
+      expect(
+        raw.mock.calls.filter(([query]) => query.table === "history" && !query.description.sql)
+      ).toHaveLength(1);
+      expect(getMessageOp).not.toHaveBeenCalled();
+      expect(extractAndRetain).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+      const [job] = await db.get<ExtractionJob>(ExtractionJob.table).query().fetch();
+      expect(job._getRaw("message_ids")).toBe("[]");
+      expect(job._getRaw("watermark")).toBe("m24");
+      expect(job._getRaw("watermark_seq")).toBe(25);
+    } finally {
+      worker.dispose();
+      fetch.mockRestore();
+      raw.mockRestore();
+    }
+  });
   it("persists only ids and resumes a disposed session without a new turn", async () => {
     await conversation();
     const first = createDurableAutoExtractor({ ...options(), debounceMs: 60_000 });
@@ -518,7 +697,7 @@ describe("durable extraction outbox", () => {
 
     it("waits without retrying, says why, and extracts as soon as the key arrives", async () => {
       await lockUntilKey();
-      const onError = vi.fn();
+      const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
       const worker = createDurableAutoExtractor({ ...keyedOptions(), onError });
       try {
         worker.processTurn(messages.slice(0, 1), "conversation");
@@ -584,7 +763,7 @@ describe("durable extraction outbox", () => {
           row._setRaw("content", "another chat");
         });
       });
-      const onError = vi.fn();
+      const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
       const worker = createDurableAutoExtractor({ ...keyedOptions(), debounceMs: 60_000, onError });
       try {
         worker.processTurn(messages.slice(0, 1), "conversation");
@@ -613,7 +792,7 @@ describe("durable extraction outbox", () => {
 
     it("retries a waiting job when a new turn arrives in its conversation", async () => {
       await lockUntilKey();
-      const onError = vi.fn();
+      const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
       const worker = createDurableAutoExtractor({ ...keyedOptions(), onError });
       try {
         worker.processTurn(messages.slice(0, 1), "conversation");
@@ -702,7 +881,7 @@ describe("durable extraction outbox", () => {
           return { ...empty, failedCount: 1 };
         }
       });
-      const onError = vi.fn();
+      const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
       const worker = createDurableAutoExtractor({ ...options(), onError });
       await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce());
       expect(vi.mocked(extractAndRetain).mock.calls[0][0].map((m) => m.id)).toEqual(["m0", "m1"]);
@@ -739,7 +918,7 @@ describe("durable extraction outbox", () => {
   it("never queues a source from another conversation, so it cannot hide later turns", async () => {
     await conversation();
     await foreignMessage();
-    const onError = vi.fn();
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
     const worker = createDurableAutoExtractor({ ...options(), onError });
     const foreign = { id: "foreign", role: "user" as const, content: "from another chat" };
     worker.processTurn([...messages.slice(0, 2), foreign], "conversation");
@@ -1010,7 +1189,7 @@ describe("durable extraction outbox", () => {
 
   it("keeps the job queued when the model resolver throws", async () => {
     await conversation();
-    const onError = vi.fn();
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
     const worker = createDurableAutoExtractor({
       ...options(),
       onError,
@@ -1028,7 +1207,7 @@ describe("durable extraction outbox", () => {
 
   it("treats a throwing scope accessor as private", async () => {
     await conversation();
-    const onError = vi.fn();
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
     const worker = createDurableAutoExtractor({
       ...options(),
       onError,
@@ -1090,7 +1269,7 @@ describe("durable extraction outbox", () => {
     vi.mocked(getMessageOp).mockImplementation(async (storageCtx, id) =>
       id === "m0" ? null : realGetMessageOp(storageCtx, id)
     );
-    const onError = vi.fn();
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
     const worker = createDurableAutoExtractor({ ...options(), onError });
     worker.processTurn(messages.slice(0, 3), "conversation");
     await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledOnce(), { timeout: 2000 });
@@ -1152,7 +1331,7 @@ describe("durable extraction outbox", () => {
   it("retains the batch when extraction never settles", async () => {
     await conversation();
     vi.mocked(extractAndRetain).mockImplementationOnce(() => new Promise(() => {}));
-    const onError = vi.fn();
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
     const worker = createDurableAutoExtractor({
       ...options(),
       batchTimeoutMs: 20,
@@ -1179,10 +1358,12 @@ describe("durable extraction outbox", () => {
 
   it("abandons a batch that failed in three sessions so later messages still extract", async () => {
     await conversation();
-    vi.mocked(extractAndRetain).mockImplementation(async (batch) =>
-      batch.some((m) => m.id === "m0") ? failedExtraction({ reason: "invalid-json" }) : empty
+    vi.mocked(extractAndRetain).mockImplementation((batch) =>
+      Promise.resolve(
+        batch.some((m) => m.id === "m0") ? failedExtraction({ reason: "invalid-json" }) : empty
+      )
     );
-    const onError = vi.fn();
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
     const calls = () => vi.mocked(extractAndRetain).mock.calls.length;
 
     const first = createDurableAutoExtractor({ ...options(), onError });
@@ -1220,8 +1401,10 @@ describe("durable extraction outbox", () => {
 
   it("abandons a moderation-refused single turn at once without retrying it", async () => {
     await conversation();
-    vi.mocked(extractAndRetain).mockImplementation(async (batch) =>
-      batch.some((m) => m.id === "m0") ? failedExtraction({ reason: "content-flagged" }) : empty
+    vi.mocked(extractAndRetain).mockImplementation((batch) =>
+      Promise.resolve(
+        batch.some((m) => m.id === "m0") ? failedExtraction({ reason: "content-flagged" }) : empty
+      )
     );
     const worker = createDurableAutoExtractor(options());
     worker.processTurn(messages.slice(0, 1), "conversation");
@@ -1235,10 +1418,12 @@ describe("durable extraction outbox", () => {
 
   it("extracts the other turns of a moderation-refused batch and drops only the refused one", async () => {
     await conversation();
-    vi.mocked(extractAndRetain).mockImplementation(async (batch) =>
-      batch.some((m) => m.id === "m1") ? failedExtraction({ reason: "content-flagged" }) : empty
+    vi.mocked(extractAndRetain).mockImplementation((batch) =>
+      Promise.resolve(
+        batch.some((m) => m.id === "m1") ? failedExtraction({ reason: "content-flagged" }) : empty
+      )
     );
-    const onError = vi.fn();
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
     const worker = createDurableAutoExtractor({ ...options(), onError });
     worker.processTurn(messages.slice(0, 3), "conversation");
     await vi.waitFor(async () => expect((await jobRow())._getRaw("message_ids")).toBe("[]"), {
@@ -1282,7 +1467,7 @@ describe("durable extraction outbox", () => {
         ? { ...message, content: CIPHERTEXT, decryptionStatus: "auth_mismatch" }
         : message;
     });
-    const onError = vi.fn();
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
     const lockedReads = () =>
       vi.mocked(getMessageOp).mock.calls.filter(([, id]) => id === "m0").length;
     const first = createDurableAutoExtractor({ ...options(), onError });
@@ -1343,7 +1528,7 @@ describe("durable extraction outbox", () => {
       if (id === "m1") return { ...message, content: CIPHERTEXT, decryptionStatus: "key_missing" };
       return message;
     });
-    const onError = vi.fn();
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
     const lockedReads = () =>
       vi.mocked(getMessageOp).mock.calls.filter(([, id]) => id === "m0").length;
     for (let session = 1; session <= 3; session++) {
@@ -1484,10 +1669,12 @@ describe("durable extraction outbox", () => {
 
   it("counts a poison head once per session however many turns re-arm its retries", async () => {
     await conversation();
-    vi.mocked(extractAndRetain).mockImplementation(async (batch) =>
-      batch.some((m) => m.id === "m0") ? failedExtraction({ reason: "invalid-json" }) : empty
+    vi.mocked(extractAndRetain).mockImplementation((batch) =>
+      Promise.resolve(
+        batch.some((m) => m.id === "m0") ? failedExtraction({ reason: "invalid-json" }) : empty
+      )
     );
-    const onError = vi.fn();
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
     const calls = () => vi.mocked(extractAndRetain).mock.calls.length;
     const poisonCalls = () =>
       vi.mocked(extractAndRetain).mock.calls.filter(([batch]) => batch.some((m) => m.id === "m0"))
@@ -1548,7 +1735,7 @@ describe("durable extraction outbox", () => {
       await new Promise<void>((resolve) => (release = resolve));
       return empty;
     });
-    const onError = vi.fn();
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
     const worker = createDurableAutoExtractor({
       ...options(),
       batchTimeoutMs: 20,
@@ -1658,9 +1845,9 @@ describe("durable extraction outbox", () => {
       const state = { status: initial };
       const byId = new Map(dm.map((m) => [m.id, m]));
       const source = {
-        status: vi.fn(async () => state.status),
-        load: vi.fn(async (_conversationId: string, ids: string[]) =>
-          ids.flatMap((id) => byId.get(id) ?? [])
+        status: vi.fn(() => Promise.resolve(state.status)),
+        load: vi.fn((_conversationId: string, ids: string[]) =>
+          Promise.resolve(ids.flatMap((id) => byId.get(id) ?? []))
         ),
       };
       const messageSource = (conversationId: string) =>
@@ -1794,20 +1981,21 @@ describe("durable extraction outbox", () => {
 
     it("skips rather than re-observes a turn that carries no positions", async () => {
       const { source, messageSource } = dmSource("ready");
-      source.load.mockImplementation(async (_conversationId: string, ids: string[]) =>
-        dm.filter((m) => ids.includes(m.id)).map((m) => ({ ...m, seq: 0 }))
+      source.load.mockImplementation((_conversationId: string, ids: string[]) =>
+        Promise.resolve(dm.filter((m) => ids.includes(m.id)).map((m) => ({ ...m, seq: 0 })))
       );
-      const onError = vi.fn();
+      const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
       const unordered = dm.map(({ seq: _seq, ...message }) => message);
       const worker = createDurableAutoExtractor({ ...options(), onError, messageSource });
       worker.processTurn(unordered.slice(0, 10), "nearby:7");
       await drained(1);
       worker.processTurn([...unordered.slice(0, 9), unordered[10]], "nearby:7");
       await vi.waitFor(() =>
-        expect(onError).toHaveBeenCalledWith(
-          expect.objectContaining({ message: expect.stringContaining("boundary unresolved") }),
-          "nearby:7"
-        )
+        expect(
+          onError.mock.calls.some(
+            ([error, id]) => error.message.includes("boundary unresolved") && id === "nearby:7"
+          )
+        ).toBe(true)
       );
       expect(extractAndRetain).toHaveBeenCalledTimes(1);
       worker.dispose();

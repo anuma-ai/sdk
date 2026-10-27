@@ -163,6 +163,30 @@ export {
 } from "../lib/chat/webSearchClassifier";
 export { xhrTransport } from "../lib/chat/xhrTransport";
 export {
+  type ChatAccount,
+  type ChatAccountState,
+  type ChatAttachment,
+  type ChatAttachments,
+  type ChatChanges,
+  type ChatImport,
+  type ChatJson,
+  type ChatListOptions,
+  type ChatPage,
+  type ChatPresignedUrl,
+  type ChatRecord,
+  type ChatRecordKind,
+  type ChatRef,
+  type ChatRevision,
+  type ChatSearchHit,
+  type ChatSearchOptions,
+  type ChatSnapshot,
+  type ChatStore,
+  ChatStoreError,
+  type ChatWrite,
+  createRemoteChatStore,
+  type RemoteChatStoreOptions,
+} from "../lib/chatStore";
+export {
   Conversation as ChatConversation,
   Message as ChatMessage,
   type ChatRole,
@@ -383,6 +407,7 @@ export {
   type EmbeddingRepairResult,
   type LocalMemoryStoreOptions,
   memoryCipher,
+  type MemoryCounts,
   type MemoryCreate,
   type MemoryDecay,
   type MemoryDecaySweeperOptions,
@@ -422,6 +447,11 @@ export {
   type RemoteMemoryRecord,
   type RemoteMemoryRow,
   type RemoteMemoryStoreOptions,
+  type RemoteMemoryTopic,
+  type RemoteMemoryWorkKind,
+  type RemoteMemoryWorkLease,
+  type RemoteMemoryWorkPersistence,
+  type RemoteTopicPersistence,
 } from "../lib/memory";
 export {
   capHopsForDensity,
@@ -586,6 +616,21 @@ export {
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
 export { clearModelsCache, useModels } from "../react/useModels";
 export { createNotionProxyTools, createNotionTools, type NotionMcpCaller } from "../tools/notion";
+export type {
+  CreateSelectPaymentWalletToolOptions,
+  CreateWalletPaymentToolOptions,
+  PaymentWallet,
+  SelectPaymentWalletResult,
+  WalletPaymentOutcome,
+  WalletPaymentPassenger,
+  WalletPaymentRequest,
+  WalletPaymentResult,
+} from "../tools/walletPayment";
+export { createSelectPaymentWalletTool, createWalletPaymentTool } from "../tools/walletPayment";
+export {
+  SELECT_PAYMENT_WALLET_TOOL_NAME,
+  WALLET_PAYMENT_TOOL_NAME,
+} from "../tools/walletPaymentConstants";
 export { useChat } from "./useChat";
 export type {
   ResumeStreamWithStorageResult,

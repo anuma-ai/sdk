@@ -209,7 +209,6 @@ export async function retainWithPersistence(
           const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
           const resurrect = resurrectFields(existing);
           const updated = await ctx.persistence.update(targetId, {
-            content: existing.content,
             freeFormOnly: true,
             proofCountIncrement: 1,
             observationSourceIds: options.sourceChunkIds,
@@ -533,7 +532,6 @@ async function tryConsolidate(
     const factTypeUpdate = pickFactTypeUpdate(existing, options.factType);
     const resurrect = resurrectFields(existing);
     const updated = await ctx.persistence.update(decision.targetId, {
-      content: existing.content,
       freeFormOnly: true,
       proofCountIncrement: 1,
       observationSourceIds: options.sourceChunkIds,
@@ -562,12 +560,19 @@ async function tryConsolidate(
   }
 
   if (decision.action === "update" && decision.targetId && decision.content) {
+    const expectedContent = candidates.find(
+      (candidate) => candidate.id === decision.targetId
+    )?.content;
+    if (expectedContent === undefined) return null;
     const existing = await ctx.persistence.get(decision.targetId);
     if (!existing || existing.supersededBy) {
       return abandonToRace(
         options,
         `update: target ${decision.targetId} ${existing ? "superseded" : "deleted"} before the write`
       );
+    }
+    if (existing.content !== expectedContent) {
+      return abandonToRace(options, `update: target ${decision.targetId} edited before the write`);
     }
     const mergedSourceIds = unionStrings(
       existing.sourceChunkIds ?? [],
@@ -581,6 +586,7 @@ async function tryConsolidate(
     const resurrect = resurrectFields(existing);
     const updated = await ctx.persistence.update(decision.targetId, {
       content: decision.content,
+      expectedContent,
       freeFormOnly: true,
       proofCountIncrement: 1,
       observationSourceIds: options.sourceChunkIds,
@@ -593,10 +599,10 @@ async function tryConsolidate(
       ...(factTypeUpdate !== undefined && { factType: factTypeUpdate }),
     });
     if (!updated) {
-      await assertMergeTargetGoneOrThrow(ctx, decision.targetId);
+      await assertMergeTargetGoneOrThrow(ctx, decision.targetId, expectedContent);
       return abandonToRace(
         options,
-        `update: target ${decision.targetId} deleted mid-write (consolidated rewrite lost)`
+        `update: target ${decision.targetId} changed mid-write (consolidated rewrite lost)`
       );
     }
     cacheRowVector(
@@ -627,12 +633,17 @@ async function tryConsolidate(
 
 async function assertMergeTargetGoneOrThrow(
   ctx: RetainPipelineContext,
-  targetId: string
+  targetId: string,
+  expectedContent?: string
 ): Promise<void> {
   const stillExists = await (ctx.persistence.getFresh
     ? ctx.persistence.getFresh(targetId)
     : ctx.persistence.get(targetId));
-  if (stillExists && (stillExists.kind === null || stillExists.kind === undefined)) {
+  if (
+    stillExists &&
+    (stillExists.kind === null || stillExists.kind === undefined) &&
+    (expectedContent === undefined || stillExists.content === expectedContent)
+  ) {
     throw new RetainError(
       "merge-not-persisted",
       `retain: merge into memory ${targetId} failed to persist`

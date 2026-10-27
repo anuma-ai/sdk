@@ -1,10 +1,15 @@
-import { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
+import {
+  getVaultEmbeddingsByIdsOp,
+  getVaultProfileMetadataOp,
+  type VaultProfileMetadata,
+} from "../db/memoryVault/operations.js";
 import type { StoredVaultMemory } from "../db/memoryVault/types.js";
 import { withInternalFlowMarker } from "../internalFlowMarker.js";
 import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbeddings } from "../memoryEngine/embeddings.js";
 import { cosineSimilarity } from "../memoryEngine/vector.js";
+import { createVaultPreparation, type VaultPreparation } from "../memoryVault/vaultPreparation.js";
 import type { PiiRedactor } from "../pii/redactor.js";
 import type { FactType } from "./autoExtract.js";
 import { type ObservationTrend, summarizeObservationTrends } from "./observationTrend.js";
@@ -24,6 +29,8 @@ const DEFAULT_FACET_RECALL_LIMIT = 20;
 const DEFAULT_FACET_MAX_TOKENS = 512;
 const DEFAULT_SCOPES = ["private"];
 const NEW_FACT_ATTRIBUTION_MIN_SCORE = 0.1;
+type ProfileMemory = VaultProfileMetadata &
+  Partial<Pick<StoredVaultMemory, "embedding" | "embeddingModel">>;
 /** Bump when the ProfileDoc / section shape changes incompatibly. */
 export const PROFILE_DOC_VERSION = 1;
 
@@ -357,7 +364,7 @@ export async function synthesizeProfile(
   const listOptions = { scopes, includeDeleted: true, includeSuperseded: true };
   const [memories, projections] = store
     ? await Promise.all([store.list(listOptions), store.listProjections(listOptions)])
-    : [await getAllVaultMemoriesOp(vaultCtx!, listOptions), []];
+    : [await getVaultProfileMetadataOp(vaultCtx!, { scopes }), []];
   const watermark = computeVaultWatermark(memories);
   const observationTrends = summarizeObservationTrends(
     memories
@@ -410,7 +417,8 @@ export async function synthesizeProfile(
     previous,
     watermark,
     options.reviewedMemoryIds,
-    previousUnreadable
+    previousUnreadable,
+    store ? undefined : (ids) => getVaultEmbeddingsByIdsOp(vaultCtx!, ids)
   );
 
   const memoriesById = new Map(memories.map((memory) => [memory.uniqueId, memory]));
@@ -436,13 +444,20 @@ export async function synthesizeProfile(
     }
   }
 
+  const vaultPreparation = createVaultPreparation();
   const settled = await Promise.allSettled(
     facets.map(async (facet) => {
       const prior = previous?.sections.find((s) => s.key === facet.key);
       if (prior && !staleKeys.has(facet.key)) {
         return prior;
       }
-      return synthesizeFacet(facet, recallCtx, options, fallbackPriors.get(facet.key));
+      return synthesizeFacet(
+        facet,
+        recallCtx,
+        options,
+        fallbackPriors.get(facet.key),
+        vaultPreparation
+      );
     })
   );
 
@@ -554,11 +569,11 @@ function trendsEqual(
   );
 }
 
-function changeTime(m: StoredVaultMemory): number {
+function changeTime(m: VaultProfileMetadata): number {
   return Math.max(m.updatedAt.getTime(), m.supersededAt ?? 0, m.lastObservedAt ?? 0);
 }
 
-function computeVaultWatermark(memories: StoredVaultMemory[]): number {
+function computeVaultWatermark(memories: VaultProfileMetadata[]): number {
   let max = 0;
   for (const m of memories) {
     const t = changeTime(m);
@@ -569,12 +584,13 @@ function computeVaultWatermark(memories: StoredVaultMemory[]): number {
 
 async function computeStaleFacetKeys(
   ctx: RecallContext,
-  memories: StoredVaultMemory[],
+  memories: ProfileMemory[],
   facets: ProfileFacet[],
   previous: ProfileDoc | undefined,
   watermark: number,
   reviewedMemoryIds: readonly string[] | undefined,
-  previouslyUnreadable: ReadonlySet<string>
+  previouslyUnreadable: ReadonlySet<string>,
+  loadEmbeddings?: (ids: string[]) => ReturnType<typeof getVaultEmbeddingsByIdsOp>
 ): Promise<Set<ProfileFacetKey>> {
   const allKeys = new Set(facets.map((f) => f.key));
   if (previous && watermark < previous.vaultWatermark) return allKeys;
@@ -611,7 +627,11 @@ async function computeStaleFacetKeys(
     toAttribute = toAttribute.filter((m) => allowed.has(m.uniqueId));
   }
   if (toAttribute.length > 0) {
-    const attributed = await attributeFacts(ctx, toAttribute, facets);
+    const candidates = loadEmbeddings
+      ? await loadEmbeddings(toAttribute.map((m) => m.uniqueId))
+      : toAttribute;
+    if (candidates.length !== toAttribute.length) return allKeys;
+    const attributed = await attributeFacts(ctx, candidates, facets);
     if (attributed === null) return allKeys;
     for (const k of attributed) stale.add(k);
   }
@@ -621,7 +641,7 @@ async function computeStaleFacetKeys(
 
 async function attributeFacts(
   ctx: RecallContext,
-  candidates: StoredVaultMemory[],
+  candidates: Pick<ProfileMemory, "uniqueId" | "embedding" | "embeddingModel">[],
   facets: ProfileFacet[]
 ): Promise<Set<ProfileFacetKey> | null> {
   const model = ctx.embeddingOptions.model ?? DEFAULT_API_EMBEDDING_MODEL;
@@ -685,7 +705,8 @@ async function synthesizeFacet(
   facet: ProfileFacet,
   ctx: RecallContext,
   options: SynthesizeProfileOptions,
-  prior: ProfileSection | undefined
+  prior: ProfileSection | undefined,
+  vaultPreparation: VaultPreparation
 ): Promise<ProfileSection> {
   const scopes = options.scopes ?? DEFAULT_SCOPES;
   const limit = options.limit ?? DEFAULT_FACET_RECALL_LIMIT;
@@ -705,14 +726,16 @@ async function synthesizeFacet(
   }
 
   const recalled = await recall(facet.query, ctx, {
+    vaultPreparation,
     scopes,
     limit: hasReviewGate ? RECALL_MAX_LIMIT : limit,
+    ...(hasReviewGate && { memoryIds: [...reviewed] }),
     types: ["fact"],
     factTypeWeights,
     proofCountAlpha,
   });
 
-  let memories: RankedMemory[] = recalled.memories;
+  let memories: RankedMemory[] = recalled.memories.filter((m) => m.factType !== "instruction");
   if (hasReviewGate) {
     const allowed = new Set(reviewed);
     memories = memories.filter((m) => allowed.has(m.id)).slice(0, limit);

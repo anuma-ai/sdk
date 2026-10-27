@@ -150,6 +150,15 @@ function hasSql(clauses: Where[]): boolean {
   );
 }
 
+function encodeSqlParameters(sql: string, values: unknown[]): string {
+  if (values.length === 0) return sql;
+  const tokens =
+    /[eE]'(?:\\[\s\S]|''|[^'\\])*'|'(?:''|[^'])*'|"(?:""|[^"])*"|(\$(?:[a-zA-Z_]\w*)?\$)[\s\S]*?\1|--[^\r\n]*|\/\*[\s\S]*?\*\/|\$\d+|\?/g;
+  if (sql.match(tokens)?.some((token) => /^\$\d+$/.test(token))) return sql;
+  let index = 0;
+  return sql.replace(tokens, (token) => (token === "?" ? `$${++index}` : token));
+}
+
 function encodeQuery(
   query: SerializedQuery,
   qualify: (table: string) => string,
@@ -163,7 +172,8 @@ function encodeQuery(
   };
 
   if (description.sql) {
-    return [description.sql.sql, description.sql.values];
+    const { sql, values } = description.sql;
+    return [encodeSqlParameters(sql, values), values];
   }
 
   const params: unknown[] = [];

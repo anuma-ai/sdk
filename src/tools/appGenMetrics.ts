@@ -219,9 +219,7 @@ function formatNullableDelta(
 }
 
 /**
- * Render a human-readable side-by-side diff between two runs. Used by
- * the `scripts/compare-app-gen-runs.ts` CLI and by tests that want to
- * sanity-check a regression in CI.
+ * Render a human-readable side-by-side diff between two runs.
  *
  * Order matters: `before` is the baseline, `after` is the candidate.
  * Positive deltas mean the candidate did more (more tool calls, larger
