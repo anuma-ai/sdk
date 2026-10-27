@@ -1,6 +1,6 @@
 # ChatPage
 
-Defined in: [src/lib/chatStore/types.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#123)
+Defined in: [src/lib/chatStore/types.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#126)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:123](https://github.com/anuma-ai/sdk/blo
 
 > **items**: [`ChatSnapshot`](ChatSnapshot.md)\[]
 
-Defined in: [src/lib/chatStore/types.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#124)
+Defined in: [src/lib/chatStore/types.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#127)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/types.ts:124](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **nextCursor**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#125)
+Defined in: [src/lib/chatStore/types.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#128)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/lib/chatStore/types.ts:125](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **total**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#126)
+Defined in: [src/lib/chatStore/types.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#129)

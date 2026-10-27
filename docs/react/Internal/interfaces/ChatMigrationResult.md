@@ -1,6 +1,6 @@
 # ChatMigrationResult
 
-Defined in: src/lib/chatStore/migrateChats.ts:63
+Defined in: [src/lib/chatStore/migrateChats.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#65)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:63
 
 > **conversations**: `number`
 
-Defined in: src/lib/chatStore/migrateChats.ts:65
+Defined in: [src/lib/chatStore/migrateChats.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#67)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:65
 
 > **imported**: `number`
 
-Defined in: src/lib/chatStore/migrateChats.ts:67
+Defined in: [src/lib/chatStore/migrateChats.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#69)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:67
 
 > **messages**: `number`
 
-Defined in: src/lib/chatStore/migrateChats.ts:66
+Defined in: [src/lib/chatStore/migrateChats.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#68)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:66
 
 > **skipped**: [`ChatMigrationSkip`](ChatMigrationSkip.md)\[]
 
-Defined in: src/lib/chatStore/migrateChats.ts:68
+Defined in: [src/lib/chatStore/migrateChats.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#70)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:68
 
 > **state**: `"active"` | `"migrating"`
 
-Defined in: src/lib/chatStore/migrateChats.ts:64
+Defined in: [src/lib/chatStore/migrateChats.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#66)
 
 ***
 
@@ -48,7 +48,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:64
 
 > **truncated**: `number`
 
-Defined in: src/lib/chatStore/migrateChats.ts:74
+Defined in: [src/lib/chatStore/migrateChats.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#76)
 
 Messages shrunk to fit vault's record limit.
 
@@ -58,7 +58,7 @@ Messages shrunk to fit vault's record limit.
 
 > **unembedded**: `number`
 
-Defined in: src/lib/chatStore/migrateChats.ts:72
+Defined in: [src/lib/chatStore/migrateChats.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#74)
 
 Messages sent without vectors to stay inside the account's vector quota.
 
@@ -68,6 +68,6 @@ Messages sent without vectors to stay inside the account's vector quota.
 
 > **untitled**: `number`
 
-Defined in: src/lib/chatStore/migrateChats.ts:70
+Defined in: [src/lib/chatStore/migrateChats.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#72)
 
 Conversations whose title could not be decrypted and went up untitled.

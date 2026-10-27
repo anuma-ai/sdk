@@ -484,6 +484,88 @@ describe("vault chat backend", () => {
     expect(await fake.row("conversation", "conv_1")).toBeDefined();
   });
 
+  it("keeps waiting out a rate limit when a search or a wake-up asks it to send", async () => {
+    const fake = await createChatStoreHarness();
+    let wake = () => {};
+    const { b } = backend(fake, {
+      activity: {
+        isActive: () => true,
+        subscribe: (onChange) => {
+          wake = onChange;
+          return () => {};
+        },
+      },
+    });
+    await b.createConversation({ conversationId: "conv_1" });
+    fake.fail({ op: "putMany", error: new ChatStoreError("busy", 429, "rate_limited", 300) });
+    await b.flush();
+
+    await b.flush();
+    await b.searchChunks(unit(1));
+    wake();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(fake.calls.filter((c) => c === "putMany")).toHaveLength(1);
+    await vi.waitFor(() => expect(b.status().pending).toBe(0), { timeout: 2_000, interval: 10 });
+    expect(fake.calls.filter((c) => c === "putMany")).toHaveLength(2);
+  });
+
+  it("keeps a newer copy from another device when its own older write is answered late", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1", title: "Old" });
+    await b.flush();
+    const putMany = fake.store.putMany.bind(fake.store);
+    let answer = () => {};
+    const answered = new Promise<void>((resolve) => (answer = resolve));
+    vi.spyOn(fake.store, "putMany").mockImplementationOnce(async (writes, signal) => {
+      const result = await putMany(writes, signal);
+      await answered;
+      return result;
+    });
+
+    await b.updateConversationTitle("conv_1", "Mine");
+    const flushed = b.flush();
+    await vi.waitFor(async () =>
+      expect((await fake.row("conversation", "conv_1"))?.record.data.title).toBe("Mine")
+    );
+    const mine = (await fake.row("conversation", "conv_1"))!;
+    await fake.write([
+      {
+        record: { ...mine.record, data: { ...mine.record.data, title: "Theirs" } },
+        expectedVersion: mine.version,
+      },
+    ]);
+    await b.poll();
+    answer();
+    await flushed;
+
+    expect((await b.getConversation("conv_1"))?.title).toBe("Theirs");
+  });
+
+  it("refuses to reuse a deleted message's id, before and after the delete is sent", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1" });
+    const again = { conversationId: "conv_1", role: "user" as const, content: "again" };
+    await b.createMessage({ ...again, uniqueId: "msg_sent" });
+    await b.createMessage({ ...again, uniqueId: "msg_queued" });
+    await b.flush();
+    await b.deleteMessage("msg_sent");
+    await b.flush();
+    await b.deleteMessage("msg_queued");
+    await b.createMessage({ ...again, uniqueId: "msg_local" });
+    await b.deleteMessage("msg_local");
+
+    for (const uniqueId of ["msg_sent", "msg_queued", "msg_local"]) {
+      await expect(b.createMessage({ ...again, uniqueId })).rejects.toThrow("Message was deleted");
+      await expect(b.upsertMessage({ ...again, uniqueId })).rejects.toThrow("Message was deleted");
+    }
+    await b.flush();
+    expect((await fake.row("message", "msg_sent"))?.record.isDeleted).toBe(true);
+    expect((await fake.row("message", "msg_queued"))?.record.isDeleted).toBe(true);
+    expect(await fake.row("message", "msg_local")).toBeUndefined();
+  });
+
   it("isolates and drops the one write vault rejects as invalid", async () => {
     const fake = await createChatStoreHarness();
     const { b, events } = backend(fake);

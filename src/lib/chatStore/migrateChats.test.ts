@@ -125,6 +125,7 @@ describe("migrateChatsToRemote", () => {
       unembedded: 0,
     });
     expect(onActivated).toHaveBeenCalledTimes(1);
+    expect(await database.localStorage.get("vault_chat_migration_uploads:")).toBeUndefined();
     const remote = vault(harness);
     expect(await observeAll(remote, ids)).toEqual(await observeAll(local, ids));
     expect((await harness.row("conversation", "conv_gone"))?.record.isDeleted).toBe(true);
@@ -150,6 +151,51 @@ describe("migrateChatsToRemote", () => {
     expect(await observeAll(vault(harness), ids)).toEqual(
       await observeAll(localChatBackend(database)({}), ids)
     );
+  });
+
+  it("deletes from vault what the device deleted after uploading it, across an interrupted run", async () => {
+    const database = makeDatabase();
+    const local = localChatBackend(database)({});
+    await seed(local);
+    const harness = await createChatStoreHarness();
+    harness.fail({ op: "importRecords", error: new TypeError("connection reset"), after: true });
+    await expect(migrate(database, harness)).rejects.toThrow("connection reset");
+
+    await local.deleteMessage("msg_1");
+    await local.deleteSummary("conv_trip");
+    await local.clearMemoryLinks("conv_trip");
+    const result = await migrate(database, harness);
+
+    expect(result.state).toBe("active");
+    for (const [kind, id] of [
+      ["message", "msg_1"],
+      ["summary", "conv_trip"],
+      ["memory_links", "conv_trip"],
+    ] as const)
+      expect((await harness.row(kind, id))?.record.isDeleted).toBe(true);
+    expect(await observeAll(vault(harness), ids)).toEqual(await observeAll(local, ids));
+  });
+
+  it("deletes from vault a message the device deleted while the copy ran", async () => {
+    const database = makeDatabase();
+    const local = localChatBackend(database)({});
+    await seed(local);
+    const harness = await createChatStoreHarness();
+    let deleting: Promise<unknown> | undefined;
+
+    const result = await migrate(database, harness, {
+      onProgress: ({ imported: sent }) => {
+        if (sent > 0) deleting ??= local.deleteMessage("msg_2");
+      },
+      withWriteBarrier: async (task) => {
+        await deleting;
+        return task();
+      },
+    });
+
+    expect(result.state).toBe("active");
+    expect((await harness.row("message", "msg_2"))?.record.isDeleted).toBe(true);
+    expect(await observeAll(vault(harness), ids)).toEqual(await observeAll(local, ids));
   });
 
   it("uploads what was written during the copy in a final pass under the barrier", async () => {
@@ -229,6 +275,63 @@ describe("migrateChatsToRemote", () => {
     expect(onActivated).toHaveBeenCalledTimes(1);
     expect(await harness.row("message", "msg_sealed")).toBeUndefined();
     expect((await harness.row("conversation", "conv_secret"))?.record.data.title).toBe("");
+  });
+
+  it("leaves rows it was given no key for on the device instead of uploading ciphertext", async () => {
+    const wallet = "0x00000000000000000000000000000000000000c4";
+    seedEncryptionKeys(wallet, { legacy: "55".repeat(32), current: "66".repeat(32) });
+    const database = makeDatabase();
+    const encrypted = localChatBackend(database)({
+      walletAddress: wallet,
+      signMessage: () => Promise.reject(new Error("no")),
+    });
+    await encrypted.createConversation({ conversationId: "conv_secret", title: "Secret" });
+    await encrypted.createMessage({
+      conversationId: "conv_secret",
+      role: "assistant",
+      content: "sealed",
+      uniqueId: "msg_sealed",
+      toolCallEvents: [{ id: "call_1", name: "search" }],
+    });
+    const harness = await createChatStoreHarness();
+
+    const held = await migrate(database, harness);
+    clearEncryptionKey(wallet);
+
+    expect(held).toMatchObject({
+      state: "migrating",
+      untitled: 1,
+      skipped: [{ kind: "message", id: "msg_sealed", reason: "unreadable" }],
+    });
+    expect(await harness.row("message", "msg_sealed")).toBeUndefined();
+    expect((await harness.row("conversation", "conv_secret"))?.record.data.title).toBe("");
+  });
+
+  it("keeps vault's copy of an uploaded row the device can no longer read", async () => {
+    const wallet = "0x00000000000000000000000000000000000000c5";
+    seedEncryptionKeys(wallet, { legacy: "77".repeat(32), current: "88".repeat(32) });
+    const database = makeDatabase();
+    const signer = { walletAddress: wallet, signMessage: () => Promise.reject(new Error("no")) };
+    const encrypted = localChatBackend(database)(signer);
+    await encrypted.createConversation({ conversationId: "conv_lost", title: "Lost key" });
+    await encrypted.createMessage({
+      conversationId: "conv_lost",
+      role: "user",
+      content: "uploaded while readable",
+      uniqueId: "msg_lost",
+    });
+    const harness = await createChatStoreHarness();
+    harness.fail({ op: "importRecords", error: new TypeError("connection reset"), after: true });
+    await expect(migrate(database, harness, { walletAddress: wallet })).rejects.toThrow();
+    clearEncryptionKey(wallet);
+
+    const held = await migrate(database, harness, { walletAddress: wallet });
+
+    expect(held.skipped).toEqual([{ kind: "message", id: "msg_lost", reason: "unreadable" }]);
+    expect((await harness.row("message", "msg_lost"))?.record).toMatchObject({
+      isDeleted: false,
+      data: { content: "uploaded while readable" },
+    });
   });
 
   it("keeps the newest messages searchable when vectors exceed the quota", async () => {

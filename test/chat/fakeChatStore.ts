@@ -76,6 +76,7 @@ function conflict(code: string, status = 409): ChatStoreError {
 export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: number } = {}) {
   let rows = new Map<string, Row>();
   let vectors = new Map<string, number[][]>();
+  let models = new Map<string, string>();
   let seq = 0;
   const account: Omit<ChatAccount, "recordCount" | "storageBytes" | "vectorCount"> = {
     keyId: "",
@@ -124,13 +125,26 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
     row.version += 1;
     row.seq = ++seq;
     vectors.delete(keyOf(row.record.kind, row.record.id));
+    models.delete(keyOf(row.record.kind, row.record.id));
   };
 
-  const writeVectors = (record: ChatRecord, embeddings: number[][] | undefined) => {
+  const writeVectors = (
+    record: ChatRecord,
+    embeddings: number[][] | undefined,
+    model: string | undefined
+  ) => {
     const key = keyOf(record.kind, record.id);
-    if (record.isDeleted) vectors.delete(key);
-    else if (embeddings !== undefined && (record.kind === "message" || record.kind === "summary"))
+    if (record.isDeleted) {
+      vectors.delete(key);
+      models.delete(key);
+    } else if (
+      embeddings !== undefined &&
+      (record.kind === "message" || record.kind === "summary")
+    ) {
       vectors.set(key, embeddings.map(normalize));
+      if (model) models.set(key, model);
+      else models.delete(key);
+    }
   };
 
   const apply = (write: ChatWrite): ChatSnapshot => {
@@ -152,7 +166,7 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
       if (current) throw conflict("version_conflict");
       const row = { record, version: 1, seq: ++seq };
       rows.set(key, row);
-      writeVectors(record, write.embeddings);
+      writeVectors(record, write.embeddings, write.embeddingModel);
       return snapshot(row);
     }
     if (
@@ -167,7 +181,7 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
     current.record = record.isDeleted ? { ...record, data: {} } : record;
     current.version += 1;
     current.seq = ++seq;
-    writeVectors(record, write.embeddings);
+    writeVectors(record, write.embeddings, write.embeddingModel);
     if (record.isDeleted && record.kind === "conversation")
       for (const row of rows.values())
         if (row.record.conversationId === record.id && !row.record.isDeleted) tombstone(row);
@@ -175,7 +189,12 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
   };
 
   const transaction = <T>(body: () => T): T => {
-    const saved = { rows: copy([...rows]), vectors: copy([...vectors]), seq };
+    const saved = {
+      rows: copy([...rows]),
+      vectors: copy([...vectors]),
+      models: [...models],
+      seq,
+    };
     try {
       const result = body();
       if (options.maxBytes !== undefined && bytes() > options.maxBytes)
@@ -186,6 +205,7 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
     } catch (error) {
       rows = new Map(saved.rows);
       vectors = new Map(saved.vectors);
+      models = new Map(saved.models);
       seq = saved.seq;
       throw error;
     }
@@ -298,7 +318,7 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
               rows.set(key, { record, version: 1, seq: ++seq });
             }
             written++;
-            writeVectors(record, orphaned ? undefined : item.embeddings);
+            writeVectors(record, orphaned ? undefined : item.embeddings, item.embeddingModel);
             if (record.isDeleted && record.kind === "conversation")
               for (const row of rows.values())
                 if (row.record.conversationId === record.id && !row.record.isDeleted)
@@ -356,7 +376,9 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
             !kinds.includes(row.record.kind as "message" | "summary") ||
             !visible(row, false) ||
             (opts?.conversationId !== undefined &&
-              row.record.conversationId !== opts.conversationId)
+              row.record.conversationId !== opts.conversationId) ||
+            row.record.conversationId === opts?.excludeConversationId ||
+            (opts?.embeddingModel && models.has(key) && models.get(key) !== opts.embeddingModel)
           )
             continue;
           let best = 0;

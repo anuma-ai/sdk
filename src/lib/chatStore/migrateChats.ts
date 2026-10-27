@@ -17,8 +17,10 @@ import {
   type ChatImport,
   type ChatRecord,
   type ChatRecordKind,
+  type ChatRef,
   type ChatStore,
   ChatStoreError,
+  type ChatWrite,
 } from "./types";
 import {
   acceptedVector,
@@ -88,6 +90,7 @@ const verifyBatch = 1000;
 const importBatch = 100;
 const importChunks = 200;
 const importPlaintextBytes = 3_900_000;
+const writeBatch = 25;
 
 function key(record: Pick<ChatRecord, "kind" | "id">): string {
   return `${record.kind}/${record.id}`;
@@ -96,6 +99,14 @@ function key(record: Pick<ChatRecord, "kind" | "id">): string {
 function ms(date: Date | undefined, fallback = 1): number {
   const value = date?.getTime();
   return value && Number.isFinite(value) ? Math.max(1, Math.floor(value)) : fallback;
+}
+
+function sealed(value: unknown): boolean {
+  if (typeof value === "string") return isEncrypted(value);
+  if (Array.isArray(value)) return typeof value[0] !== "number" && value.some(sealed);
+  if (value && typeof value === "object" && !(value instanceof Date))
+    return Object.values(value).some(sealed);
+  return false;
 }
 
 function bytes(value: unknown): number {
@@ -220,7 +231,7 @@ async function readLocal(options: ChatMigrationOptions): Promise<LocalChats> {
     });
 
     for (const message of messages) {
-      if (message.decryptionStatus) {
+      if (message.decryptionStatus || sealed(message)) {
         skip("message", message.uniqueId, "unreadable");
         continue;
       }
@@ -300,6 +311,59 @@ async function missing(
   return out;
 }
 
+interface UploadJournal {
+  keys: Set<string>;
+  add(keys: Iterable<string>): Promise<void>;
+  drop(keys: Iterable<string>): Promise<void>;
+  clear(): Promise<void>;
+}
+
+async function openJournal(database: Database, walletAddress?: string): Promise<UploadJournal> {
+  const name = `vault_chat_migration_uploads:${walletAddress ?? ""}`;
+  const keys = new Set((await database.localStorage.get<string[]>(name)) ?? []);
+  const save = () => database.localStorage.set(name, [...keys]);
+  return {
+    keys,
+    add: (more) => {
+      for (const k of more) keys.add(k);
+      return save();
+    },
+    drop: (less) => {
+      for (const k of less) keys.delete(k);
+      return save();
+    },
+    clear: () => database.localStorage.remove(name),
+  };
+}
+
+function ref(k: string): ChatRef {
+  const at = k.indexOf("/");
+  return { kind: k.slice(0, at) as ChatRecordKind, id: k.slice(at + 1) };
+}
+
+async function deletedSinceUpload(
+  store: ChatStore,
+  journal: UploadJournal,
+  local: LocalChats,
+  signal?: AbortSignal
+): Promise<ChatWrite[]> {
+  const present = new Set([...local.records.map((r) => key(r.record)), ...local.skipped.keys()]);
+  const gone = [...journal.keys].filter((k) => !present.has(k));
+  if (gone.length === 0) return [];
+  const live = (await store.getMany(gone.map(ref), signal)).filter((s) => !s.record.isDeleted);
+  const tombstoning = new Set(live.map((s) => key(s.record)));
+  await journal.drop(gone.filter((k) => !tombstoning.has(k)));
+  return live.map(({ record, version }) => ({
+    record: {
+      ...record,
+      isDeleted: true,
+      data: {},
+      updatedAt: Math.max(Date.now(), record.updatedAt + 1),
+    },
+    expectedVersion: version,
+  }));
+}
+
 function batches(records: readonly ChatImport[]): ChatImport[][] {
   const out: ChatImport[][] = [];
   let batch: ChatImport[] = [];
@@ -348,11 +412,7 @@ function fitVectors(
   return records.map((r) => (strip.has(r) ? { record: r.record } : r));
 }
 
-/**
- * Copies this device's chats into vault and activates it, mirroring `migrateMemoriesToRemote`:
- * upload passes until vault reports nothing missing, a final pass under the write barrier,
- * then activation and the handoff. Resumes from what vault already holds.
- */
+/** Copies this device's chats to vault, verifies them under the write barrier, then activates vault and hands the device over. */
 export async function migrateChatsToRemote(
   options: ChatMigrationOptions
 ): Promise<ChatMigrationResult> {
@@ -362,6 +422,7 @@ export async function migrateChatsToRemote(
   const maxVectors = options.maxVectors ?? 20_000;
   const maxStorageBytes = options.maxStorageBytes ?? 1024 ** 3;
   const unembedded = new Set<string>();
+  const journal = await openJournal(options.database, options.walletAddress);
   let imported = 0;
 
   const passes = async (finalizing: boolean): Promise<ChatMigrationResult> => {
@@ -370,7 +431,8 @@ export async function migrateChatsToRemote(
       const local = await readLocal(options);
       const absent = await missing(store, local.records, signal);
       const pending = local.records.filter((r) => absent.has(key(r.record)));
-      if (pending.length === 0) {
+      const deleted = await deletedSinceUpload(store, journal, local, signal);
+      if (pending.length === 0 && deleted.length === 0) {
         const result = (state: ChatMigrationResult["state"]): ChatMigrationResult => ({
           state,
           conversations: local.conversations,
@@ -385,6 +447,7 @@ export async function migrateChatsToRemote(
         if (!finalizing) return options.withWriteBarrier(() => passes(true));
         if ((await store.account(signal)).state === "migrating") await store.activate(signal);
         await options.onActivated();
+        await journal.clear();
         return result("active");
       }
       if (pass >= maxPasses)
@@ -393,6 +456,13 @@ export async function migrateChatsToRemote(
           409,
           "migration_incomplete"
         );
+
+      for (let i = 0; i < deleted.length; i += writeBatch) {
+        const batch = deleted.slice(i, i + writeBatch);
+        await store.putMany(batch, signal);
+        await journal.drop(batch.map((w) => key(w.record)));
+      }
+      if (pending.length === 0) continue;
 
       const account = await store.account(signal);
       const estimate = pending.reduce((sum, r) => sum + bytes(r.record.data) * 2 + 64, 0);
@@ -410,6 +480,7 @@ export async function migrateChatsToRemote(
         Math.max(0, maxVectors - account.vectorCount),
         unembedded
       );
+      await journal.add(upload.map((r) => key(r.record)));
       let sent = 0;
       options.onProgress?.({ imported: sent, toImport: upload.length });
       for (const batch of batches(upload)) {

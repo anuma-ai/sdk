@@ -69,6 +69,9 @@ export interface ChatSearchOptions {
   limit?: number;
   kinds?: ("message" | "summary")[];
   conversationId?: string;
+  excludeConversationId?: string;
+  /** Ranks only vectors from this model; vectors stored without one always count. */
+  embeddingModel?: string;
   signal?: AbortSignal;
 }
 

@@ -1,6 +1,6 @@
 # ChatMigrationProgress
 
-Defined in: src/lib/chatStore/migrateChats.ts:52
+Defined in: [src/lib/chatStore/migrateChats.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#54)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:52
 
 > **imported**: `number`
 
-Defined in: src/lib/chatStore/migrateChats.ts:53
+Defined in: [src/lib/chatStore/migrateChats.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#55)
 
 ***
 
@@ -16,4 +16,4 @@ Defined in: src/lib/chatStore/migrateChats.ts:53
 
 > **toImport**: `number`
 
-Defined in: src/lib/chatStore/migrateChats.ts:54
+Defined in: [src/lib/chatStore/migrateChats.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#56)

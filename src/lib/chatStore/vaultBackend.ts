@@ -176,6 +176,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   let failures = 0;
   let flushing: Promise<void> | null = null;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  let heldUntil = 0;
   let flushTimer: ReturnType<typeof setTimeout> | undefined;
   let pollTimer: ReturnType<typeof setTimeout> | undefined;
   let polling: Promise<void> | null = null;
@@ -366,7 +367,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     if (writes.length === 0) return;
     const results = await store.putMany(writes);
     results.forEach((snapshot, i) => {
-      confirmed.set(patchKey(sent[i]), snapshot);
+      merge(snapshot);
       checked.add(patchKey(sent[i]));
       inflight.delete(patchKey(sent[i]));
       if (snapshot.record.kind === "conversation" && snapshot.record.isDeleted)
@@ -380,13 +381,15 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     return !!conversation && !conversation.record.isDeleted;
   };
 
-  const backoff = (retryAfterMs?: number) => {
+  const backoff = (retryAfterMs?: number, hold = false) => {
     failures++;
     const delay = retryAfterMs ?? Math.min(60_000, 1000 * 2 ** Math.min(failures - 1, 6));
+    if (hold) heldUntil = Date.now() + delay;
     clearTimeout(retryTimer);
     retryTimer = setTimeout(() => {
       retryTimer = undefined;
-      void flush();
+      heldUntil = 0;
+      void startFlush();
     }, delay);
     return "wait" as const;
   };
@@ -430,7 +433,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       drop(batch[0], error.status === 413 ? "storage_quota" : "invalid");
       return "retry";
     }
-    if (error.status === 429) return backoff(error.retryAfterMs);
+    if (error.status === 429) return backoff(error.retryAfterMs, true);
     await refresh(keys).catch(() => undefined);
     return backoff();
   };
@@ -458,7 +461,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     await persist();
   };
 
-  const flush = (): Promise<void> => {
+  const startFlush = (): Promise<void> => {
     flushing ??= drain()
       .catch(() => {
         backoff();
@@ -468,6 +471,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       });
     return flushing;
   };
+
+  const flush = (): Promise<void> => (Date.now() < heldUntil ? Promise.resolve() : startFlush());
 
   const forget = (k: string) => {
     confirmed.delete(k);
@@ -607,7 +612,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   const unsubscribeActivity = activity.subscribe(() => {
     if (!activity.isActive()) return;
     void poll();
-    if (pending.size && !flushing) {
+    if (pending.size && !flushing && Date.now() >= heldUntil) {
       clearTimeout(retryTimer);
       retryTimer = undefined;
       void flush();
@@ -821,8 +826,11 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       await ensureConversation(create.conversationId);
       await thread(create.conversationId);
       if (create.uniqueId) {
-        const existing = view(key("message", create.uniqueId));
-        if (existing && !existing.isDeleted) return toMessage(existing);
+        const k = key("message", create.uniqueId);
+        const existing = view(k);
+        if (existing?.isDeleted || pending.get(k)?.delete || inflight.get(k)?.delete)
+          throw new Error("Message was deleted");
+        if (existing) return toMessage(existing);
       }
       const uniqueId = create.uniqueId ?? `msg_${uuidv7()}`;
       const highest = Math.max(
@@ -945,20 +953,16 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       if (!vector) return [];
       await flush();
       const hits = await store.search(vector, {
-        limit: Math.min(50, limit * 3),
+        limit: Math.min(50, limit),
         kinds: ["message"],
         ...(conversationId ? { conversationId } : {}),
+        ...(excludeConversationId ? { excludeConversationId } : {}),
+        ...(search.embeddingModel ? { embeddingModel: search.embeddingModel } : {}),
       });
       search.onStats?.({ rowsScanned: hits.length, rowsFetched: hits.length, cacheHits: 0 });
       const results: ChunkSearchResult[] = [];
       for (const hit of hits) {
-        const model = hit.record.data.embeddingModel;
-        if (
-          hit.score < minSimilarity ||
-          hit.record.conversationId === excludeConversationId ||
-          (search.embeddingModel && typeof model === "string" && model !== search.embeddingModel)
-        )
-          continue;
+        if (hit.score < minSimilarity) continue;
         const stored = toMessage(hit.record);
         const span = chunkOffsets(hit.record)?.[hit.chunk];
         results.push({

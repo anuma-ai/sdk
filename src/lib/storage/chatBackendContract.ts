@@ -197,6 +197,44 @@ export function runChatBackendContract(
       ).toEqual([]);
     });
 
+    it("filters by conversation and embedding model before taking the top matches", async () => {
+      const b = await makeBackend();
+      await b.createConversation({ conversationId: "conv_open", title: "Open" });
+      await b.createConversation({ conversationId: "conv_past", title: "Past" });
+      for (const id of ["msg_o1", "msg_o2", "msg_o3", "msg_o4"]) {
+        await b.createMessage({
+          conversationId: "conv_open",
+          role: "user",
+          content: id,
+          uniqueId: id,
+        });
+        await b.updateMessageEmbedding(id, unit(1), "model-b");
+      }
+      for (const [id, model, weight] of [
+        ["msg_a", "model-a", 0.8],
+        ["msg_b", "model-b", 1],
+      ] as const) {
+        await b.createMessage({
+          conversationId: "conv_past",
+          role: "user",
+          content: id,
+          uniqueId: id,
+        });
+        const vector = unit(1);
+        vector[2] = weight;
+        await b.updateMessageEmbedding(id, vector, model);
+      }
+      const top = async (options: Parameters<ChatBackend["searchChunks"]>[1]) =>
+        (await b.searchChunks(unit(1), { minSimilarity: 0.5, limit: 1, ...options })).map(
+          (h) => h.message.uniqueId
+        );
+
+      expect(await top({ excludeConversationId: "conv_open" })).toEqual(["msg_a"]);
+      expect(await top({ excludeConversationId: "conv_open", embeddingModel: "model-b" })).toEqual([
+        "msg_b",
+      ]);
+    });
+
     it("stores, replaces and deletes a conversation summary", async () => {
       const b = await makeBackend();
       await b.createConversation({ conversationId: "conv_sum", title: "Summarized" });

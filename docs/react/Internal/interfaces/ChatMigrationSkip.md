@@ -1,6 +1,6 @@
 # ChatMigrationSkip
 
-Defined in: src/lib/chatStore/migrateChats.ts:57
+Defined in: [src/lib/chatStore/migrateChats.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#59)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:57
 
 > **id**: `string`
 
-Defined in: src/lib/chatStore/migrateChats.ts:59
+Defined in: [src/lib/chatStore/migrateChats.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#61)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:59
 
 > **kind**: [`ChatRecordKind`](../type-aliases/ChatRecordKind.md)
 
-Defined in: src/lib/chatStore/migrateChats.ts:58
+Defined in: [src/lib/chatStore/migrateChats.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#60)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: src/lib/chatStore/migrateChats.ts:58
 
 > **reason**: `"unreadable"` | `"invalid"`
 
-Defined in: src/lib/chatStore/migrateChats.ts:60
+Defined in: [src/lib/chatStore/migrateChats.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#62)

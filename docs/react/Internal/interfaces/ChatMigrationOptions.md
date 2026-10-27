@@ -1,6 +1,6 @@
 # ChatMigrationOptions
 
-Defined in: src/lib/chatStore/migrateChats.ts:32
+Defined in: [src/lib/chatStore/migrateChats.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#34)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:32
 
 > `optional` **allowSkipped**: `boolean`
 
-Defined in: src/lib/chatStore/migrateChats.ts:45
+Defined in: [src/lib/chatStore/migrateChats.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#47)
 
 Activate even when some rows could not be read; they stay on the device.
 
@@ -18,7 +18,7 @@ Activate even when some rows could not be read; they stay on the device.
 
 > **database**: `Database`
 
-Defined in: src/lib/chatStore/migrateChats.ts:34
+Defined in: [src/lib/chatStore/migrateChats.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#36)
 
 The device's local chat database.
 
@@ -28,7 +28,7 @@ The device's local chat database.
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: src/lib/chatStore/migrateChats.ts:39
+Defined in: [src/lib/chatStore/migrateChats.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#41)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:39
 
 > `optional` **maxStorageBytes**: `number`
 
-Defined in: src/lib/chatStore/migrateChats.ts:47
+Defined in: [src/lib/chatStore/migrateChats.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#49)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:47
 
 > `optional` **maxVectors**: `number`
 
-Defined in: src/lib/chatStore/migrateChats.ts:46
+Defined in: [src/lib/chatStore/migrateChats.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#48)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:46
 
 > **onActivated**: () => `void` | `Promise`<`void`>
 
-Defined in: src/lib/chatStore/migrateChats.ts:43
+Defined in: [src/lib/chatStore/migrateChats.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#45)
 
 Called once vault holds everything; hand the device over to vault here.
 
@@ -66,7 +66,7 @@ Called once vault holds everything; hand the device over to vault here.
 
 > `optional` **onProgress**: (`progress`: [`ChatMigrationProgress`](ChatMigrationProgress.md)) => `void`
 
-Defined in: src/lib/chatStore/migrateChats.ts:49
+Defined in: [src/lib/chatStore/migrateChats.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#51)
 
 **Parameters**
 
@@ -103,7 +103,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:49
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: src/lib/chatStore/migrateChats.ts:48
+Defined in: [src/lib/chatStore/migrateChats.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#50)
 
 ***
 
@@ -111,7 +111,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:48
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: src/lib/chatStore/migrateChats.ts:38
+Defined in: [src/lib/chatStore/migrateChats.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#40)
 
 ***
 
@@ -119,7 +119,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:38
 
 > **store**: [`ChatStore`](ChatStore.md)
 
-Defined in: src/lib/chatStore/migrateChats.ts:36
+Defined in: [src/lib/chatStore/migrateChats.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#38)
 
 Vault, opened with the account's canonical key.
 
@@ -129,7 +129,7 @@ Vault, opened with the account's canonical key.
 
 > `optional` **walletAddress**: `string`
 
-Defined in: src/lib/chatStore/migrateChats.ts:37
+Defined in: [src/lib/chatStore/migrateChats.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#39)
 
 ***
 
@@ -137,7 +137,7 @@ Defined in: src/lib/chatStore/migrateChats.ts:37
 
 > **withWriteBarrier**: (`task`: () => `Promise`<[`ChatMigrationResult`](ChatMigrationResult.md)>) => `Promise`<[`ChatMigrationResult`](ChatMigrationResult.md)>
 
-Defined in: src/lib/chatStore/migrateChats.ts:41
+Defined in: [src/lib/chatStore/migrateChats.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#43)
 
 Runs the final pass while local chat writers are held, so nothing lands locally after it.
 

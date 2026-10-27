@@ -635,7 +635,10 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
           (!Array.isArray(kindsFilter) ||
             kindsFilter.length === 0 ||
             kindsFilter.some((k) => k !== "message" && k !== "summary"))) ||
-        (options?.conversationId !== undefined && !id(options.conversationId))
+        (options?.conversationId !== undefined && !id(options.conversationId)) ||
+        (options?.excludeConversationId !== undefined && !id(options.excludeConversationId)) ||
+        (options?.embeddingModel !== undefined &&
+          (!text(options.embeddingModel) || options.embeddingModel.length > 256))
       )
         invalid();
       const value = await request(
@@ -648,6 +651,10 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
             limit,
             ...(kindsFilter ? { kinds: kindsFilter } : {}),
             ...(options?.conversationId ? { conversation_id: options.conversationId } : {}),
+            ...(options?.excludeConversationId
+              ? { exclude_conversation_id: options.excludeConversationId }
+              : {}),
+            ...(options?.embeddingModel ? { embedding_model: options.embeddingModel } : {}),
           }),
         },
         options?.signal
@@ -669,7 +676,8 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
             !kindsFilter.includes(snapshot.record.kind as "message" | "summary")) ||
           (snapshot.record.kind !== "message" && snapshot.record.kind !== "summary") ||
           (options?.conversationId !== undefined &&
-            snapshot.record.conversationId !== options.conversationId)
+            snapshot.record.conversationId !== options.conversationId) ||
+          snapshot.record.conversationId === options?.excludeConversationId
         )
           invalid();
         hits.push({ ...snapshot, chunk: item.chunk, score: item.score });

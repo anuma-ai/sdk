@@ -213,7 +213,10 @@ export function fitChunks(chunks: readonly MessageChunk[]): MessageChunk[] | und
     );
     const dims = group[0].vector!.length;
     const mean = new Array<number>(dims).fill(0);
-    for (const c of group) for (let d = 0; d < dims; d++) mean[d] += normalized(c.vector!)[d];
+    for (const c of group) {
+      const unit = normalized(c.vector!);
+      for (let d = 0; d < dims; d++) mean[d] += unit[d];
+    }
     out.push({
       vector: normalized(mean),
       startOffset: group[0].startOffset,
