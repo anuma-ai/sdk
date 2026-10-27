@@ -1141,6 +1141,46 @@ describe("synthesizeProfile", () => {
     ]);
   });
 
+  it.each([undefined, 2])(
+    "selects reviewed facts below the recall cutoff with facet limit %s",
+    async (limit) => {
+      const unreviewed = Array.from({ length: RECALL_MAX_LIMIT }, (_, i) =>
+        ranked(`unreviewed-${i}`)
+      );
+      const reviewed = Array.from({ length: 25 }, (_, i) => ranked(`reviewed-${i}`));
+      const all = [...unreviewed, ...reviewed];
+      const reviewedMemoryIds = reviewed.map((m) => m.id);
+      const expectedIds = reviewedMemoryIds.slice(0, limit ?? 20);
+      mockGetAll.mockResolvedValue(all.map((m) => mem(m.id)));
+      mockRecall.mockImplementation((_q, _ctx, options) => {
+        const candidates = all.filter(
+          (m) => options?.memoryIds === undefined || options.memoryIds.includes(m.id)
+        );
+        return Promise.resolve({
+          memories: candidates.slice(0, options?.limit ?? 8),
+          usedBudget: "low" as const,
+          reranked: false,
+          candidateCount: candidates.length,
+        });
+      });
+      mockReflect.mockImplementation((_q, _ctx, options) =>
+        Promise.resolve(reflectResult("Reviewed bio", options?.memories?.map((m) => m.id) ?? []))
+      );
+
+      const doc = await synthesizeProfile(ctx, {
+        apiKey: "k",
+        facets: [FACETS[0]],
+        reviewedMemoryIds,
+        limit,
+      });
+
+      expect(doc.sections[0].text).toBe("Reviewed bio");
+      expect(doc.sections[0].sourceMemoryIds).toEqual(expectedIds);
+      expect(mockRecall.mock.calls[0][2]?.memoryIds).toEqual(reviewedMemoryIds);
+      expect(mockReflect.mock.calls[0][2]?.memories?.map((m) => m.id)).toEqual(expectedIds);
+    }
+  );
+
   it("clears a section when reviewedMemoryIds excludes all recalled evidence", async () => {
     setMemories([mem("a")]);
     mockRecall.mockResolvedValue({

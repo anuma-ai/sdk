@@ -729,6 +729,7 @@ async function synthesizeFacet(
     vaultPreparation,
     scopes,
     limit: hasReviewGate ? RECALL_MAX_LIMIT : limit,
+    ...(hasReviewGate && { memoryIds: [...reviewed] }),
     types: ["fact"],
     factTypeWeights,
     proofCountAlpha,
