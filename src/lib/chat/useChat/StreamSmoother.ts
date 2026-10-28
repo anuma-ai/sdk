@@ -65,6 +65,10 @@ export class StreamSmoother {
     }
   }
 
+  get hasPendingOutput(): boolean {
+    return this.buffer.length > 0;
+  }
+
   /**
    * Add text to the buffer. If smoothing is disabled, passes through immediately.
    */

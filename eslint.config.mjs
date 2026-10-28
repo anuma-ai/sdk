@@ -40,6 +40,7 @@ const checkedTestFiles = [
   "src/lib/chat/toolLoop.detach.test.ts",
   "src/lib/chat/toolLoop.gmailConfirmation.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
+  "src/lib/chat/streamDrain.test.ts",
   "src/lib/db/chat/operations.chunkText.test.ts",
   "src/lib/db/chat/operations.embeddingEncryption.test.ts",
   "src/lib/db/chat/operations.summary.test.ts",

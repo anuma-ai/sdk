@@ -181,6 +181,8 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
   let watchdog: ReturnType<typeof setTimeout> | undefined;
   let idleFired = false;
   let callerAborted = false;
+  let playbackAborted = false;
+  let draining = false;
   let settled = false;
   const idleEnabled =
     idleTimeoutMs > 0 && idleTimeoutMs !== Infinity && typeof setTimeout === "function";
@@ -202,6 +204,10 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     callerAborted ? "Resume aborted" : idleFired ? "Resume timed out" : "Resume aborted";
   const onCallerAbort = () => {
     callerAborted = true;
+    playbackAborted =
+      draining && (contentSmoother.hasPendingOutput || thinkingSmoother.hasPendingOutput);
+    contentSmoother.destroy();
+    thinkingSmoother.destroy();
     disarmWatchdog();
     idleController.abort();
   };
@@ -301,15 +307,24 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     };
   }
 
-  cleanup();
+  settled = true;
+  disarmWatchdog();
 
-  if (accumulator.toolCalls.size > 0) {
-    return buildInterrupted("Stream ended with a pending tool request");
+  try {
+    if (idleFired) return buildInterrupted(abortMessage());
+    if (accumulator.toolCalls.size > 0) {
+      return buildInterrupted("Stream ended with a pending tool request");
+    }
+
+    draining = true;
+    await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
+    if (playbackAborted) return buildInterrupted(abortMessage());
+    const response = strategy.buildFinalResponse(accumulator);
+    const deliveredOutput = emittedOutput || (accumulator.toolCallEvents?.length ?? 0) > 0;
+    if (onFinish && deliveredOutput) onFinish(response);
+    return { data: response, error: null, interrupted: false, empty: !deliveredOutput };
+  } finally {
+    draining = false;
+    cleanup();
   }
-
-  await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
-  const response = strategy.buildFinalResponse(accumulator);
-  const deliveredOutput = emittedOutput || (accumulator.toolCallEvents?.length ?? 0) > 0;
-  if (onFinish && deliveredOutput) onFinish(response);
-  return { data: response, error: null, interrupted: false, empty: !deliveredOutput };
 }
