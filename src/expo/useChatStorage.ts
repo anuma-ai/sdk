@@ -685,14 +685,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const nerDetectorRef = useRef(nerDetector);
   nerDetectorRef.current = nerDetector;
 
-  const redactorStorage = useMemo(() => {
-    if (memoryStore && chatBackend) return { memoryStore, chatBackend };
-    return memoryStore ?? chatBackend ?? database;
-  }, [memoryStore, chatBackend, database]);
   const getConversationRedactor = useConversationRedactors(
     database,
     walletAddress,
-    redactorStorage
+    memoryStore ?? chatBackend ?? database,
+    memoryStore && chatBackend ? chatBackend : undefined
   );
 
   const resolvedPiiRedaction = useMemo(

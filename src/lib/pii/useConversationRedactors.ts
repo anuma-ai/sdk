@@ -14,6 +14,7 @@ interface RedactorScope {
 
 const REDACTOR_LIMIT = 50;
 let registry = new WeakMap<object, WeakMap<object, Map<string | undefined, RedactorScope>>>();
+const compositeKeys = new WeakMap<object, WeakMap<object, object>>();
 const scopes = new Set<RedactorScope>();
 const retiredRedactor = new PiiRedactor();
 retiredRedactor.dispose();
@@ -27,6 +28,21 @@ function retireScope(scope: RedactorScope): void {
   for (const redactor of scope.evicted) redactor.dispose();
   scope.evicted = [];
   for (const notify of scope.subscribers) notify();
+}
+
+function storageKey(storage: object, secondaryStorage?: object): object {
+  if (!secondaryStorage) return storage;
+  let inner = compositeKeys.get(storage);
+  if (!inner) {
+    inner = new WeakMap();
+    compositeKeys.set(storage, inner);
+  }
+  let key = inner.get(secondaryStorage);
+  if (!key) {
+    key = {};
+    inner.set(secondaryStorage, key);
+  }
+  return key;
 }
 
 function getScope(database: object, storage: object, account: string | undefined): RedactorScope {
@@ -56,9 +72,10 @@ onClearAllEncryptionState(() => {
 export function useConversationRedactors(
   database: object,
   account: string | undefined,
-  storage: object
+  storage: object,
+  secondaryStorage?: object
 ) {
-  const scope = getScope(database, storage, account);
+  const scope = getScope(database, storageKey(storage, secondaryStorage), account);
   const subscribe = useCallback(
     (callback: () => void) => {
       scope.subscribers.add(callback);
