@@ -108,11 +108,7 @@ export async function createMediaOp(
         media._setRaw("dimensions", JSON.stringify(encryptedOpts.dimensions));
       if (encryptedOpts.duration !== undefined) media._setRaw("duration", encryptedOpts.duration);
       if (encryptedOpts.metadata) {
-        const metadataValue =
-          typeof encryptedOpts.metadata === "string"
-            ? encryptedOpts.metadata
-            : JSON.stringify(encryptedOpts.metadata);
-        media._setRaw("metadata", metadataValue);
+        media._setRaw("metadata", JSON.stringify(encryptedOpts.metadata));
       }
       media._setRaw("created_at", now);
       media._setRaw("updated_at", now);
@@ -162,11 +158,7 @@ export async function createMediaBatchOp(
           if (options.dimensions) media._setRaw("dimensions", JSON.stringify(options.dimensions));
           if (options.duration !== undefined) media._setRaw("duration", options.duration);
           if (options.metadata) {
-            const metadataValue =
-              typeof options.metadata === "string"
-                ? options.metadata
-                : JSON.stringify(options.metadata);
-            media._setRaw("metadata", metadataValue);
+            media._setRaw("metadata", JSON.stringify(options.metadata));
           }
           media._setRaw("created_at", now);
           media._setRaw("updated_at", now);

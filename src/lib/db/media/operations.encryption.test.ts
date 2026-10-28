@@ -6,7 +6,7 @@ import { clearAllEncryptionKeys } from "../../../react/useEncryption";
 import { decryptJsonField, isEncrypted } from "../encryption-utils";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import { Media } from "./models";
-import { createMediaOp, updateMediaOp } from "./operations";
+import { createMediaBatchOp, createMediaOp, getMediaByIdOp, updateMediaOp } from "./operations";
 import type { MediaOperationsContext, UpdateMediaOptions } from "./types";
 
 const ADDRESS = "0x1234567890123456789012345678901234567890";
@@ -52,6 +52,54 @@ async function seed(encrypted = true) {
   const row = await database.get<Media>("media").find(created.id);
   return { ctx, row };
 }
+
+describe("createMediaOp field encryption", () => {
+  beforeEach(() => {
+    clearAllEncryptionKeys();
+    signMessage.mockReset();
+    signMessage.mockImplementation((message: string) =>
+      Promise.resolve(`0x${Buffer.from(message).toString("hex").padStart(130, "0")}`)
+    );
+  });
+
+  it("round-trips metadata through a create followed by a read", async () => {
+    const { ctx } = await seed();
+
+    const created = await createMediaOp(ctx, {
+      ...ORIGINAL,
+      mediaId: "created-round-trip",
+      walletAddress: ADDRESS,
+      mimeType: "image/png",
+      mediaType: "image",
+      size: 42,
+      role: "user",
+    });
+    const readBack = await getMediaByIdOp(ctx, created.mediaId);
+
+    expect(created.metadata).toEqual(ORIGINAL.metadata);
+    expect(readBack?.metadata).toEqual(ORIGINAL.metadata);
+  });
+
+  it("round-trips metadata through a batch create followed by a read", async () => {
+    const { ctx } = await seed();
+
+    const [created] = await createMediaBatchOp(ctx, [
+      {
+        ...ORIGINAL,
+        mediaId: "batch-round-trip",
+        walletAddress: ADDRESS,
+        mimeType: "image/png",
+        mediaType: "image",
+        size: 42,
+        role: "user",
+      },
+    ]);
+    const readBack = await getMediaByIdOp(ctx, created.mediaId);
+
+    expect(created.metadata).toEqual(ORIGINAL.metadata);
+    expect(readBack?.metadata).toEqual(ORIGINAL.metadata);
+  });
+});
 
 describe("updateMediaOp field encryption", () => {
   beforeEach(() => {
