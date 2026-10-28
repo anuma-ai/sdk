@@ -202,6 +202,8 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     callerAborted ? "Resume aborted" : idleFired ? "Resume timed out" : "Resume aborted";
   const onCallerAbort = () => {
     callerAborted = true;
+    contentSmoother.destroy();
+    thinkingSmoother.destroy();
     disarmWatchdog();
     idleController.abort();
   };
@@ -301,15 +303,22 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     };
   }
 
-  cleanup();
+  settled = true;
+  disarmWatchdog();
 
-  if (accumulator.toolCalls.size > 0) {
-    return buildInterrupted("Stream ended with a pending tool request");
+  try {
+    if (combinedSignal.aborted) return buildInterrupted(abortMessage());
+    if (accumulator.toolCalls.size > 0) {
+      return buildInterrupted("Stream ended with a pending tool request");
+    }
+
+    await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
+    if (combinedSignal.aborted) return buildInterrupted(abortMessage());
+    const response = strategy.buildFinalResponse(accumulator);
+    const deliveredOutput = emittedOutput || (accumulator.toolCallEvents?.length ?? 0) > 0;
+    if (onFinish && deliveredOutput) onFinish(response);
+    return { data: response, error: null, interrupted: false, empty: !deliveredOutput };
+  } finally {
+    cleanup();
   }
-
-  await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
-  const response = strategy.buildFinalResponse(accumulator);
-  const deliveredOutput = emittedOutput || (accumulator.toolCallEvents?.length ?? 0) > 0;
-  if (onFinish && deliveredOutput) onFinish(response);
-  return { data: response, error: null, interrupted: false, empty: !deliveredOutput };
 }

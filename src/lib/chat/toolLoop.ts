@@ -1228,6 +1228,34 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       };
     };
 
+    const drainSmoothers = async (
+      acc: ReturnType<typeof createStreamAccumulator>,
+      smoothers: StreamSmoother[]
+    ): Promise<RunToolLoopResult | undefined> => {
+      const onAbort = () => {
+        for (const smoother of smoothers) {
+          if (isDetach()) smoother.flush();
+          else smoother.destroy();
+        }
+      };
+      combinedSignal?.addEventListener("abort", onAbort, { once: true });
+      try {
+        if (combinedSignal?.aborted) onAbort();
+        await Promise.all(smoothers.map((smoother) => smoother.drain()));
+        if (!combinedSignal?.aborted) return;
+        if (isDetach()) return await returnDetached(acc, smoothers);
+        await fireAfterModelCall(buildModelCallEndPayload(acc, { error: "aborted" }));
+        await fireRunError({ error: "Request aborted", stage: "model" });
+        return {
+          data: buildResponseFinal(acc),
+          error: "Request aborted",
+          toolsChecksum: acc.toolsChecksum,
+        };
+      } finally {
+        combinedSignal?.removeEventListener("abort", onAbort);
+      }
+    };
+
     for (let attempt = 0; attempt < STREAM_RETRY_MAX_ATTEMPTS; attempt++) {
       sseError = null;
 
@@ -1377,7 +1405,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       contentSmoother.flush();
       thinkingSmoother.flush();
     } else {
-      await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
+      const interrupted = await drainSmoothers(accumulator, [contentSmoother, thinkingSmoother]);
+      if (interrupted) return interrupted;
     }
     flushDeAnon();
     await fireAfterModelCall(buildModelCallEndPayload(accumulator));
@@ -1981,7 +2010,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         contContentSmoother.flush();
         contThinkingSmoother.flush();
       } else {
-        await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
+        const interrupted = await drainSmoothers(currentAccumulator, [
+          contContentSmoother,
+          contThinkingSmoother,
+        ]);
+        if (interrupted) return interrupted;
       }
       flushDeAnon();
       await fireAfterModelCall(buildModelCallEndPayload(currentAccumulator));
