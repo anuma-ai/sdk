@@ -4,12 +4,14 @@ import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { observeAll } from "../../../test/chat/chatObservation";
+import { type ChatStoreHarness, createChatStoreHarness } from "../../../test/chat/vaultHarness";
 import { clearEncryptionKey, seedEncryptionKeys } from "../../react/useEncryption";
+import { createSummaryContext, upsertConversationSummaryOp } from "../db/chat/summaryOperations";
+import { encryptField } from "../db/encryption-utils";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../db/schema";
 import type { ChatBackend } from "../storage/ChatBackend";
 import { localChatBackend } from "../storage/WatermelonChatStorageAdapter";
-import { observeAll } from "../../../test/chat/chatObservation";
-import { type ChatStoreHarness, createChatStoreHarness } from "../../../test/chat/vaultHarness";
 import { type ChatMigrationOptions, migrateChatsToRemote } from "./migrateChats";
 import { createVaultChatBackend, type VaultChatBackend } from "./vaultBackend";
 
@@ -105,6 +107,52 @@ async function seed(local: ChatBackend) {
 const ids = ["conv_trip", "conv_gone"];
 
 describe("migrateChatsToRemote", () => {
+  it.each(["available", "missing", "omitted"])(
+    "copies encrypted summaries only with a key: %s",
+    async (keyState) => {
+      const walletAddress = "0x00000000000000000000000000000000000000c6";
+      seedEncryptionKeys(walletAddress, { legacy: "11".repeat(32), current: "22".repeat(32) });
+      try {
+        const database = makeDatabase();
+        await localChatBackend(database)({}).createConversation({ conversationId: "conv_secret" });
+        const ciphertext = await encryptField("Private fact.", walletAddress, () =>
+          Promise.resolve("signature")
+        );
+        await upsertConversationSummaryOp(
+          createSummaryContext(database),
+          "conv_secret",
+          ciphertext,
+          "msg_1",
+          4
+        );
+        if (keyState === "missing") clearEncryptionKey(walletAddress);
+        const harness = await createChatStoreHarness();
+
+        const result = await migrate(
+          database,
+          harness,
+          keyState === "omitted" ? {} : { walletAddress }
+        );
+
+        if (keyState === "available") {
+          expect(result.state).toBe("active");
+          expect(result.skipped).toEqual([]);
+          expect((await harness.row("summary", "conv_secret"))?.record.data.summary).toBe(
+            "Private fact."
+          );
+        } else {
+          expect(result.state).toBe("migrating");
+          expect(result.skipped).toEqual([
+            { kind: "summary", id: "conv_secret", reason: "unreadable" },
+          ]);
+          expect(await harness.row("summary", "conv_secret")).toBeUndefined();
+        }
+      } finally {
+        clearEncryptionKey(walletAddress);
+      }
+    }
+  );
+
   it("moves every chat so a fresh device sees what this one saw", async () => {
     const database = makeDatabase();
     const local = localChatBackend(database)({});
