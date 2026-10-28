@@ -244,16 +244,31 @@ export async function updateMediaOp(
   const media = results[0];
   const now = Date.now();
 
+  const encryptedOpts =
+    ctx.walletAddress &&
+    ctx.signMessage &&
+    (options.name !== undefined ||
+      options.sourceUrl !== undefined ||
+      options.metadata !== undefined)
+      ? await encryptMediaFields(
+          options,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        )
+      : options;
+
   await ctx.database.write(async () => {
     await media.update((m) => {
-      if (options.name !== undefined) m._setRaw("name", options.name);
+      if (encryptedOpts.name !== undefined) m._setRaw("name", encryptedOpts.name);
       if (options.messageId !== undefined) m._setRaw("message_id", options.messageId);
       if (options.mediaType !== undefined) m._setRaw("media_type", options.mediaType);
-      if (options.sourceUrl !== undefined) m._setRaw("source_url", options.sourceUrl);
+      if (encryptedOpts.sourceUrl !== undefined) m._setRaw("source_url", encryptedOpts.sourceUrl);
       if (options.dimensions !== undefined)
         m._setRaw("dimensions", JSON.stringify(options.dimensions));
       if (options.duration !== undefined) m._setRaw("duration", options.duration);
-      if (options.metadata !== undefined) m._setRaw("metadata", JSON.stringify(options.metadata));
+      if (encryptedOpts.metadata !== undefined)
+        m._setRaw("metadata", JSON.stringify(encryptedOpts.metadata));
       if (options.isDeleted !== undefined) m._setRaw("is_deleted", options.isDeleted);
       m._setRaw("updated_at", now);
     });
