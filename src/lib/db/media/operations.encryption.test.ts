@@ -62,10 +62,14 @@ describe("updateMediaOp field encryption", () => {
     );
   });
 
-  it("encrypts changed fields and returns their decrypted values", async () => {
-    const { ctx, row } = await seed();
+  it.each(["encrypted", "plaintext"])("encrypts changed fields in %s records", async (state) => {
+    const { ctx, row } = await seed(state === "encrypted");
 
-    const updated = await updateMediaOp(ctx, MEDIA_ID, CHANGES);
+    const updated = await updateMediaOp(
+      { ...ctx, walletAddress: ADDRESS, signMessage },
+      MEDIA_ID,
+      CHANGES
+    );
 
     expect(isEncrypted(String(row._getRaw("name")))).toBe(true);
     expect(isEncrypted(String(row._getRaw("source_url")))).toBe(true);
@@ -91,7 +95,9 @@ describe("updateMediaOp field encryption", () => {
       }
     }
     const stored = String(row._getRaw(column));
-    expect(isEncrypted(column === "metadata" ? (JSON.parse(stored) as string) : stored)).toBe(true);
+    const encryptedValue: unknown = column === "metadata" ? JSON.parse(stored) : stored;
+    expect(encryptedValue).toBeTypeOf("string");
+    expect(isEncrypted(String(encryptedValue))).toBe(true);
     expect(updated).toMatchObject({ [field]: CHANGES[field] });
   });
 
