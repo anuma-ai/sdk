@@ -157,7 +157,7 @@ async function readLocal(options: ChatMigrationOptions): Promise<LocalChats> {
     signMessage: options.signMessage,
     embeddedWalletSigner: options.embeddedWalletSigner,
   };
-  const summaries = createSummaryContext(database);
+  const summaries = createSummaryContext(database, ctx);
   const memory = {
     database,
     conversationMemoryCollection: database.get<ConversationMemory>(ConversationMemory.table),
@@ -246,7 +246,9 @@ async function readLocal(options: ChatMigrationOptions): Promise<LocalChats> {
     }
 
     const summary = await getConversationSummaryOp(summaries, conversationId);
-    if (summary)
+    if (summary && isEncrypted(summary.summary)) {
+      skip("summary", conversationId, "unreadable");
+    } else if (summary)
       out.records.push({
         record: {
           kind: "summary",

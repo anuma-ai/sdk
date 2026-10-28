@@ -10,6 +10,7 @@ import {
 } from "../db/chat/summaryOperations";
 import { assertConversationRevision, getConversationRevision } from "../db/chat/summaryRevision";
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
+import { isEncrypted } from "../db/encryption-utils";
 import { INTERNAL_FLOW_MARKER } from "../internalFlowMarker.js";
 import { getLogger } from "../logger";
 import type { PiiMatch, PiiRedactor } from "../pii/redactor";
@@ -467,9 +468,10 @@ async function summarizeHistoryAtRevision(
       const cachedSummary = await summaryStore(options).getSummary(conversationId);
       return {
         messagesToConvert: messages,
-        summarySystemMessage: cachedSummary?.summary
-          ? summaryToSystemMessage(cachedSummary.summary)
-          : null,
+        summarySystemMessage:
+          cachedSummary?.summary && !isEncrypted(cachedSummary.summary)
+            ? summaryToSystemMessage(cachedSummary.summary)
+            : null,
       };
     } catch {
       return { messagesToConvert: messages, summarySystemMessage: null };
@@ -533,15 +535,15 @@ async function doSummarizeHistory(
 
   try {
     const summaries = summaryStore(options);
-    const persistSummary = (summary: string, summarizedUpTo: string, tokenCount: number) =>
-      database.write(async (writer) => {
-        assertConversationRevision(database, conversationId, revision);
-        await writer.callWriter(() =>
-          summaries.upsertSummary(conversationId, summary, summarizedUpTo, tokenCount)
-        );
-      });
+    const persistSummary = (summary: string, summarizedUpTo: string, tokenCount: number) => {
+      assertConversationRevision(database, conversationId, revision);
+      return summaries.upsertSummary(conversationId, summary, summarizedUpTo, tokenCount);
+    };
     let cachedSummary = await summaries.getSummary(conversationId);
     assertConversationRevision(database, conversationId, revision);
+    if (cachedSummary && isEncrypted(cachedSummary.summary)) {
+      throw new Error("The cached summary could not be decrypted");
+    }
 
     const lastCompacted = lastCompactionTime.get(conversationId) ?? 0;
     const compactionCooledDown = Date.now() - lastCompacted > COMPACTION_COOLDOWN_MS;

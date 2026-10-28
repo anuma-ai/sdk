@@ -51,7 +51,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:94](https://github.
 
 > **addMemoryLinks**(`conversationId`: `string`, `items`: [`ConversationMemoryInput`](../interfaces/ConversationMemoryInput.md)\[]): `Promise`<`void`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#312)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:315](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#315)
 
 Records the memories a turn drew on in recall order, moving already-linked ones to this turn with their new score.
 
@@ -106,7 +106,7 @@ Records the memories a turn drew on in recall order, moving already-linked ones 
 
 > **clearMemoryLinks**(`conversationId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:316](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#316)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#319)
 
 **Parameters**
 
@@ -327,7 +327,7 @@ Soft delete. Implementations are responsible for cascading to messages/media.
 
 > **deleteMessage**(`uniqueId`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:304](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#304)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:307](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#307)
 
 **Parameters**
 
@@ -368,7 +368,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:304](https://github
 
 > **deleteSummary**(`conversationId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:300](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#300)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:303](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#303)
 
 **Parameters**
 
@@ -572,7 +572,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:111](https://github
 
 > **getMemoryLinks**(`conversationId`: `string`): `Promise`<[`StoredConversationMemory`](../interfaces/StoredConversationMemory.md)\[]>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:308](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#308)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#311)
 
 **Parameters**
 
@@ -1563,7 +1563,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:270](https://github
 
 > **upsertSummary**(`conversationId`: `string`, `summary`: `string`, `summarizedUpTo`: `string`, `tokenCount`: `number`): `Promise`<`StoredConversationSummary`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:285](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#285)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:288](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#288)
 
 **Parameters**
 
@@ -1640,7 +1640,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:285](https://github
 
 > **write**<`T`>(`fn`: (`adapter`: [`ChatStorageAdapter`](../interfaces/ChatStorageAdapter.md)) => `Promise`<`T`>): `Promise`<`T`>
 
-Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#335)
+Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:338](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#338)
 
 WatermelonDB nests `database.write()` safely: each method we call inside
 the callback already wraps its own writes, and Watermelon collapses the

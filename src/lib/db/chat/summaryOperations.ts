@@ -1,28 +1,43 @@
 import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
+import { requestEncryptionKey } from "../../../react/useEncryption";
+import { getLogger } from "../../logger";
+import { decryptField, encryptField, isEncrypted } from "../encryption-utils";
 import { ConversationSummary } from "./models";
+import type { StorageOperationsContext } from "./operations";
+import { assertConversationRevision, getConversationRevision } from "./summaryRevision";
 import type { StoredConversationSummary } from "./types";
 
 /** Context needed for summary operations */
-interface SummaryOperationsContext {
+interface SummaryOperationsContext extends Pick<
+  StorageOperationsContext,
+  "walletAddress" | "signMessage" | "embeddedWalletSigner"
+> {
   database: Database;
   summariesCollection: Collection<ConversationSummary>;
 }
 
 /** Create a summary operations context from a database instance */
-export function createSummaryContext(database: Database): SummaryOperationsContext {
+export function createSummaryContext(
+  database: Database,
+  encryption: Pick<
+    SummaryOperationsContext,
+    "walletAddress" | "signMessage" | "embeddedWalletSigner"
+  > = {}
+): SummaryOperationsContext {
   return {
+    ...encryption,
     database,
     summariesCollection: database.get<ConversationSummary>("conversation_summaries"),
   };
 }
 
-function modelToStored(record: ConversationSummary): StoredConversationSummary {
+function modelToStored(record: ConversationSummary, summary: string): StoredConversationSummary {
   return {
     uniqueId: record.id,
     conversationId: record.conversationId,
-    summary: record.summary,
+    summary,
     summarizedUpTo: record.summarizedUpTo,
     tokenCount: record.tokenCount,
     createdAt: record.createdAt,
@@ -43,7 +58,38 @@ export async function getConversationSummaryOp(
     .fetch();
 
   if (results.length === 0) return null;
-  return modelToStored(results[0]);
+  const record = results[0];
+  const stored = modelToStored(record, record.summary);
+  if (ctx.walletAddress && isEncrypted(stored.summary)) {
+    if (ctx.signMessage) {
+      try {
+        await requestEncryptionKey(ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+      } catch (error) {
+        getLogger().warn("Failed to request the encryption key for the summary:", error);
+      }
+    }
+    stored.summary = await decryptField(stored.summary, ctx.walletAddress);
+  } else if (ctx.walletAddress && ctx.signMessage && stored.summary) {
+    try {
+      const encryptedSummary = await encryptField(
+        stored.summary,
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+      await ctx.database.write(async () => {
+        const current = await ctx.summariesCollection.query(Q.where("id", record.id)).fetch();
+        if (current[0]?.summary === stored.summary) {
+          await current[0].update((rec) => {
+            rec.summary = encryptedSummary;
+          });
+        }
+      });
+    } catch (error) {
+      getLogger().warn("Failed to encrypt the legacy summary:", error);
+    }
+  }
+  return stored;
 }
 
 /**
@@ -57,30 +103,35 @@ export async function upsertConversationSummaryOp(
   summarizedUpTo: string,
   tokenCount: number
 ): Promise<StoredConversationSummary> {
+  const revision = getConversationRevision(ctx.database, conversationId);
   let record: ConversationSummary;
+  const encryptedSummary = ctx.walletAddress
+    ? await encryptField(summary, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    : summary;
 
   await ctx.database.write(async () => {
+    assertConversationRevision(ctx.database, conversationId, revision);
     const existing = await ctx.summariesCollection
       .query(Q.where("conversation_id", conversationId))
       .fetch();
 
     if (existing.length > 0) {
       record = await existing[0].update((rec) => {
-        rec.summary = summary;
+        rec.summary = encryptedSummary;
         rec.summarizedUpTo = summarizedUpTo;
         rec.tokenCount = tokenCount;
       });
     } else {
       record = await ctx.summariesCollection.create((rec) => {
         rec.conversationId = conversationId;
-        rec.summary = summary;
+        rec.summary = encryptedSummary;
         rec.summarizedUpTo = summarizedUpTo;
         rec.tokenCount = tokenCount;
       });
     }
   });
 
-  return modelToStored(record!);
+  return modelToStored(record!, summary);
 }
 
 /**
