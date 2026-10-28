@@ -2,7 +2,7 @@ import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { clearAllEncryptionKeys } from "../../../react/useEncryption";
+import { clearAllEncryptionKeys, requestEncryptionKey } from "../../../react/useEncryption";
 import { decryptJsonField, isEncrypted } from "../encryption-utils";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import { Media } from "./models";
@@ -24,6 +24,14 @@ const CHANGES = {
 const signMessage = vi.fn((message: string) =>
   Promise.resolve(`0x${Buffer.from(message).toString("hex").padStart(130, "0")}`)
 );
+
+beforeEach(() => {
+  clearAllEncryptionKeys();
+  signMessage.mockReset();
+  signMessage.mockImplementation((message: string) =>
+    Promise.resolve(`0x${Buffer.from(message).toString("hex").padStart(130, "0")}`)
+  );
+});
 
 async function seed(encrypted = true) {
   const database = new Database({
@@ -54,14 +62,6 @@ async function seed(encrypted = true) {
 }
 
 describe("createMediaOp field encryption", () => {
-  beforeEach(() => {
-    clearAllEncryptionKeys();
-    signMessage.mockReset();
-    signMessage.mockImplementation((message: string) =>
-      Promise.resolve(`0x${Buffer.from(message).toString("hex").padStart(130, "0")}`)
-    );
-  });
-
   it("round-trips metadata through a create followed by a read", async () => {
     const { ctx } = await seed();
 
@@ -101,15 +101,60 @@ describe("createMediaOp field encryption", () => {
   });
 });
 
-describe("updateMediaOp field encryption", () => {
-  beforeEach(() => {
-    clearAllEncryptionKeys();
-    signMessage.mockReset();
-    signMessage.mockImplementation((message: string) =>
-      Promise.resolve(`0x${Buffer.from(message).toString("hex").padStart(130, "0")}`)
-    );
-  });
+describe("getMediaByIdOp field decryption", () => {
+  it.each(["missing", "incorrect"])(
+    "returns ciphertext names and urls with undefined metadata when the key is %s",
+    async (keyState) => {
+      const { ctx, row } = await seed();
+      const before: Record<string, unknown> = { ...row._raw };
+      clearAllEncryptionKeys();
+      signMessage.mockClear();
+      if (keyState === "incorrect") {
+        signMessage.mockResolvedValue(`0x${"ab".repeat(65)}`);
+        await requestEncryptionKey(ADDRESS, signMessage);
+        signMessage.mockClear();
+      }
 
+      const readBack = await getMediaByIdOp(
+        { database: ctx.database, walletAddress: ADDRESS },
+        MEDIA_ID
+      );
+
+      expect(readBack).toMatchObject({
+        name: row._getRaw("name"),
+        sourceUrl: row._getRaw("source_url"),
+        metadata: undefined,
+      });
+      expect(isEncrypted(readBack!.name)).toBe(true);
+      expect(isEncrypted(readBack!.sourceUrl!)).toBe(true);
+      expect(signMessage).not.toHaveBeenCalled();
+      expect(row._raw).toEqual(before);
+    }
+  );
+
+  it("returns raw encrypted fields when the key request fails", async () => {
+    const { ctx, row } = await seed();
+    const before: Record<string, unknown> = { ...row._raw };
+    const metadata: unknown = JSON.parse(String(row._getRaw("metadata")));
+    clearAllEncryptionKeys();
+    signMessage.mockRejectedValue(new Error("wallet signature unavailable"));
+
+    const readBack = await getMediaByIdOp(ctx, MEDIA_ID);
+
+    expect(readBack).toMatchObject({
+      name: row._getRaw("name"),
+      sourceUrl: row._getRaw("source_url"),
+      metadata,
+    });
+    expect(isEncrypted(readBack!.name)).toBe(true);
+    expect(isEncrypted(readBack!.sourceUrl!)).toBe(true);
+    expect(readBack!.metadata).toBe(metadata);
+    expect(isEncrypted(String(metadata))).toBe(true);
+    expect(row._raw).toEqual(before);
+  });
+});
+
+describe("updateMediaOp field encryption", () => {
   it.each(["encrypted", "plaintext"])("encrypts changed fields in %s records", async (state) => {
     const { ctx, row } = await seed(state === "encrypted");
 
