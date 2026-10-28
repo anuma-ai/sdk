@@ -8,10 +8,12 @@ import { dirname, join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { type Client, type Config, createClient } from "./client/client";
+import { urlSearchParamsBodySerializer } from "./client/core/bodySerializer.gen";
 import {
   postApiV1NotificationsDevices,
   postNearbyAccessCode,
   postNearbyWaitlist,
+  postOauthRevoke,
   postOauthToken,
   postReferralClaim,
   putApiV1NotificationsPreferences,
@@ -77,6 +79,64 @@ function setup() {
   });
   return { client, fetch };
 }
+
+describe("generated URL-encoded request bodies", () => {
+  it.each([
+    {
+      path: "/oauth/token",
+      send: postOauthToken,
+      body: "grant_type=refresh_token&refresh_token=token%2B%26%3D&scope=chat%3Aread+chat%3Awrite",
+    },
+    {
+      path: "/oauth/revoke",
+      send: postOauthRevoke,
+      body: "token=token%2B%26%3D&token_type_hint=refresh_token&client_secret=caf%C3%A9+secret",
+    },
+  ])("preserves the encoded body for $path", async ({ path, send, body }) => {
+    const { client, fetch } = setup();
+
+    await send({ client, body });
+
+    expect(fetch).toHaveBeenCalledOnce();
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe(`https://portal.example${path}`);
+    expect(init?.method).toBe("POST");
+    expect(new Headers(init?.headers).get("content-type")).toBe(
+      "application/x-www-form-urlencoded"
+    );
+    expect(init?.body).toBe(body);
+  });
+
+  it.each(["", "grant_type=refresh_token", "scope=chat%3Aread&scope=chat%3Awrite+extra"])(
+    "preserves the string body %j",
+    (body) => {
+      expect(urlSearchParamsBodySerializer.bodySerializer(body)).toBe(body);
+    }
+  );
+
+  it("retains object fields and repeated values", () => {
+    const body = urlSearchParamsBodySerializer.bodySerializer({
+      grant_type: "refresh_token",
+      refresh_token: "token+&= value",
+      scope: ["chat:read", "chat:write"],
+      count: 0,
+      enabled: false,
+      empty: "",
+      omitted: undefined,
+      absent: null,
+    });
+
+    expect([...new URLSearchParams(body)]).toEqual([
+      ["grant_type", "refresh_token"],
+      ["refresh_token", "token+&= value"],
+      ["scope", "chat:read"],
+      ["scope", "chat:write"],
+      ["count", "0"],
+      ["enabled", "false"],
+      ["empty", ""],
+    ]);
+  });
+});
 
 describe.each(headerForms)("generated request headers from $name", ({ create }) => {
   it.each(endpoints)("retains authentication for $path", async ({ path, method, send }) => {
@@ -174,6 +234,7 @@ it.each(["fresh", "partial"])("patches %s generated header spreads", (state) => 
       "src/client/index.ts",
       "src/client/sdk.gen.ts",
       "src/client/client/utils.gen.ts",
+      "src/client/core/bodySerializer.gen.ts",
       "src/client/core/serverSentEvents.gen.ts",
       "src/client/client/client.gen.ts",
     ]) {
@@ -181,6 +242,16 @@ it.each(["fresh", "partial"])("patches %s generated header spreads", (state) => 
       mkdirSync(dirname(target), { recursive: true });
       copyFileSync(new URL(`../${file}`, import.meta.url), target);
     }
+
+    const serializerPath = join(root, "src/client/core/bodySerializer.gen.ts");
+    const expectedSerializer = readFileSync(serializerPath, "utf-8");
+    writeFileSync(
+      serializerPath,
+      expectedSerializer.replace(
+        "    if (typeof body === 'string') {\n      return body;\n    }\n\n",
+        ""
+      )
+    );
 
     const expected = readFileSync(sdkPath, "utf-8");
     let generated = expected
@@ -200,9 +271,11 @@ it.each(["fresh", "partial"])("patches %s generated header spreads", (state) => 
     const patched = readFileSync(sdkPath, "utf-8");
     expect(/\.\.\.options\??\.headers/.test(patched)).toBe(false);
     expect(patched).toBe(expected);
+    expect(readFileSync(serializerPath, "utf-8")).toBe(expectedSerializer);
 
     execFileSync(process.execPath, [patchPath]);
     expect(readFileSync(sdkPath, "utf-8")).toBe(expected);
+    expect(readFileSync(serializerPath, "utf-8")).toBe(expectedSerializer);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
