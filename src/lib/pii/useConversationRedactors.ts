@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 import { onClearAllEncryptionState } from "../../react/useEncryption";
 import type { NerDetector } from "./ner";
@@ -9,6 +9,7 @@ interface RedactorScope {
   users: number;
   subscribers: Set<() => void>;
   redactors: Map<string | null, { redactor: PiiRedactor; detector?: NerDetector }>;
+  evicted: PiiRedactor[];
 }
 
 const REDACTOR_LIMIT = 50;
@@ -18,11 +19,13 @@ const retiredRedactor = new PiiRedactor();
 retiredRedactor.dispose();
 
 function retireScope(scope: RedactorScope): void {
+  scopes.delete(scope);
   if (!scope.active) return;
   scope.active = false;
   for (const { redactor } of scope.redactors.values()) redactor.dispose();
   scope.redactors.clear();
-  scopes.delete(scope);
+  for (const redactor of scope.evicted) redactor.dispose();
+  scope.evicted = [];
   for (const notify of scope.subscribers) notify();
 }
 
@@ -39,9 +42,8 @@ function getScope(database: object, storage: object, account: string | undefined
   }
   let scope = accounts.get(account);
   if (!scope?.active) {
-    scope = { active: true, users: 0, subscribers: new Set(), redactors: new Map() };
+    scope = { active: true, users: 0, subscribers: new Set(), redactors: new Map(), evicted: [] };
     accounts.set(account, scope);
-    scopes.add(scope);
   }
   return scope;
 }
@@ -68,16 +70,9 @@ export function useConversationRedactors(
   );
   const getSnapshot = useCallback(() => (scope.active ? scope : null), [scope]);
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const previousScope = useRef(scope);
 
   useEffect(() => {
-    if (previousScope.current !== scope) {
-      retireScope(previousScope.current);
-      previousScope.current = scope;
-    }
-  }, [scope]);
-
-  useEffect(() => {
+    if (scope.active) scopes.add(scope);
     scope.users++;
     return () => {
       scope.users--;
@@ -94,13 +89,13 @@ export function useConversationRedactors(
         scope.redactors.set(conversationId, cached);
         return cached.redactor;
       }
-      cached?.redactor.dispose();
+      if (cached) scope.evicted.push(cached.redactor);
       const redactor = new PiiRedactor({ nerDetector });
       scope.redactors.set(conversationId, { redactor, detector: nerDetector });
       if (scope.redactors.size > REDACTOR_LIMIT) {
         const oldest = scope.redactors.entries().next().value;
         if (oldest) {
-          oldest[1].redactor.dispose();
+          scope.evicted.push(oldest[1].redactor);
           scope.redactors.delete(oldest[0]);
         }
       }

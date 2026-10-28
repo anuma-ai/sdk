@@ -2,7 +2,7 @@
 
 > **isPiiRedactor**(`value`: `unknown`): `value is PiiRedactor`
 
-Defined in: [src/lib/pii/redactor.ts:608](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#608)
+Defined in: [src/lib/pii/redactor.ts:616](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#616)
 
 Structural (duck-typed) check for a [PiiRedactor](../classes/PiiRedactor.md). Used instead of
 `instanceof` because dual ESM/CJS packaging or an SSR/client boundary can
