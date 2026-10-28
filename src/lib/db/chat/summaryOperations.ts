@@ -86,11 +86,11 @@ export async function upsertConversationSummaryOp(
   tokenCount: number
 ): Promise<StoredConversationSummary> {
   let record: ConversationSummary;
+  const encryptedSummary = ctx.walletAddress
+    ? await encryptField(summary, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    : summary;
 
   await ctx.database.write(async () => {
-    const encryptedSummary = ctx.walletAddress
-      ? await encryptField(summary, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
-      : summary;
     const existing = await ctx.summariesCollection
       .query(Q.where("conversation_id", conversationId))
       .fetch();

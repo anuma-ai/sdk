@@ -916,6 +916,42 @@ describe("maybeSummarizeHistory", () => {
     fetchSpy.mockRestore();
   });
 
+  it("sends the messages verbatim when the cached summary is still encrypted", async () => {
+    const encryptedSummary = {
+      uniqueId: "sum-enc",
+      conversationId: "conv-enc",
+      summary: `enc:v3:${"ab".repeat(40)}`,
+      summarizedUpTo: "msg-5",
+      tokenCount: 100,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const summaries = {
+      getSummary: vi.fn(async () => encryptedSummary),
+      upsertSummary: vi.fn(async () => ({}) as StoredConversationSummary),
+    };
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const longHistory = Array.from({ length: 10 }, (_, i) =>
+      makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 500)
+    );
+    const shortHistory = longHistory.slice(0, 2);
+
+    for (const messages of [longHistory, shortHistory]) {
+      const result = await maybeSummarizeHistory({
+        ...baseOptions,
+        conversationId: "conv-enc",
+        summaries,
+        messages,
+      });
+      expect(result.messagesToConvert).toEqual(messages);
+      expect(result.summarySystemMessage).toBeNull();
+    }
+    expect(summaries.upsertSummary).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    fetchSpy.mockRestore();
+  });
+
   it("re-injects system messages into the window (M2 fix)", async () => {
     const msgs = [
       makeMsgWithTokens("1", "user", 500),
