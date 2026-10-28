@@ -23,7 +23,9 @@ vi.mock("../chat/toolLoop", async (importOriginal) => {
   const original = await importOriginal<typeof import("../chat/toolLoop")>();
   return {
     ...original,
-    runToolLoop: vi.fn((options) => original.runToolLoop({ ...options, transport: undefined })),
+    runToolLoop: vi.fn((options: Parameters<typeof original.runToolLoop>[0]) =>
+      original.runToolLoop({ ...options, transport: undefined })
+    ),
   };
 });
 
@@ -73,7 +75,7 @@ describe.each([
   ["expo", useExpoChatStorage],
 ] as const)("%s PII account sessions", (_platform, useChatStorage) => {
   let database: Database;
-  const getToken = async () => "token";
+  const getToken = () => Promise.resolve("token");
 
   beforeEach(() => {
     clearAllEncryptionState();
