@@ -84,6 +84,7 @@ interface DetectedSpan {
  * same email address throughout the conversation.
  */
 export class PiiRedactor {
+  private disposed = false;
   /** Maps original PII value → placeholder tag. */
   private valueToPlaceholder = new Map<string, string>();
   /** Maps placeholder tag → original PII value (reverse lookup for de-anonymization). */
@@ -177,6 +178,7 @@ export class PiiRedactor {
    * The same value always gets the same placeholder within a redactor instance.
    */
   private getPlaceholder(category: PiiCategory | (string & {}), value: string): string {
+    if (this.disposed) throw new Error("PII redactor session ended");
     const normalizedValue = value.trim();
     const existing = this.valueToPlaceholder.get(normalizedValue);
     if (existing) return existing;
@@ -596,6 +598,12 @@ export class PiiRedactor {
     this.storagePattern = undefined;
     this.warnedNonText = false;
     this.warnedNerFailure = false;
+  }
+
+  /** Clear the mappings and prevent new reversible mappings. */
+  dispose(): void {
+    this.disposed = true;
+    this.clear();
   }
 }
 

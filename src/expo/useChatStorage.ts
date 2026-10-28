@@ -110,8 +110,8 @@ import {
   type MemoryVaultToolOptions,
   type VaultWriteInput,
 } from "../lib/memoryVault";
-import type { NerDetector } from "../lib/pii/ner";
 import { isPiiRedactor, PiiRedactor } from "../lib/pii/redactor";
+import { useConversationRedactors } from "../lib/pii/useConversationRedactors";
 import type { ChatBackend } from "../lib/storage/ChatBackend";
 import { IMAGE_TOOL_NAMES, toolOutputForModel } from "../lib/storage/mcpImages";
 import { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
@@ -141,35 +141,12 @@ import {
 } from "../react/useEncryption";
 import { useChat } from "./useChat";
 
-const CONVERSATION_REDACTOR_LIMIT = 50;
-const NO_CONVERSATION_KEY = "__no_conversation__";
 const NO_STORE_FOLDERS = "Folders are not supported with a memoryStore";
 const NO_STORE_MASK = "piiRedaction needs a memoryStore built with embeddingOptions.maskInput";
 const MEMORY_STORE_NOT_READY = "Memory store is not ready";
-const conversationRedactors = new Map<string, { redactor: PiiRedactor; detector?: NerDetector }>();
 const queuedBackends = new WeakMap<object, ChatBackend>();
 
 const clientToolFilterCache = new Map<string, number[]>();
-
-function getConversationRedactor(
-  conversationId: string | null,
-  nerDetector?: NerDetector
-): PiiRedactor {
-  const key = conversationId ?? NO_CONVERSATION_KEY;
-  const cached = conversationRedactors.get(key);
-  if (cached && cached.detector === nerDetector) {
-    conversationRedactors.delete(key);
-    conversationRedactors.set(key, cached);
-    return cached.redactor;
-  }
-  const redactor = new PiiRedactor({ nerDetector });
-  conversationRedactors.set(key, { redactor, detector: nerDetector });
-  if (conversationRedactors.size > CONVERSATION_REDACTOR_LIMIT) {
-    const oldest = conversationRedactors.keys().next().value;
-    if (oldest !== undefined) conversationRedactors.delete(oldest);
-  }
-  return redactor;
-}
 
 /** Resolved PII redaction for a single `sendMessage` call. */
 interface CallPiiResolution {
@@ -708,12 +685,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const nerDetectorRef = useRef(nerDetector);
   nerDetectorRef.current = nerDetector;
 
+  const getConversationRedactor = useConversationRedactors(
+    database,
+    walletAddress,
+    memoryStore ?? chatBackend ?? database
+  );
+
   const resolvedPiiRedaction = useMemo(
     () =>
       piiRedaction === true
         ? getConversationRedactor(currentConversationId, nerDetectorRef.current)
         : piiRedaction,
-    [piiRedaction, currentConversationId]
+    [piiRedaction, currentConversationId, getConversationRedactor]
   );
 
   const maskForEmbedding = useCallback(
@@ -2640,6 +2623,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       getMessages,
       backend,
       baseSendMessage,
+      getConversationRedactor,
+      piiRedaction,
       retirePendingTurn,
       embedMessageAsync,
       minContentLength,
