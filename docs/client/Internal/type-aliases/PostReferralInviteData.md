@@ -2,7 +2,7 @@
 
 > **PostReferralInviteData** = `object`
 
-Defined in: [src/client/types.gen.ts:13050](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13050)
+Defined in: [src/client/types.gen.ts:13047](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13047)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:13050](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersReferralInviteRequest`](HandlersReferralInviteRequest.md)
 
-Defined in: [src/client/types.gen.ts:13054](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13054)
+Defined in: [src/client/types.gen.ts:13051](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13051)
 
 Invitation
 
@@ -20,7 +20,7 @@ Invitation
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:13055](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13055)
+Defined in: [src/client/types.gen.ts:13052](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13052)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:13055](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:13056](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13056)
+Defined in: [src/client/types.gen.ts:13053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13053)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:13056](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/referral/invite"`
 
-Defined in: [src/client/types.gen.ts:13057](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13057)
+Defined in: [src/client/types.gen.ts:13054](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13054)

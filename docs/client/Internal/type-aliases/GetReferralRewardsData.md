@@ -2,7 +2,7 @@
 
 > **GetReferralRewardsData** = `object`
 
-Defined in: [src/client/types.gen.ts:13135](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13135)
+Defined in: [src/client/types.gen.ts:13132](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13132)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:13135](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:13136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13136)
+Defined in: [src/client/types.gen.ts:13133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13133)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:13136](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:13137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13137)
+Defined in: [src/client/types.gen.ts:13134](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13134)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:13137](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:13138](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13138)
+Defined in: [src/client/types.gen.ts:13135](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13135)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:13138](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/referral/rewards"`
 
-Defined in: [src/client/types.gen.ts:13139](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13139)
+Defined in: [src/client/types.gen.ts:13136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13136)

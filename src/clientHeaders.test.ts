@@ -233,6 +233,7 @@ it.each(["fresh", "partial"])("patches %s generated header spreads", (state) => 
       "scripts/patch-generated-client.mjs",
       "src/client/index.ts",
       "src/client/sdk.gen.ts",
+      "src/client/types.gen.ts",
       "src/client/client/utils.gen.ts",
       "src/client/core/bodySerializer.gen.ts",
       "src/client/core/serverSentEvents.gen.ts",

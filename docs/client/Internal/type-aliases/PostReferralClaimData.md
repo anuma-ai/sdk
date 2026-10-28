@@ -2,7 +2,7 @@
 
 > **PostReferralClaimData** = `object`
 
-Defined in: [src/client/types.gen.ts:12961](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12961)
+Defined in: [src/client/types.gen.ts:12958](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12958)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:12961](https://github.com/anuma-ai/sdk/blob
 
 > **body**: [`HandlersReferralClaimRequest`](HandlersReferralClaimRequest.md)
 
-Defined in: [src/client/types.gen.ts:12965](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12965)
+Defined in: [src/client/types.gen.ts:12962](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12962)
 
 Claim token
 
@@ -20,7 +20,7 @@ Claim token
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:12966](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12966)
+Defined in: [src/client/types.gen.ts:12963](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12963)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:12966](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:12967](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12967)
+Defined in: [src/client/types.gen.ts:12964](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12964)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:12967](https://github.com/anuma-ai/sdk/blob
 
 > **url**: `"/referral/claim"`
 
-Defined in: [src/client/types.gen.ts:12968](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12968)
+Defined in: [src/client/types.gen.ts:12965](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#12965)
