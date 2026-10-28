@@ -12,7 +12,7 @@ same email address throughout the conversation.
 
 > **new PiiRedactor**(`options`: [`PiiRedactorOptions`](../interfaces/PiiRedactorOptions.md)): `PiiRedactor`
 
-Defined in: [src/lib/pii/redactor.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#126)
+Defined in: [src/lib/pii/redactor.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#127)
 
 **Parameters**
 
@@ -51,7 +51,7 @@ Defined in: [src/lib/pii/redactor.ts:126](https://github.com/anuma-ai/sdk/blob/m
 
 > **get** **size**(): `number`
 
-Defined in: [src/lib/pii/redactor.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#162)
+Defined in: [src/lib/pii/redactor.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#163)
 
 Returns the current number of unique PII values tracked.
 
@@ -65,7 +65,7 @@ Returns the current number of unique PII values tracked.
 
 > **clear**(): `void`
 
-Defined in: [src/lib/pii/redactor.ts:591](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#591)
+Defined in: [src/lib/pii/redactor.ts:593](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#593)
 
 Reset all state. Useful for testing or when starting a fresh conversation.
 
@@ -79,7 +79,7 @@ Reset all state. Useful for testing or when starting a fresh conversation.
 
 > **deAnonymize**(`text`: `string`): `string`
 
-Defined in: [src/lib/pii/redactor.ts:509](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#509)
+Defined in: [src/lib/pii/redactor.ts:511](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#511)
 
 Restore original PII values in text that contains placeholders.
 Used to de-anonymize LLM responses before displaying to the user.
@@ -119,11 +119,25 @@ extraction models produce.
 
 ***
 
+### dispose()
+
+> **dispose**(): `void`
+
+Defined in: [src/lib/pii/redactor.ts:604](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#604)
+
+Clear the mappings and prevent new reversible mappings.
+
+**Returns**
+
+`void`
+
+***
+
 ### getMappings()
 
 > **getMappings**(): `ReadonlyMap`<`string`, `string`>
 
-Defined in: [src/lib/pii/redactor.ts:171](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#171)
+Defined in: [src/lib/pii/redactor.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#172)
 
 Returns a snapshot of all placeholder → original value mappings.
 Useful for debugging or UI display. This is a copy — mutating it (or
@@ -139,7 +153,7 @@ later redactions) does not affect the returned map and vice versa.
 
 > **maskText**(`text`: `string`): `string`
 
-Defined in: [src/lib/pii/redactor.ts:270](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#270)
+Defined in: [src/lib/pii/redactor.ts:272](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#272)
 
 Mask PII with unnumbered, NON-reversible tokens (\[EMAIL], \[SSN], …) without
 mutating this instance's state. Use for one-way purposes where the value is
@@ -182,7 +196,7 @@ masks identically and search stays consistent across conversations.
 
 > **maskTextAsync**(`text`: `string`): `Promise`<`string`>
 
-Defined in: [src/lib/pii/redactor.ts:406](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#406)
+Defined in: [src/lib/pii/redactor.ts:408](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#408)
 
 Async counterpart to [maskText](#masktext): stateless `[CATEGORY]` masking over
 regex + NER matches. With no detector, identical to `maskText`.
@@ -222,7 +236,7 @@ regex + NER matches. With no detector, identical to `maskText`.
 
 > **redactMessages**(`messages`: [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]): [`MessageRedactionResult`](../interfaces/MessageRedactionResult.md)
 
-Defined in: [src/lib/pii/redactor.ts:454](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#454)
+Defined in: [src/lib/pii/redactor.ts:456](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#456)
 
 Redact PII from an array of LlmapiMessage objects.
 Returns new message objects — originals are not mutated.
@@ -268,7 +282,7 @@ are inert here (they don't match any PII pattern), so re-redaction is safe.
 
 > **redactMessagesAsync**(`messages`: [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]): `Promise`<[`MessageRedactionResult`](../interfaces/MessageRedactionResult.md)>
 
-Defined in: [src/lib/pii/redactor.ts:417](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#417)
+Defined in: [src/lib/pii/redactor.ts:419](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#419)
 
 Async counterpart to [redactMessages](#redactmessages). Text parts are redacted
 sequentially so placeholder numbering stays deterministic across the
@@ -309,7 +323,7 @@ conversation. With no detector, identical to `redactMessages`.
 
 > **redactText**(`text`: `string`): [`RedactionResult`](../interfaces/RedactionResult.md)
 
-Defined in: [src/lib/pii/redactor.ts:259](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#259)
+Defined in: [src/lib/pii/redactor.ts:261](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#261)
 
 Scan and redact PII from a single text string, using numbered, reversible
 placeholders (\[EMAIL\_1], …) tracked on this instance.
@@ -349,7 +363,7 @@ placeholders (\[EMAIL\_1], …) tracked on this instance.
 
 > **redactTextAsync**(`text`: `string`): `Promise`<[`RedactionResult`](../interfaces/RedactionResult.md)>
 
-Defined in: [src/lib/pii/redactor.ts:394](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#394)
+Defined in: [src/lib/pii/redactor.ts:396](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#396)
 
 Async counterpart to [redactText](#redacttext): redacts structured PII (regex) AND
 unstructured PII (the configured NerDetector) with numbered,
@@ -390,7 +404,7 @@ reversible placeholders. With no detector, identical to `redactText`.
 
 > **restoreForStorage**(`text`: `string`): `object`
 
-Defined in: [src/lib/pii/redactor.ts:537](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#537)
+Defined in: [src/lib/pii/redactor.ts:539](https://github.com/anuma-ai/sdk/blob/main/src/lib/pii/redactor.ts#539)
 
 De-anonymize for PERSISTENCE (auto-extraction / consolidation), tolerant of
 the ways the extraction models mangle a placeholder when echoing it back:
