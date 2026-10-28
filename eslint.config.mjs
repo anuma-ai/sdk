@@ -24,6 +24,7 @@ const checkedAgentRuntimeFiles = [
 ];
 
 const checkedTestFiles = [
+  "src/lib/chatStore/migrateChats.test.ts",
   "src/lib/chatStore/remote.test.ts",
   "src/lib/memory/store/remoteMigration.test.ts",
   "src/lib/memory/store/remoteStore.test.ts",
