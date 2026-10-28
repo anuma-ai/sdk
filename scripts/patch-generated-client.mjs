@@ -68,6 +68,22 @@ function patchClientIndex(absolute) {
 
 const patches = [
   {
+    file: "src/client/core/bodySerializer.gen.ts",
+    find: "JSON.stringify(body, (_key, value) =>",
+    replace: "JSON.stringify(body, (_key, value: unknown) =>",
+  },
+  {
+    file: "src/client/core/bodySerializer.gen.ts",
+    find: `export const urlSearchParamsBodySerializer = {
+  bodySerializer: (body: unknown): string => {`,
+    replace: `export const urlSearchParamsBodySerializer = {
+  bodySerializer: (body: unknown): string => {
+    if (typeof body === 'string') {
+      return body;
+    }
+`,
+  },
+  {
     file: "src/client/sdk.gen.ts",
     find: "import { client } from './client.gen';",
     replace: `import { client } from './client.gen';
