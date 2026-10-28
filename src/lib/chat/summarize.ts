@@ -535,13 +535,10 @@ async function doSummarizeHistory(
 
   try {
     const summaries = summaryStore(options);
-    const persistSummary = (summary: string, summarizedUpTo: string, tokenCount: number) =>
-      database.write(async (writer) => {
-        assertConversationRevision(database, conversationId, revision);
-        await writer.callWriter(() =>
-          summaries.upsertSummary(conversationId, summary, summarizedUpTo, tokenCount)
-        );
-      });
+    const persistSummary = (summary: string, summarizedUpTo: string, tokenCount: number) => {
+      assertConversationRevision(database, conversationId, revision);
+      return summaries.upsertSummary(conversationId, summary, summarizedUpTo, tokenCount);
+    };
     let cachedSummary = await summaries.getSummary(conversationId);
     assertConversationRevision(database, conversationId, revision);
     if (cachedSummary && isEncrypted(cachedSummary.summary)) {

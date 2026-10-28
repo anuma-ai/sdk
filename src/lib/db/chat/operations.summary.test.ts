@@ -22,6 +22,7 @@ import {
 import { chatStorageMigrations, chatStorageSchema } from "./schema";
 import {
   createSummaryContext,
+  deleteConversationSummaryOp,
   getConversationSummaryOp,
   upsertConversationSummaryOp,
 } from "./summaryOperations";
@@ -159,6 +160,142 @@ describe("conversation summary invalidation", () => {
     });
     expect((await summaryCtx.summariesCollection.find(summary!.uniqueId)).summary).toBe(ciphertext);
   });
+
+  it("encrypts a legacy summary on read and preserves the summary metadata", async () => {
+    const walletAddress = "0x1234567890123456789012345678901234567890";
+    seedEncryptionKeys(walletAddress, { legacy: "cd".repeat(32), current: "ab".repeat(32) });
+    const backend = localChatBackend(ctx.database)({
+      walletAddress,
+      signMessage: vi.fn(() => Promise.resolve("test-signature")),
+    });
+    const before = await getConversationSummaryOp(summaryCtx, "conv_1");
+
+    expect(await backend.getSummary("conv_1")).toEqual(before);
+    const record = await summaryCtx.summariesCollection.find(before!.uniqueId);
+    const ciphertext = record.summary;
+    expect(isEncrypted(ciphertext)).toBe(true);
+    expect(ciphertext).not.toContain("Paris");
+    expect(await backend.getSummary("conv_1")).toMatchObject({
+      summary: before!.summary,
+      summarizedUpTo: before!.summarizedUpTo,
+      tokenCount: before!.tokenCount,
+    });
+    expect(record.summary).toBe(ciphertext);
+  });
+
+  it("preserves a readable legacy summary when the wallet rejects the key request", async () => {
+    const signMessage = vi.fn(() => Promise.reject(new Error("Signature rejected")));
+    const backend = localChatBackend(ctx.database)({
+      walletAddress: "0x1234567890123456789012345678901234567890",
+      signMessage,
+    });
+    const before = await getConversationSummaryOp(summaryCtx, "conv_1");
+
+    expect(await backend.getSummary("conv_1")).toEqual(before);
+    expect(signMessage).toHaveBeenCalledTimes(1);
+    expect(await getConversationSummaryOp(summaryCtx, "conv_1")).toEqual(before);
+  });
+
+  it.each(["update", "delete"])(
+    "preserves a concurrent summary %s during legacy encryption",
+    async (mutation) => {
+      let resolveSignature!: (signature: string) => void;
+      const signature = new Promise<string>((resolve) => {
+        resolveSignature = resolve;
+      });
+      let markStarted!: () => void;
+      const started = new Promise<void>((resolve) => {
+        markStarted = resolve;
+      });
+      const backend = localChatBackend(ctx.database)({
+        walletAddress: "0x1234567890123456789012345678901234567890",
+        signMessage: () => {
+          markStarted();
+          return signature;
+        },
+      });
+      const pending = backend.getSummary("conv_1");
+      await started;
+
+      if (mutation === "update") {
+        await upsertConversationSummaryOp(summaryCtx, "conv_1", "Current summary.", "m3", 4);
+      } else {
+        await deleteConversationSummaryOp(summaryCtx, "conv_1");
+      }
+      resolveSignature(`0x${"ab".repeat(65)}`);
+      await pending;
+
+      expect(await getConversationSummaryOp(summaryCtx, "conv_1")).toEqual(
+        mutation === "update" ? expect.objectContaining({ summary: "Current summary." }) : null
+      );
+    }
+  );
+
+  it("returns the supplied summary after an encrypted write without a decrypt", async () => {
+    const walletAddress = "0x1234567890123456789012345678901234567890";
+    seedEncryptionKeys(walletAddress, { legacy: "cd".repeat(32), current: "ab".repeat(32) });
+    const backend = localChatBackend(ctx.database)({
+      walletAddress,
+      signMessage: vi.fn(() => Promise.resolve("test-signature")),
+    });
+    const decrypt = vi.spyOn(crypto.subtle, "decrypt");
+    try {
+      expect(await backend.upsertSummary("conv_1", "New private fact.", "m3", 4)).toMatchObject({
+        summary: "New private fact.",
+        summarizedUpTo: "m3",
+        tokenCount: 4,
+      });
+      expect(decrypt).not.toHaveBeenCalled();
+    } finally {
+      decrypt.mockRestore();
+    }
+  });
+
+  it.each(["write", "edit", "delete", "clear"])(
+    "permits a database %s during a summary key request",
+    async (mutation) => {
+      let resolveSignature!: (signature: string) => void;
+      const signature = new Promise<string>((resolve) => {
+        resolveSignature = resolve;
+      });
+      let markStarted!: () => void;
+      const started = new Promise<void>((resolve) => {
+        markStarted = resolve;
+      });
+      const backend = localChatBackend(ctx.database)({
+        walletAddress: "0x1234567890123456789012345678901234567890",
+        signMessage: () => {
+          markStarted();
+          return signature;
+        },
+      });
+      const pending = backend.upsertSummary("conv_1", "New private fact.", "m2", 4);
+      await started;
+
+      if (mutation === "write") {
+        await ctx.database.write(async () => {});
+      } else if (mutation === "edit") {
+        await upsertMessageOp(ctx, {
+          conversationId: "conv_1",
+          uniqueId: "m1",
+          role: "user",
+          content: "I live in Rome.",
+        });
+      } else if (mutation === "delete") {
+        await deleteMessageOp(ctx, "m1");
+      } else {
+        await clearMessagesOp(ctx, "conv_1");
+      }
+      resolveSignature(`0x${"ab".repeat(65)}`);
+
+      if (mutation === "write") {
+        expect(await pending).toMatchObject({ summary: "New private fact." });
+      } else {
+        await expect(pending).rejects.toThrow("The conversation changed");
+        expect(await getConversationSummaryOp(summaryCtx, "conv_1")).toBeNull();
+      }
+    }
+  );
 
   it("preserves the stored summary if encryption fails", async () => {
     const walletAddress = "0x1234567890123456789012345678901234567890";
