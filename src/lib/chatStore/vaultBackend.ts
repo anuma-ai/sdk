@@ -9,6 +9,7 @@ import {
   type GetMessagesPageOptions,
   type MessageFeedback,
   type MessageSkeleton,
+  type StoredConversation,
   type StoredConversationSummary,
   type StoredFileWithContext,
   type StoredMessage,
@@ -23,6 +24,8 @@ import type {
   ChatStorageObservable,
   ConversationQueryOptions,
 } from "../storage/ChatStorageAdapter";
+import { batches, conversationRecord, messageRecord } from "./chatImports";
+import { validChatId } from "./remote";
 import {
   type ChatJson,
   type ChatRecord,
@@ -106,6 +109,10 @@ export interface VaultChatBackend extends ChatBackend {
   flush(): Promise<void>;
   /** Applies changes other devices made since the last poll. */
   poll(): Promise<void>;
+  /** Copies imported conversations and messages into vault with their own ids, times and order, leaving ids vault already holds as they are. */
+  importChats(
+    chats: readonly { conversation: StoredConversation; messages: readonly StoredMessage[] }[]
+  ): Promise<{ conversations: number; messages: number }>;
   status(): { pending: number; stopped?: string };
   close(): void;
 }
@@ -1115,6 +1122,51 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     },
     flush,
     poll,
+    async importChats(chats) {
+      await ready();
+      const seen = new Set<string>();
+      const unique = <T extends { record: ChatRecord }>(items: T[]) =>
+        items.filter(({ record }) => {
+          const k = key(record.kind, record.id);
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+      const valid = chats.filter((c) => validChatId(c.conversation.conversationId));
+      const conversations = unique(
+        valid.map((c) => conversationRecord(c.conversation, c.messages))
+      );
+      const messages = unique(
+        valid.flatMap((c) =>
+          c.messages
+            .filter(
+              (m) =>
+                m.conversationId === c.conversation.conversationId &&
+                validChatId(m.uniqueId) &&
+                Number.isSafeInteger(m.messageId)
+            )
+            .map((m) => messageRecord({ ...m, vector: undefined, chunks: undefined }))
+        )
+      );
+      let conversationCount = 0;
+      let messageCount = 0;
+      try {
+        for (const batch of batches(conversations))
+          conversationCount += await store.importRecords(batch);
+        for (const batch of batches(messages)) messageCount += await store.importRecords(batch);
+      } finally {
+        for (const { record } of messages) checked.delete(key("message", record.id));
+        await refresh(conversations.map(({ record }) => key("conversation", record.id))).catch(
+          () => undefined
+        );
+        for (const { record } of conversations) threads.delete(record.id);
+        channel?.postMessage("changed");
+        emit({ type: "conversations", origin: "local" });
+        for (const { record } of conversations)
+          emit({ type: "messages", conversationId: record.id, origin: "local" });
+      }
+      return { conversations: conversationCount, messages: messageCount };
+    },
     status: () => ({ pending: pending.size + inflight.size, ...(stopped ? { stopped } : {}) }),
     close() {
       closed = true;

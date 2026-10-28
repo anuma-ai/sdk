@@ -2,7 +2,7 @@
 
 > **vaultChatBackend**(`backend`: [`VaultChatBackend`](../interfaces/VaultChatBackend.md)): [`ChatBackendFactory`](../type-aliases/ChatBackendFactory.md)
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:1144](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#1144)
+Defined in: [src/lib/chatStore/vaultBackend.ts:1196](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#1196)
 
 A [ChatBackendFactory](../type-aliases/ChatBackendFactory.md) that hands `useChatStorage` the same vault backend for every signer.
 

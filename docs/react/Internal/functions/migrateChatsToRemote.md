@@ -2,7 +2,7 @@
 
 > **migrateChatsToRemote**(`options`: [`ChatMigrationOptions`](../interfaces/ChatMigrationOptions.md)): `Promise`<[`ChatMigrationResult`](../interfaces/ChatMigrationResult.md)>
 
-Defined in: [src/lib/chatStore/migrateChats.ts:425](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#425)
+Defined in: [src/lib/chatStore/migrateChats.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#326)
 
 Copies this device's chats to vault, verifies them under the write barrier, then activates vault and hands the device over.
 

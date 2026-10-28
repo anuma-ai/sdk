@@ -8,10 +8,10 @@ import {
   type StorageOperationsContext,
 } from "../db/chat/operations";
 import { createSummaryContext, getConversationSummaryOp } from "../db/chat/summaryOperations";
-import type { CreateMessageOptions, StoredMessage } from "../db/chat/types";
 import { ConversationMemory } from "../db/conversationMemory/models";
 import { getConversationMemoriesOp } from "../db/conversationMemory/operations";
 import { isEncrypted } from "../db/encryption-utils";
+import { batches, bytes, conversationRecord, messageRecord, ms } from "./chatImports";
 import { validChatId } from "./remote";
 import {
   type ChatImport,
@@ -22,14 +22,7 @@ import {
   ChatStoreError,
   type ChatWrite,
 } from "./types";
-import {
-  acceptedVector,
-  conversationSortKey,
-  fitChunks,
-  fitRecord,
-  messageData,
-  plain,
-} from "./vaultRecords";
+import { plain } from "./vaultRecords";
 
 export interface ChatMigrationOptions {
   /** The device's local chat database. */
@@ -87,18 +80,10 @@ interface LocalChats {
 
 const maxPasses = 5;
 const verifyBatch = 1000;
-const importBatch = 100;
-const importChunks = 200;
-const importPlaintextBytes = 3_900_000;
 const writeBatch = 25;
 
 function key(record: Pick<ChatRecord, "kind" | "id">): string {
   return `${record.kind}/${record.id}`;
-}
-
-function ms(date: Date | undefined, fallback = 1): number {
-  const value = date?.getTime();
-  return value && Number.isFinite(value) ? Math.max(1, Math.floor(value)) : fallback;
 }
 
 function sealed(value: unknown): boolean {
@@ -107,44 +92,6 @@ function sealed(value: unknown): boolean {
   if (value && typeof value === "object" && !(value instanceof Date))
     return Object.values(value).some(sealed);
   return false;
-}
-
-function bytes(value: unknown): number {
-  return new TextEncoder().encode(JSON.stringify(value)).length;
-}
-
-function messageRecord(message: StoredMessage): ChatImport {
-  const {
-    uniqueId: _uniqueId,
-    messageId: _messageId,
-    createdAt: _createdAt,
-    updatedAt: _updatedAt,
-    decryptionStatus: _status,
-    chunks,
-    vector,
-    ...fields
-  } = message;
-  const fitted = chunks?.length ? fitChunks(chunks) : undefined;
-  const single = fitted ? undefined : acceptedVector(vector);
-  const embeddings = fitted?.map((c) => c.vector) ?? (single ? [single] : undefined);
-  const record = fitRecord({
-    kind: "message",
-    id: message.uniqueId,
-    conversationId: message.conversationId,
-    sortKey: message.messageId,
-    createdAt: ms(message.createdAt),
-    updatedAt: ms(message.updatedAt, ms(message.createdAt)),
-    isDeleted: false,
-    data: {
-      ...messageData(fields as CreateMessageOptions),
-      ...(fitted ? { chunkOffsets: fitted.map((c) => [c.startOffset, c.endOffset]) } : {}),
-    },
-  });
-  return {
-    record,
-    ...(embeddings ? { embeddings } : {}),
-    ...(embeddings && message.embeddingModel ? { embeddingModel: message.embeddingModel } : {}),
-  };
 }
 
 async function readLocal(options: ChatMigrationOptions): Promise<LocalChats> {
@@ -206,29 +153,10 @@ async function readLocal(options: ChatMigrationOptions): Promise<LocalChats> {
     const messages = await getMessagesOp(ctx, conversationId);
     const unreadableTitle = isEncrypted(conversation.title);
     if (unreadableTitle) out.untitled++;
-    const createdAt = ms(conversation.createdAt);
-    const data = plain({
-      title: unreadableTitle ? "" : conversation.title,
-      projectId: conversation.projectId || undefined,
-      pinnedAt: conversation.pinnedAt ? ms(conversation.pinnedAt) : undefined,
-      lastActivityAt: Math.max(
-        ms(conversation.updatedAt, createdAt),
-        ...messages.map((m) => ms(m.createdAt))
-      ),
-    });
     out.conversations++;
-    out.records.push({
-      record: {
-        kind: "conversation",
-        id: conversationId,
-        conversationId: "",
-        sortKey: conversationSortKey(data, createdAt),
-        createdAt,
-        updatedAt: ms(conversation.updatedAt, createdAt),
-        isDeleted: false,
-        data,
-      },
-    });
+    out.records.push(
+      conversationRecord(unreadableTitle ? { ...conversation, title: "" } : conversation, messages)
+    );
 
     for (const message of messages) {
       if (message.decryptionStatus || sealed(message)) {
@@ -372,33 +300,6 @@ async function deletedSinceUpload(
       expectedVersion: version,
     };
   });
-}
-
-function batches(records: readonly ChatImport[]): ChatImport[][] {
-  const out: ChatImport[][] = [];
-  let batch: ChatImport[] = [];
-  let chunks = 0;
-  let size = 0;
-  for (const item of records) {
-    const vectors = item.embeddings?.length ?? 0;
-    const itemSize = bytes(item.record);
-    if (
-      batch.length > 0 &&
-      (batch.length >= importBatch ||
-        chunks + vectors > importChunks ||
-        size + itemSize > importPlaintextBytes)
-    ) {
-      out.push(batch);
-      batch = [];
-      chunks = 0;
-      size = 0;
-    }
-    batch.push(item);
-    chunks += vectors;
-    size += itemSize;
-  }
-  if (batch.length) out.push(batch);
-  return out;
 }
 
 function fitVectors(
