@@ -247,10 +247,12 @@ it.each(["fresh", "partial"])("patches %s generated header spreads", (state) => 
     const expectedSerializer = readFileSync(serializerPath, "utf-8");
     writeFileSync(
       serializerPath,
-      expectedSerializer.replace(
-        "    if (typeof body === 'string') {\n      return body;\n    }\n\n",
-        ""
-      )
+      expectedSerializer
+        .replace(
+          "JSON.stringify(body, (_key, value: unknown) =>",
+          "JSON.stringify(body, (_key, value) =>"
+        )
+        .replace("    if (typeof body === 'string') {\n      return body;\n    }\n\n", "")
     );
 
     const expected = readFileSync(sdkPath, "utf-8");
