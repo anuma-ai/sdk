@@ -1,28 +1,56 @@
 import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
+import { requestEncryptionKey } from "../../../react/useEncryption";
+import { getLogger } from "../../logger";
+import { decryptField, encryptField, isEncrypted } from "../encryption-utils";
 import { ConversationSummary } from "./models";
+import type { StorageOperationsContext } from "./operations";
 import type { StoredConversationSummary } from "./types";
 
 /** Context needed for summary operations */
-interface SummaryOperationsContext {
+interface SummaryOperationsContext extends Pick<
+  StorageOperationsContext,
+  "walletAddress" | "signMessage" | "embeddedWalletSigner"
+> {
   database: Database;
   summariesCollection: Collection<ConversationSummary>;
 }
 
 /** Create a summary operations context from a database instance */
-export function createSummaryContext(database: Database): SummaryOperationsContext {
+export function createSummaryContext(
+  database: Database,
+  encryption: Pick<
+    SummaryOperationsContext,
+    "walletAddress" | "signMessage" | "embeddedWalletSigner"
+  > = {}
+): SummaryOperationsContext {
   return {
+    ...encryption,
     database,
     summariesCollection: database.get<ConversationSummary>("conversation_summaries"),
   };
 }
 
-function modelToStored(record: ConversationSummary): StoredConversationSummary {
+async function modelToStored(
+  ctx: SummaryOperationsContext,
+  record: ConversationSummary
+): Promise<StoredConversationSummary> {
+  let summary = record.summary;
+  if (ctx.walletAddress && isEncrypted(summary)) {
+    if (ctx.signMessage) {
+      try {
+        await requestEncryptionKey(ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+      } catch (error) {
+        getLogger().warn("Failed to request the encryption key for the summary:", error);
+      }
+    }
+    summary = await decryptField(summary, ctx.walletAddress);
+  }
   return {
     uniqueId: record.id,
     conversationId: record.conversationId,
-    summary: record.summary,
+    summary,
     summarizedUpTo: record.summarizedUpTo,
     tokenCount: record.tokenCount,
     createdAt: record.createdAt,
@@ -43,7 +71,7 @@ export async function getConversationSummaryOp(
     .fetch();
 
   if (results.length === 0) return null;
-  return modelToStored(results[0]);
+  return modelToStored(ctx, results[0]);
 }
 
 /**
@@ -60,27 +88,30 @@ export async function upsertConversationSummaryOp(
   let record: ConversationSummary;
 
   await ctx.database.write(async () => {
+    const encryptedSummary = ctx.walletAddress
+      ? await encryptField(summary, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+      : summary;
     const existing = await ctx.summariesCollection
       .query(Q.where("conversation_id", conversationId))
       .fetch();
 
     if (existing.length > 0) {
       record = await existing[0].update((rec) => {
-        rec.summary = summary;
+        rec.summary = encryptedSummary;
         rec.summarizedUpTo = summarizedUpTo;
         rec.tokenCount = tokenCount;
       });
     } else {
       record = await ctx.summariesCollection.create((rec) => {
         rec.conversationId = conversationId;
-        rec.summary = summary;
+        rec.summary = encryptedSummary;
         rec.summarizedUpTo = summarizedUpTo;
         rec.tokenCount = tokenCount;
       });
     }
   });
 
-  return modelToStored(record!);
+  return modelToStored(ctx, record!);
 }
 
 /**

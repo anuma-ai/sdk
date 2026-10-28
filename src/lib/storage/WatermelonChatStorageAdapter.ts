@@ -279,7 +279,10 @@ export class WatermelonChatStorageAdapter implements ChatBackend {
   }
 
   getSummary(conversationId: string): Promise<StoredConversationSummary | null> {
-    return getConversationSummaryOp(createSummaryContext(this.ctx.database), conversationId);
+    return getConversationSummaryOp(
+      createSummaryContext(this.ctx.database, this.ctx),
+      conversationId
+    );
   }
 
   upsertSummary(
@@ -289,7 +292,7 @@ export class WatermelonChatStorageAdapter implements ChatBackend {
     tokenCount: number
   ): Promise<StoredConversationSummary> {
     return upsertConversationSummaryOp(
-      createSummaryContext(this.ctx.database),
+      createSummaryContext(this.ctx.database, this.ctx),
       conversationId,
       summary,
       summarizedUpTo,

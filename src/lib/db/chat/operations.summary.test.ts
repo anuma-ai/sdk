@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { clearAllEncryptionKeys, seedEncryptionKeys } from "../../../react/useEncryption";
 import { cleanupConversationSummary, maybeSummarizeHistory } from "../../chat/summarize";
+import { PiiRedactor } from "../../pii/redactor";
+import { localChatBackend } from "../../storage/WatermelonChatStorageAdapter";
+import { encryptField, isEncrypted } from "../encryption-utils";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import { Conversation, Message } from "./models";
 import {
@@ -65,6 +68,117 @@ describe("conversation summary invalidation", () => {
       9
     );
     await upsertConversationSummaryOp(summaryCtx, "conv_2", "Another conversation.", "other", 6);
+  });
+
+  it.each(["summary", "compaction"])("encrypts the %s after PII restoration", async (mode) => {
+    const walletAddress = "0x1234567890123456789012345678901234567890";
+    seedEncryptionKeys(walletAddress, { legacy: "cd".repeat(32), current: "ab".repeat(32) });
+    const backend = localChatBackend(ctx.database)({
+      walletAddress,
+      signMessage: vi.fn(() => Promise.resolve("test-signature")),
+    });
+    await backend.upsertMessage({
+      conversationId: "conv_1",
+      uniqueId: "m1",
+      role: "user",
+      content: `My email is bob@acme.com. ${"context ".repeat(100)}`,
+    });
+    expect(isEncrypted((await ctx.messagesCollection.find("m1")).content)).toBe(true);
+    if (mode === "compaction") {
+      const initial = await backend.upsertSummary(
+        "conv_1",
+        "The email is bob@acme.com.",
+        "m2",
+        100
+      );
+      expect(initial.summary).toBe("The email is bob@acme.com.");
+    }
+    const fetchMock = vi.fn((_url: unknown, _init?: RequestInit) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: "The email is [EMAIL_1]." } }] })
+        )
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const messages = await backend.getMessages("conv_1");
+    const options = {
+      database: ctx.database,
+      summaries: backend,
+      conversationId: "conv_1",
+      messages,
+      summarizeHistory: true,
+      summaryTokenThreshold: 100,
+      summaryMinWindowMessages: 1,
+      summaryModel: "test",
+      token: "test-token",
+      redactor: new PiiRedactor(),
+    };
+
+    const result = await maybeSummarizeHistory(options);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1]?.body).toContain("[EMAIL_1]");
+    expect(fetchMock.mock.calls[0][1]?.body).not.toContain("bob@acme.com");
+    expect(JSON.stringify(result.summarySystemMessage)).toContain("bob@acme.com");
+    const summary = await backend.getSummary("conv_1");
+    expect(summary?.summary).toBe("The email is bob@acme.com.");
+    const record = await summaryCtx.summariesCollection.find(summary!.uniqueId);
+    expect(isEncrypted(record.summary)).toBe(true);
+    expect(record.summary).not.toContain("bob@acme.com");
+    expect(record.tokenCount).toBe(Math.ceil(summary!.summary.length / 4));
+    expect(record.summarizedUpTo).toBe(summary!.summarizedUpTo);
+
+    for (const history of [messages, messages.slice(-1)]) {
+      const cached = await maybeSummarizeHistory({
+        ...options,
+        messages: history,
+        summaryTokenThreshold: 10_000,
+      });
+      expect(JSON.stringify(cached.summarySystemMessage)).toContain("bob@acme.com");
+      expect(JSON.stringify(cached.summarySystemMessage)).not.toContain("enc:v3:");
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("decrypts an existing summary through the local backend", async () => {
+    const walletAddress = "0x1234567890123456789012345678901234567890";
+    seedEncryptionKeys(walletAddress, { legacy: "cd".repeat(32), current: "ab".repeat(32) });
+    const signer = { walletAddress, signMessage: vi.fn(() => Promise.resolve("test-signature")) };
+    const backend = localChatBackend(ctx.database)(signer);
+    expect((await backend.getSummary("conv_1"))?.summary).toBe("Lives in Paris. Works at Acme.");
+    const ciphertext = await encryptField("Lives in Paris.", walletAddress, signer.signMessage);
+    await upsertConversationSummaryOp(summaryCtx, "conv_1", ciphertext, "m2", 4);
+
+    const summary = await backend.getSummary("conv_1");
+
+    expect(summary).toMatchObject({
+      summary: "Lives in Paris.",
+      summarizedUpTo: "m2",
+      tokenCount: 4,
+    });
+    expect((await summaryCtx.summariesCollection.find(summary!.uniqueId)).summary).toBe(ciphertext);
+  });
+
+  it("preserves the stored summary if encryption fails", async () => {
+    const walletAddress = "0x1234567890123456789012345678901234567890";
+    seedEncryptionKeys(walletAddress, { legacy: "cd".repeat(32), current: "ab".repeat(32) });
+    const backend = localChatBackend(ctx.database)({
+      walletAddress,
+      signMessage: vi.fn(() => Promise.resolve("test-signature")),
+    });
+    const before = await getConversationSummaryOp(summaryCtx, "conv_1");
+    const encrypt = vi
+      .spyOn(crypto.subtle, "encrypt")
+      .mockRejectedValueOnce(new Error("Cannot encrypt"));
+    try {
+      await expect(backend.upsertSummary("conv_1", "New private fact.", "m3", 4)).rejects.toThrow(
+        "Cannot encrypt"
+      );
+      expect(await getConversationSummaryOp(summaryCtx, "conv_1")).toEqual(before);
+    } finally {
+      encrypt.mockRestore();
+    }
   });
 
   async function expectCurrentHistory(): Promise<void> {
