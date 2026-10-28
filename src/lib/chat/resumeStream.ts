@@ -181,6 +181,8 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
   let watchdog: ReturnType<typeof setTimeout> | undefined;
   let idleFired = false;
   let callerAborted = false;
+  let playbackAborted = false;
+  let draining = false;
   let settled = false;
   const idleEnabled =
     idleTimeoutMs > 0 && idleTimeoutMs !== Infinity && typeof setTimeout === "function";
@@ -202,6 +204,8 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     callerAborted ? "Resume aborted" : idleFired ? "Resume timed out" : "Resume aborted";
   const onCallerAbort = () => {
     callerAborted = true;
+    playbackAborted =
+      draining && (contentSmoother.hasPendingOutput || thinkingSmoother.hasPendingOutput);
     contentSmoother.destroy();
     thinkingSmoother.destroy();
     disarmWatchdog();
@@ -307,18 +311,20 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
   disarmWatchdog();
 
   try {
-    if (combinedSignal.aborted) return buildInterrupted(abortMessage());
+    if (idleFired) return buildInterrupted(abortMessage());
     if (accumulator.toolCalls.size > 0) {
       return buildInterrupted("Stream ended with a pending tool request");
     }
 
+    draining = true;
     await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
-    if (combinedSignal.aborted) return buildInterrupted(abortMessage());
+    if (playbackAborted) return buildInterrupted(abortMessage());
     const response = strategy.buildFinalResponse(accumulator);
     const deliveredOutput = emittedOutput || (accumulator.toolCallEvents?.length ?? 0) > 0;
     if (onFinish && deliveredOutput) onFinish(response);
     return { data: response, error: null, interrupted: false, empty: !deliveredOutput };
   } finally {
+    draining = false;
     cleanup();
   }
 }

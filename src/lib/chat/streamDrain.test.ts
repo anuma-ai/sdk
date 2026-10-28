@@ -10,12 +10,21 @@ function startStream(
   phase: (typeof phases)[number],
   options: Pick<
     RunToolLoopOptions,
-    "signal" | "detachSignal" | "onData" | "onThinking" | "onFinish" | "onError"
+    | "signal"
+    | "detachSignal"
+    | "onData"
+    | "onThinking"
+    | "onFinish"
+    | "onError"
+    | "smoothing"
+    | "idleTimeoutMs"
+    | "resumable"
   >,
   onStreamEnd?: () => void
 ) {
   let requests = 0;
-  const transport: StreamingTransport = () => {
+  const transport: StreamingTransport = (request) => {
+    request.onStreamMeta?.({ inferenceId: "inf" });
     const toolRequest = phase === "continuation" && requests++ === 0;
     return {
       stream: (async function* () {
@@ -44,11 +53,11 @@ function startStream(
     };
   };
   const shared = {
-    ...options,
     token: "token",
     transport,
     smoothing: { enabled: true, minSpeed: 1000, maxSpeed: 1000 },
     idleTimeoutMs: 50,
+    ...options,
   };
 
   return phase === "replay"
@@ -149,7 +158,7 @@ describe("stream drain cancellation", () => {
     expect(onFinish).toHaveBeenCalledOnce();
   });
 
-  it.each(phases)("handles an abort before the %s drain starts", async (phase) => {
+  it.each(phases)("preserves success when an abort precedes the %s drain", async (phase) => {
     const caller = new AbortController();
     const onFinish = vi.fn();
     let settled = false;
@@ -163,10 +172,71 @@ describe("stream drain cancellation", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(settled).toBe(true);
-    expect((await promise).error).toBe(phase === "replay" ? "Resume aborted" : "Request aborted");
-    expect(onFinish).not.toHaveBeenCalled();
+    expect((await promise).error).toBeNull();
+    expect(onFinish).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  describe.each([false, true])("smoothing enabled: %s", (enabled) => {
+    it.each(phases)("preserves the completed %s response on a late abort", async (phase) => {
+      const caller = new AbortController();
+      const onData = vi.fn<(text: string) => void>();
+      const onThinking = vi.fn<(text: string) => void>();
+      const onFinish = vi.fn();
+      const onError = vi.fn();
+      const promise = startStream(
+        phase,
+        {
+          signal: caller.signal,
+          smoothing: { enabled, minSpeed: 1000, maxSpeed: 1000 },
+          idleTimeoutMs: 0,
+          onData,
+          onThinking,
+          onFinish,
+          onError,
+        },
+        () => {
+          vi.advanceTimersByTime(12_000);
+          caller.abort();
+        }
+      );
+
+      await vi.runAllTimersAsync();
+
+      const result = await promise;
+      expect(result.error).toBeNull();
+      if (phase === "replay") expect(result).toHaveProperty("interrupted", false);
+      expect(onData.mock.calls.map(([text]) => text).join("")).toBe(bufferedText);
+      expect(onThinking.mock.calls.map(([text]) => text).join("")).toContain(bufferedText);
+      expect(onFinish).toHaveBeenCalledOnce();
+      expect(onError).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+  });
+
+  it.each(phases)(
+    "preserves the completed %s response when its last callback aborts",
+    async (phase) => {
+      const caller = new AbortController();
+      const onFinish = vi.fn();
+      let thinking = "";
+      const promise = startStream(phase, {
+        signal: caller.signal,
+        onFinish,
+        onThinking: (text) => {
+          thinking += text;
+          if (thinking.endsWith(bufferedText)) caller.abort();
+        },
+      });
+
+      await vi.runAllTimersAsync();
+
+      expect(caller.signal.aborted).toBe(true);
+      expect((await promise).error).toBeNull();
+      expect(onFinish).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+    }
+  );
 
   it.each(["initial", "continuation"] as const)(
     "flushes the %s drain when the caller detaches",
@@ -179,6 +249,7 @@ describe("stream drain cancellation", () => {
       const promise = startStream(phase, {
         signal: caller.signal,
         detachSignal: detach.signal,
+        resumable: true,
         onData,
         onThinking,
         onFinish,
@@ -188,10 +259,13 @@ describe("stream drain cancellation", () => {
       detach.abort();
       await vi.advanceTimersByTimeAsync(0);
 
-      expect(await promise).toMatchObject({ error: "Request detached", detached: true });
+      const result = await promise;
+      expect(result.error).toBeNull();
+      expect(result).not.toHaveProperty("detached");
+      expect(result).not.toHaveProperty("resume");
       expect(onData.mock.calls.map(([text]) => text).join("")).toBe(bufferedText);
       expect(onThinking.mock.calls.map(([text]) => text).join("")).toContain(bufferedText);
-      expect(onFinish).not.toHaveBeenCalled();
+      expect(onFinish).toHaveBeenCalledOnce();
       expect(vi.getTimerCount()).toBe(0);
     }
   );

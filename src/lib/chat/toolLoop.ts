@@ -1232,18 +1232,22 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       acc: ReturnType<typeof createStreamAccumulator>,
       smoothers: StreamSmoother[]
     ): Promise<RunToolLoopResult | undefined> => {
-      const onAbort = () => {
+      let playbackAborted = false;
+      const stopPlayback = () => {
         for (const smoother of smoothers) {
           if (isDetach()) smoother.flush();
           else smoother.destroy();
         }
       };
+      const onAbort = () => {
+        playbackAborted = !isDetach() && smoothers.some((smoother) => smoother.hasPendingOutput);
+        stopPlayback();
+      };
       combinedSignal?.addEventListener("abort", onAbort, { once: true });
       try {
-        if (combinedSignal?.aborted) onAbort();
+        if (combinedSignal?.aborted) stopPlayback();
         await Promise.all(smoothers.map((smoother) => smoother.drain()));
-        if (!combinedSignal?.aborted) return;
-        if (isDetach()) return await returnDetached(acc, smoothers);
+        if (!playbackAborted) return;
         await fireAfterModelCall(buildModelCallEndPayload(acc, { error: "aborted" }));
         await fireRunError({ error: "Request aborted", stage: "model" });
         return {
