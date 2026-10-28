@@ -75,6 +75,8 @@ export default tseslint.config(
       "dist/**",
       "src/client/**/*",
       "!src/client/sdk.gen.ts",
+      "!src/client/core/",
+      "!src/client/core/bodySerializer.gen.ts",
       "docs/**",
       "coverage/**",
       "scripts/**/*",
