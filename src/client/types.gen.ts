@@ -12865,10 +12865,7 @@ export type GetOauthConsentResponses = {
 export type GetOauthConsentResponse = GetOauthConsentResponses[keyof GetOauthConsentResponses];
 
 export type PostOauthConsentData = {
-    /**
-     * Daily spending cap in USD
-     */
-    body?: number;
+    body?: string;
     path?: never;
     query?: never;
     url: '/oauth/consent';

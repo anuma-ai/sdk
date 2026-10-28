@@ -2,7 +2,7 @@
 
 > **GetReferralRewardsErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:13142](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13142)
+Defined in: [src/client/types.gen.ts:13139](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13139)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:13142](https://github.com/anuma-ai/sdk/blob
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:13146](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13146)
+Defined in: [src/client/types.gen.ts:13143](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13143)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:13150](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13150)
+Defined in: [src/client/types.gen.ts:13147](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13147)
 
 Internal Server Error

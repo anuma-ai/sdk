@@ -84,6 +84,16 @@ const patches = [
 `,
   },
   {
+    file: "src/client/types.gen.ts",
+    find: `export type PostOauthConsentData = {
+    /**
+     * Daily spending cap in USD
+     */
+    body?: number;`,
+    replace: `export type PostOauthConsentData = {
+    body?: string;`,
+  },
+  {
     file: "src/client/sdk.gen.ts",
     find: "import { client } from './client.gen';",
     replace: `import { client } from './client.gen';
