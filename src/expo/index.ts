@@ -167,6 +167,7 @@ export {
   type ChatAccountState,
   type ChatAttachment,
   type ChatAttachments,
+  type ChatCacheStorage,
   type ChatChanges,
   type ChatImport,
   type ChatJson,
