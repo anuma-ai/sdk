@@ -1,17 +1,17 @@
 // @vitest-environment happy-dom
 import { Database, Model, Q } from "@nozbe/watermelondb";
-import type { WriterInterface } from "@nozbe/watermelondb/Database/WorkQueue";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
+import type { WriterInterface } from "@nozbe/watermelondb/Database/WorkQueue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { extractAndLinkEntitiesForMemoriesOp } from "../../memory/topicExtract";
+import type { Entity, MemoryEntity } from "../entities/models";
 import * as entityOps from "../entities/operations";
 import {
   type EntityOperationsContext,
   linkMemoryEntitiesOp,
   replaceMemoryEntitiesGuardedOp,
 } from "../entities/operations";
-import type { Entity, MemoryEntity } from "../entities/models";
 import { parseTopics, type StoredTopic } from "../entities/types";
 import { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import type { VaultMemory } from "./models";
@@ -132,7 +132,10 @@ function watchPrepareBatchTicks(): TickWatch {
   let epoch = 0;
   const preparedAt = new Map<Model, number>();
 
-  const realPrepare = Model.prototype.prepareUpdate;
+  const modelPrototype: {
+    prepareUpdate: (this: Model, updater?: (record: Model) => void) => Model;
+  } = Model.prototype;
+  const realPrepare = modelPrototype.prepareUpdate;
   const prepareSpy = vi.spyOn(Model.prototype, "prepareUpdate").mockImplementation(function (
     this: Model,
     updater?: (record: never) => void
@@ -175,7 +178,7 @@ describe("schema v42", () => {
   });
 
   it("exposes topics + topics_updated_at on a fresh database", async () => {
-    const columns = sdkSchema.tables.memory_vault!.columns;
+    const columns = sdkSchema.tables.memory_vault.columns;
     expect(columns.topics).toMatchObject({ name: "topics", type: "string", isOptional: true });
     expect(columns.topics_updated_at).toMatchObject({
       name: "topics_updated_at",
@@ -687,7 +690,7 @@ describe("relinkMemoryTopicsOp", () => {
     expect(relinked).toEqual([restored]);
     expect(await linkedNamesOf(restored)).toEqual(originNames);
     const acme = await entityCtx.entityCollection.query(Q.where("canonical_name", "acme")).fetch();
-    expect(acme[0]!.kind).toBe("organization");
+    expect(acme[0].kind).toBe("organization");
   });
 
   it("relinks a curated memory and leaves topics_user_managed alone", async () => {
@@ -931,9 +934,10 @@ describe("pre-v42 restore damage", () => {
   function llmReturning(memories: Array<{ id: string; entities: unknown[] }>): typeof fetch {
     return vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({
-        choices: [{ message: { content: JSON.stringify({ memories }) } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: JSON.stringify({ memories }) } }],
+        }),
     }) as unknown as typeof fetch;
   }
 
@@ -1164,7 +1168,7 @@ describe("pre-v42 restore damage", () => {
     expect(stillFlagged).toHaveLength(1);
 
     await getMemoriesNeedingTopicExtractionOp(ctx);
-    expect((await rowOf(stillFlagged[0]!)).topicsUserManaged).toBe(false);
+    expect((await rowOf(stillFlagged[0])).topicsUserManaged).toBe(false);
   });
 
   it("caps the repair under limit and drains it across sweeps", async () => {
