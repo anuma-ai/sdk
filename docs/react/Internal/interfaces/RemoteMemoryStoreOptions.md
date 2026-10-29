@@ -1,6 +1,6 @@
 # RemoteMemoryStoreOptions
 
-Defined in: [src/lib/memory/store/remoteStore.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#78)
+Defined in: [src/lib/memory/store/remoteStore.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#77)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/remoteStore.ts:78](https://github.com/anuma-ai
 
 > `optional` **activity**: `object`
 
-Defined in: [src/lib/memory/store/remoteStore.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#85)
+Defined in: [src/lib/memory/store/remoteStore.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#84)
 
 **isActive()**
 
@@ -61,7 +61,7 @@ Defined in: [src/lib/memory/store/remoteStore.ts:85](https://github.com/anuma-ai
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
 
-Defined in: [src/lib/memory/store/remoteStore.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#80)
+Defined in: [src/lib/memory/store/remoteStore.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#79)
 
 ***
 
@@ -69,7 +69,7 @@ Defined in: [src/lib/memory/store/remoteStore.ts:80](https://github.com/anuma-ai
 
 > `optional` **graphRanking**: (`query`: `string`, `traverse`: `boolean`, `options`: [`RecallOptions`](RecallOptions.md)) => `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/remoteStore.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#82)
+Defined in: [src/lib/memory/store/remoteStore.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#81)
 
 Defaults to ranking memories by how many query entities their topics name.
 
@@ -132,7 +132,7 @@ Defaults to ranking memories by how many query entities their topics name.
 
 > **persistence**: [`RemoteMemoryPersistence`](RemoteMemoryPersistence.md)
 
-Defined in: [src/lib/memory/store/remoteStore.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#79)
+Defined in: [src/lib/memory/store/remoteStore.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#78)
 
 ***
 
@@ -140,7 +140,7 @@ Defined in: [src/lib/memory/store/remoteStore.ts:79](https://github.com/anuma-ai
 
 > `optional` **pollIntervalMs**: `number`
 
-Defined in: [src/lib/memory/store/remoteStore.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#84)
+Defined in: [src/lib/memory/store/remoteStore.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#83)
 
 ***
 
@@ -148,7 +148,7 @@ Defined in: [src/lib/memory/store/remoteStore.ts:84](https://github.com/anuma-ai
 
 > `optional` **subscribeChanges**: (`onChange`: (`connected`: `boolean`) => `void`) => () => `void`
 
-Defined in: [src/lib/memory/store/remoteStore.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#90)
+Defined in: [src/lib/memory/store/remoteStore.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#89)
 
 Report connection state on subscribe/reconnect and true on each account memory change.
 
@@ -191,7 +191,7 @@ Report connection state on subscribe/reconnect and true on each account memory c
 
 > `optional` **temporalRanking**: (`query`: `string`, `now?`: `number`) => `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/remoteStore.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#83)
+Defined in: [src/lib/memory/store/remoteStore.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteStore.ts#82)
 
 **Parameters**
 
