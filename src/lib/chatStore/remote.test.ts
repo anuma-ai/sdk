@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
 import { createRemoteChatStore } from "./remote";
 import { type ChatRecord, ChatStoreError, type RemoteChatStoreOptions } from "./types";
+import { messageData, toMessage } from "./vaultRecords";
 
 beforeAll(() => {
   vi.stubGlobal("crypto", webcrypto);
@@ -383,5 +384,104 @@ describe("encrypted remote ChatStore", () => {
     });
     s.rows.get("conversation/chat")!.record.payload = "enc:v3:" + "ff".repeat(28);
     await expect(s.store.list({ kind: "conversation" })).rejects.toThrow();
+  });
+
+  it("seals Anuma turn bubbles and the read marker inside the payload and decodes them in order", async () => {
+    const s = await setup();
+    const anumaConversation: ChatRecord = {
+      ...conversation("anuma-1on1"),
+      data: { title: "Anuma", lastActivityAt: 5, anuma: { lastReadSortKey: 4 } },
+    };
+    const bubbles = ["meet ava", "an aries who digs coffee", "say hi?"];
+    const turn: ChatRecord = {
+      kind: "message",
+      id: "intro-7",
+      conversationId: "anuma-1on1",
+      sortKey: 6,
+      createdAt: 5,
+      updatedAt: 5,
+      isDeleted: false,
+      data: messageData({
+        conversationId: "anuma-1on1",
+        role: "assistant",
+        content: bubbles.join("\n\n"),
+        anuma: { turnId: "daily-turn-7", bubbles, origin: "intro" },
+      }),
+    };
+    await s.store.putMany([
+      { record: anumaConversation, expectedVersion: 0 },
+      { record: turn, expectedVersion: 0 },
+    ]);
+    for (const secret of [
+      "meet ava",
+      "digs coffee",
+      "say hi?",
+      "daily-turn-7",
+      "lastReadSortKey",
+      "bubbles",
+      "turnId",
+    ])
+      expect(s.bodies[0]).not.toContain(secret);
+    const fresh = await createRemoteChatStore(s.options);
+    const stored = await fresh.get("message", "intro-7");
+    expect(stored?.record).toEqual(turn);
+    expect(toMessage(stored!.record).anuma).toEqual({
+      turnId: "daily-turn-7",
+      bubbles,
+      origin: "intro",
+    });
+    expect((await fresh.get("conversation", "anuma-1on1"))?.record.data.anuma).toEqual({
+      lastReadSortKey: 4,
+    });
+  });
+
+  it("decodes records written before Anuma fields existed exactly as before", async () => {
+    const s = await setup();
+    const old: ChatRecord = {
+      kind: "message",
+      id: "old",
+      conversationId: "chat",
+      sortKey: 2,
+      createdAt: 1,
+      updatedAt: 1,
+      isDeleted: false,
+      data: { role: "assistant", content: "hello", model: "m" },
+    };
+    const corrupt: ChatRecord = {
+      ...old,
+      id: "corrupt",
+      data: { ...old.data, anuma: { turnId: "t", bubbles: ["a", "b", "c", "d"] } },
+    };
+    await s.store.putMany([
+      { record: conversation(), expectedVersion: 0 },
+      { record: old, expectedVersion: 0 },
+      { record: corrupt, expectedVersion: 0 },
+    ]);
+    const fresh = await createRemoteChatStore(s.options);
+    const decoded = toMessage((await fresh.get("message", "old"))!.record);
+    expect(decoded).not.toHaveProperty("anuma");
+    expect(decoded).toMatchObject({
+      role: "assistant",
+      content: "hello",
+      model: "m",
+      messageId: 2,
+    });
+    expect(Object.keys(decoded).sort()).toEqual(
+      [
+        "content",
+        "conversationId",
+        "createdAt",
+        "messageId",
+        "model",
+        "role",
+        "uniqueId",
+        "updatedAt",
+      ].sort()
+    );
+    expect(toMessage((await fresh.get("message", "corrupt"))!.record)).not.toHaveProperty("anuma");
+    expect(messageData({ conversationId: "chat", role: "user", content: "hi" })).toEqual({
+      role: "user",
+      content: "hi",
+    });
   });
 });

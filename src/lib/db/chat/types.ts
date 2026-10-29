@@ -100,6 +100,16 @@ export type MessageFeedback = "like" | "dislike" | null;
  */
 export type MessageOrigin = "tool_result" | "chunks_discarded" | "message";
 
+/** Why an Anuma 1:1 turn exists: a daily intro or a reply to the user. */
+export type AnumaTurnOrigin = "intro" | "reply";
+
+/** One Anuma 1:1 turn: 1-3 ordered bubbles sealed inside the message payload. */
+export interface AnumaTurn {
+  turnId: string;
+  bubbles?: string[];
+  origin?: AnumaTurnOrigin;
+}
+
 /**
  * Metadata for files attached to messages.
  *
@@ -265,6 +275,8 @@ export interface StoredMessage {
   toolCallEvents?: LlmapiToolCallEvent[];
   /** Provenance for synthetic rows; undefined for typed messages and pre-v44 rows */
   origin?: MessageOrigin;
+  /** Anuma 1:1 turn fields; only vault chat backends store them. */
+  anuma?: AnumaTurn;
   /**
    * Set when `content` could not be decrypted on read (#561).
    * The `content` field still holds the original ciphertext — never a
@@ -444,6 +456,8 @@ export interface CreateMessageOptions {
   toolCallEvents?: LlmapiToolCallEvent[];
   /** Provenance for synthetic rows; set by the producer, never by user input */
   origin?: MessageOrigin;
+  /** Anuma 1:1 turn fields; only vault chat backends store them. */
+  anuma?: AnumaTurn;
   /**
    * Optional pre-generated unique ID for this message.
    * When provided, used as the WatermelonDB record ID instead of auto-generating one.
