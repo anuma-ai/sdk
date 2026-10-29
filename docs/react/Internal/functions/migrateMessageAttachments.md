@@ -2,7 +2,7 @@
 
 > **migrateMessageAttachments**(`options`: [`MessageAttachmentMigrationOptions`](../interfaces/MessageAttachmentMigrationOptions.md)): `Promise`<[`MessageAttachmentMigrationResult`](../interfaces/MessageAttachmentMigrationResult.md)>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:367](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#367)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:372](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#372)
 
 Copies a message's local files into vault and records their ids on the message; safe to rerun after a crash without uploading a file twice.
 

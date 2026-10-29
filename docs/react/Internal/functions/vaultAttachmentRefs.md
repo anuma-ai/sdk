@@ -2,7 +2,7 @@
 
 > **vaultAttachmentRefs**(`record`: `Pick`<[`ChatRecord`](../interfaces/ChatRecord.md), `"data"`>): [`VaultAttachmentRef`](../interfaces/VaultAttachmentRef.md)\[]
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:357](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#357)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:362](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#362)
 
 The vault attachment refs a message record carries; malformed entries are left out.
 

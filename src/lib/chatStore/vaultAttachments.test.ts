@@ -647,7 +647,13 @@ describe("migrateMessageAttachments", () => {
       oversized: [],
       deferred: [],
     });
-    expect(s.vault.requests.slice(requests).map((r) => r.method)).toEqual(["GET"]);
+    expect(
+      s.vault.requests.slice(requests).map((r) => `${r.method} ${r.path.split("?")[0]}`)
+    ).toEqual([
+      "GET /api/private-chats/records/message/m1",
+      ...first.refs.map((r) => `GET /api/private-chats/attachments/${r.attachmentId}`),
+    ]);
+    expect(s.vault.puts()).toHaveLength(2);
   });
 
   it("resumes after a crash between upload and commit without uploading again", async () => {
@@ -812,6 +818,87 @@ describe("migrateMessageAttachments", () => {
     const second = await s.run([file("a", "")]);
     expect(second.uploaded).toBe(0);
     expect(s.vault.puts()).toHaveLength(1);
+  });
+
+  it("commits a recorded attachment the app never committed", async () => {
+    const s = await setup();
+    const attachmentId = await s.attachments.upload(bytes("alpha"));
+    const ref = { attachmentId, fileId: "a", name: "a.png", type: "image/png", size: 5 };
+    const current = s.vault.records.get("message/m1")!;
+    await s.store.putMany([
+      {
+        record: message("m1", { fileIds: ["a"], vaultAttachments: [ref] }),
+        expectedVersion: current.version,
+      },
+    ]);
+    const result = await s.run([file("a", "alpha")]);
+    expect(result).toMatchObject({ uploaded: 0, refs: [ref], deferred: [] });
+    expect(s.vault.attachments.get(attachmentId)).toMatchObject({
+      state: "committed",
+      ownerId: "m1",
+    });
+    expect(s.vault.puts()).toHaveLength(1);
+  });
+
+  it("waits on a recorded upload that may still land, then replaces it once abandoned", async () => {
+    const s = await setup();
+    const { attachment } = await s.store.attachments.create(34);
+    const ref = {
+      attachmentId: attachment.id,
+      fileId: "a",
+      name: "a.png",
+      type: "image/png",
+      size: 5,
+    };
+    const current = s.vault.records.get("message/m1")!;
+    await s.store.putMany([
+      {
+        record: message("m1", { fileIds: ["a"], vaultAttachments: [ref] }),
+        expectedVersion: current.version,
+      },
+    ]);
+    expect(await s.run([file("a", "alpha")])).toMatchObject({ uploaded: 0, deferred: ["a"] });
+    expect(s.vault.attachments.has(attachment.id)).toBe(true);
+
+    s.vault.advance(16 * 60_000);
+    const result = await s.run([file("a", "alpha")]);
+    expect(result.uploaded).toBe(1);
+    expect(result.refs).toHaveLength(1);
+    expect(result.refs[0].attachmentId).not.toBe(attachment.id);
+    expect(s.vault.attachments.has(attachment.id)).toBe(false);
+    expect(await s.attachments.read(result.refs[0].attachmentId)).toEqual(bytes("alpha"));
+  });
+
+  it("re-uploads and replaces a recorded attachment vault no longer holds", async () => {
+    const s = await setup();
+    const first = await s.run([file("a", "alpha")]);
+    s.vault.attachments.delete(first.refs[0].attachmentId);
+    s.vault.blobs.delete(first.refs[0].attachmentId);
+
+    const result = await s.run([file("a", "alpha")]);
+    expect(result.uploaded).toBe(1);
+    expect(result.refs).toHaveLength(1);
+    expect(result.refs[0].attachmentId).not.toBe(first.refs[0].attachmentId);
+    expect(s.vault.attachments.get(result.refs[0].attachmentId)).toMatchObject({
+      state: "committed",
+    });
+  });
+
+  it("does not delete a reservation another run already committed when its own upload fails", async () => {
+    const vault = createVault();
+    const d = await device(vault, { retries: 0 });
+    await putMessage(d.store, "m1");
+    vault.faults.push((r) => {
+      if (r.host !== "r2.test" || r.method !== "PUT") return undefined;
+      const id = r.path.split("?")[0].split("/").pop()!;
+      vault.blobs.set(id, r.body!);
+      return (async () => {
+        await d.attachments.commit(id, { kind: "message", id: "m1" });
+        throw new TypeError("response lost");
+      })();
+    });
+    await expect(d.attachments.upload(bytes("landed"))).rejects.toThrow("response lost");
+    expect([...vault.attachments.values()]).toMatchObject([{ state: "committed", ownerId: "m1" }]);
   });
 
   it("reports files missing on the device or too large for vault and keeps going", async () => {

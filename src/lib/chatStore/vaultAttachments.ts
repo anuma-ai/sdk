@@ -241,6 +241,11 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
     await cache?.delete(attachmentId).catch(() => undefined);
   };
 
+  const discardPending = async (attachmentId: string) => {
+    const found = await store.attachments.get(attachmentId);
+    if (found?.attachment.state === "pending") await remove(attachmentId);
+  };
+
   return {
     async upload(bytes, uploadOptions) {
       const signal = uploadOptions?.signal;
@@ -261,7 +266,7 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
           const frame = await seal(bytes, attachment.id);
           if ((await put(upload, frame, signal)) === "stored") return attachment.id;
         } catch (error) {
-          await remove(attachment.id).catch(() => undefined);
+          await discardPending(attachment.id).catch(() => undefined);
           throw error;
         }
         await remove(attachment.id).catch(() => undefined);
@@ -379,14 +384,12 @@ export async function migrateMessageAttachments(
   const uploadable = (attachment: ChatAttachment) =>
     attachment.state === "pending" && now() < Date.parse(attachment.createdAt) + uploadWindowMs;
 
-  const journaled = async (key: string) => {
-    const reserved = await journal.get(key);
-    if (!reserved || !attachmentIdPattern.test(reserved)) return null;
-    return (await store.attachments.get(reserved, signal))?.attachment ?? null;
-  };
+  const lookup = async (attachmentId: string | null | undefined) =>
+    attachmentId && attachmentIdPattern.test(attachmentId)
+      ? ((await store.attachments.get(attachmentId, signal))?.attachment ?? null)
+      : null;
 
-  const resume = async (key: string): Promise<ChatAttachment | "busy" | null> => {
-    const found = await journaled(key);
+  const bind = async (found: ChatAttachment | null): Promise<ChatAttachment | "busy" | null> => {
     if (!found) return null;
     if (found.state === "committed")
       return found.ownerKind === owner.kind && found.ownerId === owner.id ? found : null;
@@ -406,22 +409,31 @@ export async function migrateMessageAttachments(
   const missing: string[] = [];
   const oversized: string[] = [];
   const deferred: string[] = [];
+  const stale = new Set<string>();
   let uploaded = 0;
   for (const file of options.files) {
     signal?.throwIfAborted();
     const key = journalKey(messageId, file.fileId);
     const recorded = present.get(file.fileId);
     if (recorded) {
-      const stray = await journaled(key);
-      if (stray && stray.id !== recorded.attachmentId) {
-        if (uploadable(stray)) continue;
-        await attachments.delete(stray.id, signal);
+      const bound = await bind(await lookup(recorded.attachmentId));
+      if (bound === "busy") {
+        deferred.push(file.fileId);
+        continue;
       }
-      settled.push(key);
-      continue;
+      if (bound) {
+        const stray = await lookup(await journal.get(key));
+        if (stray && stray.id !== recorded.attachmentId) {
+          if (uploadable(stray)) continue;
+          await attachments.delete(stray.id, signal);
+        }
+        settled.push(key);
+        continue;
+      }
+      stale.add(recorded.attachmentId);
     }
     const meta = { fileId: file.fileId, name: file.name, type: file.type };
-    const resumed = await resume(key);
+    const resumed = await bind(await lookup(await journal.get(key)));
     if (resumed === "busy") {
       deferred.push(file.fileId);
       continue;
@@ -456,7 +468,8 @@ export async function migrateMessageAttachments(
     superseded.length = 0;
     for (const ref of added) {
       const prior = refs.get(ref.fileId);
-      if (prior && prior.attachmentId !== ref.attachmentId) superseded.push(ref.attachmentId);
+      if (prior && prior.attachmentId !== ref.attachmentId && !stale.has(prior.attachmentId))
+        superseded.push(ref.attachmentId);
       else refs.set(ref.fileId, ref);
     }
     if (superseded.length === added.length) break;
