@@ -29,7 +29,6 @@ import { getLogger } from "../../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants.js";
 import {
   EmbeddingHttpError,
-  generateEmbedding,
   generateEmbeddings,
   isFatalEmbeddingError,
 } from "../../memoryEngine/embeddings.js";
@@ -558,7 +557,8 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     change: (before: RemoteMemoryRow) => Change,
     edit: RowEdit,
     leaseToken?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    includeEmbeddings = false
   ) => {
     const saved = new Map<string, RemoteMemoryRecord>();
     const failed = new Map<string, unknown>();
@@ -568,7 +568,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         const writes: { before: RemoteMemoryRecord; memory: RemoteMemoryRow }[] = [];
         let read: Awaited<ReturnType<typeof readEveryState>>;
         try {
-          read = await readEveryState(slice, signal);
+          read = await readEveryState(slice, signal, includeEmbeddings);
         } catch (error) {
           signal?.throwIfAborted();
           for (const id of slice) failed.set(id, error);
@@ -630,23 +630,52 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     return { saved, failed };
   };
 
-  const embedInBackground = ({ memory: { memory_id: id, content } }: RemoteMemoryRecord) => {
-    generateEmbedding(content, embeddingOptions)
-      .then((vector) =>
-        serialized(id, async () => {
-          const current = await live(id);
-          if (!current || current.memory.content !== content || current.memory.embedding?.length)
-            return;
-          const saved = await persistence.put(
-            { ...current.memory, embedding: storedVector(vector), embedding_model: model },
-            current
+  const pendingEmbeddings = new Map<string, string>();
+  let embeddingActive = false;
+  const drainEmbeddings = async () => {
+    try {
+      while (pendingEmbeddings.size) {
+        const batch = new Map<string, string>();
+        for (const [id, content] of pendingEmbeddings) {
+          pendingEmbeddings.delete(id);
+          batch.set(id, content);
+          if (batch.size === MAX_BATCH) break;
+        }
+        try {
+          const vectors = await generateEmbeddings([...batch.values()], embeddingOptions);
+          const embeddings = new Map(
+            [...batch.keys()].map((id, i) => [id, storedVector(vectors[i])])
           );
-          notify("embedding", [saved]);
-        })
-      )
-      .catch((error: unknown) => {
-        getLogger().warn("[memory/remote-store] Failed to embed memory:", error);
-      });
+          const { failed } = await mutateMany(
+            [...batch.keys()],
+            () => "embedding",
+            (memory) =>
+              memory.content !== batch.get(memory.memory_id) || memory.embedding?.length
+                ? null
+                : {
+                    ...memory,
+                    embedding: embeddings.get(memory.memory_id)!,
+                    embedding_model: model,
+                  },
+            undefined,
+            undefined,
+            true
+          );
+          for (const error of failed.values())
+            getLogger().warn("[memory/remote-store] Failed to embed memory:", error);
+        } catch (error) {
+          getLogger().warn("[memory/remote-store] Failed to embed memories:", error);
+        }
+      }
+    } finally {
+      embeddingActive = false;
+    }
+  };
+  const embedInBackground = (records: RemoteMemoryRecord[]) => {
+    for (const { memory } of records) pendingEmbeddings.set(memory.memory_id, memory.content);
+    if (embeddingActive || !pendingEmbeddings.size) return;
+    embeddingActive = true;
+    void drainEmbeddings();
   };
   const newRow = (input: MemoryCreate): RemoteMemoryRow => {
     const now = Date.now();
@@ -680,9 +709,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     };
   };
   const created = (records: RemoteMemoryRecord[], inputs: MemoryCreate[]) => {
-    records.forEach((record, i) => {
-      if (inputs[i].embedding === undefined) embedInBackground(record);
-    });
+    embedInBackground(records.filter((_, i) => inputs[i].embedding === undefined));
     notify("membership", records);
     return records.map((record) => stored(record.memory));
   };
@@ -713,7 +740,11 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   };
   const withKnownKinds = async (topics: StoredTopic[]) => topics.map(await knownKinds(topics));
 
-  const readEveryState = async (ids: readonly string[], signal?: AbortSignal) => {
+  const readEveryState = async (
+    ids: readonly string[],
+    signal?: AbortSignal,
+    includeEmbeddings = false
+  ) => {
     const records = new Map<string, RemoteMemoryRecord>();
     const unreadable = new Set<string>();
     for (const memory_ids of chunks(ids, MAX_QUERY_IDS)) {
@@ -725,6 +756,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           include_archived: true,
           include_quarantined: true,
           include_superseded: true,
+          ...(includeEmbeddings && { include_embeddings: true }),
           limit: 200,
           ...(signal && { signal }),
           ...(cursor && { cursor }),
@@ -1472,7 +1504,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         }
         return memory;
       });
-      if (saved && patch.embedding === undefined) embedInBackground(saved);
+      if (saved && patch.embedding === undefined) embedInBackground([saved]);
       return asStored(saved);
     },
     delete: async (id) =>
