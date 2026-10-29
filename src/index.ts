@@ -767,6 +767,11 @@ export {
   getToolCallEvents,
 } from "./lib/chat/useChat/strategies/types";
 export {
+  ANUMA_CONVERSATION_ID,
+  anumaLastReadSortKey,
+  type AnumaTurn,
+  anumaTurnContent,
+  type AnumaTurnOrigin,
   type ChatAccount,
   type ChatAccountState,
   type ChatAttachment,
@@ -787,7 +792,11 @@ export {
   type ChatStore,
   ChatStoreError,
   type ChatWrite,
+  countUnreadAnumaTurns,
   createRemoteChatStore,
+  ensureAnumaConversation,
+  markAnumaRead,
+  readAnumaTurn,
   type RemoteChatStoreOptions,
 } from "./lib/chatStore";
 export type { LazyStoredConversation } from "./lib/db/chat";

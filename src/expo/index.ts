@@ -163,6 +163,11 @@ export {
 } from "../lib/chat/webSearchClassifier";
 export { xhrTransport } from "../lib/chat/xhrTransport";
 export {
+  ANUMA_CONVERSATION_ID,
+  anumaLastReadSortKey,
+  type AnumaTurn,
+  anumaTurnContent,
+  type AnumaTurnOrigin,
   type ChatAccount,
   type ChatAccountState,
   type ChatAttachment,
@@ -189,9 +194,13 @@ export {
   type ChatStore,
   ChatStoreError,
   type ChatWrite,
+  countUnreadAnumaTurns,
   createRemoteChatStore,
   createVaultChatBackend,
+  ensureAnumaConversation,
+  markAnumaRead,
   migrateChatsToRemote,
+  readAnumaTurn,
   type RemoteChatStoreOptions,
   type VaultChatActivity,
   type VaultChatBackend,
