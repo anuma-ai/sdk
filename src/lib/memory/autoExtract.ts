@@ -7,7 +7,7 @@ import { findQuarantinedDuplicateOp } from "../db/memoryVault/operations.js";
 import { MemorySourceIneligibleError } from "../db/memoryVault/types.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
-import { isGenericEntityName } from "./entitySalience.js";
+import { isGenericEntityName, isIdentifierOrAmountEntityName } from "./entitySalience.js";
 import {
   classifyInjectionCandidates,
   type InjectionClassifierOptions,
@@ -452,7 +452,9 @@ function restoreCandidates(
           content: content.text,
           entities: c.entities.flatMap((e) => {
             const restored = redactor.restoreForStorage(e.name);
-            return restored.unresolved ? [] : [{ ...e, name: restored.text }];
+            return restored.unresolved || isIdentifierOrAmountEntityName(restored.text)
+              ? []
+              : [{ ...e, name: restored.text }];
           }),
         },
         unresolved: content.unresolved,
@@ -933,6 +935,10 @@ function validateCandidates(
   return out;
 }
 
+function isAcceptedEntityName(name: string): boolean {
+  return name.length > 0 && !isGenericEntityName(name) && !isIdentifierOrAmountEntityName(name);
+}
+
 /**
  * Parse the LLM's `entities` array into {@link ExtractedEntity}s. Accepts
  * either the current `{ name, kind }` object shape or a bare string (models
@@ -953,13 +959,13 @@ export function parseEntities(raw: unknown[]): ExtractedEntity[] {
   for (const e of raw) {
     if (typeof e === "string") {
       const name = e.trim();
-      if (name.length > 0 && !isGenericEntityName(name)) out.push({ name });
+      if (isAcceptedEntityName(name)) out.push({ name });
       continue;
     }
     if (typeof e !== "object" || e === null) continue;
     const obj = e as Record<string, unknown>;
     const name = typeof obj.name === "string" ? obj.name.trim() : "";
-    if (name.length === 0 || isGenericEntityName(name)) continue;
+    if (!isAcceptedEntityName(name)) continue;
     const kind =
       typeof obj.kind === "string" && (ENTITY_KINDS as readonly string[]).includes(obj.kind)
         ? (obj.kind as EntityKind)

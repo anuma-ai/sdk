@@ -172,3 +172,83 @@ const WEAK_MODIFIERS = new Set([
   "and",
   "or",
 ]);
+
+const PREFIXED_HEX = /^0x[0-9a-f]{16,}$/i;
+const BARE_HEX = /^[0-9a-f]{32,}$/i;
+const BASE58_STRING = /^[1-9A-HJ-NP-Za-km-z]{32,88}$/;
+const KEY_LIKE_MIN_LENGTH = 24;
+
+const NUMERIC_TOKEN =
+  /^[~≈+\-−]?(?:us\$|[$€£¥₹₿])?\d[\d,]*(?:\.\d+)?(?:k|mm|m|bn|b|t|x|%|[$€£¥₹₿])?$/i;
+const PLAIN_YEAR = /^(?:1\d{3}|20\d{2})$/;
+const TICKER = /^\$?[A-Z]{2,6}$/;
+
+const LEADING_CURRENCY_CODES = new Set(["usd", "eur", "gbp", "jpy", "cad", "aud", "chf", "cny"]);
+
+const AMOUNT_WORDS = new Set([
+  "usd",
+  "usdc",
+  "usdt",
+  "eur",
+  "gbp",
+  "sol",
+  "eth",
+  "btc",
+  "dollar",
+  "dollars",
+  "euro",
+  "euros",
+  "buck",
+  "bucks",
+  "k",
+  "thousand",
+  "million",
+  "billion",
+  "trillion",
+  "percent",
+  "share",
+  "shares",
+  "token",
+  "tokens",
+  "coin",
+  "coins",
+  "unit",
+  "units",
+  "position",
+  "balance",
+  "stake",
+  "holdings",
+  "of",
+]);
+
+function trimPunctuation(token: string): string {
+  return token.replace(/^[^\p{L}\p{N}$€£¥₹₿~≈+\-−]+|[^\p{L}\p{N}$€£¥₹₿%]+$/gu, "");
+}
+
+function isIdentifierToken(token: string): boolean {
+  if (PREFIXED_HEX.test(token) || BARE_HEX.test(token) || BASE58_STRING.test(token)) return true;
+  return token.length >= KEY_LIKE_MIN_LENGTH && /\p{L}/u.test(token) && /\p{N}/u.test(token);
+}
+
+function isAmountUnitToken(token: string): boolean {
+  return NUMERIC_TOKEN.test(token) || TICKER.test(token) || AMOUNT_WORDS.has(token.toLowerCase());
+}
+
+function isAmount(tokens: readonly string[]): boolean {
+  const start = LEADING_CURRENCY_CODES.has(tokens[0]?.toLowerCase() ?? "") ? 1 : 0;
+  const first = tokens[start];
+  if (first === undefined || !NUMERIC_TOKEN.test(first)) return false;
+  if (tokens.length === 1 && PLAIN_YEAR.test(first)) return false;
+  return tokens.slice(start + 1).every(isAmountUnitToken);
+}
+
+export function isIdentifierOrAmountEntityName(name: string): boolean {
+  const tokens = name
+    .trim()
+    .split(/\s+/)
+    .map(trimPunctuation)
+    .filter((token) => token.length > 0);
+  if (tokens.length === 0) return false;
+  if (tokens.some(isIdentifierToken)) return true;
+  return isAmount(tokens);
+}

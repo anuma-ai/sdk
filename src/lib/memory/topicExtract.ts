@@ -12,6 +12,7 @@ import {
   type ExtractedEntity,
   parseEntities,
 } from "./autoExtract.js";
+import { isIdentifierOrAmountEntityName } from "./entitySalience.js";
 import {
   callPortalJsonCompletion,
   type PortalLlmAuth,
@@ -33,6 +34,7 @@ Each memory is a short statement about the user. For each memory, list the NAMED
 Include only NAMED entities, skip generic/common nouns. A topic must identify a specific thing the user could recognize by name; if it would be equally true of thousands of unrelated memories, leave it out:
 - SKIP bare generic nouns even when the memory capitalizes them or a calendar entry is titled that way — "Home", "Work", "Meeting", "Lunch", "Birthday", "Appointment", "Trip", "Today", "Friday", "March" are NOT topics.
 - KEEP the specific thing instead, when the memory names one: "Blue Bottle on Valencia" over "cafe", "Chicago Marathon" over "event", "Hollowpoint Labs" over "work".
+- SKIP identifiers and numbers — addresses, hashes, keys, account or order numbers, balances, prices, amounts and position sizes are NOT topics. Use the general subject instead: "Solana" or "trading" rather than "3.5 SOL" or an address.
 - Prefer 0 entities over a weak one. A memory whose only candidate is a generic noun has NO entities.
 ${ENTITY_KIND_GUIDELINES}
 
@@ -215,7 +217,9 @@ export async function extractEntitiesForMemories(
 function restoreEntities(entities: ExtractedEntity[], redactor: PiiRedactor): ExtractedEntity[] {
   return entities.flatMap((e) => {
     const restored = redactor.restoreForStorage(e.name);
-    return restored.unresolved ? [] : [{ ...e, name: restored.text }];
+    return restored.unresolved || isIdentifierOrAmountEntityName(restored.text)
+      ? []
+      : [{ ...e, name: restored.text }];
   });
 }
 

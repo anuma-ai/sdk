@@ -1338,6 +1338,32 @@ describe("extractFacts — PII redaction", () => {
     expect(sent).toContain("[PHONE_1]");
   });
 
+  it("drops an entity whose placeholder restores to a key-like string", async () => {
+    const { fetchFn } = capturingFetch(
+      JSON.stringify({
+        candidates: [
+          {
+            content: "Uses Stripe for billing",
+            type: "ongoing_context",
+            confidence: 0.9,
+            sourceMessageIds: ["m1"],
+            entities: [
+              { name: "Stripe", kind: "organization", salience: "primary" },
+              { name: "[API_KEY_1]", kind: "thing" },
+            ],
+          },
+        ],
+      })
+    );
+    const result = await extractFacts(
+      [{ id: "m1", role: "user", content: "I use Stripe, key token_Ab3dE5fG7hJ9kL2mN4pQ6rS8" }],
+      { apiKey: "k", fetchFn, piiRedaction: true }
+    );
+    expect(result.map((c) => c.entities)).toEqual([
+      [{ name: "Stripe", kind: "organization", weight: 1 }],
+    ]);
+  });
+
   it("applies a configured NER detector to the transcript", async () => {
     const detector: NerDetector = {
       detect: async (text: string): Promise<PiiSpan[]> => {
