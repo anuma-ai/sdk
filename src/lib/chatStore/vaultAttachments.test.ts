@@ -381,15 +381,15 @@ describe("vault attachments", () => {
     await expect(open("f".repeat(32))).rejects.toThrow();
   });
 
-  it("rejects an empty or oversized file before reserving", async () => {
+  it("rejects an oversized file before reserving and stores an empty one", async () => {
     const vault = createVault();
     const { attachments } = await device(vault);
-    for (const size of [0, maxVaultAttachmentBytes + 1])
-      await expect(attachments.upload(new Uint8Array(size))).rejects.toMatchObject({
-        status: 413,
-        code: "attachment_too_large",
-      });
+    const oversized = attachments.upload(new Uint8Array(maxVaultAttachmentBytes + 1));
+    await expect(oversized).rejects.toBeInstanceOf(ChatStoreError);
+    await expect(oversized).rejects.toMatchObject({ status: 413, code: "attachment_too_large" });
     expect(vault.reservations()).toHaveLength(0);
+    const empty = await attachments.upload(new Uint8Array(0));
+    expect(vault.attachments.get(empty)?.size).toBe(29);
   });
 
   it("re-reserves when the upload URL expires before or during the upload", async () => {
@@ -612,7 +612,7 @@ describe("migrateMessageAttachments", () => {
 
     const requests = s.vault.requests.length;
     const second = await s.run();
-    expect(second).toEqual({ refs: first.refs, uploaded: 0, missing: [] });
+    expect(second).toEqual({ refs: first.refs, uploaded: 0, missing: [], oversized: [] });
     expect(s.vault.requests.slice(requests).map((r) => r.method)).toEqual(["GET"]);
   });
 
@@ -695,11 +695,17 @@ describe("migrateMessageAttachments", () => {
     expect(s.vault.puts()).toHaveLength(1);
   });
 
-  it("reports files missing on the device and keeps going", async () => {
+  it("reports files missing on the device or too large for vault and keeps going", async () => {
     const s = await setup();
-    const result = await s.run([file("a", null), file("b", "bravo")]);
+    const huge = {
+      ...file("c", null),
+      read: () => Promise.resolve(new Uint8Array(maxVaultAttachmentBytes + 1)),
+    };
+    const result = await s.run([file("a", null), huge, file("b", "bravo")]);
     expect(result.missing).toEqual(["a"]);
+    expect(result.oversized).toEqual(["c"]);
     expect(result.refs.map((r) => r.fileId)).toEqual(["b"]);
+    expect(s.vault.reservations()).toHaveLength(1);
   });
 
   it("merges refs into a message another writer changed meanwhile", async () => {
@@ -786,11 +792,5 @@ describe("message shape", () => {
       vaultAttachmentRefs({ data: { vaultAttachments: [{ attachmentId: "bad" }, ...refs] } })
     ).toEqual(refs);
     expect(vaultAttachmentRefs({ data: {} })).toEqual([]);
-  });
-
-  it("is a ChatStoreError for callers branching on codes", async () => {
-    const vault = createVault();
-    const { attachments } = await device(vault);
-    await expect(attachments.upload(new Uint8Array(0))).rejects.toBeInstanceOf(ChatStoreError);
   });
 });

@@ -243,13 +243,9 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
   return {
     async upload(bytes, uploadOptions) {
       const signal = uploadOptions?.signal;
-      if (
-        !(bytes instanceof Uint8Array) ||
-        bytes.length < 1 ||
-        bytes.length > maxVaultAttachmentBytes
-      )
+      if (!(bytes instanceof Uint8Array) || bytes.length > maxVaultAttachmentBytes)
         throw new ChatStoreError(
-          "Attachment is empty or larger than vault accepts",
+          "Attachment is larger than vault accepts",
           413,
           "attachment_too_large"
         );
@@ -335,6 +331,7 @@ export interface MessageAttachmentMigrationResult {
   refs: VaultAttachmentRef[];
   uploaded: number;
   missing: string[];
+  oversized: string[];
 }
 
 function validRef(value: unknown): value is VaultAttachmentRef {
@@ -397,6 +394,7 @@ export async function migrateMessageAttachments(
   const added: VaultAttachmentRef[] = [];
   const settled: string[] = [];
   const missing: string[] = [];
+  const oversized: string[] = [];
   let uploaded = 0;
   for (const file of options.files) {
     signal?.throwIfAborted();
@@ -415,6 +413,10 @@ export async function migrateMessageAttachments(
     const bytes = await file.read();
     if (!bytes) {
       missing.push(file.fileId);
+      continue;
+    }
+    if (bytes.length > maxVaultAttachmentBytes) {
+      oversized.push(file.fileId);
       continue;
     }
     const attachmentId = await attachments.upload(bytes, {
@@ -465,5 +467,5 @@ export async function migrateMessageAttachments(
   }
   for (const id of superseded) await attachments.delete(id, signal);
   for (const key of settled) await journal.set(key, null);
-  return { refs: vaultAttachmentRefs(snapshot.record), uploaded, missing };
+  return { refs: vaultAttachmentRefs(snapshot.record), uploaded, missing, oversized };
 }
