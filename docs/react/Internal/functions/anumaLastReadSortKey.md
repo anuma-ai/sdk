@@ -2,7 +2,7 @@
 
 > **anumaLastReadSortKey**(`conversation`: [`ChatRecord`](../interfaces/ChatRecord.md) | [`ChatSnapshot`](../interfaces/ChatSnapshot.md) | `null`): `number`
 
-Defined in: src/lib/chatStore/anuma.ts:23
+Defined in: [src/lib/chatStore/anuma.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/anuma.ts#23)
 
 The highest message sort key the user has read in the Anuma chat; 0 before anything was read.
 

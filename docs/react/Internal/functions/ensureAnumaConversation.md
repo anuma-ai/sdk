@@ -2,7 +2,7 @@
 
 > **ensureAnumaConversation**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `options`: `object`): `Promise`<[`ChatSnapshot`](../interfaces/ChatSnapshot.md)>
 
-Defined in: src/lib/chatStore/anuma.ts:42
+Defined in: [src/lib/chatStore/anuma.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/anuma.ts#42)
 
 Reads the Anuma conversation, creating it on first use; a device that loses the creation race reads the winner's record.
 

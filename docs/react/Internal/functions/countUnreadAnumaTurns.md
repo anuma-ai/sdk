@@ -2,7 +2,7 @@
 
 > **countUnreadAnumaTurns**(`messages`: readonly `Pick`<[`StoredMessage`](../interfaces/StoredMessage.md), `"uniqueId"` | `"role"` | `"anuma"` | `"messageId"`>\[], `lastReadSortKey`: `number`): `number`
 
-Defined in: src/lib/chatStore/anuma.ts:117
+Defined in: [src/lib/chatStore/anuma.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/anuma.ts#117)
 
 Counts Anuma turns the user has not read: assistant turns above both the read marker and the user's latest message.
 
