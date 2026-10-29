@@ -1,6 +1,6 @@
 # VaultAttachmentUploadOptions
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#47)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#48)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:47](https://github.com/anuma-
 
 > `optional` **onReserved**: (`attachmentId`: `string`) => `void` | `Promise`<`void`>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#50)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#51)
 
 Runs before any bytes leave the device, again for each new reservation.
 
@@ -47,4 +47,4 @@ Runs before any bytes leave the device, again for each new reservation.
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#48)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#49)

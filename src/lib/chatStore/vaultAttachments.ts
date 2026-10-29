@@ -17,6 +17,7 @@ const maxCiphertextBytes = 50 * 1024 * 1024;
 const expirySkewMs = 30_000;
 const maxRetryAfterMs = 30_000;
 const maxRefWrites = 5;
+const uploadWindowMs = 16 * 60_000;
 const attachmentIdPattern = /^[0-9a-f]{32}$/;
 
 /** The largest file vault stores, after the encryption frame is added. */
@@ -148,7 +149,7 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
   };
 
   const open = async (frame: Uint8Array, attachmentId: string) => {
-    if (frame.length <= frameOverhead || frame[0] !== frameVersion) invalidAttachment();
+    if (frame.length < frameOverhead || frame[0] !== frameVersion) invalidAttachment();
     try {
       return new Uint8Array(
         await crypto.subtle.decrypt(
@@ -212,12 +213,12 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
           headers: sendableHeaders(url.headers),
           signal,
         });
+        if (response.ok) return new Uint8Array(await response.arrayBuffer());
       } catch (error) {
         if (signal?.aborted || attempt >= retries) throw error;
         await pause(attempt, signal);
         continue;
       }
-      if (response.ok) return new Uint8Array(await response.arrayBuffer());
       await discardBody(response);
       if (response.status === 403) return "expired";
       if (response.status === 404) return "missing";
@@ -324,6 +325,7 @@ export interface MessageAttachmentMigrationOptions {
   /** The message's vault id (`StoredMessage.uniqueId`); vault must already hold it. */
   messageId: string;
   files: readonly LocalMessageAttachment[];
+  now?: () => number;
   signal?: AbortSignal;
 }
 
@@ -332,6 +334,8 @@ export interface MessageAttachmentMigrationResult {
   uploaded: number;
   missing: string[];
   oversized: string[];
+  /** File ids another run may still be uploading; rerun after 16 minutes. */
+  deferred: string[];
 }
 
 function validRef(value: unknown): value is VaultAttachmentRef {
@@ -345,7 +349,7 @@ function validRef(value: unknown): value is VaultAttachmentRef {
     typeof ref.name === "string" &&
     typeof ref.type === "string" &&
     Number.isSafeInteger(ref.size) &&
-    (ref.size as number) > 0
+    (ref.size as number) >= 0
   );
 }
 
@@ -364,29 +368,35 @@ export async function migrateMessageAttachments(
   options: MessageAttachmentMigrationOptions
 ): Promise<MessageAttachmentMigrationResult> {
   const { store, attachments, journal, messageId, signal } = options;
+  const now = options.now ?? Date.now;
   const owner: VaultAttachmentOwner = { kind: "message", id: messageId };
   const ownerGone = () =>
     new ChatStoreError("Message is not in vault", 409, "attachment_owner_not_found");
 
   let snapshot = await store.get("message", messageId, signal);
   if (!snapshot || snapshot.record.isDeleted) throw ownerGone();
-  const present = new Set(vaultAttachmentRefs(snapshot.record).map((r) => r.fileId));
+  const present = new Map(vaultAttachmentRefs(snapshot.record).map((r) => [r.fileId, r]));
+  const uploadable = (attachment: ChatAttachment) =>
+    attachment.state === "pending" && now() < Date.parse(attachment.createdAt) + uploadWindowMs;
 
-  const resume = async (key: string): Promise<ChatAttachment | null> => {
+  const journaled = async (key: string) => {
     const reserved = await journal.get(key);
     if (!reserved || !attachmentIdPattern.test(reserved)) return null;
-    const found = await store.attachments.get(reserved, signal);
+    return (await store.attachments.get(reserved, signal))?.attachment ?? null;
+  };
+
+  const resume = async (key: string): Promise<ChatAttachment | "busy" | null> => {
+    const found = await journaled(key);
     if (!found) return null;
-    if (found.attachment.state === "committed")
-      return found.attachment.ownerKind === owner.kind && found.attachment.ownerId === owner.id
-        ? found.attachment
-        : null;
+    if (found.state === "committed")
+      return found.ownerKind === owner.kind && found.ownerId === owner.id ? found : null;
     try {
-      return await attachments.commit(reserved, owner, signal);
+      return await attachments.commit(found.id, owner, signal);
     } catch (error) {
       if (!(error instanceof ChatStoreError) || error.code !== "attachment_not_uploaded")
         throw error;
-      await attachments.delete(reserved, signal);
+      if (uploadable(found)) return "busy";
+      await attachments.delete(found.id, signal);
       return null;
     }
   };
@@ -395,16 +405,27 @@ export async function migrateMessageAttachments(
   const settled: string[] = [];
   const missing: string[] = [];
   const oversized: string[] = [];
+  const deferred: string[] = [];
   let uploaded = 0;
   for (const file of options.files) {
     signal?.throwIfAborted();
     const key = journalKey(messageId, file.fileId);
-    if (present.has(file.fileId)) {
+    const recorded = present.get(file.fileId);
+    if (recorded) {
+      const stray = await journaled(key);
+      if (stray && stray.id !== recorded.attachmentId) {
+        if (uploadable(stray)) continue;
+        await attachments.delete(stray.id, signal);
+      }
       settled.push(key);
       continue;
     }
     const meta = { fileId: file.fileId, name: file.name, type: file.type };
     const resumed = await resume(key);
+    if (resumed === "busy") {
+      deferred.push(file.fileId);
+      continue;
+    }
     if (resumed) {
       added.push({ attachmentId: resumed.id, ...meta, size: resumed.sizeBytes - frameOverhead });
       settled.push(key);
@@ -467,5 +488,5 @@ export async function migrateMessageAttachments(
   }
   for (const id of superseded) await attachments.delete(id, signal);
   for (const key of settled) await journal.set(key, null);
-  return { refs: vaultAttachmentRefs(snapshot.record), uploaded, missing, oversized };
+  return { refs: vaultAttachmentRefs(snapshot.record), uploaded, missing, oversized, deferred };
 }

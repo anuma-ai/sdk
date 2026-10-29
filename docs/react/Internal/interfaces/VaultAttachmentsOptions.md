@@ -1,6 +1,6 @@
 # VaultAttachmentsOptions
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#37)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#38)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:37](https://github.com/anuma-
 
 > `optional` **cache**: [`VaultAttachmentCache`](VaultAttachmentCache.md)
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#40)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#41)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:40](https://github.com/anuma-
 
 > `optional` **fetch**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#41)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#42)
 
 **Call Signature**
 
@@ -118,7 +118,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:41](https://github.com/anuma-
 
 > **keyRing**: [`MemoryKeyRing`](MemoryKeyRing.md)
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#39)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#40)
 
 ***
 
@@ -126,7 +126,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:39](https://github.com/anuma-
 
 > `optional` **now**: () => `number`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#44)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#45)
 
 **Returns**
 
@@ -138,7 +138,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:44](https://github.com/anuma-
 
 > `optional` **retries**: `number`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#42)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#43)
 
 ***
 
@@ -146,7 +146,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:42](https://github.com/anuma-
 
 > `optional` **retryDelayMs**: `number`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#43)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#44)
 
 ***
 
@@ -154,4 +154,4 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:43](https://github.com/anuma-
 
 > **store**: [`ChatStore`](ChatStore.md)
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#38)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#39)

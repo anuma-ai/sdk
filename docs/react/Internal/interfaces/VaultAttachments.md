@@ -1,6 +1,6 @@
 # VaultAttachments
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#54)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#55)
 
 Encrypted chat attachments in vault: upload, bind to a message, read back on any device, delete.
 
@@ -10,7 +10,7 @@ Encrypted chat attachments in vault: upload, bind to a message, read back on any
 
 > **commit**(`attachmentId`: `string`, `owner`: [`VaultAttachmentOwner`](VaultAttachmentOwner.md), `signal?`: `AbortSignal`): `Promise`<[`ChatAttachment`](ChatAttachment.md)>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#58)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#59)
 
 Binds an uploaded attachment to a message or summary that vault already holds.
 
@@ -73,7 +73,7 @@ Binds an uploaded attachment to a message or summary that vault already holds.
 
 > **delete**(`attachmentId`: `string`, `signal?`: `AbortSignal`): `Promise`<`void`>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#65)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#66)
 
 **Parameters**
 
@@ -122,7 +122,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:65](https://github.com/anuma-
 
 > **read**(`attachmentId`: `string`, `signal?`: `AbortSignal`): `Promise`<`Uint8Array`<`ArrayBufferLike`> | `null`>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#64)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#65)
 
 The decrypted bytes, or null when the attachment is gone or not yet committed.
 
@@ -173,7 +173,7 @@ The decrypted bytes, or null when the attachment is gone or not yet committed.
 
 > **upload**(`bytes`: `Uint8Array`, `options?`: [`VaultAttachmentUploadOptions`](VaultAttachmentUploadOptions.md)): `Promise`<`string`>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#56)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#57)
 
 Encrypts and uploads `bytes`; the attachment stays pending until `commit`, and vault drops it after 24h.
 

@@ -44,6 +44,7 @@ interface Row {
   state: "pending" | "committed";
   ownerKind?: string;
   ownerId?: string;
+  createdAt: number;
 }
 
 interface Request {
@@ -100,7 +101,7 @@ function createVault() {
     size_bytes: row.size,
     state: row.state,
     ...(row.ownerKind ? { owner_kind: row.ownerKind, owner_id: row.ownerId } : {}),
-    created_at: new Date(clock).toISOString(),
+    created_at: new Date(row.createdAt).toISOString(),
     ...(row.state === "committed" ? { committed_at: new Date(clock).toISOString() } : {}),
   });
 
@@ -175,7 +176,12 @@ function createVault() {
     }
     if (path === "/attachments" && request.method === "POST") {
       const id = (++seq).toString(16).padStart(32, "0");
-      attachments.set(id, { id, size: body.size_bytes as number, state: "pending" });
+      attachments.set(id, {
+        id,
+        size: body.size_bytes as number,
+        state: "pending",
+        createdAt: clock,
+      });
       return Response.json(
         { attachment: wire(attachments.get(id)!), upload: presign(id, "PUT") },
         { status: 201 }
@@ -490,6 +496,7 @@ describe("vault attachments", () => {
       attachments: phone.attachments,
       journal: memoryJournal(),
       messageId: "m1",
+      now: vault.now,
       files: [file("media-1", "pixels")],
     });
     expect(result.refs).toEqual([
@@ -535,6 +542,26 @@ describe("vault attachments", () => {
         (r) => r.method === "GET" && r.path.startsWith(`/api/private-chats/attachments/${id}`)
       )
     ).toHaveLength(2);
+  });
+
+  it("retries a download whose body is cut off", async () => {
+    const vault = createVault();
+    const { store, attachments } = await device(vault);
+    await putMessage(store, "m1");
+    const id = await attachments.upload(bytes("streamed"));
+    await attachments.commit(id, { kind: "message", id: "m1" });
+    vault.faults.push((r) =>
+      r.host === "r2.test" && r.method === "GET"
+        ? new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new TypeError("connection reset"));
+              },
+            })
+          )
+        : undefined
+    );
+    expect(await attachments.read(id)).toEqual(bytes("streamed"));
   });
 
   it("fails closed on another key or a tampered blob, and returns null when absent", async () => {
@@ -590,6 +617,7 @@ describe("migrateMessageAttachments", () => {
         attachments: d.attachments,
         journal,
         messageId: "m1",
+        now: vault.now,
         files,
       });
     return { vault, ...d, journal, run };
@@ -612,7 +640,13 @@ describe("migrateMessageAttachments", () => {
 
     const requests = s.vault.requests.length;
     const second = await s.run();
-    expect(second).toEqual({ refs: first.refs, uploaded: 0, missing: [], oversized: [] });
+    expect(second).toEqual({
+      refs: first.refs,
+      uploaded: 0,
+      missing: [],
+      oversized: [],
+      deferred: [],
+    });
     expect(s.vault.requests.slice(requests).map((r) => r.method)).toEqual(["GET"]);
   });
 
@@ -657,13 +691,25 @@ describe("migrateMessageAttachments", () => {
         attachments: crashing,
         journal: s.journal,
         messageId: "m1",
+        now: s.vault.now,
         files: [file("a", "alpha")],
       })
     ).rejects.toThrow("app killed");
     const orphan = [...s.journal.entries.values()][0];
-    s.vault.attachments.set(orphan, { id: orphan, size: 34, state: "pending" });
+    s.vault.attachments.set(orphan, {
+      id: orphan,
+      size: 34,
+      state: "pending",
+      createdAt: s.vault.now(),
+    });
 
+    const early = await s.run([file("a", "alpha")]);
+    expect(early).toMatchObject({ uploaded: 0, deferred: ["a"], refs: [] });
+    expect(s.vault.attachments.has(orphan)).toBe(true);
+
+    s.vault.advance(16 * 60_000);
     const result = await s.run([file("a", "alpha")]);
+    expect(result.deferred).toEqual([]);
     expect(result.uploaded).toBe(1);
     expect(s.vault.attachments.has(orphan)).toBe(false);
     expect(s.vault.attachments.size).toBe(1);
@@ -685,6 +731,7 @@ describe("migrateMessageAttachments", () => {
         attachments: s.attachments,
         journal,
         messageId: "m1",
+        now: s.vault.now,
         files: [file("a", "alpha")],
       })
     ).rejects.toThrow("app killed");
@@ -692,6 +739,78 @@ describe("migrateMessageAttachments", () => {
     expect(result.uploaded).toBe(0);
     expect(result.refs).toHaveLength(1);
     expect(s.journal.entries.size).toBe(0);
+    expect(s.vault.puts()).toHaveLength(1);
+  });
+
+  it("leaves another run's live upload alone", async () => {
+    const s = await setup();
+    let overlapping: Awaited<ReturnType<typeof s.run>> | undefined;
+    const result = await migrateMessageAttachments({
+      store: s.store,
+      attachments: {
+        ...s.attachments,
+        upload: (b, o) =>
+          s.attachments.upload(b, {
+            ...o,
+            onReserved: async (id) => {
+              await o?.onReserved?.(id);
+              overlapping = await s.run([file("a", "alpha")]);
+            },
+          }),
+      },
+      journal: s.journal,
+      messageId: "m1",
+      now: s.vault.now,
+      files: [file("a", "alpha")],
+    });
+    expect(overlapping).toMatchObject({ uploaded: 0, deferred: ["a"] });
+    expect(result.uploaded).toBe(1);
+    expect(result.refs).toHaveLength(1);
+    expect(s.vault.attachments.size).toBe(1);
+  });
+
+  it("deletes a superseded copy a crash left behind on the next run", async () => {
+    const s = await setup();
+    const slow = {
+      ...file("a", "alpha"),
+      read: async () => {
+        await migrateMessageAttachments({
+          store: s.store,
+          attachments: s.attachments,
+          journal: memoryJournal(),
+          messageId: "m1",
+          now: s.vault.now,
+          files: [file("a", "alpha")],
+        });
+        return bytes("alpha");
+      },
+    };
+    await expect(
+      migrateMessageAttachments({
+        store: s.store,
+        attachments: { ...s.attachments, delete: () => Promise.reject(new Error("app killed")) },
+        journal: s.journal,
+        messageId: "m1",
+        now: s.vault.now,
+        files: [slow],
+      })
+    ).rejects.toThrow("app killed");
+    expect(s.vault.attachments.size).toBe(2);
+
+    const rerun = await s.run([file("a", "alpha")]);
+    expect(rerun.uploaded).toBe(0);
+    expect(s.vault.attachments.size).toBe(1);
+    expect(s.vault.attachments.has(rerun.refs[0].attachmentId)).toBe(true);
+    expect(s.journal.entries.size).toBe(0);
+  });
+
+  it("round-trips an empty file and does not upload it twice", async () => {
+    const s = await setup();
+    const first = await s.run([file("a", "")]);
+    expect(first.refs[0].size).toBe(0);
+    expect(await s.attachments.read(first.refs[0].attachmentId)).toEqual(new Uint8Array(0));
+    const second = await s.run([file("a", "")]);
+    expect(second.uploaded).toBe(0);
     expect(s.vault.puts()).toHaveLength(1);
   });
 
@@ -739,6 +858,7 @@ describe("migrateMessageAttachments", () => {
       attachments: s.attachments,
       journal: memoryJournal(),
       messageId: "m1",
+      now: s.vault.now,
       files: [slow],
     });
     expect(second.uploaded).toBe(1);
