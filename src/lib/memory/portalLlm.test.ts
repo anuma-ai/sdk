@@ -699,6 +699,52 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
   });
 });
 
+describe("callPortalJsonCompletion warning privacy", () => {
+  afterEach(() => setLogger(noopLogger));
+
+  it.each(["chat", "responses"] as const)(
+    "omits private completion text from %s parse warnings",
+    async (transport) => {
+      const content = "alice.private@example.com has a private medical condition";
+      const warn = vi.fn();
+      setLogger({ ...noopLogger, warn });
+      const fetchFn = vi
+        .fn<typeof fetch>()
+        .mockImplementation(() =>
+          Promise.resolve(transport === "chat" ? mockResponse(content) : mockResponsesBody(content))
+        );
+      const onAttempt = vi.fn();
+      const onFailure = vi.fn();
+
+      const result = await callPortalJsonCompletion({
+        apiKey: "test-key",
+        model: "openai/gpt-5-mini",
+        systemPrompt: "system",
+        userMessage: "user",
+        tag: "test",
+        transport,
+        maxAttempts: 2,
+        backoffMs: () => 0,
+        fetchFn,
+        onAttempt,
+        onFailure,
+      });
+
+      expect(result).toBeNull();
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+      expect(warn.mock.calls).toEqual([
+        [expect.stringMatching(/^\[test\] invalid-json . attempt 1\/2, retrying$/)],
+        [expect.stringMatching(/^\[test\] invalid-json . attempt 2\/2, giving up$/)],
+      ]);
+      expect(onAttempt.mock.calls).toEqual([
+        [{ attempt: 1, ok: false, reason: "invalid-json" }],
+        [{ attempt: 2, ok: false, reason: "invalid-json" }],
+      ]);
+      expect(onFailure).toHaveBeenCalledExactlyOnceWith({ reason: "invalid-json", attempts: 2 });
+    }
+  );
+});
+
 describe("callPortalJsonCompletion — endpointOverride", () => {
   const baseArgs = {
     apiKey: "test-key",
