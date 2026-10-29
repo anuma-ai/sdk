@@ -144,6 +144,7 @@ const resumableFields = [
   "imageModel",
   "files",
   "fileIds",
+  "vaultAttachments",
   "usage",
   "sources",
   "responseDuration",
