@@ -1,6 +1,6 @@
 # ChatCacheStorage
 
-Defined in: src/lib/chatStore/vaultCache.ts:4
+Defined in: [src/lib/chatStore/vaultCache.ts:4](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultCache.ts#4)
 
 Durable home for each account's sealed chat cache; `set(account, null)` deletes that account's entry.
 
@@ -10,7 +10,7 @@ Durable home for each account's sealed chat cache; `set(account, null)` deletes 
 
 > **get**(`account`: `string`): `Promise`<`string` | `null`>
 
-Defined in: src/lib/chatStore/vaultCache.ts:5
+Defined in: [src/lib/chatStore/vaultCache.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultCache.ts#5)
 
 **Parameters**
 
@@ -47,7 +47,7 @@ Defined in: src/lib/chatStore/vaultCache.ts:5
 
 > **set**(`account`: `string`, `sealed`: `string` | `null`): `Promise`<`void`>
 
-Defined in: src/lib/chatStore/vaultCache.ts:6
+Defined in: [src/lib/chatStore/vaultCache.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultCache.ts#6)
 
 **Parameters**
 
