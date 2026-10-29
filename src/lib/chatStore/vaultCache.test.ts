@@ -270,6 +270,48 @@ describe("vault chat cache", () => {
     await expect(backend(offline, { cache }).getConversations()).rejects.toThrow("offline");
   });
 
+  it("deletes the cache when vault says the account or key changed", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const b = backend(fake.store, { cache });
+    await chat(b, "conv_1", "Trip", "msg_1");
+    await b.flush();
+    await cached(storage, seal, "0xaaa", (c) => expect(ids(c)).toContain("msg_1"));
+
+    fake.fail({
+      op: "changes",
+      error: new ChatStoreError("key changed", 409, "key_mismatch"),
+    });
+    await b.poll();
+    await vi.waitFor(() => expect(storage.values.size).toBe(0));
+    await b.poll();
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(storage.values.size).toBe(0);
+  });
+
+  it("keeps working when the app's cache storage fails", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const set = vi.fn(() => Promise.reject(new Error("disk full")));
+    const b = backend(fake.store, {
+      cache: { storage: { get: async () => null, set }, seal, account: "0xaaa" },
+    });
+    await chat(b, "conv_1", "Trip", "msg_1");
+    await b.flush();
+    await vi.waitFor(() => expect(set).toHaveBeenCalled(), { timeout: 3000 });
+    await b.createMessage({
+      conversationId: "conv_1",
+      role: "user",
+      content: "more",
+      uniqueId: "msg_2",
+    });
+    await b.flush();
+    await vi.waitFor(() => expect(set).toHaveBeenCalledTimes(2), { timeout: 3000 });
+    expect((await b.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_1", "msg_2"]);
+  });
+
   it("caches only writes vault confirmed, never the outbox", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");

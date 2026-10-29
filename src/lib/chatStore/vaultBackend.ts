@@ -294,12 +294,12 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     cacheTimer = setTimeout(() => {
       cacheTimer = undefined;
       saving = saving
-        .catch(() => undefined)
         .then(() =>
           cacheOff || closed
             ? undefined
             : saveChatCache(cache.storage, cache.seal.encrypt, cacheSnapshot())
-        );
+        )
+        .catch(() => undefined);
     }, cacheSaveDelayMs);
   };
 
@@ -308,8 +308,13 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     cacheOff = true;
     clearTimeout(cacheTimer);
     cacheTimer = undefined;
-    await saving.catch(() => undefined);
+    await saving;
     if (cache) await cache.storage.set(cache.account, null);
+  };
+
+  const wipeIfTerminal = (error: unknown) => {
+    if (error instanceof ChatStoreError && terminalCodes.has(error.code ?? ""))
+      void clearCache().catch(() => undefined);
   };
 
   const merge = (snapshot: ChatSnapshot) => {
@@ -505,6 +510,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     }
     if (terminalCodes.has(error.code ?? "")) {
       stopped = error.code;
+      wipeIfTerminal(error);
       reportOutbox();
       return "stop";
     }
@@ -713,8 +719,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       pollFailures = 0;
       saveCache();
     })()
-      .catch(() => {
+      .catch((error) => {
         pollFailures++;
+        wipeIfTerminal(error);
       })
       .finally(() => {
         polling = null;
@@ -748,8 +755,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     })();
     readyPromise.catch((error) => {
       readyPromise = null;
-      if (error instanceof ChatStoreError && terminalCodes.has(error.code ?? ""))
-        void clearCache().catch(() => undefined);
+      wipeIfTerminal(error);
     });
     return readyPromise;
   };
@@ -838,6 +844,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       const found = await (await remote()).get(kind, conversationId);
       checked.add(k);
       if (found) merge(found);
+      saveCache();
     }
     return view(k);
   };
