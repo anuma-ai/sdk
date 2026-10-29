@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import * as sseModule from "../../client/core/serverSentEvents.gen";
 import type { LlmapiMessage } from "../../client";
+import * as sseModule from "../../client/core/serverSentEvents.gen";
 import type { ModelCallStartEvent } from "./runHooks";
 import { runToolLoop } from "./toolLoop";
 
@@ -14,7 +14,7 @@ const mockCreateSseClient = vi.mocked(sseModule.createSseClient);
 
 function makeToolCallsStream(calls: { callId: string; name: string }[]) {
   return (async function* () {
-    yield { type: "response.created", response: { id: "r", model: "m" } };
+    yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
     for (const call of calls) {
       yield {
         type: "response.output_item.added",
@@ -42,7 +42,7 @@ function makeToolCallsStream(calls: { callId: string; name: string }[]) {
 
 function makeTextStream(text: string) {
   return (async function* () {
-    yield { type: "response.created", response: { id: "r", model: "m" } };
+    yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
     yield { type: "response.output_text.delta", delta: { OfString: text } };
     yield {
       type: "response.completed",
@@ -55,7 +55,7 @@ function clientTool(name: string, result: unknown) {
   return {
     type: "function" as const,
     function: { name, parameters: { type: "object", properties: {} } },
-    executor: async () => result,
+    executor: () => Promise.resolve(result),
   };
 }
 
