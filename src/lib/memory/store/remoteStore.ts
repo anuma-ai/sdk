@@ -643,11 +643,17 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         }
         try {
           const vectors = await generateEmbeddings([...batch.values()], embeddingOptions);
-          const embeddings = new Map(
-            [...batch.keys()].map((id, i) => [id, storedVector(vectors[i])])
-          );
+          const embeddings = new Map<string, number[]>();
+          [...batch.keys()].forEach((id, i) => {
+            try {
+              embeddings.set(id, storedVector(vectors[i]));
+            } catch (error) {
+              getLogger().warn("[memory/remote-store] Failed to embed memory:", error);
+            }
+          });
+          if (!embeddings.size) continue;
           const { failed } = await mutateMany(
-            [...batch.keys()],
+            [...embeddings.keys()],
             () => "embedding",
             (memory) =>
               memory.content !== batch.get(memory.memory_id) || memory.embedding?.length

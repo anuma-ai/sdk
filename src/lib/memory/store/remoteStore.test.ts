@@ -923,6 +923,40 @@ describe("remote MemoryStore", () => {
     }
   });
 
+  it("embeds the valid rows of a background batch that has an invalid vector", async () => {
+    const { store, server } = await remoteStore();
+    const batch = vi.mocked(generateEmbeddings);
+    const original = batch.getMockImplementation()!;
+    const warn = vi.spyOn(getLogger(), "warn").mockImplementation(() => {});
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    batch.mockImplementationOnce(async (...args) => {
+      await gate;
+      const vectors = await original(...args);
+      return vectors.map((vector, i) => (i === 1 ? [] : vector));
+    });
+    try {
+      const memories = await store.createMany(
+        ["Good", "Empty", "Also good"].map((content) => ({ content }))
+      );
+      release();
+      await vi.waitFor(() => {
+        expect(server.rows.get(memories[0].uniqueId)!.memory.embedding).toBeDefined();
+        expect(server.rows.get(memories[2].uniqueId)!.memory.embedding).toBeDefined();
+      });
+      expect(server.rows.get(memories[1].uniqueId)!.memory.embedding).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(
+        "[memory/remote-store] Failed to embed memory:",
+        expect.any(Error)
+      );
+    } finally {
+      release();
+      warn.mockRestore();
+    }
+  });
+
   it("reports the committed memories when a later createMany batch fails", async () => {
     const { store, server } = await remoteStore();
     const original = server.fetch.getMockImplementation()!;
