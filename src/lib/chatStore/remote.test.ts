@@ -456,6 +456,14 @@ describe("encrypted remote ChatStore", () => {
       { record: conversation(), expectedVersion: 0 },
       { record: old, expectedVersion: 0 },
       { record: corrupt, expectedVersion: 0 },
+      {
+        record: {
+          ...old,
+          id: "oversized",
+          data: { ...old.data, anuma: { turnId: "t", bubbles: ["x".repeat(16_385)] } },
+        },
+        expectedVersion: 0,
+      },
     ]);
     const fresh = await createRemoteChatStore(s.options);
     const decoded = toMessage((await fresh.get("message", "old"))!.record);
@@ -479,6 +487,9 @@ describe("encrypted remote ChatStore", () => {
       ].sort()
     );
     expect(toMessage((await fresh.get("message", "corrupt"))!.record)).not.toHaveProperty("anuma");
+    expect(toMessage((await fresh.get("message", "oversized"))!.record)).not.toHaveProperty(
+      "anuma"
+    );
     expect(messageData({ conversationId: "chat", role: "user", content: "hi" })).toEqual({
       role: "user",
       content: "hi",

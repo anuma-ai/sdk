@@ -212,6 +212,7 @@ describe("readAnumaTurn", () => {
       { turnId: "t", bubbles: [] },
       { turnId: "t", bubbles: ["a", "b", "c", "d"] },
       { turnId: "t", bubbles: ["a", 1] },
+      { turnId: "t", bubbles: ["x".repeat(16_385)] },
       { turnId: "t", origin: "system" },
     ])
       expect(readAnumaTurn(bad)).toBeUndefined();
