@@ -208,6 +208,12 @@ Re-exports [ChatBackendSigner](../react/Internal/interfaces/ChatBackendSigner.md
 
 ***
 
+### ChatCacheStorage
+
+Re-exports [ChatCacheStorage](../react/Internal/interfaces/ChatCacheStorage.md)
+
+***
+
 ### ChatChanges
 
 Re-exports [ChatChanges](../react/Internal/interfaces/ChatChanges.md)
