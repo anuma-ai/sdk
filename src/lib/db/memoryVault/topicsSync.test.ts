@@ -775,6 +775,66 @@ describe("relinkMemoryTopicsOp", () => {
 });
 
 describe("topics backfill", () => {
+  it("batches link and entity reads for each memory chunk", async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 501; i++) {
+      ids.push(await seedLegacy(`memory ${i}`, [`Entity${i}`, "Shared"]));
+    }
+    await markAsRestored(ids[500], { topics_user_managed: true });
+    const firstLinks = await entityCtx.memoryEntityCollection
+      .query(Q.where("memory_id", ids[0]))
+      .fetch();
+    await db.write(async () => {
+      await entityCtx.memoryEntityCollection.create((row) => {
+        row._setRaw("memory_id", ids[0]);
+        row._setRaw("entity_id", firstLinks[0].entityId);
+      });
+      const shared = await entityCtx.entityCollection
+        .query(Q.where("canonical_name", "shared"))
+        .fetch();
+      await shared[0].update((row) => row._setRaw("kind", "concept"));
+    });
+    const linkQuery = vi.spyOn(entityCtx.memoryEntityCollection, "query");
+    const entityQuery = vi.spyOn(entityCtx.entityCollection, "query");
+    const batchesBefore = tickWatch.batches;
+    try {
+      expect(await backfillMemoryTopicsOp(ctx, [...ids, ids[0]])).toEqual(ids);
+
+      expect(linkQuery).toHaveBeenCalledTimes(2);
+      expect(linkQuery).toHaveBeenNthCalledWith(
+        1,
+        Q.where("memory_id", Q.oneOf(ids.slice(0, 500)))
+      );
+      expect(linkQuery).toHaveBeenNthCalledWith(2, Q.where("memory_id", Q.oneOf(ids.slice(500))));
+      expect(entityQuery).toHaveBeenCalledTimes(3);
+      for (const clause of entityQuery.mock.calls.flat(2)) {
+        expect(clause.type).toBe("where");
+        if (clause.type !== "where") throw new Error("Expected an entity ID filter");
+        expect(clause.left).toBe("id");
+        expect(clause.comparison.operator).toBe("oneOf");
+        const right = clause.comparison.right;
+        if (!("values" in right)) throw new Error("Expected entity IDs");
+        expect(right.values.length).toBeLessThanOrEqual(500);
+        expect(new Set<unknown>(right.values).size).toBe(right.values.length);
+      }
+      expect(tickWatch.batches - batchesBefore).toBe(2);
+      for (let i = 0; i < ids.length; i++) {
+        const source = i === 500 ? "user" : "auto";
+        const topics = await topicsOf(ids[i]);
+        expect(topics).toEqual(
+          expect.arrayContaining([
+            { name: `entity${i}`, source },
+            { name: "shared", kind: "concept", source },
+          ])
+        );
+        expect(topics).toHaveLength(2);
+      }
+    } finally {
+      linkQuery.mockRestore();
+      entityQuery.mockRestore();
+    }
+  });
+
   it("offers a legacy row for backfill and fills it from its links", async () => {
     const id = await seedLegacy("works at Acme", ["Acme"]);
     const before = (await rowOf(id)).updatedAt.getTime();
