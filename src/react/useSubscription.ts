@@ -98,6 +98,7 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
   const baseUrlRef = useRef(baseUrl);
   const onErrorRef = useRef(onError);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const loadingCountRef = useRef(0);
 
   useEffect(() => {
     getTokenRef.current = getToken;
@@ -112,6 +113,16 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
         abortControllerRef.current = null;
       }
     };
+  }, []);
+
+  const startLoading = useCallback(() => {
+    loadingCountRef.current++;
+    setIsLoading(true);
+  }, []);
+
+  const stopLoading = useCallback(() => {
+    loadingCountRef.current = Math.max(0, loadingCountRef.current - 1);
+    setIsLoading(loadingCountRef.current > 0);
   }, []);
 
   const getHeaders = useCallback(async (): Promise<Record<string, string>> => {
@@ -141,7 +152,7 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
     abortControllerRef.current = abortController;
     const signal = abortController.signal;
 
-    setIsLoading(true);
+    startLoading();
     setError(null);
 
     try {
@@ -169,14 +180,12 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
       }
       handleError(err);
     } finally {
-      if (!abortControllerRef.current || abortControllerRef.current === abortController) {
-        setIsLoading(false);
-      }
+      stopLoading();
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
       }
     }
-  }, [getHeaders, handleError]);
+  }, [getHeaders, handleError, startLoading, stopLoading]);
 
   const refetch = useCallback(async () => {
     setStatus(null);
@@ -190,7 +199,7 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
       successUrl?: string;
       cancelUrl?: string;
     }): Promise<string | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -217,15 +226,15 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
     },
-    [getHeaders, handleError]
+    [getHeaders, handleError, startLoading, stopLoading]
   );
 
   const openCustomerPortal = useCallback(
     async (opts?: { returnUrl?: string }): Promise<string | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -249,15 +258,15 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
     },
-    [getHeaders, handleError]
+    [getHeaders, handleError, startLoading, stopLoading]
   );
 
   const cancelSubscription =
     useCallback(async (): Promise<HandlersCancelSubscriptionResponse | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -280,13 +289,13 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
-    }, [getHeaders, handleError, fetchStatus]);
+    }, [getHeaders, handleError, startLoading, stopLoading, fetchStatus]);
 
   const renewSubscription =
     useCallback(async (): Promise<HandlersRenewSubscriptionResponse | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -309,9 +318,9 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
-    }, [getHeaders, handleError, fetchStatus]);
+    }, [getHeaders, handleError, startLoading, stopLoading, fetchStatus]);
 
   const hasFetchedRef = useRef(false);
   useEffect(() => {

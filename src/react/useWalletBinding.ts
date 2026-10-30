@@ -102,6 +102,7 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
   const baseUrlRef = useRef(baseUrl);
   const onErrorRef = useRef(onError);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const loadingCountRef = useRef(0);
 
   useEffect(() => {
     getTokenRef.current = getToken;
@@ -116,6 +117,16 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
         abortControllerRef.current = null;
       }
     };
+  }, []);
+
+  const startLoading = useCallback(() => {
+    loadingCountRef.current++;
+    setIsLoading(true);
+  }, []);
+
+  const stopLoading = useCallback(() => {
+    loadingCountRef.current = Math.max(0, loadingCountRef.current - 1);
+    setIsLoading(loadingCountRef.current > 0);
   }, []);
 
   const getHeaders = useCallback(async (): Promise<Record<string, string>> => {
@@ -145,7 +156,7 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
     abortControllerRef.current = abortController;
     const signal = abortController.signal;
 
-    setIsLoading(true);
+    startLoading();
     setError(null);
 
     try {
@@ -174,14 +185,12 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
       }
       handleError(err);
     } finally {
-      if (!abortControllerRef.current || abortControllerRef.current === abortController) {
-        setIsLoading(false);
-      }
+      stopLoading();
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
       }
     }
-  }, [getHeaders, handleError]);
+  }, [getHeaders, handleError, startLoading, stopLoading]);
 
   const refetch = useCallback(async () => {
     setWallets([]);
@@ -190,7 +199,7 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
   }, [fetchBinding]);
 
   const getNonce = useCallback(async (): Promise<HandlersNonceResponse | null> => {
-    setIsLoading(true);
+    startLoading();
     setError(null);
 
     try {
@@ -211,13 +220,13 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
       handleError(err);
       return null;
     } finally {
-      setIsLoading(false);
+      stopLoading();
     }
-  }, [getHeaders, handleError]);
+  }, [getHeaders, handleError, startLoading, stopLoading]);
 
   const bindWallet = useCallback(
     async (request: HandlersBindRequest): Promise<HandlersBoundWalletResponse | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -241,15 +250,15 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
     },
-    [getHeaders, handleError, fetchBinding]
+    [getHeaders, handleError, startLoading, stopLoading, fetchBinding]
   );
 
   const unbindWallet = useCallback(
     async (address: string): Promise<boolean> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -273,10 +282,10 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
         handleError(err);
         return false;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
     },
-    [getHeaders, handleError, fetchBinding]
+    [getHeaders, handleError, startLoading, stopLoading, fetchBinding]
   );
 
   const hasFetchedRef = useRef(false);

@@ -14,6 +14,8 @@ type FetchState = {
   refetch: () => Promise<void>;
 };
 
+type MutationState = FetchState & { mutate: () => Promise<unknown> };
+
 const balance: HandlersCreditBalanceResponse = {
   available_credits: 10,
   lifetime_credits: 10,
@@ -180,5 +182,67 @@ describe.each(cases)("$name aborts", ({ useHook, data, expected }) => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.error?.message).toBe("Access denied");
     expect(onError).toHaveBeenCalledExactlyOnceWith(result.current.error);
+  });
+});
+
+const mutationCases: {
+  name: string;
+  useMutation: (options: UseWalletBindingOptions) => MutationState;
+  data: Record<string, unknown>;
+}[] = [
+  {
+    name: "useWalletBinding",
+    useMutation: (options) => {
+      const hook = useWalletBinding(options);
+      return { ...hook, mutate: hook.getNonce };
+    },
+    data: { wallets: [] },
+  },
+  {
+    name: "useSubscription",
+    useMutation: (options) => {
+      const hook = useSubscription(options);
+      return { ...hook, mutate: () => hook.createCheckoutSession() };
+    },
+    data: status,
+  },
+];
+
+describe.each(mutationCases)("$name loading", ({ useMutation, data }) => {
+  it("keeps loading while a mutation runs after a stale fetch settles", async () => {
+    const staleToken = deferred<string | null>();
+    const mutationRequest = deferred<Response>();
+    const getToken = vi
+      .fn<() => Promise<string | null>>()
+      .mockReturnValueOnce(staleToken.promise)
+      .mockResolvedValue("token");
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(data))
+      .mockReturnValueOnce(mutationRequest.promise);
+
+    const { result } = renderHook(() => useMutation({ getToken }));
+    await waitFor(() => expect(getToken).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    let mutation!: Promise<unknown>;
+    await act(async () => {
+      mutation = result.current.mutate();
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    });
+
+    await act(async () => {
+      staleToken.resolve("stale-token");
+      await staleToken.promise;
+    });
+    expect(result.current.isLoading).toBe(true);
+
+    await act(async () => {
+      mutationRequest.resolve(jsonResponse({ url: "https://example.com" }));
+      await mutation;
+    });
+    expect(result.current.isLoading).toBe(false);
   });
 });
