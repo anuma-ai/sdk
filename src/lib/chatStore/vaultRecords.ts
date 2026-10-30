@@ -1,4 +1,6 @@
 import type {
+  AnumaTurn,
+  AnumaTurnOrigin,
   CreateMessageOptions,
   MessageChunk,
   MessageSkeleton,
@@ -11,7 +13,7 @@ import type {
   ConversationMemoryInput,
   StoredConversationMemory,
 } from "../db/conversationMemory/types";
-import type { ChatJson, ChatRecord } from "./types";
+import { type ChatJson, type ChatRecord, ChatStoreError } from "./types";
 
 export type ChatData = { [key: string]: ChatJson };
 
@@ -23,6 +25,11 @@ const maxChunks = 16;
 const droppable = ["thoughtProcess", "thinking", "sources", "toolCallEvents"] as const;
 const messageMetadata = new Set(["conversationId", "uniqueId", "vector", "chunks"]);
 const alwaysStored = new Set(["role", "content", "responseDuration"]);
+const maxBubbles = 3;
+const maxTurnIdBytes = 128;
+// Keeps a valid turn far below recordBudgetBytes so fitRecord never cuts a bubbled turn's content.
+const maxBubbleBytes = 16_384;
+const anumaOrigins = new Set<string>(["intro", "reply"]);
 
 export function plain(value: unknown): ChatData {
   return JSON.parse(JSON.stringify(value ?? {})) as ChatData;
@@ -34,6 +41,39 @@ function text(value: ChatJson | undefined): string | undefined {
 
 function number(value: ChatJson | undefined): number | undefined {
   return typeof value === "number" ? value : undefined;
+}
+
+/** Returns `value` as an {@link AnumaTurn} when it is one, otherwise `undefined`. */
+export function readAnumaTurn(value: unknown): AnumaTurn | undefined {
+  if (!isObject(value)) return undefined;
+  const { turnId, bubbles, origin } = value;
+  if (
+    typeof turnId !== "string" ||
+    turnId.length === 0 ||
+    new TextEncoder().encode(turnId).length > maxTurnIdBytes
+  )
+    return undefined;
+  if (
+    bubbles !== undefined &&
+    (!Array.isArray(bubbles) ||
+      bubbles.length < 1 ||
+      bubbles.length > maxBubbles ||
+      !bubbles.every((b) => typeof b === "string") ||
+      bubbles.reduce((sum: number, b: string) => sum + new TextEncoder().encode(b).length, 0) >
+        maxBubbleBytes)
+  )
+    return undefined;
+  if (origin !== undefined && (typeof origin !== "string" || !anumaOrigins.has(origin)))
+    return undefined;
+  return {
+    turnId,
+    ...(bubbles !== undefined ? { bubbles: [...bubbles] } : {}),
+    ...(origin !== undefined ? { origin: origin as AnumaTurnOrigin } : {}),
+  };
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 export function conversationSortKey(data: ChatData, createdAt: number): number {
@@ -57,19 +97,31 @@ export function toConversation(record: ChatRecord): StoredConversation {
   };
 }
 
+export function anumaTurnData(value: unknown): AnumaTurn | undefined {
+  if (value === undefined) return undefined;
+  const turn = readAnumaTurn(value);
+  if (!turn) throw new ChatStoreError("Invalid Anuma turn", 0, "invalid_record");
+  return turn;
+}
+
 export function messageData(options: CreateMessageOptions): ChatData {
-  return plain(
-    Object.fromEntries(
+  const anuma = anumaTurnData(options.anuma);
+  return plain({
+    ...Object.fromEntries(
       Object.entries(options).filter(
-        ([key, value]) => !messageMetadata.has(key) && (!!value || alwaysStored.has(key))
+        ([key, value]) =>
+          key !== "anuma" && !messageMetadata.has(key) && (!!value || alwaysStored.has(key))
       )
-    )
-  );
+    ),
+    ...(anuma ? { anuma } : {}),
+  });
 }
 
 export function toMessage(record: ChatRecord): StoredMessage {
-  const { chunkOffsets: _offsets, truncated: _truncated, ...fields } = record.data;
+  const { chunkOffsets: _offsets, truncated: _truncated, anuma: rawAnuma, ...fields } = record.data;
+  const anuma = readAnumaTurn(rawAnuma);
   return {
+    ...(anuma ? { anuma } : {}),
     ...(fields as unknown as Omit<
       StoredMessage,
       "uniqueId" | "messageId" | "conversationId" | "createdAt" | "updatedAt"

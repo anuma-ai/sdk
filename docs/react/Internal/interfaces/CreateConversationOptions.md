@@ -1,6 +1,6 @@
 # CreateConversationOptions
 
-Defined in: [src/lib/db/chat/types.ts:468](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#468)
+Defined in: [src/lib/db/chat/types.ts:482](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#482)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/types.ts:468](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:469](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#469)
+Defined in: [src/lib/db/chat/types.ts:483](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#483)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/types.ts:469](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **projectId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:472](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#472)
+Defined in: [src/lib/db/chat/types.ts:486](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#486)
 
 Optional project ID to associate this conversation with
 
@@ -26,4 +26,4 @@ Optional project ID to associate this conversation with
 
 > `optional` **title**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:470](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#470)
+Defined in: [src/lib/db/chat/types.ts:484](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#484)

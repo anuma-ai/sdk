@@ -49,6 +49,7 @@ import {
 } from "./vaultOutbox";
 import {
   acceptedVector,
+  anumaTurnData,
   type ChatData,
   chunkOffsets,
   fitChunks,
@@ -154,12 +155,15 @@ const resumableFields = [
   "thoughtProcess",
   "thinking",
   "toolCallEvents",
+  "anuma",
 ] as const;
 
 function resumedFields(options: CreateMessageOptions): { [field: string]: ChatJson } {
   return plain(
     Object.fromEntries(
-      resumableFields.filter((f) => options[f] !== undefined).map((f) => [f, options[f]])
+      resumableFields
+        .filter((f) => options[f] !== undefined)
+        .map((f) => [f, f === "anuma" ? anumaTurnData(options.anuma) : options[f]])
     )
   );
 }

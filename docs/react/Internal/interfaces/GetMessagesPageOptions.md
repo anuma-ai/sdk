@@ -1,6 +1,6 @@
 # GetMessagesPageOptions
 
-Defined in: [src/lib/db/chat/types.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#166)
+Defined in: [src/lib/db/chat/types.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#176)
 
 Options for paginated message reads (getMessagesPageOp).
 
@@ -10,7 +10,7 @@ Options for paginated message reads (getMessagesPageOp).
 
 > `optional` **beforeMessageId**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#172)
+Defined in: [src/lib/db/chat/types.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#182)
 
 Upper-bound cursor. Without `boundaryExcludeUniqueIds` it is EXCLUSIVE:
 only messages with `messageId < beforeMessageId` are returned. Omit to
@@ -22,7 +22,7 @@ fetch the newest page (the conversation tail).
 
 > `optional` **boundaryExcludeUniqueIds**: `string`\[]
 
-Defined in: [src/lib/db/chat/types.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#182)
+Defined in: [src/lib/db/chat/types.ts:192](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#192)
 
 uniqueIds of the rows the caller already holds AT the `beforeMessageId`
 boundary. `message_id` is not guaranteed unique in legacy data (ids were
@@ -38,7 +38,7 @@ out, so a duplicated boundary row is returned exactly once.
 
 > **limit**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#189)
+Defined in: [src/lib/db/chat/types.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#199)
 
 Maximum rows to return — the NEWEST `limit` rows of the matching range.
 Must be a positive integer: non-positive or non-finite values yield an
