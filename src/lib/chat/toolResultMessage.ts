@@ -43,7 +43,11 @@ export const MAX_PERSISTED_TOOL_RESULT_CHARS = 100_000;
  * describes, so it is never a lone note at the end of an unrelated blob.
  */
 export function buildToolResultContent(results: AutoExecutedToolResult[]): string {
-  const entries = results.map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`);
+  const entries = results.map((r) =>
+    `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029")
+  );
   const framing =
     HEADER.length + FOOTER.length + ENTRY_SEPARATOR.length * Math.max(0, entries.length - 1);
   const summary = capEntries(entries, MAX_PERSISTED_TOOL_RESULT_CHARS - framing).join(

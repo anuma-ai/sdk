@@ -19,7 +19,7 @@ interface ToolResultSegment {
   line: string;
 }
 
-const TOOL_LINE = /^Tool "([^"]+)" returned: (.*)$/;
+const TOOL_LINE = /^Tool "([^"]+)" returned: ([\s\S]*)$/;
 
 /** A stored row's minimal shape — structural so both `StoredMessage` and plain pairs satisfy it. */
 interface ToolResultsRowLike {
@@ -69,18 +69,6 @@ export function isToolResultsRow(row: ToolResultsRowLike): boolean {
 
 /**
  * The per-tool entries inside a row.
- *
- * Line-based rather than split on the blank lines, because a client may write the same row with single
- * newlines (mobile's hand-written document card does) and `JSON.stringify` never emits a raw newline,
- * so an entry's PAYLOAD is always exactly one line.
- *
- * An entry is not, though. `buildToolResultContent` appends its truncation marker inside the entry
- * (`\n\n... (tool output truncated, N characters omitted)`), so a capped entry spans four lines. A
- * strictly one-line-per-entry parser dropped that marker on the way through the fold, handing the
- * model JSON cut mid-value with nothing saying it had been cut — the one thing the marker is worded
- * for. So trailing lines that are not themselves a tool line stay attached to the entry above.
- *
- * The row's own footer is the single exception: it belongs to the row, not to the last entry.
  */
 export function parseToolResultSegments(content: string): ToolResultSegment[] {
   const segments: ToolResultSegment[] = [];
@@ -93,7 +81,7 @@ export function parseToolResultSegments(content: string): ToolResultSegment[] {
     }
     const current = segments[segments.length - 1];
     if (!current || line === "" || line === TOOL_RESULT_FOOTER_LINE) continue;
-    if (line === TOOL_RESULTS_PREFIX) continue;
+    if (!/^\.\.\. \(tool output truncated, \d+ characters omitted\)$/.test(line)) continue;
     current.line = `${current.line}\n${line}`;
   }
   return segments;
