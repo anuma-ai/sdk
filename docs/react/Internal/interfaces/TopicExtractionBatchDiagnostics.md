@@ -1,6 +1,6 @@
 # TopicExtractionBatchDiagnostics
 
-Defined in: [src/lib/memory/topicExtract.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#56)
+Defined in: [src/lib/memory/topicExtract.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#58)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/topicExtract.ts:56](https://github.com/anuma-ai/sdk/
 
 > **attempts**: `number`
 
-Defined in: [src/lib/memory/topicExtract.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#58)
+Defined in: [src/lib/memory/topicExtract.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#60)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/topicExtract.ts:58](https://github.com/anuma-ai/sdk/
 
 > **durationMs**: `number`
 
-Defined in: [src/lib/memory/topicExtract.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#59)
+Defined in: [src/lib/memory/topicExtract.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#61)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/topicExtract.ts:59](https://github.com/anuma-ai/sdk/
 
 > `optional` **failure**: [`PortalLlmFailure`](PortalLlmFailure.md)
 
-Defined in: [src/lib/memory/topicExtract.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#61)
+Defined in: [src/lib/memory/topicExtract.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#63)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/memory/topicExtract.ts:61](https://github.com/anuma-ai/sdk/
 
 > **memoryIds**: `string`\[]
 
-Defined in: [src/lib/memory/topicExtract.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#57)
+Defined in: [src/lib/memory/topicExtract.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#59)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/lib/memory/topicExtract.ts:57](https://github.com/anuma-ai/sdk/
 
 > **unansweredCount**: `number`
 
-Defined in: [src/lib/memory/topicExtract.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#60)
+Defined in: [src/lib/memory/topicExtract.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/topicExtract.ts#62)
