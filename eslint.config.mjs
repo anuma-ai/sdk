@@ -82,6 +82,8 @@ export default tseslint.config(
       "dist/**",
       "src/client/**/*",
       "!src/client/sdk.gen.ts",
+      "!src/client/client/",
+      "!src/client/client/utils.gen.ts",
       "!src/client/core/",
       "!src/client/core/bodySerializer.gen.ts",
       "!src/client/types.gen.ts",
