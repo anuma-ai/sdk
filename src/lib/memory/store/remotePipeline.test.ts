@@ -345,6 +345,29 @@ describe("remote shared recall/retain pipeline", () => {
     expect(h.put).not.toHaveBeenCalled();
     expect(h.persistence.list).not.toHaveBeenCalled();
   });
+  it("suppresses a deleted fact from a tombstone that keeps only its vector", async () => {
+    const h = setup();
+    h.rows.set("deleted", {
+      memory: {
+        memory_id: "deleted",
+        content: "",
+        scope: "private",
+        created_at: 1,
+        updated_at: 2,
+        is_deleted: true,
+        embedding: [1, ...new Array<number>(1535).fill(0)],
+        embedding_model: "model",
+      },
+      version: 2,
+      server_updated_at: "2026-10-07T00:00:00Z",
+    });
+    expect(await h.pipeline.retain("Drinks tea", { respectTombstones: true })).toMatchObject({
+      action: "suppressed",
+      tombstoneId: "deleted",
+    });
+    expect(h.put).not.toHaveBeenCalled();
+    expect(h.putMany).not.toHaveBeenCalled();
+  });
   it("commits consolidation supersession in one atomic batch and refuses stale decisions", async () => {
     const h = setup();
     h.seed("old");
