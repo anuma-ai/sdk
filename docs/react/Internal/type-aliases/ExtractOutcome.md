@@ -2,7 +2,7 @@
 
 > **ExtractOutcome** = `"extracted"` | `"no-facts"` | `"empty-after-retry"` | `"dropped-after-redaction"`
 
-Defined in: [src/lib/memory/autoExtract.ts:492](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#492)
+Defined in: [src/lib/memory/autoExtract.ts:494](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#494)
 
 Outcome of the EXTRACTOR stage for a turn — independent of whether the
 subsequent `retain()` writes landed (that's `failedCount`):
