@@ -98,6 +98,8 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
   const baseUrlRef = useRef(baseUrl);
   const onErrorRef = useRef(onError);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hasFetchedRef = useRef(false);
+  const loadingCountRef = useRef(0);
 
   useEffect(() => {
     getTokenRef.current = getToken;
@@ -107,11 +109,22 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
 
   useEffect(() => {
     return () => {
+      hasFetchedRef.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
     };
+  }, []);
+
+  const startLoading = useCallback(() => {
+    loadingCountRef.current++;
+    setIsLoading(true);
+  }, []);
+
+  const stopLoading = useCallback(() => {
+    loadingCountRef.current = Math.max(0, loadingCountRef.current - 1);
+    setIsLoading(loadingCountRef.current > 0);
   }, []);
 
   const getHeaders = useCallback(async (): Promise<Record<string, string>> => {
@@ -141,7 +154,7 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
     abortControllerRef.current = abortController;
     const signal = abortController.signal;
 
-    setIsLoading(true);
+    startLoading();
     setError(null);
 
     try {
@@ -155,28 +168,26 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
         signal,
       });
 
+      if (signal.aborted) return;
+
       if (response.error) {
         const errorMsg = response.error.error ?? "Failed to fetch subscription status";
-        throw new Error(errorMsg);
+        throw Object.assign(new Error(errorMsg), { cause: response.error });
       }
-
-      if (signal.aborted) return;
 
       setStatus(response.data ?? null);
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
+      if (signal.aborted || (err instanceof Error && err.name === "AbortError")) {
         return;
       }
       handleError(err);
     } finally {
-      if (!signal.aborted) {
-        setIsLoading(false);
-      }
+      stopLoading();
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
       }
     }
-  }, [getHeaders, handleError]);
+  }, [getHeaders, handleError, startLoading, stopLoading]);
 
   const refetch = useCallback(async () => {
     setStatus(null);
@@ -190,7 +201,7 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
       successUrl?: string;
       cancelUrl?: string;
     }): Promise<string | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -217,15 +228,15 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
     },
-    [getHeaders, handleError]
+    [getHeaders, handleError, startLoading, stopLoading]
   );
 
   const openCustomerPortal = useCallback(
     async (opts?: { returnUrl?: string }): Promise<string | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -249,15 +260,15 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
     },
-    [getHeaders, handleError]
+    [getHeaders, handleError, startLoading, stopLoading]
   );
 
   const cancelSubscription =
     useCallback(async (): Promise<HandlersCancelSubscriptionResponse | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -280,13 +291,13 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
-    }, [getHeaders, handleError, fetchStatus]);
+    }, [getHeaders, handleError, startLoading, stopLoading, fetchStatus]);
 
   const renewSubscription =
     useCallback(async (): Promise<HandlersRenewSubscriptionResponse | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -309,11 +320,10 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
-    }, [getHeaders, handleError, fetchStatus]);
+    }, [getHeaders, handleError, startLoading, stopLoading, fetchStatus]);
 
-  const hasFetchedRef = useRef(false);
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
