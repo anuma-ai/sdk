@@ -7,6 +7,7 @@ export {
   migrateChatsToRemote,
 } from "./migrateChats.js";
 export { createRemoteChatStore } from "./remote.js";
+export { loadSettings, saveSetting, type Setting } from "./settings.js";
 export {
   type ChatAccount,
   type ChatAccountState,

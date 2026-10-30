@@ -161,6 +161,7 @@ function notifyKeyAvailable(address: string): void {
 }
 
 const keyPairStore = new Map<string, CryptoKeyPair>();
+const pendingKeyPairRequests = new Map<string, Promise<void>>();
 
 function getStoredKeyByVersion(address: string, version: EncryptionKeyVersion): string | null {
   const keys = encryptionKeyStore.get(address);
@@ -215,6 +216,7 @@ export function clearAllEncryptionState(): void {
   cryptoKeyCache.clear();
   keyAvailableCallbacks.clear();
   pendingKeyRequests.clear();
+  pendingKeyPairRequests.clear();
   pendingCandidateDerives.clear();
   refreshCandidatesByAddress.clear();
   divergentDeriveAddresses.clear();
@@ -1387,6 +1389,27 @@ export async function requestKeyPair(
     return;
   }
 
+  const pending = pendingKeyPairRequests.get(walletAddress);
+  if (pending) {
+    return pending;
+  }
+
+  const promise = loadOrCreateKeyPair(walletAddress, signMessage, embeddedWalletSigner);
+  pendingKeyPairRequests.set(walletAddress, promise);
+  try {
+    await promise;
+  } finally {
+    if (pendingKeyPairRequests.get(walletAddress) === promise) {
+      pendingKeyPairRequests.delete(walletAddress);
+    }
+  }
+}
+
+async function loadOrCreateKeyPair(
+  walletAddress: string,
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<void> {
   const startEpoch = sessionEpoch;
 
   try {
