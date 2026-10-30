@@ -1,0 +1,241 @@
+import { Database } from "@nozbe/watermelondb";
+import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { clearAllEncryptionKeys, requestEncryptionKey } from "../../../react/useEncryption";
+import { decryptJsonField, isEncrypted } from "../encryption-utils";
+import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
+import { Media } from "./models";
+import { createMediaBatchOp, createMediaOp, getMediaByIdOp, updateMediaOp } from "./operations";
+import type { MediaOperationsContext, UpdateMediaOptions } from "./types";
+
+const ADDRESS = "0x1234567890123456789012345678901234567890";
+const MEDIA_ID = "private-media";
+const ORIGINAL = {
+  name: "private-photo.png",
+  sourceUrl: "https://example.com/private-photo.png",
+  metadata: { author: "original author" },
+};
+const CHANGES = {
+  name: "updated-photo.png",
+  sourceUrl: "https://example.com/updated-photo.png",
+  metadata: { author: "updated author" },
+};
+const signMessage = vi.fn((message: string) =>
+  Promise.resolve(`0x${Buffer.from(message).toString("hex").padStart(130, "0")}`)
+);
+
+beforeEach(() => {
+  clearAllEncryptionKeys();
+  signMessage.mockReset();
+  signMessage.mockImplementation((message: string) =>
+    Promise.resolve(`0x${Buffer.from(message).toString("hex").padStart(130, "0")}`)
+  );
+});
+
+async function seed(encrypted = true) {
+  const database = new Database({
+    adapter: new LokiJSAdapter({
+      schema: sdkSchema,
+      migrations: sdkMigrations,
+      useWebWorker: false,
+      useIncrementalIndexedDB: false,
+      dbName: `media-encryption-${Math.random()}`,
+    }),
+    modelClasses: sdkModelClasses,
+  });
+  const ctx: MediaOperationsContext = {
+    database,
+    ...(encrypted && { walletAddress: ADDRESS, signMessage }),
+  };
+  const created = await createMediaOp(ctx, {
+    ...ORIGINAL,
+    mediaId: MEDIA_ID,
+    walletAddress: ADDRESS,
+    mimeType: "image/png",
+    mediaType: "image",
+    size: 42,
+    role: "user",
+  });
+  const row = await database.get<Media>("media").find(created.id);
+  return { ctx, row };
+}
+
+describe("createMediaOp field encryption", () => {
+  it("round-trips metadata through a create followed by a read", async () => {
+    const { ctx } = await seed();
+
+    const created = await createMediaOp(ctx, {
+      ...ORIGINAL,
+      mediaId: "created-round-trip",
+      walletAddress: ADDRESS,
+      mimeType: "image/png",
+      mediaType: "image",
+      size: 42,
+      role: "user",
+    });
+    const readBack = await getMediaByIdOp(ctx, created.mediaId);
+
+    expect(created.metadata).toEqual(ORIGINAL.metadata);
+    expect(readBack?.metadata).toEqual(ORIGINAL.metadata);
+  });
+
+  it("round-trips metadata through a batch create followed by a read", async () => {
+    const { ctx } = await seed();
+
+    const [created] = await createMediaBatchOp(ctx, [
+      {
+        ...ORIGINAL,
+        mediaId: "batch-round-trip",
+        walletAddress: ADDRESS,
+        mimeType: "image/png",
+        mediaType: "image",
+        size: 42,
+        role: "user",
+      },
+    ]);
+    const readBack = await getMediaByIdOp(ctx, created.mediaId);
+
+    expect(created.metadata).toEqual(ORIGINAL.metadata);
+    expect(readBack?.metadata).toEqual(ORIGINAL.metadata);
+  });
+});
+
+describe("getMediaByIdOp field decryption", () => {
+  it.each(["missing", "incorrect"])(
+    "returns ciphertext names and urls with undefined metadata when the key is %s",
+    async (keyState) => {
+      const { ctx, row } = await seed();
+      const before: Record<string, unknown> = { ...row._raw };
+      clearAllEncryptionKeys();
+      signMessage.mockClear();
+      if (keyState === "incorrect") {
+        signMessage.mockResolvedValue(`0x${"ab".repeat(65)}`);
+        await requestEncryptionKey(ADDRESS, signMessage);
+        signMessage.mockClear();
+      }
+
+      const readBack = await getMediaByIdOp(
+        { database: ctx.database, walletAddress: ADDRESS },
+        MEDIA_ID
+      );
+
+      expect(readBack).toMatchObject({
+        name: row._getRaw("name"),
+        sourceUrl: row._getRaw("source_url"),
+        metadata: undefined,
+      });
+      expect(isEncrypted(readBack!.name)).toBe(true);
+      expect(isEncrypted(readBack!.sourceUrl!)).toBe(true);
+      expect(signMessage).not.toHaveBeenCalled();
+      expect(row._raw).toEqual(before);
+    }
+  );
+
+  it("returns raw encrypted fields when the key request fails", async () => {
+    const { ctx, row } = await seed();
+    const before: Record<string, unknown> = { ...row._raw };
+    const metadata: unknown = JSON.parse(String(row._getRaw("metadata")));
+    clearAllEncryptionKeys();
+    signMessage.mockRejectedValue(new Error("wallet signature unavailable"));
+
+    const readBack = await getMediaByIdOp(ctx, MEDIA_ID);
+
+    expect(readBack).toMatchObject({
+      name: row._getRaw("name"),
+      sourceUrl: row._getRaw("source_url"),
+      metadata,
+    });
+    expect(isEncrypted(readBack!.name)).toBe(true);
+    expect(isEncrypted(readBack!.sourceUrl!)).toBe(true);
+    expect(readBack!.metadata).toBe(metadata);
+    expect(isEncrypted(String(metadata))).toBe(true);
+    expect(row._raw).toEqual(before);
+  });
+});
+
+describe("updateMediaOp field encryption", () => {
+  it.each(["encrypted", "plaintext"])("encrypts changed fields in %s records", async (state) => {
+    const { ctx, row } = await seed(state === "encrypted");
+
+    const updated = await updateMediaOp(
+      { ...ctx, walletAddress: ADDRESS, signMessage },
+      MEDIA_ID,
+      CHANGES
+    );
+
+    expect(isEncrypted(String(row._getRaw("name")))).toBe(true);
+    expect(isEncrypted(String(row._getRaw("source_url")))).toBe(true);
+    const metadata = JSON.parse(String(row._getRaw("metadata"))) as string;
+    expect(isEncrypted(metadata)).toBe(true);
+    expect(await decryptJsonField(metadata, ADDRESS)).toEqual(CHANGES.metadata);
+    expect(updated).toMatchObject(CHANGES);
+  });
+
+  it.each([
+    ["name", "name"],
+    ["sourceUrl", "source_url"],
+    ["metadata", "metadata"],
+  ] as const)("preserves omitted encrypted fields after a %s update", async (field, column) => {
+    const { ctx, row } = await seed();
+    const before: Record<string, unknown> = { ...row._raw };
+
+    const updated = await updateMediaOp(ctx, MEDIA_ID, { [field]: CHANGES[field] });
+
+    for (const encryptedColumn of ["name", "source_url", "metadata"] as const) {
+      if (encryptedColumn !== column) {
+        expect(row._getRaw(encryptedColumn)).toBe(before[encryptedColumn]);
+      }
+    }
+    const stored = String(row._getRaw(column));
+    const encryptedValue: unknown = column === "metadata" ? JSON.parse(stored) : stored;
+    expect(encryptedValue).toBeTypeOf("string");
+    expect(isEncrypted(String(encryptedValue))).toBe(true);
+    expect(updated).toMatchObject({ [field]: CHANGES[field] });
+  });
+
+  it("leaves the record unchanged if encryption fails", async () => {
+    const { ctx, row } = await seed();
+    const before: Record<string, unknown> = { ...row._raw };
+    clearAllEncryptionKeys();
+    signMessage.mockRejectedValue(new Error("wallet signature unavailable"));
+
+    await expect(updateMediaOp(ctx, MEDIA_ID, CHANGES)).rejects.toThrow(
+      "wallet signature unavailable"
+    );
+
+    expect(row._raw).toEqual(before);
+  });
+
+  it("preserves encrypted fields after a non-sensitive update", async () => {
+    const { ctx, row } = await seed();
+    const before: Record<string, unknown> = { ...row._raw };
+
+    const updated = await updateMediaOp(ctx, MEDIA_ID, { messageId: "message-1", duration: 3 });
+
+    for (const column of ["name", "source_url", "metadata"] as const) {
+      expect(row._getRaw(column)).toBe(before[column]);
+    }
+    expect(updated).toMatchObject({ name: ORIGINAL.name, messageId: "message-1", duration: 3 });
+  });
+
+  it("preserves plaintext updates without an encryption context", async () => {
+    const { ctx, row } = await seed(false);
+
+    const updated = await updateMediaOp(ctx, MEDIA_ID, CHANGES);
+
+    expect(row._getRaw("name")).toBe(CHANGES.name);
+    expect(row._getRaw("source_url")).toBe(CHANGES.sourceUrl);
+    expect(row._getRaw("metadata")).toBe(JSON.stringify(CHANGES.metadata));
+    expect(updated).toMatchObject(CHANGES);
+  });
+
+  it.each<UpdateMediaOptions>([{ name: "" }, { sourceUrl: "" }, { metadata: {} }])(
+    "preserves explicit empty values: %j",
+    async (options) => {
+      const { ctx } = await seed();
+
+      expect(await updateMediaOp(ctx, MEDIA_ID, options)).toMatchObject(options);
+    }
+  );
+});
