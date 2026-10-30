@@ -12,7 +12,7 @@ import {
   type ExtractedEntity,
   parseEntities,
 } from "./autoExtract.js";
-import { isIdentifierOrAmountEntityName } from "./entitySalience.js";
+import { restoreEntityName } from "./entitySalience.js";
 import {
   callPortalJsonCompletion,
   type PortalLlmAuth,
@@ -216,10 +216,8 @@ export async function extractEntitiesForMemories(
 
 function restoreEntities(entities: ExtractedEntity[], redactor: PiiRedactor): ExtractedEntity[] {
   return entities.flatMap((e) => {
-    const restored = redactor.restoreForStorage(e.name);
-    return restored.unresolved || isIdentifierOrAmountEntityName(restored.text)
-      ? []
-      : [{ ...e, name: restored.text }];
+    const name = restoreEntityName(e.name, redactor);
+    return name === null ? [] : [{ ...e, name }];
   });
 }
 

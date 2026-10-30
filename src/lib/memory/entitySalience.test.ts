@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { TOPIC_CASES } from "../../../test/memory/src/topic/dataset";
+import type { NerDetector, PiiSpan } from "../pii/ner";
+import { PiiRedactor } from "../pii/redactor";
 import { parseEntities } from "./autoExtract";
-import { isGenericEntityName, isIdentifierOrAmountEntityName } from "./entitySalience";
+import {
+  isGenericEntityName,
+  isIdentifierOrAmountEntityName,
+  restoreEntityName,
+} from "./entitySalience";
 
 describe("isGenericEntityName", () => {
   it("drops the bare generic nouns the models leak as topics", () => {
@@ -138,6 +144,10 @@ describe("isIdentifierOrAmountEntityName", () => {
       "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
       "token_Ab3dE5fG7hJ9kL2mN4pQ6rS8",
       "key_Xq7Lm2Rt9Vb4Nc8Wd3Kf6Hj1",
+      "sk-proj-Ab3dE5fG7hJ9kL2mN4pQ6rS8tU0vW",
+      "github_pat_11ABCDEFG0123456789_abcdefghijKLMNOPQRstuvwxyz0123456789",
+      "AKIAIOSFODNN7EXAMPLE",
+      "550e8400-e29b-41d4-a716-446655440000",
     ]) {
       expect(isIdentifierOrAmountEntityName(name)).toBe(true);
     }
@@ -191,6 +201,100 @@ describe("isIdentifierOrAmountEntityName", () => {
     }
   });
 
+  it("drops truncated addresses", () => {
+    for (const name of [
+      "0x742d…f44e",
+      "0x742d...f44e",
+      "wallet 0x742d…f44e",
+      "7xKX…gAsU",
+      "7xKX...gAsU",
+    ]) {
+      expect(isIdentifierOrAmountEntityName(name)).toBe(true);
+    }
+  });
+
+  it("drops a name that pairs an amount with a subject word", () => {
+    for (const name of [
+      "rent $1,200",
+      "Bitcoin $60k",
+      "3.5 SOL staked",
+      "$1200/mo",
+      "100 shares of Apple",
+      "paid €300 deposit",
+      "2 ETH stake",
+    ]) {
+      expect(isIdentifierOrAmountEntityName(name)).toBe(true);
+    }
+  });
+
+  it("drops emails, phone numbers, SSNs and card numbers", () => {
+    for (const name of [
+      "alice@example.com",
+      "Alice (alice@example.com)",
+      "(415) 555-1234",
+      "+1 415-555-1234",
+      "123-45-6789",
+      "4111-1111-1111-1111",
+    ]) {
+      expect(isIdentifierOrAmountEntityName(name)).toBe(true);
+    }
+  });
+
+  it("drops account and order numbers", () => {
+    for (const name of ["order #123456789", "account 12345678", "invoice 1234567"]) {
+      expect(isIdentifierOrAmountEntityName(name)).toBe(true);
+    }
+  });
+
+  it("drops names of 12 or more words, such as seed phrases", () => {
+    const words = [
+      "abandon",
+      "ability",
+      "able",
+      "about",
+      "above",
+      "absent",
+      "absorb",
+      "abstract",
+      "absurd",
+      "abuse",
+      "access",
+      "accident",
+    ];
+    expect(isIdentifierOrAmountEntityName(words.join(" "))).toBe(true);
+    expect(isIdentifierOrAmountEntityName([...words, ...words].join(" "))).toBe(true);
+    expect(isIdentifierOrAmountEntityName(words.slice(0, 11).join(" "))).toBe(false);
+  });
+
+  it("drops names longer than 120 characters", () => {
+    expect(isIdentifierOrAmountEntityName("x".repeat(121))).toBe(true);
+    expect(isIdentifierOrAmountEntityName("x".repeat(120))).toBe(false);
+  });
+
+  it("handles long punctuation runs in linear time", () => {
+    const started = performance.now();
+    expect(isIdentifierOrAmountEntityName(`a${"!".repeat(50_000)}a`)).toBe(true);
+    expect(isIdentifierOrAmountEntityName(`1${",".repeat(100_000)}z`)).toBe(true);
+    expect(isIdentifierOrAmountEntityName(`a${"!".repeat(110)}a`)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(250);
+  });
+
+  it("keeps hyphenated and dotted AI model IDs", () => {
+    for (const name of [
+      "claude-sonnet-4-5-20250929",
+      "claude-3-5-sonnet-20241022",
+      "Meta-Llama-3.1-405B-Instruct",
+      "Qwen2.5-Coder-32B-Instruct",
+      "DeepSeek-R1-Distill-Qwen-32B",
+      "Mistral-7B-Instruct-v0.2",
+      "gemini-2.5-pro-preview-05-06",
+      "gpt-4o-mini-2024-07-18",
+      "Mixtral-8x22B-Instruct-v0.1",
+    ]) {
+      expect(isIdentifierOrAmountEntityName(name)).toBe(false);
+    }
+  });
+
   it("keeps ordinary subjects, tickers and names that merely contain a number", () => {
     for (const name of [
       "SOL",
@@ -227,6 +331,10 @@ describe("isIdentifierOrAmountEntityName", () => {
       "Next.js",
       "machine learning",
       "Pneumonoultramicroscopicsilicovolcanoconiosis",
+      "Python 3.12 API",
+      "99 Percent Invisible",
+      "Ocean's Eleven",
+      "Wait...What",
     ]) {
       expect(isIdentifierOrAmountEntityName(name)).toBe(false);
     }
@@ -265,5 +373,63 @@ describe("parseEntities — identifier and amount gate", () => {
       { name: "2024 trip", kind: "event" },
       { name: "3M", kind: "organization" },
     ]);
+  });
+});
+
+describe("restoreEntityName", () => {
+  const secrets = [
+    "alice@example.com",
+    "sk_live_Ab3dE5fG7hJ9kL2",
+    "sk_live_AbcdEfghIjklMnopQrstUv",
+    "(415) 555-1234",
+    "123-45-6789",
+    "4111-1111-1111-1111",
+    "123 Main Street",
+  ];
+
+  function redactorFor(text: string): PiiRedactor {
+    const redactor = new PiiRedactor();
+    redactor.redactText(text);
+    return redactor;
+  }
+
+  it("drops a name that holds a structured placeholder, whatever the restored value looks like", () => {
+    const redactor = redactorFor(`notes: ${secrets.join(" ; ")}`);
+    const placeholders = [...redactor.getMappings().keys()];
+    expect(placeholders).toEqual([
+      "[EMAIL_1]",
+      "[SSN_1]",
+      "[CREDIT_CARD_1]",
+      "[PHONE_1]",
+      "[API_KEY_1]",
+      "[API_KEY_2]",
+      "[US_ADDRESS_1]",
+    ]);
+    for (const placeholder of placeholders) {
+      expect(restoreEntityName(placeholder, redactor)).toBeNull();
+      expect(restoreEntityName(placeholder.slice(1, -1).toLowerCase(), redactor)).toBeNull();
+      expect(restoreEntityName(`Stripe ${placeholder}`, redactor)).toBeNull();
+    }
+  });
+
+  it("restores a name redacted by the NER layer", async () => {
+    const detector: NerDetector = {
+      async detect(text: string): Promise<PiiSpan[]> {
+        const at = text.indexOf("Marguerite");
+        return at === -1 ? [] : [{ start: at, end: at + 10, category: "PERSON" }];
+      },
+    };
+    const redactor = new PiiRedactor({ nerDetector: detector });
+    await redactor.redactTextAsync("Met Marguerite at alice@example.com");
+    expect(restoreEntityName("[PERSON_1]", redactor)).toBe("Marguerite");
+    expect(restoreEntityName("[PERSON_1] [EMAIL_1]", redactor)).toBeNull();
+  });
+
+  it("keeps a name without placeholders and drops an unresolved placeholder", () => {
+    const redactor = redactorFor("mail alice@example.com");
+    expect(restoreEntityName("Stripe", redactor)).toBe("Stripe");
+    expect(restoreEntityName("STEP_1", redactor)).toBe("STEP_1");
+    expect(restoreEntityName("[EMAIL_9]", redactor)).toBeNull();
+    expect(restoreEntityName("3.5 SOL", redactor)).toBeNull();
   });
 });

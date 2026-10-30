@@ -375,6 +375,32 @@ describe("extractEntitiesForMemories", () => {
     expect(result.get("mem_1")).toEqual([{ name: "Stripe", kind: "organization", weight: 1 }]);
   });
 
+  it("drops a topic that holds an email or API key placeholder", async () => {
+    const fetchFn = mockFetch(
+      topicResponse([
+        {
+          id: "mem_1",
+          entities: [
+            { name: "Stripe", kind: "organization", salience: "primary" },
+            { name: "[EMAIL_1]", kind: "thing" },
+            { name: "API_KEY_1", kind: "thing" },
+            { name: "billing [api_key_1]", kind: "thing" },
+          ],
+        },
+      ])
+    );
+    const result = await extractEntitiesForMemories(
+      [
+        {
+          id: "mem_1",
+          content: "Stripe login alice@example.com, key sk_live_Ab3dE5fG7hJ9kL2",
+        },
+      ],
+      { apiKey: "k", fetchFn, piiRedaction: true }
+    );
+    expect(result.get("mem_1")).toEqual([{ name: "Stripe", kind: "organization", weight: 1 }]);
+  });
+
   it("tells the model to use the general subject instead of identifiers or amounts", async () => {
     const fetchFn = mockFetch(topicResponse([{ id: "mem_1", entities: [] }]));
     await extractEntitiesForMemories([{ id: "mem_1", content: "fact" }], { apiKey: "k", fetchFn });

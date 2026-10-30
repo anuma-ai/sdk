@@ -1,3 +1,6 @@
+import { PII_PATTERNS } from "../pii/patterns.js";
+import type { PiiRedactor } from "../pii/redactor.js";
+
 const GENERIC_ENTITY_NAMES = new Set([
   "today",
   "tomorrow",
@@ -173,10 +176,17 @@ const WEAK_MODIFIERS = new Set([
   "or",
 ]);
 
+const MAX_ENTITY_NAME_LENGTH = 120;
+const MAX_ENTITY_NAME_TOKENS = 11;
+
 const PREFIXED_HEX = /^0x[0-9a-f]{16,}$/i;
 const BARE_HEX = /^[0-9a-f]{32,}$/i;
 const BASE58_STRING = /^[1-9A-HJ-NP-Za-km-z]{32,88}$/;
-const KEY_LIKE_MIN_LENGTH = 24;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TRUNCATED_ID = /^[0-9a-z]{3,}(?:…|\.{2,3})[0-9a-z]{3,}$/i;
+const KEY_SEGMENT_MIN_LENGTH = 16;
+const LONG_DIGIT_RUN = /^\d{6,}$/;
+const CURRENCY_MARKED = /[$€£¥₹₿]\d|\d[$€£¥₹₿]/;
 
 const NUMERIC_TOKEN =
   /^[~≈+\-−]?(?:us\$|[$€£¥₹₿])?\d(?:[\d,.]*\d)?(?:k|mm|m|bn|b|t|x|%|[$€£¥₹₿])?$/i;
@@ -185,10 +195,12 @@ const SUFFIXED_NAME = /^\d*[1-9][kmb]$/i;
 const BARE_INTEGER = /^\d+$/;
 const TICKER = /^\$?[A-Z]{2,6}$/;
 const DETACHED_CURRENCY_SYMBOL = /(^|\s)([$€£¥₹₿])\s+(?=\d)|(\d)\s+([$€£¥₹₿])(?=\s|$)/gu;
+const LEADING_PUNCTUATION = /^[^\p{L}\p{N}$€£¥₹₿~≈+\-−]+/u;
+const TRAILING_KEPT_CHARACTER = /[\p{L}\p{N}$€£¥₹₿%]/u;
 
 const LEADING_CURRENCY_CODES = new Set(["usd", "eur", "gbp", "jpy", "cad", "aud", "chf", "cny"]);
 
-const AMOUNT_WORDS = new Set([
+const QUANTITY_UNIT_WORDS = new Set([
   "usd",
   "usdc",
   "usdt",
@@ -208,7 +220,6 @@ const AMOUNT_WORDS = new Set([
   "million",
   "billion",
   "trillion",
-  "percent",
   "share",
   "shares",
   "token",
@@ -221,16 +232,42 @@ const AMOUNT_WORDS = new Set([
   "balance",
   "stake",
   "holdings",
-  "of",
 ]);
 
+const AMOUNT_WORDS = new Set([...QUANTITY_UNIT_WORDS, "percent", "of"]);
+
+const NAME_PII_CATEGORIES = new Set<string>(["EMAIL", "PHONE", "SSN", "CREDIT_CARD"]);
+const NAME_PII_PATTERNS = PII_PATTERNS.filter(
+  (pattern) => NAME_PII_CATEGORIES.has(pattern.category) && pattern.context === undefined
+);
+
+const KEPT_PLACEHOLDER_CATEGORIES = new Set(["PERSON", "LOCATION", "ORG"]);
+const PLACEHOLDER_TOKEN = /\b([A-Za-z]+(?:_[A-Za-z]+)*)_\d+\b/g;
+
 function trimPunctuation(token: string): string {
-  return token.replace(/^[^\p{L}\p{N}$€£¥₹₿~≈+\-−]+|[^\p{L}\p{N}$€£¥₹₿%]+$/gu, "");
+  const chars = Array.from(token.replace(LEADING_PUNCTUATION, ""));
+  let end = chars.length;
+  while (end > 0 && !TRAILING_KEPT_CHARACTER.test(chars[end - 1])) end--;
+  return chars.slice(0, end).join("");
+}
+
+function hasLetterAndDigit(text: string): boolean {
+  return /\p{L}/u.test(text) && /\p{N}/u.test(text);
 }
 
 function isIdentifierToken(token: string): boolean {
   if (PREFIXED_HEX.test(token) || BARE_HEX.test(token) || BASE58_STRING.test(token)) return true;
-  return token.length >= KEY_LIKE_MIN_LENGTH && /\p{L}/u.test(token) && /\p{N}/u.test(token);
+  if (UUID.test(token) || LONG_DIGIT_RUN.test(token)) return true;
+  if (TRUNCATED_ID.test(token) && hasLetterAndDigit(token)) return true;
+  return token
+    .split(/[-_.]/)
+    .some((segment) => segment.length >= KEY_SEGMENT_MIN_LENGTH && hasLetterAndDigit(segment));
+}
+
+function containsStructuredPii(name: string): boolean {
+  return NAME_PII_PATTERNS.some((pattern) =>
+    (name.match(pattern.regex) ?? []).some((match) => pattern.validate?.(match) ?? true)
+  );
 }
 
 function isAmountUnitToken(token: string): boolean {
@@ -252,14 +289,39 @@ function isAmount(tokens: readonly string[]): boolean {
   return start === 1 || !BARE_INTEGER.test(first) || units.some(isAmountWordOrNumber);
 }
 
+function hasQuantityPhrase(tokens: readonly string[]): boolean {
+  return tokens.some(
+    (token, i) =>
+      NUMERIC_TOKEN.test(token) && QUANTITY_UNIT_WORDS.has(tokens[i + 1]?.toLowerCase() ?? "")
+  );
+}
+
 export function isIdentifierOrAmountEntityName(name: string): boolean {
-  const tokens = name
-    .trim()
+  const trimmed = name.trim();
+  if (trimmed.length > MAX_ENTITY_NAME_LENGTH) return true;
+  if (containsStructuredPii(trimmed)) return true;
+  const tokens = trimmed
     .replace(DETACHED_CURRENCY_SYMBOL, "$1$2$3$4")
     .split(/\s+/)
     .map(trimPunctuation)
     .filter((token) => token.length > 0);
   if (tokens.length === 0) return false;
+  if (tokens.length > MAX_ENTITY_NAME_TOKENS) return true;
   if (tokens.some(isIdentifierToken)) return true;
-  return isAmount(tokens);
+  if (tokens.some((token) => CURRENCY_MARKED.test(token))) return true;
+  return isAmount(tokens) || hasQuantityPhrase(tokens);
+}
+
+export function restoreEntityName(
+  name: string,
+  redactor: Pick<PiiRedactor, "restoreForStorage">
+): string | null {
+  for (const [token, category] of name.matchAll(PLACEHOLDER_TOKEN)) {
+    if (KEPT_PLACEHOLDER_CATEGORIES.has(category.toUpperCase())) continue;
+    if (redactor.restoreForStorage(token).text !== token) return null;
+  }
+  const restored = redactor.restoreForStorage(name);
+  return restored.unresolved || isIdentifierOrAmountEntityName(restored.text)
+    ? null
+    : restored.text;
 }
