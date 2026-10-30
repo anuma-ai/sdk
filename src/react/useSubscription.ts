@@ -155,21 +155,21 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
         signal,
       });
 
+      if (signal.aborted) return;
+
       if (response.error) {
         const errorMsg = response.error.error ?? "Failed to fetch subscription status";
         throw new Error(errorMsg);
       }
 
-      if (signal.aborted) return;
-
       setStatus(response.data ?? null);
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
+      if (signal.aborted || (err instanceof Error && err.name === "AbortError")) {
         return;
       }
       handleError(err);
     } finally {
-      if (!signal.aborted) {
+      if (!abortControllerRef.current || abortControllerRef.current === abortController) {
         setIsLoading(false);
       }
       if (abortControllerRef.current === abortController) {

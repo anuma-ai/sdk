@@ -152,15 +152,16 @@ export function useCredits(options: UseCreditsOptions = {}): UseCreditsResult {
         signal,
       });
 
+      if (signal.aborted) return;
+
       if (response.error) {
         const errorMsg = response.error.error ?? "Failed to fetch credit balance";
         throw new Error(errorMsg);
       }
 
-      if (signal.aborted) return;
       setBalance(response.data ?? null);
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (signal.aborted || (err instanceof Error && err.name === "AbortError")) return;
       handleError(err);
     } finally {
       stopLoading();
