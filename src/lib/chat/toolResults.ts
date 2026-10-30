@@ -1,5 +1,5 @@
 import type { MessageOrigin } from "../db/chat/types";
-import { capToolResultEntries, TOOL_RESULT_FOOTER_LINE } from "./toolResultMessage";
+import { capToolResultEntries, isTruncationMarkerLine } from "./toolResultMessage";
 import { wrapConnectorToolResult } from "./untrustedToolResult";
 
 /** Marker the clients match on to tell this row apart from a real user turn. */
@@ -80,8 +80,7 @@ export function parseToolResultSegments(content: string): ToolResultSegment[] {
       continue;
     }
     const current = segments[segments.length - 1];
-    if (!current || line === "" || line === TOOL_RESULT_FOOTER_LINE) continue;
-    if (!/^\.\.\. \(tool output truncated, \d+ characters omitted\)$/.test(line)) continue;
+    if (!current || !isTruncationMarkerLine(line)) continue;
     current.line = `${current.line}\n${line}`;
   }
   return segments;

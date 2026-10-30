@@ -4,14 +4,8 @@ const HEADER = "[Tool Execution Results]\n\n";
 const FOOTER = "\n\nBased on these results, continue with the task.";
 const ENTRY_SEPARATOR = "\n\n";
 
-/**
- * The footer, without its leading blank line.
- *
- * Exported so the replay parser can tell it apart from an entry's own trailing lines: a truncated
- * entry spans several lines, so the parser attaches trailing non-matching lines to the entry above —
- * and this is the one trailing line that belongs to the row rather than to any entry.
- */
-export const TOOL_RESULT_FOOTER_LINE = FOOTER.trim();
+const TRUNCATION_MARKER_HEAD = "... (tool output truncated, ";
+const TRUNCATION_MARKER_TAIL = " characters omitted)";
 
 /**
  * Hard ceiling on the persisted tool-result message, in characters. Bounds the
@@ -97,5 +91,13 @@ function truncateEntry(entry: string, allowance: number): string {
 }
 
 function truncationMarker(omitted: number): string {
-  return `\n\n... (tool output truncated, ${omitted} characters omitted)`;
+  return `\n\n${TRUNCATION_MARKER_HEAD}${omitted}${TRUNCATION_MARKER_TAIL}`;
+}
+
+/** Whether a trimmed line is the marker that `truncateEntry` appends to a truncated entry. */
+export function isTruncationMarkerLine(line: string): boolean {
+  const head = TRUNCATION_MARKER_HEAD;
+  const tail = TRUNCATION_MARKER_TAIL;
+  if (!line.startsWith(head) || !line.endsWith(tail)) return false;
+  return /^\d+$/.test(line.slice(head.length, line.length - tail.length));
 }
