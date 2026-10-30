@@ -1,6 +1,6 @@
 # ChatRevision
 
-Defined in: [src/lib/chatStore/types.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#55)
+Defined in: [src/lib/chatStore/types.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#61)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:55](https://github.com/anuma-ai/sdk/blob
 
 > **id**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#57)
+Defined in: [src/lib/chatStore/types.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#63)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/types.ts:57](https://github.com/anuma-ai/sdk/blob
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/chatStore/types.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#59)
+Defined in: [src/lib/chatStore/types.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#65)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/chatStore/types.ts:59](https://github.com/anuma-ai/sdk/blob
 
 > **kind**: [`ChatRecordKind`](../type-aliases/ChatRecordKind.md)
 
-Defined in: [src/lib/chatStore/types.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#56)
+Defined in: [src/lib/chatStore/types.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#62)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: [src/lib/chatStore/types.ts:56](https://github.com/anuma-ai/sdk/blob
 
 > **updatedAt**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#58)
+Defined in: [src/lib/chatStore/types.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#64)

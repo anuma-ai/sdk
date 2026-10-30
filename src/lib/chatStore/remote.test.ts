@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
 import { createRemoteChatStore } from "./remote";
+import { loadSettings, saveSetting } from "./settings";
 import { type ChatRecord, ChatStoreError, type RemoteChatStoreOptions } from "./types";
 import { messageData, toMessage } from "./vaultRecords";
 
@@ -83,6 +84,8 @@ async function setup() {
     }
     if (url.searchParams.get("account_id") !== String(account.account_id))
       return Response.json({ code: "account_changed" }, { status: 409 });
+    if (url.pathname.endsWith("/changes"))
+      return Response.json({ items: [...rows.values()], changes_cursor: "head" });
     if (url.pathname.endsWith("/records")) {
       const matching = [...rows.values()]
         .filter(
@@ -494,5 +497,38 @@ describe("encrypted remote ChatStore", () => {
       role: "user",
       content: "hi",
     });
+  });
+});
+
+describe("settings through the encrypted remote ChatStore", () => {
+  it("round-trips an encrypted setting section", async () => {
+    const { store, rows } = await setup();
+    await saveSetting(store, "instructions", { text: "private instructions" });
+    const wire = rows.get("setting/instructions");
+    expect(wire?.record.conversation_id).toBe("");
+    expect(wire?.record.payload).not.toContain("private instructions");
+    expect((await loadSettings(store)).get("instructions")?.data).toEqual({
+      text: "private instructions",
+    });
+  });
+
+  it("asks vault for the requested kinds only", async () => {
+    const { store, urls } = await setup();
+    await store.changes(undefined, { kinds: ["setting"] });
+    expect(new URL(urls[urls.length - 1]).searchParams.get("kinds")).toBe("setting");
+    await store.changes(undefined, { kinds: ["conversation", "setting"] });
+    expect(new URL(urls[urls.length - 1]).searchParams.get("kinds")).toBe("conversation,setting");
+    await store.changes();
+    expect(new URL(urls[urls.length - 1]).searchParams.has("kinds")).toBe(false);
+  });
+
+  it("rejects an empty, repeated or unknown kinds filter before calling vault", async () => {
+    const { store, fetch } = await setup();
+    const calls = fetch.mock.calls.length;
+    for (const kinds of [[], ["setting", "setting"], ["tool"]])
+      await expect(store.changes(undefined, { kinds: kinds as never })).rejects.toMatchObject({
+        code: "invalid_record",
+      });
+    expect(fetch.mock.calls.length).toBe(calls);
   });
 });

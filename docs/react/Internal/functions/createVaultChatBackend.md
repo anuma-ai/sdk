@@ -2,7 +2,7 @@
 
 > **createVaultChatBackend**(`options`: [`VaultChatBackendOptions`](../interfaces/VaultChatBackendOptions.md)): [`VaultChatBackend`](../interfaces/VaultChatBackend.md)
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#175)
+Defined in: [src/lib/chatStore/vaultBackend.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#191)
 
 Creates a vault chat backend for one account and key; build a new one after a wallet or key change.
 

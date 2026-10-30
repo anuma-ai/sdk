@@ -86,6 +86,7 @@ export function useCredits(options: UseCreditsOptions = {}): UseCreditsResult {
   const baseUrlRef = useRef(baseUrl);
   const onErrorRef = useRef(onError);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
     getTokenRef.current = getToken;
@@ -95,6 +96,7 @@ export function useCredits(options: UseCreditsOptions = {}): UseCreditsResult {
 
   useEffect(() => {
     return () => {
+      hasFetchedRef.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -152,15 +154,16 @@ export function useCredits(options: UseCreditsOptions = {}): UseCreditsResult {
         signal,
       });
 
+      if (signal.aborted) return;
+
       if (response.error) {
         const errorMsg = response.error.error ?? "Failed to fetch credit balance";
-        throw new Error(errorMsg);
+        throw Object.assign(new Error(errorMsg), { cause: response.error });
       }
 
-      if (signal.aborted) return;
       setBalance(response.data ?? null);
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (signal.aborted || (err instanceof Error && err.name === "AbortError")) return;
       handleError(err);
     } finally {
       stopLoading();
@@ -237,7 +240,6 @@ export function useCredits(options: UseCreditsOptions = {}): UseCreditsResult {
     [getHeaders, handleError, startLoading, stopLoading]
   );
 
-  const hasFetchedRef = useRef(false);
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {
       hasFetchedRef.current = true;

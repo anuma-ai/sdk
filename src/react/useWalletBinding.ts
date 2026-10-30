@@ -102,6 +102,8 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
   const baseUrlRef = useRef(baseUrl);
   const onErrorRef = useRef(onError);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hasFetchedRef = useRef(false);
+  const loadingCountRef = useRef(0);
 
   useEffect(() => {
     getTokenRef.current = getToken;
@@ -111,11 +113,22 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
 
   useEffect(() => {
     return () => {
+      hasFetchedRef.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
     };
+  }, []);
+
+  const startLoading = useCallback(() => {
+    loadingCountRef.current++;
+    setIsLoading(true);
+  }, []);
+
+  const stopLoading = useCallback(() => {
+    loadingCountRef.current = Math.max(0, loadingCountRef.current - 1);
+    setIsLoading(loadingCountRef.current > 0);
   }, []);
 
   const getHeaders = useCallback(async (): Promise<Record<string, string>> => {
@@ -145,7 +158,7 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
     abortControllerRef.current = abortController;
     const signal = abortController.signal;
 
-    setIsLoading(true);
+    startLoading();
     setError(null);
 
     try {
@@ -159,29 +172,27 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
         signal,
       });
 
+      if (signal.aborted) return;
+
       if (response.error) {
         const errorMsg = response.error.error ?? "Failed to fetch bound wallets";
-        throw new Error(errorMsg);
+        throw Object.assign(new Error(errorMsg), { cause: response.error });
       }
-
-      if (signal.aborted) return;
 
       setWallets(response.data?.wallets ?? []);
       setTotals(response.data?.totals ?? null);
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
+      if (signal.aborted || (err instanceof Error && err.name === "AbortError")) {
         return;
       }
       handleError(err);
     } finally {
-      if (!signal.aborted) {
-        setIsLoading(false);
-      }
+      stopLoading();
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
       }
     }
-  }, [getHeaders, handleError]);
+  }, [getHeaders, handleError, startLoading, stopLoading]);
 
   const refetch = useCallback(async () => {
     setWallets([]);
@@ -190,7 +201,7 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
   }, [fetchBinding]);
 
   const getNonce = useCallback(async (): Promise<HandlersNonceResponse | null> => {
-    setIsLoading(true);
+    startLoading();
     setError(null);
 
     try {
@@ -211,13 +222,13 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
       handleError(err);
       return null;
     } finally {
-      setIsLoading(false);
+      stopLoading();
     }
-  }, [getHeaders, handleError]);
+  }, [getHeaders, handleError, startLoading, stopLoading]);
 
   const bindWallet = useCallback(
     async (request: HandlersBindRequest): Promise<HandlersBoundWalletResponse | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -241,15 +252,15 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
     },
-    [getHeaders, handleError, fetchBinding]
+    [getHeaders, handleError, startLoading, stopLoading, fetchBinding]
   );
 
   const unbindWallet = useCallback(
     async (address: string): Promise<boolean> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -273,13 +284,12 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
         handleError(err);
         return false;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
     },
-    [getHeaders, handleError, fetchBinding]
+    [getHeaders, handleError, startLoading, stopLoading, fetchBinding]
   );
 
-  const hasFetchedRef = useRef(false);
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {
       hasFetchedRef.current = true;

@@ -1,6 +1,6 @@
 # ChatSearchHit
 
-Defined in: [src/lib/chatStore/types.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#78)
+Defined in: [src/lib/chatStore/types.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#84)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/chatStore/types.ts:78](https://github.com/anuma-ai/sdk/blob
 
 > **chunk**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#79)
+Defined in: [src/lib/chatStore/types.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#85)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/chatStore/types.ts:79](https://github.com/anuma-ai/sdk/blob
 
 > **record**: [`ChatRecord`](ChatRecord.md)
 
-Defined in: [src/lib/chatStore/types.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#18)
+Defined in: [src/lib/chatStore/types.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#24)
 
 **Inherited from**
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/chatStore/types.ts:18](https://github.com/anuma-ai/sdk/blob
 
 > **score**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#80)
+Defined in: [src/lib/chatStore/types.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#86)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/chatStore/types.ts:80](https://github.com/anuma-ai/sdk/blob
 
 > **serverUpdatedAt**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#20)
+Defined in: [src/lib/chatStore/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#26)
 
 **Inherited from**
 
@@ -52,7 +52,7 @@ Defined in: [src/lib/chatStore/types.ts:20](https://github.com/anuma-ai/sdk/blob
 
 > **version**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#19)
+Defined in: [src/lib/chatStore/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#25)
 
 **Inherited from**
 

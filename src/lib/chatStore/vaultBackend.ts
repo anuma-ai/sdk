@@ -34,6 +34,7 @@ import {
   type ChatStore,
   ChatStoreError,
 } from "./types";
+import { type ChatCacheStorage, loadChatCache, saveChatCache } from "./vaultCache";
 import {
   applyPatch,
   type ChatOutboxLocks,
@@ -82,7 +83,8 @@ export interface VaultChatActivity {
 }
 
 export interface VaultChatBackendOptions {
-  store: ChatStore;
+  /** A connected store, or a function that connects one; with a seeded `cache`, reads serve cached chats until it resolves. */
+  store: ChatStore | (() => Promise<ChatStore>);
   /** Persists unsent writes, sealed with `seal`, so they survive a reload; `locks` defaults to `navigator.locks`. */
   outbox?: {
     storage: ChatOutboxStorage;
@@ -94,6 +96,12 @@ export interface VaultChatBackendOptions {
   pollIntervalMs?: number;
   /** BroadcastChannel name shared by this account's tabs, so one tab's writes prompt the others to poll. */
   channel?: string;
+  /** Keeps `account`'s confirmed records and `/changes` cursor sealed with `seal`, so a cold start reads them before vault answers. */
+  cache?: {
+    storage: ChatCacheStorage;
+    seal: Pick<SealingCipher, "encrypt" | "decrypt">;
+    account: string;
+  };
   threadCacheSize?: number;
   now?: () => number;
 }
@@ -115,10 +123,17 @@ export interface VaultChatBackend extends ChatBackend {
     chats: readonly { conversation: StoredConversation; messages: readonly StoredMessage[] }[]
   ): Promise<{ conversations: number; messages: number }>;
   status(): { pending: number; stopped?: string };
+  /** Deletes this account's cached chats and stops caching; call it on logout or a wallet switch. */
+  clearCache(): Promise<void>;
   close(): void;
 }
 
 const terminalCodes = new Set(["key_mismatch", "account_changed", "account_not_found"]);
+const cacheSaveDelayMs = 500;
+
+function cursorRejected(error: unknown): boolean {
+  return error instanceof ChatStoreError && (error.status === 400 || error.status === 410);
+}
 
 function key(kind: ChatRecordKind, id: string): string {
   return `${kind}/${id}`;
@@ -130,6 +145,7 @@ const resumableFields = [
   "imageModel",
   "files",
   "fileIds",
+  "vaultAttachments",
   "usage",
   "sources",
   "responseDuration",
@@ -173,7 +189,7 @@ function defaultActivity(): VaultChatActivity {
 
 /** Creates a vault chat backend for one account and key; build a new one after a wallet or key change. */
 export function createVaultChatBackend(options: VaultChatBackendOptions): VaultChatBackend {
-  const { store } = options;
+  const { cache } = options;
   const now = options.now ?? Date.now;
   const threadLimit = options.threadCacheSize ?? 30;
   const pollIntervalMs = options.pollIntervalMs ?? 60_000;
@@ -201,6 +217,13 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   let persisting: Promise<void> = Promise.resolve();
   let readyPromise: Promise<void> | null = null;
   let adopting: Promise<void> | null = null;
+  let connected = typeof options.store === "function" ? undefined : options.store;
+  const complete = new Set<string>();
+  let fromCache = false;
+  let caching = false;
+  let cacheOff = false;
+  let cacheTimer: ReturnType<typeof setTimeout> | undefined;
+  let saving: Promise<void> = Promise.resolve();
   const slot = uuidv7();
   const locks =
     options.outbox?.locks ??
@@ -248,12 +271,69 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     return out;
   };
 
+  const cacheSnapshot = () => {
+    const kept = [...threads.keys()].filter((id) => complete.has(id) && confirmedLive(id));
+    const keep = new Set(kept);
+    return {
+      account: cache!.account,
+      cursor: cursor ?? "",
+      records: [...confirmed.values()].filter(
+        ({ record }) =>
+          record.kind === "conversation" ||
+          (record.kind !== "project" && keep.has(record.conversationId))
+      ),
+      threads: kept,
+      absent: [...checked].filter((k) => {
+        const [kind, ...rest] = k.split("/");
+        return (
+          (kind === "summary" || kind === "memory_links") &&
+          !confirmed.has(k) &&
+          keep.has(rest.join("/"))
+        );
+      }),
+    };
+  };
+
+  const saveCache = () => {
+    if (!cache || !caching || cacheOff || closed || cacheTimer || cursor === undefined) return;
+    cacheTimer = setTimeout(() => {
+      cacheTimer = undefined;
+      saving = saving
+        .then(() =>
+          cacheOff || closed
+            ? undefined
+            : saveChatCache(cache.storage, cache.seal.encrypt, cacheSnapshot())
+        )
+        .catch(() => undefined);
+    }, cacheSaveDelayMs);
+  };
+
+  const clearCache = async () => {
+    fromCache = false;
+    cacheOff = true;
+    clearTimeout(cacheTimer);
+    cacheTimer = undefined;
+    await saving;
+    if (cache) await cache.storage.set(cache.account, null);
+  };
+
+  const wipeIfTerminal = (error: unknown) => {
+    if (error instanceof ChatStoreError && terminalCodes.has(error.code ?? ""))
+      void clearCache().catch(() => undefined);
+  };
+
   const merge = (snapshot: ChatSnapshot) => {
     const k = key(snapshot.record.kind, snapshot.record.id);
     const known = confirmed.get(k);
     if (known && known.version >= snapshot.version) return false;
     confirmed.set(k, snapshot);
+    saveCache();
     return true;
+  };
+
+  const remote = async (): Promise<ChatStore> => {
+    await ready();
+    return connected!;
   };
 
   const persist = () => {
@@ -318,7 +398,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       return { kind: kind as ChatRecordKind, id: rest.join("/") };
     });
     if (refs.length === 0) return;
-    const found = await store.getMany(refs);
+    const found = await (await remote()).getMany(refs);
     const seen = new Set(found.map((s) => key(s.record.kind, s.record.id)));
     for (const snapshot of found) merge(snapshot);
     for (const ref of refs) {
@@ -326,6 +406,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       if (!seen.has(k)) confirmed.delete(k);
       checked.add(k);
     }
+    saveCache();
   };
 
   const drop = (
@@ -397,7 +478,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       sent.push(patch);
     }
     if (writes.length === 0) return;
-    const results = await store.putMany(writes);
+    const results = await (await remote()).putMany(writes);
     results.forEach((snapshot, i) => {
       merge(snapshot);
       checked.add(patchKey(sent[i]));
@@ -434,6 +515,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     }
     if (terminalCodes.has(error.code ?? "")) {
       stopped = error.code;
+      wipeIfTerminal(error);
       reportOutbox();
       return "stop";
     }
@@ -510,6 +592,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   const forget = (k: string) => {
     confirmed.delete(k);
     checked.delete(k);
+    saveCache();
   };
 
   const forgetConversation = (conversationId: string) => {
@@ -544,9 +627,10 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     }
     const loading = (async () => {
       if (!confirmedLive(conversationId)) return;
+      const source = await remote();
       let page: string | undefined;
       do {
-        const result = await store.list({
+        const result = await source.list({
           kind: "message",
           conversationId,
           limit: 200,
@@ -556,7 +640,15 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         page = result.nextCursor;
       } while (page);
     })();
-    loading.catch(() => threads.delete(conversationId));
+    void loading.then(
+      () => {
+        if (threads.get(conversationId) !== loading) return;
+        complete.add(conversationId);
+        saveCache();
+      },
+      () => threads.delete(conversationId)
+    );
+    complete.delete(conversationId);
     threads.set(conversationId, loading);
     evict();
     return loading;
@@ -579,21 +671,62 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     if (relevant && merge(snapshot)) announce([record]);
   };
 
+  const listIndex = async (source: ChatStore) => {
+    const index: ChatSnapshot[] = [];
+    let page: string | undefined;
+    do {
+      const result = await source.list({
+        kind: "conversation",
+        limit: 200,
+        ...(page ? { cursor: page } : {}),
+      });
+      index.push(...result.items);
+      page = result.nextCursor;
+    } while (page);
+    return index;
+  };
+
+  const catchUp = async (source: ChatStore) => {
+    let next = cursor ?? "";
+    for (;;) {
+      const page = await source.changes(next || undefined, { limit: 200 });
+      page.items.forEach(applyRemote);
+      next = page.nextCursor ?? page.changesCursor;
+      if (!page.nextCursor) break;
+    }
+    cursor = next;
+  };
+
+  const refetch = async (source: ChatStore) => {
+    const account = await source.account();
+    const index = await listIndex(source);
+    const reopened = [...threads.keys()];
+    confirmed.clear();
+    checked.clear();
+    threads.clear();
+    complete.clear();
+    cursor = account.changesCursor ?? "";
+    index.forEach(merge);
+    emit({ type: "conversations", origin: "remote" });
+    for (const conversationId of reopened)
+      emit({ type: "messages", conversationId, origin: "remote" });
+  };
+
   const poll = (): Promise<void> => {
     polling ??= (async () => {
-      await ready();
-      let next = cursor ?? "";
-      for (;;) {
-        const page = await store.changes(next || undefined, { limit: 200 });
-        page.items.forEach(applyRemote);
-        next = page.nextCursor ?? page.changesCursor;
-        if (!page.nextCursor) break;
+      const source = await remote();
+      try {
+        await catchUp(source);
+      } catch (error) {
+        if (!cursorRejected(error)) throw error;
+        await refetch(source);
       }
-      cursor = next;
       pollFailures = 0;
+      saveCache();
     })()
-      .catch(() => {
+      .catch((error) => {
         pollFailures++;
+        wipeIfTerminal(error);
       })
       .finally(() => {
         polling = null;
@@ -614,25 +747,27 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
 
   const ready = (): Promise<void> => {
     readyPromise ??= (async () => {
-      const account = await store.account();
-      cursor = account.changesCursor ?? "";
-      let page: string | undefined;
-      do {
-        const result = await store.list({
-          kind: "conversation",
-          limit: 200,
-          ...(page ? { cursor: page } : {}),
-        });
-        result.items.forEach(merge);
-        page = result.nextCursor;
-      } while (page);
+      await seeding;
+      if (!connected && typeof options.store === "function") connected = await options.store();
+      const source = connected!;
+      const account = await source.account();
+      if (!fromCache) {
+        cursor = account.changesCursor ?? "";
+        (await listIndex(source)).forEach(merge);
+      }
       await adopt();
       schedulePoll();
     })();
-    readyPromise.catch(() => {
+    readyPromise.catch((error) => {
       readyPromise = null;
+      wipeIfTerminal(error);
     });
     return readyPromise;
+  };
+
+  const available = async () => {
+    await seeding;
+    if (!fromCache) await ready();
   };
 
   const adoptSlot = async (
@@ -683,10 +818,10 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   if (channel) channel.onmessage = () => void poll();
 
   const conversation = async (conversationId: string): Promise<ChatRecord | undefined> => {
-    await ready();
+    await available();
     const k = key("conversation", conversationId);
     if (!view(k) && !checked.has(k)) {
-      const found = await store.get("conversation", conversationId);
+      const found = await (await remote()).get("conversation", conversationId);
       checked.add(k);
       if (found) merge(found);
     }
@@ -694,10 +829,10 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   };
 
   const message = async (uniqueId: string): Promise<ChatRecord | undefined> => {
-    await ready();
+    await available();
     const k = key("message", uniqueId);
     if (!view(k) && !checked.has(k)) {
-      const found = await store.get("message", uniqueId);
+      const found = await (await remote()).get("message", uniqueId);
       checked.add(k);
       if (found) merge(found);
     }
@@ -708,18 +843,19 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   };
 
   const child = async (kind: "summary" | "memory_links", conversationId: string) => {
-    await ready();
+    await available();
     const k = key(kind, conversationId);
     if (!view(k) && !checked.has(k) && conversationLive(conversationId)) {
-      const found = await store.get(kind, conversationId);
+      const found = await (await remote()).get(kind, conversationId);
       checked.add(k);
       if (found) merge(found);
+      saveCache();
     }
     return view(k);
   };
 
   const thread = async (conversationId: string): Promise<ChatRecord[]> => {
-    await ready();
+    await available();
     if (!conversationLive(conversationId)) return [];
     await loadThread(conversationId);
     return all("message", conversationId).sort(
@@ -794,7 +930,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       return record && !record.isDeleted ? toConversation(record) : null;
     },
     async getConversations(query?: ConversationQueryOptions) {
-      await ready();
+      await available();
       return all("conversation")
         .map(toConversation)
         .filter(
@@ -877,7 +1013,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       return toSkeletons(await thread(conversationId));
     },
     async getMessagesByIds(uniqueIds) {
-      await ready();
+      await available();
       const ids = [...new Set(uniqueIds)];
       const unknown = ids
         .map((id) => key("message", id))
@@ -1018,7 +1154,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       );
     },
     async getAllFiles(query?: Parameters<typeof getAllFilesOp>[1]) {
-      await ready();
+      await available();
       if (query?.conversationId) await loadThread(query.conversationId);
       const files: StoredFileWithContext[] = [];
       for (const record of all("message", query?.conversationId)) {
@@ -1043,7 +1179,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       const vector = acceptedVector(queryVector);
       if (!vector) return [];
       await flush();
-      const hits = await store.search(vector, {
+      const hits = await (
+        await remote()
+      ).search(vector, {
         limit: Math.min(50, limit),
         kinds: ["message"],
         ...(conversationId ? { conversationId } : {}),
@@ -1156,8 +1294,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       let messageCount = 0;
       try {
         for (const batch of batches(conversations))
-          conversationCount += await store.importRecords(batch);
-        for (const batch of batches(messages)) messageCount += await store.importRecords(batch);
+          conversationCount += await connected!.importRecords(batch);
+        for (const batch of batches(messages))
+          messageCount += await connected!.importRecords(batch);
       } finally {
         for (const { record } of messages) checked.delete(key("message", record.id));
         await refresh(conversations.map(({ record }) => key("conversation", record.id))).catch(
@@ -1172,8 +1311,10 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       return { conversations: conversationCount, messages: messageCount };
     },
     status: () => ({ pending: pending.size + inflight.size, ...(stopped ? { stopped } : {}) }),
+    clearCache,
     close() {
       closed = true;
+      clearTimeout(cacheTimer);
       clearTimeout(flushTimer);
       clearTimeout(retryTimer);
       clearTimeout(pollTimer);
@@ -1192,7 +1333,32 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     return true;
   };
 
+  const seed = async () => {
+    if (!cache) return;
+    try {
+      const snapshot = await loadChatCache(cache.storage, cache.account, cache.seal.decrypt).catch(
+        () => undefined
+      );
+      if (!snapshot || cacheOff) return;
+      snapshot.records.forEach(merge);
+      for (const conversationId of snapshot.threads) {
+        if (!confirmedLive(conversationId)) continue;
+        threads.set(conversationId, Promise.resolve());
+        complete.add(conversationId);
+      }
+      evict();
+      for (const k of snapshot.absent) checked.add(k);
+      cursor = snapshot.cursor;
+      fromCache = true;
+      await adopt().catch(() => undefined);
+    } finally {
+      caching = true;
+    }
+  };
+  const seeding = seed();
+
   void ready().catch(() => undefined);
+  if (cache) void seeding.then(() => (fromCache ? poll() : undefined));
   return backend;
 }
 

@@ -795,9 +795,12 @@ export {
   countUnreadAnumaTurns,
   createRemoteChatStore,
   ensureAnumaConversation,
+  loadSettings,
   markAnumaRead,
   readAnumaTurn,
   type RemoteChatStoreOptions,
+  saveSetting,
+  type Setting,
 } from "./lib/chatStore";
 export type { LazyStoredConversation } from "./lib/db/chat";
 export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";

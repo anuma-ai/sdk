@@ -238,6 +238,12 @@ Re-exports [ChatBackendSigner](../react/Internal/interfaces/ChatBackendSigner.md
 
 ***
 
+### ChatCacheStorage
+
+Re-exports [ChatCacheStorage](../react/Internal/interfaces/ChatCacheStorage.md)
+
+***
+
 ### ChatChanges
 
 Re-exports [ChatChanges](../react/Internal/interfaces/ChatChanges.md)
@@ -757,6 +763,12 @@ Re-exports [CreateSelectPaymentWalletToolOptions](../react/Internal/type-aliases
 ### createStockPricePreProcessor
 
 Re-exports [createStockPricePreProcessor](../react/Internal/functions/createStockPricePreProcessor.md)
+
+***
+
+### createVaultAttachments
+
+Re-exports [createVaultAttachments](../react/Internal/functions/createVaultAttachments.md)
 
 ***
 
@@ -1462,6 +1474,12 @@ Re-exports [LlmNeighborRefinerOptions](../react/Internal/interfaces/LlmNeighborR
 
 ***
 
+### loadSettings
+
+Re-exports [loadSettings](../react/Internal/functions/loadSettings.md)
+
+***
+
 ### localChatBackend
 
 Re-exports [localChatBackend](../react/Internal/functions/localChatBackend.md)
@@ -1471,6 +1489,12 @@ Re-exports [localChatBackend](../react/Internal/functions/localChatBackend.md)
 ### LocalMemoryStoreOptions
 
 Re-exports [LocalMemoryStoreOptions](../react/Internal/interfaces/LocalMemoryStoreOptions.md)
+
+***
+
+### LocalMessageAttachment
+
+Re-exports [LocalMessageAttachment](../react/Internal/interfaces/LocalMessageAttachment.md)
 
 ***
 
@@ -1513,6 +1537,12 @@ Re-exports [maskScopedEmbeddingCache](../react/Internal/functions/maskScopedEmbe
 ### MAX\_HOPS
 
 Re-exports [MAX\_HOPS](../react/Internal/variables/MAX_HOPS.md)
+
+***
+
+### maxVaultAttachmentBytes
+
+Re-exports [maxVaultAttachmentBytes](../react/Internal/variables/maxVaultAttachmentBytes.md)
 
 ***
 
@@ -1762,6 +1792,18 @@ Re-exports [MemoryVerification](../react/Internal/type-aliases/MemoryVerificatio
 
 ***
 
+### MessageAttachmentMigrationOptions
+
+Re-exports [MessageAttachmentMigrationOptions](../react/Internal/interfaces/MessageAttachmentMigrationOptions.md)
+
+***
+
+### MessageAttachmentMigrationResult
+
+Re-exports [MessageAttachmentMigrationResult](../react/Internal/interfaces/MessageAttachmentMigrationResult.md)
+
+***
+
 ### MessageSkeleton
 
 Re-exports [MessageSkeleton](../react/Internal/interfaces/MessageSkeleton.md)
@@ -1777,6 +1819,12 @@ Re-exports [migrateChatsToRemote](../react/Internal/functions/migrateChatsToRemo
 ### migrateMemoriesToRemote
 
 Re-exports [migrateMemoriesToRemote](../react/Internal/functions/migrateMemoriesToRemote.md)
+
+***
+
+### migrateMessageAttachments
+
+Re-exports [migrateMessageAttachments](../react/Internal/functions/migrateMessageAttachments.md)
 
 ***
 
@@ -2374,6 +2422,12 @@ Re-exports [RetainSource](../react/Internal/type-aliases/RetainSource.md)
 
 ***
 
+### saveSetting
+
+Re-exports [saveSetting](../react/Internal/functions/saveSetting.md)
+
+***
+
 ### ScoreBreakdown
 
 Re-exports [ScoreBreakdown](../react/Internal/interfaces/ScoreBreakdown.md)
@@ -2491,6 +2545,12 @@ Re-exports [setLogger](../react/Internal/functions/setLogger.md)
 ### setMemoryVisibilityOp
 
 Re-exports [setMemoryVisibilityOp](../react/Internal/functions/setMemoryVisibilityOp.md)
+
+***
+
+### Setting
+
+Re-exports [Setting](../react/Internal/interfaces/Setting.md)
 
 ***
 
@@ -2863,6 +2923,54 @@ Re-exports [UseModelsResult](../react/Internal/type-aliases/UseModelsResult.md)
 ### VAULT\_SIZE\_HOP\_CAP
 
 Re-exports [VAULT\_SIZE\_HOP\_CAP](../react/Internal/variables/VAULT_SIZE_HOP_CAP.md)
+
+***
+
+### VaultAttachmentCache
+
+Re-exports [VaultAttachmentCache](../react/Internal/interfaces/VaultAttachmentCache.md)
+
+***
+
+### VaultAttachmentJournal
+
+Re-exports [VaultAttachmentJournal](../react/Internal/interfaces/VaultAttachmentJournal.md)
+
+***
+
+### VaultAttachmentOwner
+
+Re-exports [VaultAttachmentOwner](../react/Internal/interfaces/VaultAttachmentOwner.md)
+
+***
+
+### VaultAttachmentRef
+
+Re-exports [VaultAttachmentRef](../react/Internal/interfaces/VaultAttachmentRef.md)
+
+***
+
+### vaultAttachmentRefs
+
+Re-exports [vaultAttachmentRefs](../react/Internal/functions/vaultAttachmentRefs.md)
+
+***
+
+### VaultAttachments
+
+Re-exports [VaultAttachments](../react/Internal/interfaces/VaultAttachments.md)
+
+***
+
+### VaultAttachmentsOptions
+
+Re-exports [VaultAttachmentsOptions](../react/Internal/interfaces/VaultAttachmentsOptions.md)
+
+***
+
+### VaultAttachmentUploadOptions
+
+Re-exports [VaultAttachmentUploadOptions](../react/Internal/interfaces/VaultAttachmentUploadOptions.md)
 
 ***
 

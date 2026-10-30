@@ -17,7 +17,7 @@ import {
   type RemoteChatStoreOptions,
 } from "./types.js";
 
-const kinds = new Set(["conversation", "message", "summary", "project", "memory_links"]);
+const kinds = new Set(["conversation", "message", "summary", "project", "memory_links", "setting"]);
 const cipherPattern = /^enc:v\d+:(?:[0-9a-f]{2}){28,}$/i;
 const maxPayload = 2 * 1024 * 1024;
 const storedDims = 1536;
@@ -118,8 +118,12 @@ function validRecord(value: unknown): value is ChatRecord {
     )
   )
     return false;
-  const root = value.kind === "conversation" || value.kind === "project";
+  const root = rootKind(value.kind);
   return root ? value.conversationId === "" : id(value.conversationId);
+}
+
+function rootKind(kind: string): boolean {
+  return kind === "conversation" || kind === "project" || kind === "setting";
 }
 
 function embeddings(write: {
@@ -423,7 +427,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         (query.includeDeleted !== undefined && typeof query.includeDeleted !== "boolean") ||
         limit > 200 ||
         (query.cursor?.length ?? 0) > 2048 ||
-        (query.kind === "conversation" || query.kind === "project" ? parent !== "" : !id(parent))
+        (rootKind(query.kind) ? parent !== "" : !id(parent))
       )
         invalid();
       const params = new URLSearchParams({
@@ -594,14 +598,21 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
     },
     async changes(cursor, options) {
       const limit = options?.limit ?? 100;
+      const kindsFilter = options?.kinds;
       if (
         !integer(limit, 1) ||
         limit > 200 ||
-        (cursor !== undefined && (!text(cursor) || cursor.length > 2048))
+        (cursor !== undefined && (!text(cursor) || cursor.length > 2048)) ||
+        (kindsFilter !== undefined &&
+          (!Array.isArray(kindsFilter) ||
+            kindsFilter.length === 0 ||
+            new Set(kindsFilter).size !== kindsFilter.length ||
+            kindsFilter.some((k: string) => !kinds.has(k))))
       )
         invalid();
       const params = new URLSearchParams({ account_id: String(accountId), limit: String(limit) });
       if (cursor) params.set("cursor", cursor);
+      if (kindsFilter) params.set("kinds", kindsFilter.join(","));
       const value = await request(`/changes?${params}`, {}, options?.signal);
       if (
         !object(value) ||
