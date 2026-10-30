@@ -114,7 +114,25 @@ describe("private memory rate budgets", () => {
 
 const vector = () => [1, ...new Array<number>(1535).fill(0)];
 
-function setup() {
+const scrubTombstone = (memory: RemoteMemoryRow): RemoteMemoryRow =>
+  memory.is_deleted
+    ? (Object.fromEntries(
+        Object.entries({
+          memory_id: memory.memory_id,
+          content: "",
+          scope: memory.scope,
+          created_at: memory.created_at,
+          updated_at: memory.updated_at,
+          is_deleted: true,
+          embedding: memory.embedding,
+          embedding_model: memory.embedding_model,
+          topics_updated_at: memory.topics_updated_at,
+          last_observed_at: memory.last_observed_at,
+        }).filter(([, value]) => value !== undefined)
+      ) as unknown as RemoteMemoryRow)
+    : memory;
+
+function setup({ scrubTombstones = false } = {}) {
   let nonce = 0;
   const encrypt = vi.fn(
     async (text: string) => "enc:v3:" + Buffer.from(`${++nonce}|${text}`).toString("hex")
@@ -165,7 +183,9 @@ function setup() {
       return Response.json({
         ...(body!.with_counts === true && { total_count: rows.size, unavailable_count: 0 }),
         items: [...rows.values()]
-          .filter((item) => !item.memory.is_deleted)
+          .filter((item) =>
+            body!.deleted_only === true ? item.memory.is_deleted : !item.memory.is_deleted
+          )
           .map((item) => ({ ...item, score: 0.9 })),
       });
     }
@@ -174,7 +194,7 @@ function setup() {
       if (writes.some((w) => (rows.get(w.memory.memory_id)?.version ?? 0) !== w.expected_version))
         return failure(409, "version_conflict");
       const items = writes.map((w) => ({
-        memory: w.memory,
+        memory: scrubTombstones ? scrubTombstone(w.memory) : w.memory,
         version: w.expected_version + 1,
         server_updated_at: "2026-10-07T20:00:00Z",
       }));
@@ -189,10 +209,19 @@ function setup() {
       const current = rows.get(id);
       if ((current?.version ?? 0) !== body!.expected_version)
         return failure(409, "version_conflict");
-      const memory = body!.memory as RemoteMemoryRow;
-      if (memory.memory_id !== id || !/^enc:v\d+:[a-f0-9]+$/.test(memory.content))
+      const sent = body!.memory as RemoteMemoryRow;
+      const ciphertext = /^enc:v\d+:[a-f0-9]+$/.test(sent.content);
+      if (
+        sent.memory_id !== id ||
+        !(ciphertext || (scrubTombstones && sent.is_deleted && sent.content === ""))
+      )
         return failure(400, "validation_failed");
-      if (memory.embedding === undefined && current && current.memory.content === memory.content) {
+      const memory = scrubTombstones ? scrubTombstone(sent) : sent;
+      if (
+        memory.embedding === undefined &&
+        current &&
+        (current.memory.content === memory.content || (scrubTombstones && memory.is_deleted))
+      ) {
         memory.embedding = current.memory.embedding;
         memory.embedding_model = current.memory.embedding_model;
       }
@@ -418,6 +447,96 @@ describe("remote private-memory persistence", () => {
     expect(third.next_cursor).toBeUndefined();
     expect((await store.list()).items.map((item) => item.memory.memory_id)).toEqual(["a"]);
     expect(await store.get("missing")).toBeNull();
+  });
+
+  it("decodes tombstones stored without content and keeps their vectors and versions", async () => {
+    const h = setup({ scrubTombstones: true });
+    const store = await createRemoteMemoryPersistence(h.options);
+    const live = await store.put(
+      {
+        ...h.memory("a"),
+        embedding: vector(),
+        embedding_model: "model-a",
+        kind: "occupation",
+        kind_value: '"nurse"',
+        topics: '["work"]',
+        topics_updated_at: 3,
+        media: '["m1"]',
+        source_chunk_ids: '["c1"]',
+        proof_count: 2,
+        source: "chat",
+        last_observed_at: 4,
+      },
+      0
+    );
+    const deleted = await store.put({ ...live.memory, is_deleted: true, updated_at: 5 }, live);
+    expect(deleted.version).toBe(2);
+    expect(deleted.memory).toEqual({
+      memory_id: "a",
+      content: "",
+      scope: "private",
+      created_at: 1,
+      updated_at: 5,
+      is_deleted: true,
+      embedding: vector(),
+      embedding_model: "model-a",
+      topics_updated_at: 3,
+      last_observed_at: 4,
+    });
+    h.decrypt.mockClear();
+
+    expect((await store.get("a"))!.memory).toMatchObject({ content: "", is_deleted: true });
+    const page = await store.list({ include_deleted: true, include_embeddings: true });
+    expect(page.failed).toEqual([]);
+    expect(page.items[0].memory).toMatchObject({ content: "", embedding: vector() });
+    expect(page.items[0].memory).not.toHaveProperty("kind_value");
+    const tombstones = await store.candidateSet(vector(), {
+      include_deleted: true,
+      deleted_only: true,
+      strict_model: true,
+      limit: 1,
+    });
+    expect(tombstones.failed).toEqual([]);
+    expect(tombstones.items.map((item) => item.memory)).toEqual([
+      expect.objectContaining({ memory_id: "a", content: "", embedding: vector() }),
+    ]);
+    expect(h.decrypt).not.toHaveBeenCalled();
+
+    const touched = await store.put({ ...deleted.memory, last_observed_at: 6 }, deleted);
+    expect(h.requests.at(-1)!.body!.memory).toMatchObject({
+      content: expect.stringMatching(/^enc:v3:/),
+    });
+    expect(touched).toMatchObject({ version: 3, memory: { content: "", last_observed_at: 6 } });
+  });
+
+  it("decrypts tombstones that keep their encrypted content", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    await store.put({ ...h.memory("a"), is_deleted: true, embedding: vector() }, 0);
+    expect((await store.get("a"))!.memory).toMatchObject({
+      content: "Plays chess",
+      is_deleted: true,
+    });
+    const tombstones = await store.candidateSet(vector(), {
+      include_deleted: true,
+      deleted_only: true,
+      limit: 1,
+    });
+    expect(tombstones.items[0].memory.content).toBe("Plays chess");
+    expect(h.decrypt).toHaveBeenCalled();
+  });
+
+  it("rejects empty content on live rows and plaintext content on tombstones", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    await store.put(h.memory("a"), 0);
+    await store.put({ ...h.memory("b"), is_deleted: true }, 0);
+    h.rows.get("a")!.memory.content = "";
+    h.rows.get("b")!.memory.content = "Server plaintext";
+    await expect(store.get("a")).rejects.toThrow("unencrypted memory content");
+    await expect(store.get("b")).rejects.toThrow("unencrypted memory content");
+    const page = await store.list({ include_deleted: true });
+    expect(page.failed.map((failure) => failure.memory_id)).toEqual(["a", "b"]);
   });
 
   it("sends vectors and filters for recall, never plaintext, decryption callbacks or credentials", async () => {

@@ -501,7 +501,10 @@ export async function createRemoteMemoryPersistence(
       ...item,
       memory: {
         ...item.memory,
-        content: await decrypt(item.memory.content),
+        content:
+          item.memory.is_deleted && item.memory.content === ""
+            ? ""
+            : await decrypt(item.memory.content),
         ...(item.memory.kind_value !== undefined && {
           kind_value: await decrypt(item.memory.kind_value),
         }),
@@ -616,9 +619,10 @@ export async function createRemoteMemoryPersistence(
     }
     if (existing && existing.version !== expectedVersion) throw conflict();
     const decoded = existing ? await decode(existing).catch(() => undefined) : undefined;
+    const reusableContent = snapshot?.encryptedContent ?? existing?.memory.content;
     const content =
-      (snapshot?.content ?? decoded?.memory.content) === memory.content
-        ? (snapshot?.encryptedContent ?? existing!.memory.content)
+      reusableContent && (snapshot?.content ?? decoded?.memory.content) === memory.content
+        ? reusableContent
         : await encryptField(memory.content);
     const kindValue =
       memory.kind_value === undefined

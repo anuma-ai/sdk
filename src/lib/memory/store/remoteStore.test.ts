@@ -87,7 +87,19 @@ function normalized(vector: number[]): number[] {
   return out.map((v) => v / norm);
 }
 
-function fakeNearby(keyId: string) {
+const TOMBSTONE_FIELDS = [
+  "memory_id",
+  "scope",
+  "created_at",
+  "updated_at",
+  "is_deleted",
+  "embedding",
+  "embedding_model",
+  "topics_updated_at",
+  "last_observed_at",
+];
+
+function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
   const rows = new Map<string, Stored>();
   const catalog = new Map<
     string,
@@ -127,12 +139,23 @@ function fakeNearby(keyId: string) {
         delete next.embedding;
         delete next.embedding_model;
       } else next.embedding = normalized(next.embedding as number[]);
-    } else if (current?.memory.embedding && current.memory.content === next.content) {
+    } else if (
+      current?.memory.embedding &&
+      (current.memory.content === next.content || (scrubTombstones && next.is_deleted))
+    ) {
       next.embedding = current.memory.embedding;
       next.embedding_model = current.memory.embedding_model;
     } else delete next.embedding_model;
     const saved = {
-      memory: next,
+      memory:
+        scrubTombstones && next.is_deleted
+          ? ({
+              ...Object.fromEntries(
+                Object.entries(next).filter(([key]) => TOMBSTONE_FIELDS.includes(key))
+              ),
+              content: "",
+            } as Row)
+          : next,
       version: (current?.version ?? 0) + 1,
       server_updated_at: new Date().toISOString(),
       seq: ++writes,
@@ -420,6 +443,15 @@ async function remoteStore(
 
 runMemoryStoreContract(
   async (overrides) => (await remoteStore(undefined, undefined, 60_000, overrides)).store,
+  { vectors: [axis(0), axis(1)] }
+);
+
+runMemoryStoreContract(
+  async (overrides) => {
+    const keys = await deriveMemoryKeyRing(`0x${"c3".repeat(65)}`);
+    const server = fakeNearby(keys.keyId, { scrubTombstones: true });
+    return (await remoteStore(server, keys, 60_000, overrides)).store;
+  },
   { vectors: [axis(0), axis(1)] }
 );
 
@@ -1830,6 +1862,50 @@ describe("remote MemoryStore", () => {
     }
   });
 
+  it("lists and announces deleted memories that nearby stores without content", async () => {
+    const keys = await deriveMemoryKeyRing(`0x${"c3".repeat(65)}`);
+    const server = fakeNearby(keys.keyId, { scrubTombstones: true });
+    const { store } = await remoteStore(server, keys, 20);
+    const [deleted, removed, kept] = await store.createMany([
+      { content: "Lives in Porto", embedding: axis(0) },
+      { content: "Plays cello", embedding: axis(1) },
+      { content: "Likes tea", embedding: axis(2) },
+    ]);
+    await store.setTopics(deleted.uniqueId, [{ name: "Porto" }]);
+    expect(await store.delete(deleted.uniqueId)).toBe(true);
+    expect(server.rows.get(deleted.uniqueId)!.memory).toMatchObject({
+      content: "",
+      is_deleted: true,
+      embedding: expect.any(Array),
+    });
+    expect(server.rows.get(deleted.uniqueId)!.memory).not.toHaveProperty("topics");
+
+    const onMembership = vi.fn();
+    const stop = store.subscribe(onMembership, { includeDeleted: true });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      onMembership.mockClear();
+      server.touch(removed.uniqueId, { content: "", is_deleted: true });
+      await vi.waitFor(() => expect(onMembership).toHaveBeenCalled());
+    } finally {
+      stop();
+    }
+
+    expect((await store.list()).map((m) => m.uniqueId)).toEqual([kept.uniqueId]);
+    expect(await store.get(deleted.uniqueId)).toBeNull();
+    const all = await store.list({ includeDeleted: true });
+    expect(
+      all
+        .filter((m) => m.isDeleted)
+        .map(({ uniqueId, content, topics }) => ({ uniqueId, content, topics }))
+        .sort((a, b) => a.uniqueId.localeCompare(b.uniqueId))
+    ).toEqual(
+      [deleted.uniqueId, removed.uniqueId]
+        .sort()
+        .map((uniqueId) => ({ uniqueId, content: "", topics: null }))
+    );
+  });
+
   it("releases subscription records and memory rows while subscribers remain active", async () => {
     setFlagsFromString("--expose-gc");
     const collect = runInNewContext("gc") as () => void;
@@ -2505,6 +2581,23 @@ describe("repairEmbeddings", () => {
     decrypt.mockClear();
     await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 0 });
     expect(decrypt).not.toHaveBeenCalled();
+  });
+
+  it("skips tombstones stored without content without counting them as failures", async () => {
+    const { store, decrypt, seed } = await repairStore();
+    await seed("old-model", "", {
+      content: "",
+      is_deleted: true,
+      embedding: axis(4),
+      embedding_model: "openai/old",
+    });
+    await seed("unembedded", "", { content: "", is_deleted: true });
+    decrypt.mockClear();
+    vi.mocked(generateEmbeddings).mockClear();
+
+    await expect(store.repairEmbeddings!()).resolves.toMatchObject({ reembedded: 0, failed: 0 });
+    expect(decrypt).not.toHaveBeenCalled();
+    expect(generateEmbeddings).not.toHaveBeenCalled();
   });
 
   it("allows only one device to re-embed and fences results after lease loss", async () => {
