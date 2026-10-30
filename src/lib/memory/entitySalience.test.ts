@@ -176,6 +176,16 @@ describe("isIdentifierOrAmountEntityName", () => {
       "1.5 million dollars",
       "4111 1111 1111 1111",
       "12345",
+      "50K",
+      "100k",
+      "$3M",
+      "1,000 AAPL",
+      "1.200,50 EUR",
+      "EUR 1.200,50",
+      "1.200,50 €",
+      "USD $ 1,200",
+      "$ 1,200",
+      "€ 300",
     ]) {
       expect(isIdentifierOrAmountEntityName(name)).toBe(true);
     }
@@ -201,7 +211,13 @@ describe("isIdentifierOrAmountEntityName", () => {
       "iPhone 15",
       "PS5",
       "30 Rock",
+      "30 ROCK",
       "50 Cent",
+      "3M",
+      "401k",
+      "401K",
+      "403b",
+      "4K",
       "7 Wonders",
       "21 Savage",
       "Porsche 911",
@@ -239,11 +255,15 @@ describe("parseEntities — identifier and amount gate", () => {
         "$1,200",
         "SOL",
         { name: "2024 trip", kind: "event" },
+        { name: "3M", kind: "organization" },
+        { name: "1.200,50 EUR", kind: "thing" },
+        "USD $ 1,200",
       ])
     ).toEqual([
       { name: "Solana", kind: "product", weight: 1 },
       { name: "SOL" },
       { name: "2024 trip", kind: "event" },
+      { name: "3M", kind: "organization" },
     ]);
   });
 });

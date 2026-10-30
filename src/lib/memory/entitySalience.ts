@@ -179,9 +179,12 @@ const BASE58_STRING = /^[1-9A-HJ-NP-Za-km-z]{32,88}$/;
 const KEY_LIKE_MIN_LENGTH = 24;
 
 const NUMERIC_TOKEN =
-  /^[~≈+\-−]?(?:us\$|[$€£¥₹₿])?\d[\d,]*(?:\.\d+)?(?:k|mm|m|bn|b|t|x|%|[$€£¥₹₿])?$/i;
+  /^[~≈+\-−]?(?:us\$|[$€£¥₹₿])?\d(?:[\d,.]*\d)?(?:k|mm|m|bn|b|t|x|%|[$€£¥₹₿])?$/i;
 const PLAIN_YEAR = /^(?:1\d{3}|20\d{2})$/;
+const SUFFIXED_NAME = /^\d*[1-9][kmb]$/i;
+const BARE_INTEGER = /^\d+$/;
 const TICKER = /^\$?[A-Z]{2,6}$/;
+const DETACHED_CURRENCY_SYMBOL = /(^|\s)([$€£¥₹₿])\s+(?=\d)|(\d)\s+([$€£¥₹₿])(?=\s|$)/gu;
 
 const LEADING_CURRENCY_CODES = new Set(["usd", "eur", "gbp", "jpy", "cad", "aud", "chf", "cny"]);
 
@@ -234,17 +237,25 @@ function isAmountUnitToken(token: string): boolean {
   return NUMERIC_TOKEN.test(token) || TICKER.test(token) || AMOUNT_WORDS.has(token.toLowerCase());
 }
 
+function isAmountWordOrNumber(token: string): boolean {
+  return NUMERIC_TOKEN.test(token) || AMOUNT_WORDS.has(token.toLowerCase());
+}
+
 function isAmount(tokens: readonly string[]): boolean {
   const start = LEADING_CURRENCY_CODES.has(tokens[0]?.toLowerCase() ?? "") ? 1 : 0;
   const first = tokens[start];
   if (first === undefined || !NUMERIC_TOKEN.test(first)) return false;
-  if (tokens.length === 1 && PLAIN_YEAR.test(first)) return false;
-  return tokens.slice(start + 1).every(isAmountUnitToken);
+  const units = tokens.slice(start + 1);
+  if (start === 0 && units.length === 0)
+    return !PLAIN_YEAR.test(first) && !SUFFIXED_NAME.test(first);
+  if (!units.every(isAmountUnitToken)) return false;
+  return start === 1 || !BARE_INTEGER.test(first) || units.some(isAmountWordOrNumber);
 }
 
 export function isIdentifierOrAmountEntityName(name: string): boolean {
   const tokens = name
     .trim()
+    .replace(DETACHED_CURRENCY_SYMBOL, "$1$2$3$4")
     .split(/\s+/)
     .map(trimPunctuation)
     .filter((token) => token.length > 0);
