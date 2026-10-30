@@ -710,11 +710,11 @@ async function requestPortalJson(
   let value: unknown;
   try {
     value = JSON.parse(candidate);
-  } catch (err) {
+  } catch {
     return {
       kind: "retryable",
       code: "invalid-json",
-      reason: `completion was not valid JSON: ${(err as Error).message}`,
+      reason: "invalid-json",
     };
   }
   if (value === null) {

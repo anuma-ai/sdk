@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { type Client, type Config, createClient } from "./client/client";
+import { mergeHeaders } from "./client/client/utils.gen";
 import { urlSearchParamsBodySerializer } from "./client/core/bodySerializer.gen";
 import {
   postApiV1NotificationsDevices,
@@ -79,6 +80,59 @@ function setup() {
   });
   return { client, fetch };
 }
+
+describe("client header pairs", () => {
+  it.each(["defaults", "request"])("uses the last authorization pair from %s", async (source) => {
+    const headers: [string, string][] = [
+      ["Authorization", "Bearer old-token"],
+      ["authorization", "Bearer current-token"],
+      ["X-Request", "test"],
+    ];
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(new Response("{}"));
+    const client = createClient({
+      baseUrl: "https://portal.example",
+      fetch,
+      headers: source === "defaults" ? headers : undefined,
+    });
+
+    await client.get({
+      url: "/nearby/admission",
+      headers: source === "request" ? headers : undefined,
+    });
+
+    expect(fetch).toHaveBeenCalledOnce();
+    const sentHeaders = new Headers(fetch.mock.calls[0][1]?.headers);
+    expect([...sentHeaders]).toEqual([
+      ["authorization", "Bearer current-token"],
+      ["x-request", "test"],
+    ]);
+    expect(headers[0]).toEqual(["Authorization", "Bearer old-token"]);
+  });
+
+  it("preserves Headers values, record values, and null deletions", () => {
+    const headers = mergeHeaders(
+      new Headers({ Authorization: "Bearer client-token", "X-Client": "sdk" }),
+      [["X-Request", "test"]],
+      {
+        Authorization: null,
+        "X-Client": undefined,
+        "X-Tag": ["first", "second"],
+        "X-Count": 2,
+        "X-Enabled": false,
+        "X-Metadata": { source: "sdk" },
+      }
+    );
+
+    expect([...headers]).toEqual([
+      ["x-client", "sdk"],
+      ["x-count", "2"],
+      ["x-enabled", "false"],
+      ["x-metadata", '{"source":"sdk"}'],
+      ["x-request", "test"],
+      ["x-tag", "first, second"],
+    ]);
+  });
+});
 
 describe("generated URL-encoded request bodies", () => {
   it.each([
@@ -226,6 +280,7 @@ it.each(endpoints)(
 it.each(["fresh", "partial"])("patches %s generated header spreads", (state) => {
   const root = mkdtempSync(join(tmpdir(), "sdk-header-patch-"));
   const sdkPath = join(root, "src/client/sdk.gen.ts");
+  const utilsPath = join(root, "src/client/client/utils.gen.ts");
   const patchPath = join(root, "scripts/patch-generated-client.mjs");
 
   try {
@@ -243,6 +298,15 @@ it.each(["fresh", "partial"])("patches %s generated header spreads", (state) => 
       mkdirSync(dirname(target), { recursive: true });
       copyFileSync(new URL(`../${file}`, import.meta.url), target);
     }
+
+    const expectedUtils = readFileSync(utilsPath, "utf-8");
+    writeFileSync(
+      utilsPath,
+      expectedUtils.replace(
+        / {4}const iterator =[\s\S]*?Object\.entries\(header\);/,
+        "    const iterator = header instanceof Headers ? headersEntries(header) : Object.entries(header);"
+      )
+    );
 
     const serializerPath = join(root, "src/client/core/bodySerializer.gen.ts");
     const expectedSerializer = readFileSync(serializerPath, "utf-8");
@@ -274,10 +338,12 @@ it.each(["fresh", "partial"])("patches %s generated header spreads", (state) => 
     const patched = readFileSync(sdkPath, "utf-8");
     expect(/\.\.\.options\??\.headers/.test(patched)).toBe(false);
     expect(patched).toBe(expected);
+    expect(readFileSync(utilsPath, "utf-8")).toBe(expectedUtils);
     expect(readFileSync(serializerPath, "utf-8")).toBe(expectedSerializer);
 
     execFileSync(process.execPath, [patchPath]);
     expect(readFileSync(sdkPath, "utf-8")).toBe(expected);
+    expect(readFileSync(utilsPath, "utf-8")).toBe(expectedUtils);
     expect(readFileSync(serializerPath, "utf-8")).toBe(expectedSerializer);
   } finally {
     rmSync(root, { recursive: true, force: true });

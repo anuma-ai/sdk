@@ -1,3 +1,4 @@
+export type { VaultAttachmentRef } from "../db/chat/types.js";
 export {
   type ChatMigrationOptions,
   type ChatMigrationProgress,
@@ -30,6 +31,21 @@ export {
   type RemoteChatStoreOptions,
 } from "./types.js";
 export {
+  createVaultAttachments,
+  type LocalMessageAttachment,
+  maxVaultAttachmentBytes,
+  type MessageAttachmentMigrationOptions,
+  type MessageAttachmentMigrationResult,
+  migrateMessageAttachments,
+  type VaultAttachmentCache,
+  type VaultAttachmentJournal,
+  type VaultAttachmentOwner,
+  vaultAttachmentRefs,
+  type VaultAttachments,
+  type VaultAttachmentsOptions,
+  type VaultAttachmentUploadOptions,
+} from "./vaultAttachments.js";
+export {
   createVaultChatBackend,
   type VaultChatActivity,
   type VaultChatBackend,
@@ -37,4 +53,5 @@ export {
   type VaultChatBackendOptions,
   type VaultChatEvent,
 } from "./vaultBackend.js";
+export type { ChatCacheStorage } from "./vaultCache.js";
 export type { ChatOutboxLocks, ChatOutboxStorage } from "./vaultOutbox.js";

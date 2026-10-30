@@ -3,6 +3,7 @@ import { Q } from "@nozbe/watermelondb";
 
 import { getLogger } from "../../logger";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../encryption-utils";
+import type { Entity } from "../entities/models";
 import {
   type EntityInput,
   type EntityOperationsContext,
@@ -1988,7 +1989,7 @@ export async function backfillMemoryTopicsOp(
     const chunkIds = uniqueIds.slice(i, i + CHUNK);
     await ctx.database.write(async () => {
       await assertCanWrite(ctx);
-      const writes: MemoryTopicsWrite[] = [];
+      const records: VaultMemory[] = [];
       for (const id of chunkIds) {
         let record: VaultMemory;
         try {
@@ -1998,17 +1999,46 @@ export async function backfillMemoryTopicsOp(
         }
         if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) continue;
         if (parseTopics(record.topics) !== null) continue;
-        const links = await entityCtx.memoryEntityCollection
-          .query(Q.where("memory_id", id))
-          .unsafeFetchRaw();
-        const entityIds = (links as Record<string, unknown>[]).map((l) => String(l.entity_id));
-        if (entityIds.length === 0) continue;
+        records.push(record);
+      }
+      if (records.length === 0) return;
+
+      const links = (await entityCtx.memoryEntityCollection
+        .query(Q.where("memory_id", Q.oneOf(records.map((record) => record.id))))
+        .unsafeFetchRaw()) as Record<string, unknown>[];
+      const entityIds = Array.from(new Set(links.map((link) => String(link.entity_id))));
+      const entitiesById = new Map<string, Entity>();
+      for (let j = 0; j < entityIds.length; j += CHUNK) {
         const entities = await entityCtx.entityCollection
-          .query(Q.where("id", Q.oneOf(entityIds)))
+          .query(Q.where("id", Q.oneOf(entityIds.slice(j, j + CHUNK))))
           .fetch();
-        if (entities.length === 0) continue;
+        for (const entity of entities) entitiesById.set(entity.id, entity);
+      }
+      const entitiesByMemory = new Map<string, Set<Entity>>();
+      for (const link of links) {
+        const entity = entitiesById.get(String(link.entity_id));
+        if (!entity) continue;
+        const memoryId = String(link.memory_id);
+        let entities = entitiesByMemory.get(memoryId);
+        if (!entities) {
+          entities = new Set();
+          entitiesByMemory.set(memoryId, entities);
+        }
+        entities.add(entity);
+      }
+
+      const writes: MemoryTopicsWrite[] = [];
+      for (const record of records) {
+        const entities = entitiesByMemory.get(record.id);
+        if (!entities?.size) continue;
         const source = record.topicsUserManaged ? "user" : "auto";
-        const write = await resolveMemoryTopicsWrite(entityCtx, id, entities, [], source);
+        const write = await resolveMemoryTopicsWrite(
+          entityCtx,
+          record.id,
+          Array.from(entities),
+          [],
+          source
+        );
         if (write) writes.push(write);
       }
       if (writes.length === 0) return;

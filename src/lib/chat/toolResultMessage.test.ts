@@ -26,6 +26,24 @@ describe("buildToolResultContent", () => {
     expect(content).not.toContain("truncated");
   });
 
+  it.each([
+    ["U+2028", "\u2028", "\\u2028"],
+    ["U+2029", "\u2029", "\\u2029"],
+  ])("escapes %s so clients can parse the complete card", (_, separator, escaped) => {
+    const result = {
+      displayType: "people_map",
+      people: [{ display_name: `Ada${separator}Lovelace`, lat: 1.5, lng: 2.5 }],
+      bio: `literal ${escaped}`,
+    };
+    const content = buildToolResultContent([{ name: "display_people_map", result }]);
+    const matches = [...content.matchAll(DISPLAY_TOOL_REGEX)];
+
+    expect(content).not.toContain(separator);
+    expect(content).toContain(`Ada${escaped}Lovelace`);
+    expect(matches).toHaveLength(1);
+    expect(JSON.parse(matches[0][2])).toEqual(result);
+  });
+
   it("truncates a payload over the cap and says how much was dropped", () => {
     const entryChars = MAX_PERSISTED_TOOL_RESULT_CHARS + 5_000;
     const content = buildToolResultContent([resultOfBodyLength("googleDrive_search", entryChars)]);
@@ -113,6 +131,8 @@ describe("buildToolResultContent", () => {
 
     const matches = [...content.matchAll(DISPLAY_TOOL_REGEX)];
     expect(matches).toHaveLength(1);
-    expect(() => JSON.parse(matches[0][2])).toThrow();
+    expect(() => {
+      JSON.parse(matches[0][2]);
+    }).toThrow();
   });
 });

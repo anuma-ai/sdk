@@ -134,6 +134,15 @@ export interface FileMetadata {
   sourceUrl?: string;
 }
 
+/** Points a message's local file (`FileMetadata.id` or a `fileIds` media id) at its encrypted copy in vault, so any device can fetch it. */
+export interface VaultAttachmentRef {
+  attachmentId: string;
+  fileId: string;
+  name: string;
+  type: string;
+  size: number;
+}
+
 export interface ChatCompletionUsage {
   promptTokens?: number;
   completionTokens?: number;
@@ -242,6 +251,7 @@ export interface StoredMessage {
   files?: FileMetadata[];
   /** Array of media_id references for direct lookup in media table */
   fileIds?: string[];
+  vaultAttachments?: VaultAttachmentRef[];
   createdAt: Date;
   updatedAt: Date;
   vector?: number[];
@@ -427,6 +437,7 @@ export interface CreateMessageOptions {
   files?: FileMetadata[];
   /** Array of media_id references for direct lookup in media table */
   fileIds?: string[];
+  vaultAttachments?: VaultAttachmentRef[];
   usage?: ChatCompletionUsage;
   sources?: SearchSource[];
   responseDuration?: number;

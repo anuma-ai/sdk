@@ -28,7 +28,11 @@ import { parseTopics } from "../../db/entities/types";
 import { TOPICS_EXTRACTION_VERSION } from "../../db/memoryVault/operations";
 import { getLogger } from "../../logger";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../memoryEngine/constants";
-import { EmbeddingHttpError, generateEmbeddings } from "../../memoryEngine/embeddings";
+import {
+  EmbeddingHttpError,
+  generateEmbedding,
+  generateEmbeddings,
+} from "../../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "../queryTemporal";
 import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
@@ -757,6 +761,200 @@ describe("remote MemoryStore", () => {
     expect(
       batches.map(([, init]) => parseBody<{ writes: unknown[] }>(init!.body).writes.length)
     ).toEqual([50, 50, 20]);
+  });
+
+  it("bounds background embeddings across concurrent creates and batches their writes", async () => {
+    const { store, server, persistence } = await remoteStore();
+    const single = vi.mocked(generateEmbedding);
+    const batch = vi.mocked(generateEmbeddings);
+    const originalSingle = single.getMockImplementation()!;
+    const originalBatch = batch.getMockImplementation()!;
+    const get = vi.spyOn(persistence, "get");
+    const put = vi.spyOn(persistence, "put");
+    const putMany = vi.spyOn(persistence, "putMany");
+    const query = vi.spyOn(persistence, "query");
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let active = 0;
+    let maximum = 0;
+    const wait = async () => {
+      maximum = Math.max(maximum, ++active);
+      await gate;
+      active--;
+    };
+    single.mockClear().mockImplementation(async (...args) => {
+      await wait();
+      return originalSingle(...args);
+    });
+    batch.mockClear().mockImplementation(async (...args) => {
+      await wait();
+      return originalBatch(...args);
+    });
+    const inputs = Array.from({ length: 180 }, (_, i) => ({ content: `Queued fact ${i}` }));
+    try {
+      await store.createMany([
+        ...inputs.slice(0, 120),
+        { content: "Supplied", embedding: axis(1) },
+      ]);
+      await Promise.all([
+        store.createMany(inputs.slice(120)),
+        store.create({ content: "Single fact" }),
+      ]);
+      expect(server.rows.size).toBe(182);
+      expect(maximum).toBe(1);
+      expect(batch).toHaveBeenCalledTimes(1);
+      expect(single).not.toHaveBeenCalled();
+      release();
+      await vi.waitFor(() => {
+        expect([...server.rows.values()].every(({ memory }) => !!memory.embedding)).toBe(true);
+      });
+      expect(maximum).toBe(1);
+      expect(batch.mock.calls.flatMap(([texts]) => texts).sort()).toEqual(
+        [...inputs.map(({ content }) => content), "Single fact"].sort()
+      );
+      expect(batch.mock.calls.every(([texts]) => texts.length <= 50)).toBe(true);
+      expect(get).not.toHaveBeenCalled();
+      expect(put).toHaveBeenCalledTimes(1);
+      expect(query).toHaveBeenCalledTimes(4);
+      expect(query.mock.calls.every(([options]) => options?.include_embeddings)).toBe(true);
+      const writes = putMany.mock.calls
+        .map(([writes]) => writes)
+        .filter((writes) => writes.every(({ expectedVersion }) => expectedVersion !== 0));
+      expect(writes.map((writes) => writes.length)).toEqual([50, 50, 50, 31]);
+      expect(
+        writes
+          .flat()
+          .every(
+            ({ expectedVersion }) =>
+              typeof expectedVersion === "object" && expectedVersion.version === 1
+          )
+      ).toBe(true);
+    } finally {
+      release();
+      await vi.waitFor(() => expect(active).toBe(0));
+      single.mockImplementation(originalSingle);
+      batch.mockImplementation(originalBatch);
+    }
+  });
+
+  it("preserves edits, deletions, and supplied vectors after a background batch conflict", async () => {
+    const { store, server, persistence } = await remoteStore();
+    const batch = vi.mocked(generateEmbeddings);
+    const original = batch.getMockImplementation()!;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    batch.mockImplementationOnce(async (...args) => {
+      await gate;
+      return original(...args);
+    });
+    const memories = await store.createMany(
+      ["Edited", "Deleted", "Supplied", "Metadata", "Safe"].map((content) => ({ content }))
+    );
+    const [edited, deleted, supplied, metadata, safe] = memories;
+    try {
+      await store.update(edited.uniqueId, { content: "New content", embedding: axis(1) });
+      await store.delete(deleted.uniqueId);
+      await store.update(supplied.uniqueId, { content: supplied.content, embedding: axis(2) });
+      const putMany = persistence.putMany.bind(persistence);
+      const write = vi.spyOn(persistence, "putMany").mockImplementationOnce((...args) => {
+        server.touch(metadata.uniqueId, { folder_id: "concurrent-folder" });
+        return putMany(...args);
+      });
+      release();
+      await vi.waitFor(() => {
+        expect(server.rows.get(metadata.uniqueId)!.memory.embedding).toBeDefined();
+        expect(server.rows.get(safe.uniqueId)!.memory.embedding).toBeDefined();
+      });
+      expect(server.rows.get(edited.uniqueId)!.memory.embedding).toEqual(JSON.parse(axis(1)));
+      expect(server.rows.get(deleted.uniqueId)!.memory).toMatchObject({ is_deleted: true });
+      expect(server.rows.get(deleted.uniqueId)!.memory.embedding).toBeUndefined();
+      expect(server.rows.get(supplied.uniqueId)!.memory.embedding).toEqual(JSON.parse(axis(2)));
+      expect(server.rows.get(metadata.uniqueId)!.memory.folder_id).toBe("concurrent-folder");
+      expect(write.mock.calls[0][0].map(({ memory }) => memory.memory_id)).toEqual([
+        metadata.uniqueId,
+        safe.uniqueId,
+      ]);
+      expect(
+        write.mock.calls[0][0].map(({ expectedVersion }) =>
+          typeof expectedVersion === "object" ? expectedVersion.version : expectedVersion
+        )
+      ).toEqual([1, 1]);
+    } finally {
+      release();
+    }
+  });
+
+  it("continues the background queue after an embedding batch fails", async () => {
+    const { store, server } = await remoteStore();
+    const batch = vi.mocked(generateEmbeddings);
+    const warn = vi.spyOn(getLogger(), "warn").mockImplementation(() => {});
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    batch.mockImplementationOnce(async () => {
+      await gate;
+      throw new Error("The embedding request failed.");
+    });
+    try {
+      const memories = await store.createMany(
+        Array.from({ length: 51 }, (_, i) => ({ content: `Fact ${i}` }))
+      );
+      release();
+      await vi.waitFor(() => {
+        expect(server.rows.get(memories[50].uniqueId)!.memory.embedding).toBeDefined();
+      });
+      expect(server.rows.get(memories[0].uniqueId)!.memory.embedding).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(
+        "[memory/remote-store] Failed to embed memories:",
+        expect.any(Error)
+      );
+      const later = await store.create({ content: "Later fact" });
+      await vi.waitFor(() => {
+        expect(server.rows.get(later.uniqueId)!.memory.embedding).toBeDefined();
+      });
+    } finally {
+      release();
+      warn.mockRestore();
+    }
+  });
+
+  it("embeds the valid rows of a background batch that has an invalid vector", async () => {
+    const { store, server } = await remoteStore();
+    const batch = vi.mocked(generateEmbeddings);
+    const original = batch.getMockImplementation()!;
+    const warn = vi.spyOn(getLogger(), "warn").mockImplementation(() => {});
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    batch.mockImplementationOnce(async (...args) => {
+      await gate;
+      const vectors = await original(...args);
+      return vectors.map((vector, i) => (i === 1 ? [] : vector));
+    });
+    try {
+      const memories = await store.createMany(
+        ["Good", "Empty", "Also good"].map((content) => ({ content }))
+      );
+      release();
+      await vi.waitFor(() => {
+        expect(server.rows.get(memories[0].uniqueId)!.memory.embedding).toBeDefined();
+        expect(server.rows.get(memories[2].uniqueId)!.memory.embedding).toBeDefined();
+      });
+      expect(server.rows.get(memories[1].uniqueId)!.memory.embedding).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(
+        "[memory/remote-store] Failed to embed memory:",
+        expect.any(Error)
+      );
+    } finally {
+      release();
+      warn.mockRestore();
+    }
   });
 
   it("reports the committed memories when a later createMany batch fails", async () => {
@@ -1523,9 +1721,24 @@ describe("remote MemoryStore", () => {
     const { store, server } = await remoteStore();
     const scopes = Array.from({ length: 21 }, (_, i) => `scope-${i}`);
     const factTypes = ["identity", ...Array.from({ length: 19 }, (_, i) => `type-${i}`), "plan"];
-    const last = await store.create({ content: "Last", scope: "scope-20", factType: "plan" });
-    const first = await store.create({ content: "First", scope: "scope-0", factType: "identity" });
-    await store.create({ content: "Elsewhere", scope: "other", factType: "identity" });
+    const last = await store.create({
+      content: "Last",
+      scope: "scope-20",
+      factType: "plan",
+      embedding: axis(0),
+    });
+    const first = await store.create({
+      content: "First",
+      scope: "scope-0",
+      factType: "identity",
+      embedding: axis(0),
+    });
+    await store.create({
+      content: "Elsewhere",
+      scope: "other",
+      factType: "identity",
+      embedding: axis(0),
+    });
     server.fetch.mockClear();
 
     expect((await store.list({ scopes, factTypes })).map((m) => m.uniqueId)).toEqual([
