@@ -1432,6 +1432,12 @@ Re-exports [LlmNeighborRefinerOptions](../react/Internal/interfaces/LlmNeighborR
 
 ***
 
+### loadSettings
+
+Re-exports [loadSettings](../react/Internal/functions/loadSettings.md)
+
+***
+
 ### localChatBackend
 
 Re-exports [localChatBackend](../react/Internal/functions/localChatBackend.md)
@@ -2362,6 +2368,12 @@ Re-exports [RetainSource](../react/Internal/type-aliases/RetainSource.md)
 
 ***
 
+### saveSetting
+
+Re-exports [saveSetting](../react/Internal/functions/saveSetting.md)
+
+***
+
 ### ScoreBreakdown
 
 Re-exports [ScoreBreakdown](../react/Internal/interfaces/ScoreBreakdown.md)
@@ -2479,6 +2491,12 @@ Re-exports [setLogger](../react/Internal/functions/setLogger.md)
 ### setMemoryVisibilityOp
 
 Re-exports [setMemoryVisibilityOp](../react/Internal/functions/setMemoryVisibilityOp.md)
+
+***
+
+### Setting
+
+Re-exports [Setting](../react/Internal/interfaces/Setting.md)
 
 ***
 

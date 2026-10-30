@@ -1,6 +1,6 @@
 # ChatRecord
 
-Defined in: [src/lib/chatStore/types.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#6)
+Defined in: [src/lib/chatStore/types.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#12)
 
 Whole-record JSON data is encrypted on the device, including all text, vectors and tool events.
 
@@ -10,7 +10,7 @@ Whole-record JSON data is encrypted on the device, including all text, vectors a
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#9)
+Defined in: [src/lib/chatStore/types.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#15)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/chatStore/types.ts:9](https://github.com/anuma-ai/sdk/blob/
 
 > **createdAt**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#11)
+Defined in: [src/lib/chatStore/types.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#17)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/chatStore/types.ts:11](https://github.com/anuma-ai/sdk/blob
 
 > **data**: `object`
 
-Defined in: [src/lib/chatStore/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#14)
+Defined in: [src/lib/chatStore/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#20)
 
 **Index Signature**
 
@@ -38,7 +38,7 @@ Defined in: [src/lib/chatStore/types.ts:14](https://github.com/anuma-ai/sdk/blob
 
 > **id**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#8)
+Defined in: [src/lib/chatStore/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#14)
 
 ***
 
@@ -46,7 +46,7 @@ Defined in: [src/lib/chatStore/types.ts:8](https://github.com/anuma-ai/sdk/blob/
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/chatStore/types.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#13)
+Defined in: [src/lib/chatStore/types.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#19)
 
 ***
 
@@ -54,7 +54,7 @@ Defined in: [src/lib/chatStore/types.ts:13](https://github.com/anuma-ai/sdk/blob
 
 > **kind**: [`ChatRecordKind`](../type-aliases/ChatRecordKind.md)
 
-Defined in: [src/lib/chatStore/types.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#7)
+Defined in: [src/lib/chatStore/types.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#13)
 
 ***
 
@@ -62,7 +62,7 @@ Defined in: [src/lib/chatStore/types.ts:7](https://github.com/anuma-ai/sdk/blob/
 
 > **sortKey**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#10)
+Defined in: [src/lib/chatStore/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#16)
 
 ***
 
@@ -70,4 +70,4 @@ Defined in: [src/lib/chatStore/types.ts:10](https://github.com/anuma-ai/sdk/blob
 
 > **updatedAt**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#12)
+Defined in: [src/lib/chatStore/types.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#18)
