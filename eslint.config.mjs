@@ -42,6 +42,7 @@ const checkedTestFiles = [
   "src/lib/chat/toolLoop.gmailConfirmation.test.ts",
   "src/lib/chat/toolLoop.idleTimeout.test.ts",
   "src/lib/chat/toolLoop.untrustedToolResult.test.ts",
+  "src/lib/chat/toolResultMessage.test.ts",
   "src/lib/chat/toolResults.test.ts",
   "src/lib/chat/untrustedToolResult.test.ts",
   "src/lib/chat/streamDrain.test.ts",

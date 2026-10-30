@@ -64,6 +64,76 @@ describe("parseToolResultSegments", () => {
   it("ignores prose that merely mentions a tool", () => {
     expect(parseToolResultSegments("I called a tool and it returned nothing")).toEqual([]);
   });
+
+  it("drops unmatched lines instead of attaching them to a tool", () => {
+    const searchLine = `Tool "search_people_nearby" returned: ${JSON.stringify(searchResult)}`;
+    const content = [
+      TOOL_RESULTS_PREFIX,
+      "orphan text",
+      "... (tool output truncated, 100 characters omitted)",
+      searchLine,
+      'Tool "display_people_map" returned {"lat":1.5,"lng":2.5}',
+      '{"lat":1.5,"lng":2.5}',
+    ].join("\n");
+
+    expect(parseToolResultSegments(content)).toEqual([
+      { name: "search_people_nearby", line: searchLine },
+    ]);
+  });
+});
+
+describe.each([
+  ["U+2028", "\u2028"],
+  ["U+2029", "\u2029"],
+])("tool result replay with %s", (_, separator) => {
+  const cardLine = `Tool "display_people_map" returned: ${JSON.stringify({
+    ...cardResult,
+    people: [{ ...cardResult.people[0], display_name: `Ada${separator}Lovelace` }],
+  })}`;
+
+  it.each([null, "tool_result"])("excludes card coordinates with origin %j", (origin) => {
+    const searchLine = `Tool "search_people_nearby" returned: ${JSON.stringify(searchResult)}`;
+    const storedRow = {
+      role: "user",
+      content: `${TOOL_RESULTS_PREFIX}\n\n${searchLine}\n\n${cardLine}`,
+      origin,
+    };
+
+    expect(parseToolResultSegments(storedRow.content)).toEqual([
+      { name: "search_people_nearby", line: searchLine },
+      { name: "display_people_map", line: cardLine },
+    ]);
+
+    const prepared = prepareToolResultsForReplay(
+      [row("assistant", "Found Ada."), storedRow, row("user", "who likes chess?")],
+      { fold: true, exclude: ["display_people_map"] }
+    );
+
+    expect(prepared.map((message) => message.role)).toEqual(["assistant", "user"]);
+    expect(prepared[0].content).toContain(searchLine);
+    expect(prepared[0].content).not.toContain("display_people_map");
+    expect(prepared[0].content).not.toContain('"lat"');
+    expect(prepared[0].content).not.toContain('"lng"');
+  });
+
+  it.each([null, "tool_result"])("removes a card-only row with origin %j", (origin) => {
+    const storedRow = {
+      role: "user",
+      content: `${TOOL_RESULTS_PREFIX}\n\n${cardLine}`,
+      origin,
+    };
+
+    expect(isToolResultsRow(storedRow)).toBe(true);
+    for (const fold of [true, false]) {
+      expect(
+        prepareToolResultsForReplay([row("assistant", ""), storedRow], {
+          fold,
+          exclude: ["display_people_map"],
+          placeholder: DISPLAY_CARD_PLACEHOLDER,
+        })
+      ).toEqual([row("assistant", fold ? DISPLAY_CARD_PLACEHOLDER : "")]);
+    }
+  });
 });
 
 describe("foldToolResultsRows", () => {
