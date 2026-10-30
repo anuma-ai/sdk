@@ -788,6 +788,9 @@ export {
   ChatStoreError,
   type ChatWrite,
   createRemoteChatStore,
+  loadSettings,
+  saveSetting,
+  type Setting,
   type RemoteChatStoreOptions,
 } from "./lib/chatStore";
 export type { LazyStoredConversation } from "./lib/db/chat";
