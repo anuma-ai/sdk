@@ -607,7 +607,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
           (!Array.isArray(kindsFilter) ||
             kindsFilter.length === 0 ||
             new Set(kindsFilter).size !== kindsFilter.length ||
-            kindsFilter.some((k) => !kinds.has(k))))
+            kindsFilter.some((k: string) => !kinds.has(k))))
       )
         invalid();
       const params = new URLSearchParams({ account_id: String(accountId), limit: String(limit) });

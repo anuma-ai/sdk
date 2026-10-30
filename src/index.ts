@@ -789,9 +789,9 @@ export {
   type ChatWrite,
   createRemoteChatStore,
   loadSettings,
+  type RemoteChatStoreOptions,
   saveSetting,
   type Setting,
-  type RemoteChatStoreOptions,
 } from "./lib/chatStore";
 export type { LazyStoredConversation } from "./lib/db/chat";
 export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
