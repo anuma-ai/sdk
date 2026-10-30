@@ -1,6 +1,6 @@
 # ChatSnapshot
 
-Defined in: [src/lib/chatStore/types.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#17)
+Defined in: [src/lib/chatStore/types.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#23)
 
 ## Extended by
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/chatStore/types.ts:17](https://github.com/anuma-ai/sdk/blob
 
 > **record**: [`ChatRecord`](ChatRecord.md)
 
-Defined in: [src/lib/chatStore/types.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#18)
+Defined in: [src/lib/chatStore/types.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#24)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/chatStore/types.ts:18](https://github.com/anuma-ai/sdk/blob
 
 > **serverUpdatedAt**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#20)
+Defined in: [src/lib/chatStore/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#26)
 
 ***
 
@@ -28,4 +28,4 @@ Defined in: [src/lib/chatStore/types.ts:20](https://github.com/anuma-ai/sdk/blob
 
 > **version**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#19)
+Defined in: [src/lib/chatStore/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#25)

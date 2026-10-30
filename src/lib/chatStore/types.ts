@@ -1,4 +1,10 @@
-export type ChatRecordKind = "conversation" | "message" | "summary" | "project" | "memory_links";
+export type ChatRecordKind =
+  | "conversation"
+  | "message"
+  | "summary"
+  | "project"
+  | "memory_links"
+  | "setting";
 
 export type ChatJson = null | boolean | number | string | ChatJson[] | { [key: string]: ChatJson };
 
@@ -139,9 +145,10 @@ export interface ChatStore {
   importRecords(records: readonly ChatImport[], signal?: AbortSignal): Promise<number>;
   verify(revisions: readonly ChatRevision[], signal?: AbortSignal): Promise<ChatRef[]>;
   activate(signal?: AbortSignal): Promise<boolean>;
+  /** Without `kinds`, vault returns every kind except `setting`. */
   changes(
     cursor?: string,
-    options?: { limit?: number; signal?: AbortSignal }
+    options?: { limit?: number; kinds?: readonly ChatRecordKind[]; signal?: AbortSignal }
   ): Promise<ChatChanges>;
   search(embedding: readonly number[], options?: ChatSearchOptions): Promise<ChatSearchHit[]>;
   deleteAll(signal?: AbortSignal): Promise<number>;
