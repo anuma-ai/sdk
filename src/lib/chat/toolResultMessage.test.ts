@@ -131,6 +131,8 @@ describe("buildToolResultContent", () => {
 
     const matches = [...content.matchAll(DISPLAY_TOOL_REGEX)];
     expect(matches).toHaveLength(1);
-    expect(() => JSON.parse(matches[0][2])).toThrow();
+    expect(() => {
+      JSON.parse(matches[0][2]);
+    }).toThrow();
   });
 });
