@@ -98,6 +98,7 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
   const baseUrlRef = useRef(baseUrl);
   const onErrorRef = useRef(onError);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hasFetchedRef = useRef(false);
   const loadingCountRef = useRef(0);
 
   useEffect(() => {
@@ -108,6 +109,7 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
 
   useEffect(() => {
     return () => {
+      hasFetchedRef.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -170,7 +172,7 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
 
       if (response.error) {
         const errorMsg = response.error.error ?? "Failed to fetch subscription status";
-        throw new Error(errorMsg);
+        throw Object.assign(new Error(errorMsg), { cause: response.error });
       }
 
       setStatus(response.data ?? null);
@@ -322,7 +324,6 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
       }
     }, [getHeaders, handleError, startLoading, stopLoading, fetchStatus]);
 
-  const hasFetchedRef = useRef(false);
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {
       hasFetchedRef.current = true;

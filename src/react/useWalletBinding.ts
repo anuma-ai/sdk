@@ -102,6 +102,7 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
   const baseUrlRef = useRef(baseUrl);
   const onErrorRef = useRef(onError);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hasFetchedRef = useRef(false);
   const loadingCountRef = useRef(0);
 
   useEffect(() => {
@@ -112,6 +113,7 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
 
   useEffect(() => {
     return () => {
+      hasFetchedRef.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -174,7 +176,7 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
 
       if (response.error) {
         const errorMsg = response.error.error ?? "Failed to fetch bound wallets";
-        throw new Error(errorMsg);
+        throw Object.assign(new Error(errorMsg), { cause: response.error });
       }
 
       setWallets(response.data?.wallets ?? []);
@@ -288,7 +290,6 @@ export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWall
     [getHeaders, handleError, startLoading, stopLoading, fetchBinding]
   );
 
-  const hasFetchedRef = useRef(false);
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {
       hasFetchedRef.current = true;

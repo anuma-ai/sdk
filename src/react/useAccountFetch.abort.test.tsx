@@ -34,24 +34,28 @@ const cases: {
   useHook: (options: UseWalletBindingOptions) => FetchState;
   data: Record<string, unknown>;
   expected: Record<string, unknown>;
+  errorMessage: string;
 }[] = [
   {
     name: "useWalletBinding",
     useHook: useWalletBinding,
     data: { wallets: [{ address_evm: "0x123" }], totals: { staked_zeta: "10" } },
     expected: { wallets: [{ address_evm: "0x123" }], totals: { staked_zeta: "10" } },
+    errorMessage: "Failed to fetch bound wallets",
   },
   {
     name: "useCredits",
     useHook: useCredits,
     data: balance,
     expected: { balance },
+    errorMessage: "Failed to fetch credit balance",
   },
   {
     name: "useSubscription",
     useHook: useSubscription,
     data: status,
     expected: { status },
+    errorMessage: "Failed to fetch subscription status",
   },
 ];
 
@@ -84,7 +88,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe.each(cases)("$name aborts", ({ useHook, data, expected }) => {
+describe.each(cases)("$name aborts", ({ useHook, data, expected, errorMessage }) => {
   it("does not call onError after an unmount abort", async () => {
     const request = deferred<Response>();
     const onError = vi.fn();
@@ -165,14 +169,87 @@ describe.each(cases)("$name aborts", ({ useHook, data, expected }) => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("clears loading after the StrictMode cleanup aborts the fetch", async () => {
+  it("loads data after the StrictMode cleanup aborts the first fetch", async () => {
     const onError = vi.fn();
-    const { result } = renderHook(() => useHook({ onError }), { wrapper: StrictMode });
+    const getToken = vi.fn<() => Promise<string | null>>().mockResolvedValue("token");
+    fetchMock.mockResolvedValueOnce(jsonResponse(data));
+    const { result } = renderHook(() => useHook({ getToken, onError }), { wrapper: StrictMode });
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current).toMatchObject(expected));
+    expect(getToken).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1]?.signal?.aborted).toBe(false);
+    expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
     expect(onError).not.toHaveBeenCalled();
   });
+
+  it("reports a transport error for the current fetch with its cause", async () => {
+    const transportError = new TypeError("Failed to fetch");
+    const onError = vi.fn();
+    fetchMock.mockRejectedValueOnce(transportError);
+    const { result } = renderHook(() => useHook({ onError }));
+
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(fetchMock.mock.calls[0][1]?.signal?.aborted).toBe(false);
+    expect(result.current.error?.message).toBe(errorMessage);
+    expect(result.current.error?.cause).toBe(transportError);
+    expect(result.current.isLoading).toBe(false);
+    expect(onError).toHaveBeenCalledExactlyOnceWith(result.current.error);
+  });
+
+  it.each(["before", "after"])(
+    "reports a replacement transport error when the old fetch aborts %s it fails",
+    async (order) => {
+      const oldRequest = deferred<Response>();
+      const newRequest = deferred<Response>();
+      const transportError = new TypeError("Failed to fetch");
+      const onError = vi.fn();
+      fetchMock.mockReturnValueOnce(oldRequest.promise).mockReturnValueOnce(newRequest.promise);
+
+      const { result } = renderHook(() => useHook({ onError }));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const oldSignal = fetchMock.mock.calls[0][1]?.signal;
+
+      let refetch!: Promise<void>;
+      await act(async () => {
+        refetch = result.current.refetch();
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      });
+      expect(oldSignal?.aborted).toBe(true);
+      expect(fetchMock.mock.calls[1][1]?.signal?.aborted).toBe(false);
+
+      if (order === "before") {
+        await act(async () => {
+          oldRequest.reject(new TypeError("Aborted fetch"));
+          await oldRequest.promise.catch(() => undefined);
+        });
+        expect(result.current.error).toBeNull();
+        expect(result.current.isLoading).toBe(true);
+        expect(onError).not.toHaveBeenCalled();
+      }
+
+      await act(async () => {
+        newRequest.reject(transportError);
+        await refetch;
+      });
+      const currentError = result.current.error;
+      expect(currentError?.message).toBe(errorMessage);
+      expect(onError).toHaveBeenCalledExactlyOnceWith(currentError);
+
+      if (order === "after") {
+        await act(async () => {
+          oldRequest.reject(new TypeError("Aborted fetch"));
+          await oldRequest.promise.catch(() => undefined);
+        });
+      }
+
+      expect(result.current.error).toBe(currentError);
+      expect(result.current.error?.cause).toBe(transportError);
+      expect(result.current.isLoading).toBe(false);
+      expect(onError).toHaveBeenCalledExactlyOnceWith(currentError);
+    }
+  );
 
   it("reports a server error for the current fetch", async () => {
     const onError = vi.fn();
@@ -181,6 +258,7 @@ describe.each(cases)("$name aborts", ({ useHook, data, expected }) => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.error?.message).toBe("Access denied");
+    expect(result.current.error?.cause).toEqual({ error: "Access denied" });
     expect(onError).toHaveBeenCalledExactlyOnceWith(result.current.error);
   });
 });
