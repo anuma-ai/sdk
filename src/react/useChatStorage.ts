@@ -8,7 +8,12 @@ import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import { attachFileContextToLastUserMessage } from "../lib/chat/fileContext";
 import { isSendableImageURL } from "../lib/chat/imageParts";
-import { backgroundMessageId, type PendingStreamStore } from "../lib/chat/pendingStreams";
+import {
+  backgroundMessageId,
+  PENDING_STREAM_LEASE_MS,
+  type PendingStream,
+  type PendingStreamStore,
+} from "../lib/chat/pendingStreams";
 import { StreamExpiredError, type StreamResumeHandle } from "../lib/chat/resumeStream";
 import { extractSourcesFromToolCallEvents } from "../lib/chat/sources";
 import {
@@ -769,8 +774,8 @@ export type ResumePendingStreamResult = {
 type BackgroundTurn = {
   conversationId: string;
   parentMessageId: string;
-  assistantUniqueId?: string;
-  assistantMessageId?: string;
+  assistantMessageId: string;
+  record?: PendingStream;
 };
 
 const claimedBackgroundTurns = new Set<string>();
@@ -1852,16 +1857,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const active = activeSendRef.current;
       if (recordsBackground && active) {
         const { round: _round, ...handle } = meta;
-        active.assistantMessageId =
-          active.assistantUniqueId ?? backgroundMessageId(handle.inferenceId);
-        pendingStreams.put({
+        active.record = {
           ...handle,
           conversationId: active.conversationId,
           parentMessageId: active.parentMessageId,
           assistantMessageId: active.assistantMessageId,
           walletAddress,
           createdAt: Date.now(),
-        });
+          activeUntil: Date.now() + PENDING_STREAM_LEASE_MS,
+        };
+        pendingStreams.put(active.record);
       }
       onStreamMeta?.(meta);
     },
@@ -2963,18 +2968,35 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
 
       const backgroundTurn: BackgroundTurn | null = recordsBackground
-        ? { conversationId: convId, parentMessageId: storedUserMessage.uniqueId, assistantUniqueId }
+        ? {
+            conversationId: convId,
+            parentMessageId: storedUserMessage.uniqueId,
+            assistantMessageId: assistantUniqueId ?? backgroundMessageId(uuidv7()),
+          }
         : null;
+      let leaseTimer: ReturnType<typeof setInterval> | undefined;
       if (backgroundTurn) {
         activeSendRef.current = backgroundTurn;
         claimedBackgroundTurns.add(backgroundTurn.parentMessageId);
+        leaseTimer = setInterval(() => {
+          if (!backgroundTurn.record) return;
+          backgroundTurn.record = {
+            ...backgroundTurn.record,
+            activeUntil: Date.now() + PENDING_STREAM_LEASE_MS,
+          };
+          pendingStreams?.put(backgroundTurn.record);
+        }, PENDING_STREAM_LEASE_MS / 6);
       }
       const result = await baseSendMessage({
         messages: messagesToSend,
         model,
         onData: perRequestOnData,
-        headers: recordsBackground
-          ? { ...headers, "X-Parent-Message-ID": storedUserMessage.uniqueId }
+        headers: backgroundTurn
+          ? {
+              ...headers,
+              "X-Parent-Message-ID": backgroundTurn.parentMessageId,
+              "X-Assistant-Message-ID": backgroundTurn.assistantMessageId,
+            }
           : headers,
         memoryContext,
         searchContext,
@@ -3000,11 +3022,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       });
 
       if (backgroundTurn) {
+        clearInterval(leaseTimer);
         if (activeSendRef.current === backgroundTurn) activeSendRef.current = null;
         claimedBackgroundTurns.delete(backgroundTurn.parentMessageId);
       }
       const detached = result as { detached?: true; resume?: StreamResumeHandle | null };
       if (recordsBackground && detached.detached && detached.resume) {
+        if (backgroundTurn?.record) {
+          pendingStreams.put({ ...backgroundTurn.record, activeUntil: undefined });
+        }
         return {
           data: null,
           error: "Request detached",
@@ -3130,7 +3156,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         parentMessageId: storedUserMessage.uniqueId,
         uniqueId: backgroundTurn?.assistantMessageId || assistantUniqueId || `msg_${uuidv7()}`,
       };
-      const upsertsBackgroundAnswer = backgroundTurn?.assistantMessageId !== undefined;
+      const upsertsBackgroundAnswer = backgroundTurn !== null;
 
       let storedAssistantMessage: StoredMessage;
       let assistantMsgQueueId: string | undefined;
@@ -3281,6 +3307,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     const results: ResumePendingStreamResult[] = [];
     for (const entry of entries) {
       if (claimedBackgroundTurns.has(entry.parentMessageId)) continue;
+      if (entry.activeUntil !== undefined && entry.activeUntil > Date.now()) continue;
       claimedBackgroundTurns.add(entry.parentMessageId);
       const base = {
         conversationId: entry.conversationId,

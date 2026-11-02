@@ -10,6 +10,7 @@ export type PendingStream = StreamResumeHandle & {
   assistantMessageId?: string;
   walletAddress?: string;
   createdAt: number;
+  activeUntil?: number;
 };
 
 /**
@@ -24,6 +25,9 @@ export interface PendingStreamStore {
 
 /** Longest a portal generation plus its buffer can outlive the request that started it. */
 export const PENDING_STREAM_MAX_AGE_MS = 45 * 60 * 1000;
+
+/** How long a live send owns its record before another tab may recover the turn. */
+export const PENDING_STREAM_LEASE_MS = 3 * 60 * 1000;
 
 /** Stored id of an answer recovered after its request went away. */
 export function backgroundMessageId(inferenceId: string): string {

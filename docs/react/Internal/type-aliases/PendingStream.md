@@ -8,6 +8,10 @@ A background turn whose answer may still be generating on the portal.
 
 ## Type Declaration
 
+### activeUntil?
+
+> `optional` **activeUntil**: `number`
+
 ### assistantMessageId?
 
 > `optional` **assistantMessageId**: `string`

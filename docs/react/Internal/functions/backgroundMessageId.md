@@ -2,7 +2,7 @@
 
 > **backgroundMessageId**(`inferenceId`: `string`): `string`
 
-Defined in: [src/lib/chat/pendingStreams.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#29)
+Defined in: [src/lib/chat/pendingStreams.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#33)
 
 Stored id of an answer recovered after its request went away.
 

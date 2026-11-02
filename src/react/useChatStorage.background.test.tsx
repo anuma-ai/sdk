@@ -163,7 +163,7 @@ describe("useChatStorage background turns", () => {
     });
     await vi.waitFor(() => expect(pending.list()).toHaveLength(1));
     const [recorded] = pending.list();
-    expect(recorded.assistantMessageId).toBe("msg_bg_0xshared");
+    expect(recorded.assistantMessageId).toMatch(/^msg_bg_/);
 
     const otherTab = localChatBackend(database)({});
     await otherTab.upsertMessage({
@@ -172,7 +172,7 @@ describe("useChatStorage background turns", () => {
       content: "Live answer.",
       model: "m",
       parentMessageId: recorded.parentMessageId,
-      uniqueId: "msg_bg_0xshared",
+      uniqueId: recorded.assistantMessageId!,
     });
     await act(async () => {
       release();
@@ -182,7 +182,7 @@ describe("useChatStorage background turns", () => {
     const assistants = (await result.current.getMessages("conv_bg")).filter(
       (m) => m.role === "assistant"
     );
-    expect(assistants.map((m) => m.uniqueId)).toEqual(["msg_bg_0xshared"]);
+    expect(assistants.map((m) => m.uniqueId)).toEqual([recorded.assistantMessageId]);
     expect(pending.list()).toEqual([]);
   });
 
@@ -337,6 +337,73 @@ describe("useChatStorage background turns", () => {
     expect(pending.list()).toHaveLength(1);
   });
 
+  it("keeps one reply id for the whole turn and sends it to portal", async () => {
+    const pending = memoryStore();
+    let round = 0;
+    const ids: Array<string | undefined> = [];
+    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+      options.onStreamMeta?.({ inferenceId: "0xround0", round: round++ });
+      ids.push(pending.list()[0]?.assistantMessageId);
+      options.onStreamMeta?.({ inferenceId: "0xround1", round: round++ });
+      ids.push(pending.list()[0]?.assistantMessageId);
+      return { data: answer("Final."), error: null } as never;
+    });
+    const { result } = renderStorage(pending);
+
+    let sent: Awaited<ReturnType<typeof result.current.sendMessage>> | undefined;
+    await act(async () => {
+      sent = await result.current.sendMessage(userTurn);
+    });
+
+    expect(ids[0]).toMatch(/^msg_bg_/);
+    expect(ids[1]).toBe(ids[0]);
+    expect(sent?.assistantMessage?.uniqueId).toBe(ids[0]);
+    expect(vi.mocked(runToolLoop).mock.calls[0][0].headers).toMatchObject({
+      "X-Assistant-Message-ID": ids[0],
+    });
+  });
+
+  it("leaves a turn alone while another tab's live send holds its lease", async () => {
+    const pending = memoryStore();
+    pending.put({
+      inferenceId: "0xother-tab",
+      apiType: "responses",
+      conversationId: "conv_bg",
+      parentMessageId: "msg_other_tab",
+      assistantMessageId: "msg_bg_other",
+      createdAt: Date.now(),
+      activeUntil: Date.now() + 60_000,
+    });
+    const { result } = renderStorage(pending);
+
+    let resumed: Awaited<ReturnType<typeof result.current.resumePendingStreams>> | undefined;
+    await act(async () => {
+      resumed = await result.current.resumePendingStreams();
+    });
+
+    expect(resumed).toEqual([]);
+    expect(resumeStream).not.toHaveBeenCalled();
+    expect(pending.list()).toHaveLength(1);
+  });
+
+  it("holds a lease while streaming and releases it when the turn detaches", async () => {
+    const pending = memoryStore();
+    let leaseDuringStream: number | undefined;
+    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+      options.onStreamMeta?.({ inferenceId: "0xlease", round: 0 });
+      leaseDuringStream = pending.list()[0]?.activeUntil;
+      return { data: null, error: "SSE failed: network" } as never;
+    });
+    const { result } = renderStorage(pending);
+
+    await act(async () => {
+      await result.current.sendMessage(userTurn);
+    });
+
+    expect(leaseDuringStream).toBeGreaterThan(Date.now());
+    expect(pending.list()[0].activeUntil).toBeUndefined();
+  });
+
   it("keeps a detached turn recorded and writes no assistant or error row", async () => {
     const pending = memoryStore();
     failAfterStreamStarts("0xdetached");
@@ -365,6 +432,7 @@ describe("useChatStorage background turns", () => {
     await act(async () => {
       await result.current.sendMessage(userTurn);
     });
+    const [recorded] = pending.list();
     vi.mocked(resumeStream).mockResolvedValue({
       data: answer("Recovered answer.") as never,
       error: null,
@@ -382,7 +450,7 @@ describe("useChatStorage background turns", () => {
         status: "completed",
         inferenceId: "0xrecover",
         assistantMessage: {
-          uniqueId: "msg_bg_0xrecover",
+          uniqueId: recorded.assistantMessageId,
           content: "Recovered answer.",
           parentMessageId: user.uniqueId,
         },
@@ -394,7 +462,7 @@ describe("useChatStorage background turns", () => {
     });
     expect(pending.list()).toEqual([]);
 
-    pending.put({ ...first![0], apiType: "responses", createdAt: Date.now() } as PendingStream);
+    pending.put({ ...recorded, createdAt: Date.now() });
     let second: Awaited<ReturnType<typeof result.current.resumePendingStreams>> | undefined;
     await act(async () => {
       second = await result.current.resumePendingStreams();

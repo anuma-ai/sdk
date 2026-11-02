@@ -2,7 +2,7 @@
 
 > **createLocalStoragePendingStreams**(`key`: `string`, `storage`: `KeyValueStorage` | `null`, `now`: () => `number`): [`PendingStreamStore`](../interfaces/PendingStreamStore.md)
 
-Defined in: [src/lib/chat/pendingStreams.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#59)
+Defined in: [src/lib/chat/pendingStreams.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#63)
 
 A [PendingStreamStore](../interfaces/PendingStreamStore.md) kept in `localStorage` (or any compatible storage).
 

@@ -92,6 +92,7 @@ export type { PendingStream, PendingStreamStore } from "../lib/chat/pendingStrea
 export {
   backgroundMessageId,
   createLocalStoragePendingStreams,
+  PENDING_STREAM_LEASE_MS,
   PENDING_STREAM_MAX_AGE_MS,
 } from "../lib/chat/pendingStreams";
 export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
