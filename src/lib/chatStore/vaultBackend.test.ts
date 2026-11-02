@@ -549,6 +549,15 @@ describe("vault chat backend", () => {
     expect(await b.getConversation(ANUMA_CONVERSATION_ID)).not.toBeNull();
   });
 
+  it("leaves the Anuma conversation out of the conversation list", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: ANUMA_CONVERSATION_ID });
+    await b.createConversation({ conversationId: "conv_1" });
+    expect((await b.getConversations()).map((c) => c.conversationId)).toEqual(["conv_1"]);
+    expect(await b.getConversation(ANUMA_CONVERSATION_ID)).not.toBeNull();
+  });
+
   it("shrinks a message over vault's record limit and marks what it cut", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake);

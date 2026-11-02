@@ -933,6 +933,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     async getConversations(query?: ConversationQueryOptions) {
       await available();
       return all("conversation")
+        .filter((record) => record.id !== ANUMA_CONVERSATION_ID)
         .map(toConversation)
         .filter(
           (c) =>
