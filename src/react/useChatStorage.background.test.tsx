@@ -24,8 +24,10 @@ vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
   };
 });
 
+import type { InboxItem, VaultInbox } from "../lib/chat/inbox";
 import { listActiveStreams, resumeStream } from "../lib/chat/resumeStream";
 import { runToolLoop } from "../lib/chat/toolLoop";
+import { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
 import { useChatStorage } from "./useChatStorage";
 
 function makeDatabase(): Database {
@@ -243,5 +245,303 @@ describe("useChatStorage background turns", () => {
       conversationId: "conv_bg",
     });
     expect(await result.current.getMessages("conv_bg")).toEqual([]);
+  });
+
+  describe("inbox", () => {
+    const encoder = new TextEncoder();
+    const b64url = (bytes: Uint8Array) =>
+      btoa(String.fromCharCode(...bytes))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+    const fromB64url = (value: string) => {
+      const padded = value.replace(/-/g, "+").replace(/_/g, "/");
+      return Uint8Array.from(atob(padded + "=".repeat((4 - (padded.length % 4)) % 4)), (c) =>
+        c.charCodeAt(0)
+      );
+    };
+
+    async function seal(recipientB64: string, id: string, plaintext: unknown): Promise<string> {
+      const recipientRaw = fromB64url(recipientB64);
+      const recipient = await crypto.subtle.importKey(
+        "raw",
+        recipientRaw,
+        { name: "ECDH", namedCurve: "P-256" },
+        false,
+        []
+      );
+      const ephemeral = (await crypto.subtle.generateKey(
+        { name: "ECDH", namedCurve: "P-256" },
+        true,
+        ["deriveBits"]
+      )) as CryptoKeyPair;
+      const epk = new Uint8Array(await crypto.subtle.exportKey("raw", ephemeral.publicKey));
+      const shared = await crypto.subtle.deriveBits(
+        { name: "ECDH", public: recipient },
+        ephemeral.privateKey,
+        256
+      );
+      const salt = new Uint8Array([...epk, ...recipientRaw]);
+      const ikm = await crypto.subtle.importKey("raw", shared, "HKDF", false, ["deriveKey"]);
+      const key = await crypto.subtle.deriveKey(
+        { name: "HKDF", hash: "SHA-256", salt, info: encoder.encode("anuma-inbox-v1:" + id) },
+        ikm,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt"]
+      );
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = new Uint8Array(
+        await crypto.subtle.encrypt(
+          { name: "AES-GCM", iv, additionalData: encoder.encode(id) },
+          key,
+          encoder.encode(JSON.stringify(plaintext))
+        )
+      );
+      return JSON.stringify({
+        v: 1,
+        alg: "ECDH-ES+HKDF-SHA256+A256GCM",
+        epk: b64url(epk),
+        iv: b64url(iv),
+        ct: b64url(ct),
+      });
+    }
+
+    function sealedAnswer(id: string, parent: string | null, status = "completed") {
+      return {
+        v: 1,
+        inference_id: id,
+        conversation_id: "conv_bg",
+        parent_message_id: parent,
+        api_type: "responses",
+        model: "anthropic/claude-opus-5-5",
+        status,
+        pending_tool: status === "tool_request" ? "get_location" : null,
+        response: answer("Answer from the inbox."),
+        finished_at: "2026-11-02T12:00:00Z",
+      };
+    }
+
+    function fakeInbox(entries: Array<{ id: string; plaintext?: unknown; sealed?: string }>) {
+      let publicKey: string | null = null;
+      const removed: string[] = [];
+      const registered: string[] = [];
+      const inbox: VaultInbox = {
+        putPublicKey: async (key) => {
+          publicKey = key;
+          registered.push(key);
+        },
+        list: async () => {
+          const items: InboxItem[] = [];
+          for (const entry of entries) {
+            if (removed.includes(entry.id)) continue;
+            items.push({
+              id: entry.id,
+              sealed: entry.sealed ?? (await seal(publicKey!, entry.id, entry.plaintext)),
+              created_at: "t",
+            });
+          }
+          return items;
+        },
+        remove: async (id) => {
+          removed.push(id);
+        },
+      };
+      return { inbox, removed, registered };
+    }
+
+    const walletSigner = vi.fn(async () => "0x" + "ab".repeat(65));
+
+    async function deviceWithTurn(...parents: string[]): Promise<Database> {
+      const database = makeDatabase();
+      const local = localChatBackend(database)({});
+      await local.createConversation({ conversationId: "conv_bg" });
+      for (const uniqueId of parents) {
+        await local.createMessage({
+          conversationId: "conv_bg",
+          role: "user",
+          content: "question",
+          model: "",
+          uniqueId,
+        });
+      }
+      return database;
+    }
+
+    function renderWithInbox(inbox: VaultInbox, database: Database) {
+      return renderHook(() =>
+        useChatStorage({
+          database,
+          conversationId: "conv_bg",
+          getToken: async () => "tok",
+          walletAddress: "0x1111111111111111111111111111111111111111",
+          signMessage: walletSigner,
+          resumable: true,
+          background: true,
+          inbox,
+        })
+      );
+    }
+
+    it("stores a sealed answer once under the sender's reply id and registers the key once", async () => {
+      const { inbox, removed, registered } = fakeInbox([
+        {
+          id: "0xinbox",
+          plaintext: {
+            ...sealedAnswer("0xinbox", "msg_parent"),
+            assistant_message_id: "msg_bg_turn",
+          },
+        },
+      ]);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn("msg_parent"));
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([
+        {
+          id: "0xinbox",
+          status: "stored",
+          assistantMessage: {
+            uniqueId: "msg_bg_turn",
+            content: "Answer from the inbox.",
+            parentMessageId: "msg_parent",
+            model: "anthropic/claude-opus-5-5",
+          },
+        },
+      ]);
+      expect(removed).toEqual(["0xinbox"]);
+      expect(registered).toHaveLength(1);
+      expect(fromB64url(registered[0])).toHaveLength(65);
+    });
+
+    it("falls back to the inference id when the sender sent no reply id", async () => {
+      const { inbox } = fakeInbox([{ id: "0xnoid", plaintext: sealedAnswer("0xnoid", null) }]);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn());
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([
+        { status: "stored", assistantMessage: { uniqueId: "msg_bg_0xnoid" } },
+      ]);
+    });
+
+    it("never overwrites an answer the live client already stored", async () => {
+      const database = await deviceWithTurn("msg_parent");
+      await localChatBackend(database)({}).createMessage({
+        conversationId: "conv_bg",
+        role: "assistant",
+        content: "Live answer.",
+        model: "m",
+        uniqueId: "msg_bg_live",
+      });
+      const { inbox, removed } = fakeInbox([
+        {
+          id: "0xlive",
+          plaintext: {
+            ...sealedAnswer("0xlive", "msg_parent"),
+            assistant_message_id: "msg_bg_live",
+          },
+        },
+      ]);
+      const { result } = renderWithInbox(inbox, database);
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([{ status: "delivered" }]);
+      expect(removed).toEqual(["0xlive"]);
+      const assistants = (await result.current.getMessages("conv_bg")).filter(
+        (m) => m.role === "assistant"
+      );
+      expect(assistants.map((m) => m.content)).toEqual(["Live answer."]);
+    });
+
+    it("leaves an answer for the device that has the turn", async () => {
+      const { inbox, removed } = fakeInbox([
+        {
+          id: "0xother",
+          plaintext: {
+            ...sealedAnswer("0xother", "msg_on_laptop"),
+            assistant_message_id: "msg_bg_x",
+          },
+        },
+        { id: "0xnoparent", plaintext: sealedAnswer("0xnoparent", null) },
+      ]);
+      const phone = makeDatabase();
+      const { result } = renderWithInbox(inbox, phone);
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([
+        { id: "0xother", status: "elsewhere", assistantMessage: null },
+        { id: "0xnoparent", status: "elsewhere", assistantMessage: null },
+      ]);
+      expect(removed).toEqual([]);
+      expect(await localChatBackend(phone)({}).getMessagesByIds(["msg_bg_x"])).toEqual([]);
+    });
+
+    it("keeps an item it cannot open", async () => {
+      const { inbox, removed } = fakeInbox([{ id: "0xbad", sealed: '{"v":9}' }]);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn());
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([{ id: "0xbad", status: "unreadable" }]);
+      expect(removed).toEqual([]);
+    });
+
+    it("stores a turn that stopped for a device tool as stopped", async () => {
+      const { inbox } = fakeInbox([
+        { id: "0xtool", plaintext: sealedAnswer("0xtool", "msg_tool_parent", "tool_request") },
+      ]);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn("msg_tool_parent"));
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([
+        { status: "stored", assistantMessage: { wasStopped: true } },
+      ]);
+    });
+
+    it("does nothing without a signed-in wallet", async () => {
+      const inbox: VaultInbox = {
+        putPublicKey: vi.fn(),
+        list: vi.fn(async () => []),
+        remove: vi.fn(),
+      };
+      const database = makeDatabase();
+      const { result } = renderHook(() =>
+        useChatStorage({ database, conversationId: "conv_bg", inbox })
+      );
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toEqual([]);
+      expect(inbox.putPublicKey).not.toHaveBeenCalled();
+      expect(inbox.list).not.toHaveBeenCalled();
+    });
   });
 });
