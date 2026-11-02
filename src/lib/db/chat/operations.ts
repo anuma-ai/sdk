@@ -1884,6 +1884,60 @@ async function chunkRowSource(
   }
 }
 
+async function readChunkVectorRow(
+  ctx: StorageOperationsContext,
+  row: Record<string, unknown>,
+  onUnreadable: () => void
+): Promise<{ entry: CachedChunkVectors; chunks: MessageChunk[] } | null> {
+  const version = Number(row.updated_at) || 0;
+  const chunks = await readRawJsonField<MessageChunk[]>(row, "chunks", ctx.walletAddress);
+  if (chunks && chunks.length > 0) {
+    return {
+      entry: {
+        version,
+        chunks: chunks.map((chunk) => decodeChunkVector(chunk.vector, onUnreadable)),
+      },
+      chunks,
+    };
+  }
+  const messageVector = await readRawJsonField<number[]>(row, "vector", ctx.walletAddress);
+  if (!messageVector || messageVector.length === 0) return null;
+  return { entry: { version, chunks: [], fallback: Float32Array.from(messageVector) }, chunks: [] };
+}
+
+/** Loads every embedded message's vectors that the cache lacks, and returns how many it added. */
+export async function warmChunkVectorCacheOp(
+  ctx: StorageOperationsContext,
+  options: { chunkCache: ChunkVectorCache; embeddingModel?: string; signal?: AbortSignal }
+): Promise<number> {
+  const { chunkCache, embeddingModel, signal } = options;
+  const source = await chunkRowSource(ctx, {});
+  const yieldIfDue = createTimeSliceYielder(CHUNK_SCAN_YIELD_BUDGET_MS);
+  const missIds: string[] = [];
+  for (const key of source.keys) {
+    await yieldIfDue();
+    if (embeddingModel && key.embeddingModel !== null && key.embeddingModel !== embeddingModel)
+      continue;
+    if (chunkCache.get(key.id)?.version !== key.version) missIds.push(key.id);
+  }
+  let warmed = 0;
+  for (let offset = 0; offset < missIds.length; offset += CHUNK_VECTOR_BATCH_SIZE) {
+    signal?.throwIfAborted();
+    const rows = await source.loadVectorRows(
+      missIds.slice(offset, offset + CHUNK_VECTOR_BATCH_SIZE)
+    );
+    for (const row of rows) {
+      await yieldIfDue();
+      signal?.throwIfAborted();
+      const read = await readChunkVectorRow(ctx, row, () => {});
+      if (!read) continue;
+      chunkCache.set(row.id as string, read.entry);
+      warmed++;
+    }
+  }
+  return warmed;
+}
+
 /**
  * Search through message chunks for fine-grained semantic search.
  * Returns the matching chunk text along with the parent message.
@@ -1990,48 +2044,40 @@ export async function searchChunksOp(
     for (const row of rows) {
       await yieldIfDue();
       const id = row.id as string;
-      const version = Number(row.updated_at) || 0;
       const order = orderById.get(id) ?? Number.MAX_SAFE_INTEGER;
-      const chunks = await readRawJsonField<MessageChunk[]>(row, "chunks", ctx.walletAddress);
+      const read = await readChunkVectorRow(ctx, row, () => {
+        unreadableVectors++;
+      });
+      if (!read) continue;
+      const { entry, chunks } = read;
+      const { version } = entry;
+      chunkCache?.set(id, entry);
 
-      if (chunks && chunks.length > 0) {
-        const vectors: Float32Array[] = chunks.map((chunk) =>
-          decodeChunkVector(chunk.vector, () => {
-            unreadableVectors++;
-          })
-        );
-        chunkCache?.set(id, { version, chunks: vectors });
-
-        for (let ci = 0; ci < chunks.length; ci++) {
-          const vec = vectors[ci];
-          if (vec.length === 0) continue;
-          const similarity = cosineSimilarity(queryVector, vec);
-          if (similarity >= minSimilarity) {
-            candidates.push({
-              id,
-              version,
-              order,
-              similarity,
-              chunkTextSource: { kind: "chunk", chunk: chunks[ci], siblings: chunks },
-            });
-          }
+      if (entry.fallback) {
+        const similarity = cosineSimilarity(queryVector, entry.fallback);
+        if (similarity >= minSimilarity) {
+          candidates.push({
+            id,
+            version,
+            order,
+            similarity,
+            chunkTextSource: { kind: "message" },
+          });
         }
-      } else {
-        const messageVector = await readRawJsonField<number[]>(row, "vector", ctx.walletAddress);
-        if (messageVector && messageVector.length > 0) {
-          const fallback = Float32Array.from(messageVector);
-          chunkCache?.set(id, { version, chunks: [], fallback });
-
-          const similarity = cosineSimilarity(queryVector, fallback);
-          if (similarity >= minSimilarity) {
-            candidates.push({
-              id,
-              version,
-              order,
-              similarity,
-              chunkTextSource: { kind: "message" },
-            });
-          }
+        continue;
+      }
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const vec = entry.chunks[ci];
+        if (vec.length === 0) continue;
+        const similarity = cosineSimilarity(queryVector, vec);
+        if (similarity >= minSimilarity) {
+          candidates.push({
+            id,
+            version,
+            order,
+            similarity,
+            chunkTextSource: { kind: "chunk", chunk: chunks[ci], siblings: chunks },
+          });
         }
       }
     }

@@ -48,6 +48,12 @@ export interface ChatBackend extends ChatStorageAdapter {
     queryVector: number[],
     options?: ChatChunkSearchOptions
   ): Promise<ChunkSearchResult[]>;
+  /** Fills a chunk vector cache ahead of the first search, for backends that score on the device. */
+  warmChunkCache?(options: {
+    chunkCache: ChunkVectorCache;
+    embeddingModel?: string;
+    signal?: AbortSignal;
+  }): Promise<number>;
   getSummary(conversationId: string): Promise<StoredConversationSummary | null>;
   upsertSummary(
     conversationId: string,

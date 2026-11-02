@@ -861,6 +861,9 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    */
   recall: (query: string, options?: RecallOptions) => Promise<RecallResult>;
 
+  /** Loads past messages' vectors into the recall cache so the first recall does not read them all; resolves to how many it added. */
+  warmRecallCache: (signal?: AbortSignal) => Promise<number>;
+
   /**
    * Search vault memories programmatically using semantic similarity.
    * Returns structured results sorted by descending similarity.
@@ -1765,6 +1768,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       memoryStore,
       storeMaskMissing,
     ]
+  );
+
+  const warmRecallCache = useCallback(
+    async (signal?: AbortSignal): Promise<number> =>
+      (await backend.warmChunkCache?.({
+        chunkCache: chunkVectorCacheRef.current,
+        embeddingModel,
+        ...(signal && { signal }),
+      })) ?? 0,
+    [backend, embeddingModel]
   );
 
   const {
@@ -3143,6 +3156,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     createMemoryVaultSearchTool,
     createRecallTool,
     recall: recallFn,
+    warmRecallCache,
     searchVaultMemories: searchVaultMemoriesFn,
     vaultEmbeddingCache,
     getVaultMemories,
