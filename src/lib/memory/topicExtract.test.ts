@@ -307,6 +307,112 @@ describe("extractEntitiesForMemories", () => {
     ]);
   });
 
+  it("drops identifier and amount topics from memories that contain them", async () => {
+    const fetchFn = mockFetch(
+      topicResponse([
+        {
+          id: "mem_1",
+          entities: [
+            { name: "Solana", kind: "product", salience: "primary" },
+            { name: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", kind: "thing" },
+            { name: "3.5 SOL", kind: "thing", salience: "mention" },
+          ],
+        },
+        {
+          id: "mem_2",
+          entities: [
+            { name: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e", kind: "thing" },
+            { name: "$1,200", kind: "thing" },
+          ],
+        },
+        {
+          id: "mem_3",
+          entities: [
+            { name: "Lisbon", kind: "place", salience: "primary" },
+            { name: "2024 trip", kind: "event", salience: "secondary" },
+          ],
+        },
+      ])
+    );
+    const result = await extractEntitiesForMemories(
+      [
+        {
+          id: "mem_1",
+          content: "Holds 3.5 SOL at 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU on Solana",
+        },
+        {
+          id: "mem_2",
+          content: "Has a $1,200 balance at 0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+        },
+        { id: "mem_3", content: "Planning the 2024 trip to Lisbon" },
+      ],
+      { apiKey: "k", fetchFn }
+    );
+    expect(result.get("mem_1")).toEqual([{ name: "Solana", kind: "product", weight: 1 }]);
+    expect(result.get("mem_2")).toEqual([]);
+    expect(result.get("mem_3")).toEqual([
+      { name: "Lisbon", kind: "place", weight: 1 },
+      { name: "2024 trip", kind: "event", weight: 0.6 },
+    ]);
+  });
+
+  it("drops a topic whose redacted placeholder restores to a key-like string", async () => {
+    const fetchFn = mockFetch(
+      topicResponse([
+        {
+          id: "mem_1",
+          entities: [
+            { name: "Stripe", kind: "organization", salience: "primary" },
+            { name: "[API_KEY_1]", kind: "thing" },
+          ],
+        },
+      ])
+    );
+    const result = await extractEntitiesForMemories(
+      [{ id: "mem_1", content: "Stripe test key is token_Ab3dE5fG7hJ9kL2mN4pQ6rS8" }],
+      { apiKey: "k", fetchFn, piiRedaction: true }
+    );
+    expect(result.get("mem_1")).toEqual([{ name: "Stripe", kind: "organization", weight: 1 }]);
+  });
+
+  it("drops a topic that holds an email or API key placeholder", async () => {
+    const fetchFn = mockFetch(
+      topicResponse([
+        {
+          id: "mem_1",
+          entities: [
+            { name: "Stripe", kind: "organization", salience: "primary" },
+            { name: "[EMAIL_1]", kind: "thing" },
+            { name: "API_KEY_1", kind: "thing" },
+            { name: "billing [api_key_1]", kind: "thing" },
+          ],
+        },
+      ])
+    );
+    const result = await extractEntitiesForMemories(
+      [
+        {
+          id: "mem_1",
+          content: "Stripe login alice@example.com, key sk_live_Ab3dE5fG7hJ9kL2",
+        },
+      ],
+      { apiKey: "k", fetchFn, piiRedaction: true }
+    );
+    expect(result.get("mem_1")).toEqual([{ name: "Stripe", kind: "organization", weight: 1 }]);
+  });
+
+  it("tells the model to use the general subject instead of identifiers or amounts", async () => {
+    const fetchFn = mockFetch(topicResponse([{ id: "mem_1", entities: [] }]));
+    await extractEntitiesForMemories([{ id: "mem_1", content: "fact" }], { apiKey: "k", fetchFn });
+    const body = JSON.parse(
+      (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string
+    ) as { messages: Array<{ role: string; content: string }> };
+    const system = body.messages.find((m) => m.role === "system")?.content ?? "";
+    expect(system).toContain("addresses");
+    expect(system).toContain("position sizes");
+    expect(system).toContain("Use the general subject instead");
+  });
+
   it("redacts PII in the existing-vocabulary names too", async () => {
     const fetchFn = vi.fn().mockResolvedValue({
       ok: true,

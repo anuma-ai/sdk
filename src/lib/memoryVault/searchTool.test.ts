@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
 import type { EmbeddingOptions } from "../memoryEngine/types";
-import { createVaultEmbeddingCache } from "./lruCache";
+import { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 import type { VaultEmbeddingCache } from "./searchTool";
 import {
   admitVaultProjections,
@@ -11,6 +11,7 @@ import {
   eagerEmbedContent,
   preEmbedVaultMemories,
   prepareVaultCandidates,
+  rankPreparedVaultCandidates,
   searchVaultMemories,
   searchVaultMemoriesWithSize,
 } from "./searchTool";
@@ -1579,6 +1580,58 @@ describe("searchVaultMemoriesWithSize — embedding failures beyond the query em
 
     expect(out.embeddingsUnavailable).toBe(true);
   });
+});
+
+describe("prepareVaultCandidates - cache eviction", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it.each(["cached", "stored", "generated"])(
+    "retains %s vectors after cache eviction",
+    async (source) => {
+      const capacity = source === "stored" ? DEFAULT_VAULT_CACHE_SIZE : 2;
+      const memories = Array.from({ length: capacity + 1 }, (_, index) => ({
+        ...makeMemory(`m${index}`, `profile fact ${index}`),
+        embedding: source === "generated" ? null : index === 0 ? "[1,0,0]" : "[0,1,0]",
+      }));
+      vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
+      vi.mocked(generateEmbeddings).mockResolvedValue(
+        memories.map((_, index) => (index === 0 ? [1, 0, 0] : [0, 1, 0]))
+      );
+
+      const cache = createVaultEmbeddingCache(capacity);
+      if (source === "cached") seedVector(cache, "m0", new Float32Array([1, 0, 0]));
+
+      const prepared = await prepareVaultCandidates(
+        "shellfish",
+        mockVaultCtx,
+        mockEmbeddingOptions,
+        cache,
+        { queryEmbedding: [1, 0, 0] }
+      );
+
+      expect(cache.size).toBe(capacity);
+      expect(cache.has("m0")).toBe(false);
+      expect(prepared.embeddedItems).toHaveLength(memories.length);
+      expect(prepared.embeddedItems.filter((item) => item.embedding.length === 0)).toEqual([]);
+      expect(prepared.embeddedItems[0].embedding).toEqual(new Float32Array([1, 0, 0]));
+      expect(prepared.embeddedItems.at(-1)?.embedding).toEqual(new Float32Array([0, 1, 0]));
+      expect(prepared.embeddingsUnavailable).toBe(false);
+      expect(prepared.embeddingFailure).toBe(false);
+      expect(prepared.rowsEmbedded).toBe(source === "generated" ? memories.length : 0);
+
+      const { results } = await rankPreparedVaultCandidates(
+        "shellfish",
+        prepared,
+        mockEmbeddingOptions,
+        { useFusion: false, minSimilarity: 0.5, limit: 1 }
+      );
+
+      expect(results.map((result) => result.uniqueId)).toEqual(["m0"]);
+    }
+  );
 });
 
 describe("prepareVaultCandidates — embeddingFailure", () => {

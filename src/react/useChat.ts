@@ -4,7 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
-import { streamCancelPath } from "../lib/chat/resumeStream";
+import {
+  resumeStream as runResumeStream,
+  type ResumeStreamOptions,
+  type ResumeStreamResult,
+  streamCancelPath,
+  type StreamResumeHandle,
+} from "../lib/chat/resumeStream";
 import {
   type ApiResponse,
   type ApiType,
@@ -13,6 +19,7 @@ import {
   type BaseUseChatOptions,
   type BaseUseChatResult,
   createErrorResult,
+  resolveApiType,
   runToolLoop,
   type RunToolLoopResult,
   validateToken,
@@ -78,6 +85,10 @@ type SendMessageResult =
       error: string;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
+      /** True when a background stream was left running; `error` is "Request detached". */
+      detached?: true;
+      /** Pass to `resumeStream`; null when no inference id was issued before the detach. */
+      resume?: StreamResumeHandle | null;
     };
 
 /**
@@ -86,8 +97,13 @@ type SendMessageResult =
 interface UseChatOptions extends BaseUseChatOptions {
   /** Buffer streamed rounds so a service can verify their canonical output. */
   resumable?: boolean;
-  /** Inference identifier for each HTTP round, including client-tool continuations. */
-  onStreamMeta?: (meta: { inferenceId: string; round: number }) => void;
+  /**
+   * Keep a resumable generation running server-side when the request fails or
+   * the hook unmounts; only `stop()` cancels it. Replay it with `resumeStream`.
+   */
+  background?: boolean;
+  /** Stream handle for each HTTP round, including client-tool continuations. */
+  onStreamMeta?: (meta: StreamMeta) => void;
   /**
    * Which API endpoint to use. Default: "auto"
    * - "auto": automatically selects the best API based on model support
@@ -97,8 +113,19 @@ interface UseChatOptions extends BaseUseChatOptions {
   apiType?: ApiType;
 }
 
+/**
+ * A resumable stream handle plus the tool-loop round that issued it.
+ * @inline
+ */
+type StreamMeta = StreamResumeHandle & { round: number };
+
 type UseChatResult = BaseUseChatResult & {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
+  /** Replay a resumable stream from the portal buffer, from its first frame. */
+  resumeStream: (
+    handle: StreamResumeHandle,
+    opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing"> & { headless?: boolean }
+  ) => Promise<ResumeStreamResult>;
 };
 
 /**
@@ -166,6 +193,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onToolCallArgumentsDelta,
     onStepFinish,
     resumable,
+    background = false,
     onStreamMeta,
     apiType: defaultApiType = "auto",
     smoothing,
@@ -174,12 +202,18 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     piiRedaction,
     onPiiRedacted,
   } = options || {};
+  const keepAlive = resumable === true && background;
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
-  const pendingInferenceRef = useRef<{ id: string; round: number; cancel: () => void } | null>(
-    null
-  );
+  const detachControllerRef = useRef<AbortController | null>(null);
+  const pendingInferenceRef = useRef<{
+    id: string;
+    round: number;
+    cancel: () => void;
+    handle: StreamResumeHandle;
+    settled?: boolean;
+  } | null>(null);
   const cancelInference = useCallback(
     (inferenceId: string, requestToken?: string) => {
       void (async () => {
@@ -210,7 +244,106 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     }
   }, []);
 
-  useEffect(() => stop, [stop]);
+  const keepAliveRef = useRef(keepAlive);
+  keepAliveRef.current = keepAlive;
+
+  useEffect(
+    () => () => {
+      if (keepAliveRef.current) {
+        if (detachControllerRef.current) {
+          detachControllerRef.current.abort();
+          return;
+        }
+        pendingInferenceRef.current = null;
+        abortControllerRef.current?.abort();
+        abortControllerRef.current = null;
+        return;
+      }
+      stop();
+    },
+    [stop]
+  );
+
+  const resumeStream = useCallback(
+    async (
+      handle: StreamResumeHandle,
+      opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing"> & { headless?: boolean }
+    ): Promise<ResumeStreamResult> => {
+      const getterValidation = validateTokenGetter(getToken);
+      if (!getterValidation.valid) {
+        return { data: null, error: getterValidation.message, interrupted: false };
+      }
+
+      const { headless, ...resumeOpts } = opts ?? {};
+      if (!headless && abortControllerRef.current) {
+        return { data: null, error: "A request is already in progress", interrupted: false };
+      }
+
+      const abortController = new AbortController();
+      const requestId = headless ? null : ++requestIdRef.current;
+      if (!headless) {
+        abortControllerRef.current = abortController;
+        pendingInferenceRef.current = {
+          id: handle.inferenceId,
+          round: -1,
+          cancel: () => cancelInference(handle.inferenceId),
+          handle,
+        };
+        setIsLoading(true);
+      }
+      const ownsForeground = () => requestId !== null && requestIdRef.current === requestId;
+
+      try {
+        let token: string | null;
+        try {
+          token = await getToken!();
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error(String(err));
+          if (!headless) onError?.(error);
+          return { data: null, error: error.message, interrupted: false };
+        }
+        const tokenValidation = validateToken(token);
+        if (!tokenValidation.valid) {
+          return { data: null, error: tokenValidation.message, interrupted: false };
+        }
+
+        return await runResumeStream({
+          handle,
+          token: token!,
+          baseUrl,
+          smoothing,
+          signal: abortController.signal,
+          piiRedactor: typeof resolvedPiiRedaction === "object" ? resolvedPiiRedaction : undefined,
+          ...(headless
+            ? {}
+            : {
+                onData: (chunk: string) => globalOnData?.(chunk),
+                onThinking: (chunk: string) => globalOnThinking?.(chunk),
+                onFinish,
+                onError,
+              }),
+          ...resumeOpts,
+        });
+      } finally {
+        if (ownsForeground()) {
+          setIsLoading(false);
+          if (abortControllerRef.current === abortController) abortControllerRef.current = null;
+          if (pendingInferenceRef.current?.round === -1) pendingInferenceRef.current = null;
+        }
+      }
+    },
+    [
+      getToken,
+      baseUrl,
+      smoothing,
+      cancelInference,
+      resolvedPiiRedaction,
+      globalOnData,
+      globalOnThinking,
+      onFinish,
+      onError,
+    ]
+  );
 
   const sendMessage = useCallback(
     async ({
@@ -240,10 +373,13 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
+      const detachController = keepAlive ? new AbortController() : null;
+      detachControllerRef.current = detachController;
       const requestId = ++requestIdRef.current;
 
       setIsLoading(true);
-      let succeeded = false;
+      let keepServerStream = false;
+      const deferredErrors: Error[] = [];
 
       try {
         const tokenGetterValidation = validateTokenGetter(getToken);
@@ -315,6 +451,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           apiType: requestApiType ?? defaultApiType,
           endpointOverride,
           resumable,
+          detachSignal: detachController?.signal,
           onStreamMeta:
             resumable || onStreamMeta
               ? (meta) => {
@@ -325,14 +462,21 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                   const previous = pendingInferenceRef.current;
                   if (previous && previous.round === meta.round && previous.id !== meta.inferenceId)
                     previous.cancel();
+                  const handle: StreamResumeHandle = {
+                    inferenceId: meta.inferenceId,
+                    apiType: resolveApiType(requestApiType ?? defaultApiType, model),
+                    model,
+                    conversationId,
+                  };
                   pendingInferenceRef.current = {
                     id: meta.inferenceId,
                     round: meta.round,
                     cancel: resumable
                       ? () => cancelInference(meta.inferenceId, token!)
                       : () => undefined,
+                    handle,
                   };
-                  onStreamMeta?.(meta);
+                  onStreamMeta?.({ ...handle, round: meta.round });
                 }
               : undefined,
           temperature,
@@ -355,18 +499,49 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             if (globalOnThinking) globalOnThinking(chunk);
           },
           onFinish,
-          onError,
+          onError: keepAlive ? (error) => deferredErrors.push(error) : onError,
           onToolCall,
           onServerToolCall,
           onToolCallArgumentsDelta,
-          onStepFinish,
+          onStepFinish:
+            keepAlive || onStepFinish
+              ? (event) => {
+                  const pending = pendingInferenceRef.current;
+                  if (keepAlive && pending && requestIdRef.current === requestId) {
+                    pendingInferenceRef.current = { ...pending, settled: true };
+                  }
+                  onStepFinish?.(event);
+                }
+              : undefined,
           preProcessors,
           hooks,
           piiRedaction: requestPiiRedaction ?? resolvedPiiRedaction,
           onPiiRedacted,
         });
 
-        succeeded = result.error === null;
+        const pending = pendingInferenceRef.current;
+        const handle = pending && !pending.settled ? pending.handle : null;
+        const detach =
+          result.error !== null && keepAlive && handle && result.error !== "Request aborted";
+        if (!detach) deferredErrors.forEach((error) => onError?.(error));
+        if (result.error === null) {
+          keepServerStream = true;
+          return result;
+        }
+        if (detach) {
+          keepServerStream = true;
+          return {
+            data: result.data,
+            error: "Request detached",
+            detached: true,
+            resume: handle,
+            toolsChecksum: result.toolsChecksum,
+          };
+        }
+        if ("detached" in result && result.detached) {
+          keepServerStream = true;
+          return { ...result, resume: null };
+        }
         return result;
       } catch (err) {
         return createErrorResult(
@@ -377,7 +552,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         if (requestIdRef.current === requestId) {
           setIsLoading(false);
           abortControllerRef.current = null;
-          if (!succeeded) pendingInferenceRef.current?.cancel();
+          if (detachControllerRef.current === detachController) detachControllerRef.current = null;
+          if (!keepServerStream) pendingInferenceRef.current?.cancel();
           pendingInferenceRef.current = null;
         }
       }
@@ -396,6 +572,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onToolCallArgumentsDelta,
       onStepFinish,
       resumable,
+      keepAlive,
       onStreamMeta,
       defaultApiType,
       smoothing,
@@ -410,5 +587,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     isLoading,
     sendMessage,
     stop,
+    resumeStream,
   };
 }

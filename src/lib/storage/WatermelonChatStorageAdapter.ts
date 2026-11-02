@@ -31,6 +31,7 @@ import {
   updateMessageFeedbackOp,
   updateMessageFileIdsOp,
   upsertMessageOp,
+  warmChunkVectorCacheOp,
 } from "../db/chat/operations";
 import {
   createSummaryContext,
@@ -276,6 +277,10 @@ export class WatermelonChatStorageAdapter implements ChatBackend {
     options?: ChatChunkSearchOptions
   ): Promise<ChunkSearchResult[]> {
     return searchChunksOp(this.ctx, queryVector, options);
+  }
+
+  warmChunkCache(options: Parameters<NonNullable<ChatBackend["warmChunkCache"]>>[0]) {
+    return warmChunkVectorCacheOp(this.ctx, options);
   }
 
   getSummary(conversationId: string): Promise<StoredConversationSummary | null> {

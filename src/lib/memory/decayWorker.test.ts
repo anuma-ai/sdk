@@ -1,6 +1,6 @@
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const encMocks = vi.hoisted(() => ({
   encrypt: vi.fn((content: string) => Promise.resolve(`enc:${content}`)),
@@ -17,6 +17,7 @@ vi.mock("../db/memoryVault/encryption", () => ({
   decryptVaultMemoryFields: encMocks.decrypt,
 }));
 
+import type { Entity, MemoryEntity } from "../db/entities/models";
 import type { VaultMemory } from "../db/memoryVault/models";
 import {
   archiveVaultMemoryOp,
@@ -71,6 +72,10 @@ beforeEach(() => {
   };
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 interface SeedOptions {
   content: string;
   factType?: FactType;
@@ -110,6 +115,170 @@ async function archivedAtOf(id: string): Promise<number | null> {
   const candidates = await getDecayCandidatesRawOp(vaultCtx);
   return candidates.find((c) => c.uniqueId === id)?.archivedAt ?? null;
 }
+
+describe("createDecaySweeper.runSweep batches", () => {
+  it.each(["archive", "delete"] as const)("batches 501 rows for %s", async (transition) => {
+    await database.write(() =>
+      database.batch(
+        Array.from({ length: 501 }, (_, i) =>
+          vaultCtx.vaultMemoryCollection.prepareCreate((record) => {
+            record._raw.id = `backlog-${i}`;
+            record._setRaw("source", "auto-extracted");
+            record._setRaw("fact_type", "other");
+            record._setRaw("updated_at", NOW - MEDIUM_TTL_MS - DAY);
+            record._setRaw(
+              "archived_at",
+              transition === "delete" ? NOW - HARD_DELETE_WINDOW_MS - DAY : null
+            );
+          })
+        )
+      )
+    );
+    const find = vi.spyOn(vaultCtx.vaultMemoryCollection, "find");
+    const query = vi.spyOn(database.adapter.underlyingAdapter, "query");
+    const write = vi.spyOn(database, "write");
+    const batch = vi.spyOn(database, "batch");
+
+    const result = await createDecaySweeper({ vaultCtx, now: NOW }).runSweep();
+
+    expect(result).toMatchObject({
+      archived: transition === "archive" ? 501 : 0,
+      deleted: transition === "delete" ? 501 : 0,
+      scanned: 501,
+    });
+    expect(find.mock.calls.length).toBe(0);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(
+      query.mock.calls.flatMap(([read]) =>
+        read.description.where.flatMap((clause) =>
+          clause.type === "where" && clause.left === "id" && "values" in clause.comparison.right
+            ? [clause.comparison.right.values.length]
+            : []
+        )
+      )
+    ).toEqual([500, 1]);
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(batch.mock.calls.map(([rows]) => (Array.isArray(rows) ? rows.length : 1))).toEqual([
+      500, 1,
+    ]);
+    const rows = await getDecayCandidatesRawOp(vaultCtx);
+    expect(rows).toHaveLength(transition === "archive" ? 501 : 0);
+    if (transition === "archive") expect(rows.every((row) => row.archivedAt === NOW)).toBe(true);
+  });
+
+  it.each(["archive", "delete"] as const)(
+    "checks the live row state inside the %s writer",
+    async (transition) => {
+      vaultCtx.userId = "owner";
+      const changes: Array<Record<string, string | number | boolean | null>> = [
+        { user_id: "other-owner" },
+        { is_deleted: true },
+        { archived_at: transition === "archive" ? NOW : null },
+        transition === "archive" ? { updated_at: NOW } : { archived_at: NOW },
+        transition === "archive"
+          ? { last_observed_at: NOW }
+          : { archived_at: NOW - HARD_DELETE_WINDOW_MS },
+      ];
+      const ids = await Promise.all(
+        Array.from({ length: changes.length + 1 }, (_, i) =>
+          seed({
+            content: `candidate ${i}`,
+            factType: "other",
+            updatedAt: NOW - MEDIUM_TTL_MS - DAY,
+            ...(transition === "delete" && { archivedAt: NOW - HARD_DELETE_WINDOW_MS - DAY }),
+          })
+        )
+      );
+      const records = await Promise.all(ids.map((id) => vaultCtx.vaultMemoryCollection.find(id)));
+      const write = database.write.bind(database);
+      vi.spyOn(database, "write").mockImplementationOnce((work, description) =>
+        write(async (writer) => {
+          await database.batch(
+            ...records.slice(0, changes.length).map((record, i) => {
+              const updatedAt = record.updatedAt.getTime();
+              return record.prepareUpdate((row) => {
+                row._setRaw("updated_at", updatedAt);
+                for (const [column, value] of Object.entries(changes[i])) {
+                  row._setRaw(column, value);
+                }
+              });
+            })
+          );
+          return work(writer);
+        }, description)
+      );
+
+      const result = await createDecaySweeper({ vaultCtx, now: NOW }).runSweep();
+
+      expect(result).toMatchObject({
+        archived: transition === "archive" ? 1 : 0,
+        deleted: transition === "delete" ? 1 : 0,
+        scanned: 6,
+      });
+      expect(records[0].isDeleted).toBe(false);
+      expect(records[0].archivedAt).toBe(
+        transition === "delete" ? NOW - HARD_DELETE_WINDOW_MS - DAY : null
+      );
+      expect(records[2].isDeleted).toBe(false);
+      expect(records[4].isDeleted).toBe(false);
+      if (transition === "archive") expect(records[4].archivedAt).toBeNull();
+      expect(records[5].isDeleted).toBe(transition === "delete");
+      if (transition === "archive") expect(records[5].archivedAt).toBe(NOW);
+    }
+  );
+
+  it.each(["archive", "delete"] as const)(
+    "checks write eligibility before %s",
+    async (transition) => {
+      const id = await seed({
+        content: "blocked candidate",
+        factType: "other",
+        updatedAt: NOW - MEDIUM_TTL_MS - DAY,
+        ...(transition === "delete" && { archivedAt: NOW - HARD_DELETE_WINDOW_MS - DAY }),
+      });
+      const record = await vaultCtx.vaultMemoryCollection.find(id);
+      const archivedAt = record.archivedAt;
+      vaultCtx.canWrite = () => Promise.resolve(false);
+      const batch = vi.spyOn(database, "batch");
+
+      const result = await createDecaySweeper({ vaultCtx, now: NOW }).runSweep();
+
+      expect(result).toMatchObject({ archived: 0, deleted: 0, scanned: 1 });
+      expect(batch).not.toHaveBeenCalled();
+      expect(record.archivedAt).toBe(archivedAt);
+      expect(record.isDeleted).toBe(false);
+    }
+  );
+
+  it("deletes the entity links only for deleted memories", async () => {
+    const expired = await seed({
+      content: "expired archive",
+      archivedAt: NOW - HARD_DELETE_WINDOW_MS - DAY,
+    });
+    const recent = await seed({ content: "recent archive", archivedAt: NOW });
+    vaultCtx.entityCtx = {
+      database,
+      entityCollection: database.get<Entity>("entity"),
+      memoryEntityCollection: database.get<MemoryEntity>("memory_entity"),
+    };
+    const links = vaultCtx.entityCtx.memoryEntityCollection;
+    await database.write(() =>
+      database.batch(
+        ...[expired, recent].map((id) =>
+          links.prepareCreate((record) => {
+            record._setRaw("memory_id", id);
+            record._setRaw("entity_id", "entity");
+          })
+        )
+      )
+    );
+
+    const result = await createDecaySweeper({ vaultCtx, now: NOW }).runSweep();
+
+    expect(result).toMatchObject({ archived: 0, deleted: 1, scanned: 2 });
+    expect((await links.query().fetch()).map((link) => link.memoryId)).toEqual([recent]);
+  });
+});
 
 describe("createDecaySweeper.runSweep — archive selection", () => {
   it("archives aged auto-extracted rows; keeps durable, fresh, and manual", async () => {

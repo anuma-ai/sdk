@@ -1978,12 +1978,16 @@ export async function prepareVaultCandidates(
 
     const uncachedTexts: string[] = [];
     const uncachedIndices: number[] = [];
+    const resolvedVectors = new Map<string, Float32Array>();
     let staleReembedCount = 0;
     for (let i = 0; queryEmbedding.length > 0 && i < memories.length; i++) {
       const content = memories[i].content;
       const memoryId = memories[i].uniqueId;
       const cached = cachedRowVector(cache, memoryId, memories[i].updatedAt, content);
-      if (cached && cached.length === queryEmbedding.length) continue;
+      if (cached && cached.length === queryEmbedding.length) {
+        resolvedVectors.set(memoryId, cached);
+        continue;
+      }
       if (cached) cache.delete(memoryId);
 
       const storedModel = memories[i].embeddingModel;
@@ -1992,13 +1996,9 @@ export async function prepareVaultCandidates(
         try {
           const parsed = JSON.parse(memories[i].embedding!) as number[];
           if (Array.isArray(parsed) && parsed.length === queryEmbedding.length) {
-            cacheRowVector(
-              cache,
-              memoryId,
-              Float32Array.from(parsed),
-              memories[i].updatedAt,
-              content
-            );
+            const vector = Float32Array.from(parsed);
+            resolvedVectors.set(memoryId, vector);
+            cacheRowVector(cache, memoryId, vector, memories[i].updatedAt, content);
             continue;
           }
         } catch {
@@ -2035,13 +2035,10 @@ export async function prepareVaultCandidates(
       }
       if (newEmbeddings) {
         for (let j = 0; j < uncachedTexts.length; j++) {
-          cacheRowVector(
-            cache,
-            memories[uncachedIndices[j]].uniqueId,
-            Float32Array.from(newEmbeddings[j]),
-            memories[uncachedIndices[j]].updatedAt,
-            memories[uncachedIndices[j]].content
-          );
+          const memory = memories[uncachedIndices[j]];
+          const vector = Float32Array.from(newEmbeddings[j]);
+          resolvedVectors.set(memory.uniqueId, vector);
+          cacheRowVector(cache, memory.uniqueId, vector, memory.updatedAt, memory.content);
         }
       }
     }
@@ -2049,7 +2046,7 @@ export async function prepareVaultCandidates(
     embeddedItems = memories.map((m) => ({
       id: m.uniqueId,
       content: m.content,
-      embedding: cache.get(m.uniqueId) ?? [],
+      embedding: resolvedVectors.get(m.uniqueId) ?? [],
       createdAt: m.createdAt,
       updatedAt: m.updatedAt,
       proofCount: m.proofCount,

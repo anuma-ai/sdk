@@ -1338,6 +1338,65 @@ describe("extractFacts — PII redaction", () => {
     expect(sent).toContain("[PHONE_1]");
   });
 
+  it("drops an entity whose placeholder restores to a key-like string", async () => {
+    const { fetchFn } = capturingFetch(
+      JSON.stringify({
+        candidates: [
+          {
+            content: "Uses Stripe for billing",
+            type: "ongoing_context",
+            confidence: 0.9,
+            sourceMessageIds: ["m1"],
+            entities: [
+              { name: "Stripe", kind: "organization", salience: "primary" },
+              { name: "[API_KEY_1]", kind: "thing" },
+            ],
+          },
+        ],
+      })
+    );
+    const result = await extractFacts(
+      [{ id: "m1", role: "user", content: "I use Stripe, key token_Ab3dE5fG7hJ9kL2mN4pQ6rS8" }],
+      { apiKey: "k", fetchFn, piiRedaction: true }
+    );
+    expect(result.map((c) => c.entities)).toEqual([
+      [{ name: "Stripe", kind: "organization", weight: 1 }],
+    ]);
+  });
+
+  it("drops an entity that holds an email or API key placeholder", async () => {
+    const { fetchFn } = capturingFetch(
+      JSON.stringify({
+        candidates: [
+          {
+            content: "Uses Stripe for billing",
+            type: "ongoing_context",
+            confidence: 0.9,
+            sourceMessageIds: ["m1"],
+            entities: [
+              { name: "Stripe", kind: "organization", salience: "primary" },
+              { name: "[EMAIL_1]", kind: "thing" },
+              { name: "[API_KEY_1]", kind: "thing" },
+            ],
+          },
+        ],
+      })
+    );
+    const result = await extractFacts(
+      [
+        {
+          id: "m1",
+          role: "user",
+          content: "I use Stripe as alice@example.com, key sk_live_Ab3dE5fG7hJ9kL2",
+        },
+      ],
+      { apiKey: "k", fetchFn, piiRedaction: true }
+    );
+    expect(result.map((c) => c.entities)).toEqual([
+      [{ name: "Stripe", kind: "organization", weight: 1 }],
+    ]);
+  });
+
   it("applies a configured NER detector to the transcript", async () => {
     const detector: NerDetector = {
       detect: async (text: string): Promise<PiiSpan[]> => {
@@ -1406,7 +1465,7 @@ describe("extractFacts — PII redaction", () => {
     expect(sent).toContain("[m2] user: [PERSON_2] lives in Denver.");
   });
 
-  it("de-anonymizes returned fact content and entities back to the real values", async () => {
+  it("de-anonymizes returned fact content and drops entities that name a redacted value", async () => {
     const llm = {
       candidates: [
         {
@@ -1423,7 +1482,7 @@ describe("extractFacts — PII redaction", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("User's email is jane@example.com");
-    expect(result[0].entities).toEqual([{ name: "jane@example.com" }]);
+    expect(result[0].entities).toEqual([]);
   });
 
   it("fires onCandidatesDropped when redaction drops every extracted fact (H3)", async () => {
@@ -1489,7 +1548,7 @@ describe("extractFacts — PII redaction", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("User's email is jane@example.com");
-    expect(result[0].entities).toEqual([{ name: "jane@example.com" }]);
+    expect(result[0].entities).toEqual([]);
   });
 
   it("keeps a fact whose restored value contains a category-shaped substring (no false drop)", async () => {
@@ -1512,7 +1571,7 @@ describe("extractFacts — PII redaction", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("User's email is ssn_1@example.com");
-    expect(result[0].entities).toEqual([{ name: "ssn_1@example.com" }]);
+    expect(result[0].entities).toEqual([]);
   });
 
   it("leaves the transcript raw when redaction is disabled (default)", async () => {
@@ -1600,7 +1659,7 @@ describe("extractFacts — PII redaction", () => {
     const result = await extractFacts(msgs, { apiKey: "k", fetchFn, piiRedaction: true });
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe("User's email is jane@example.com");
-    expect(result[0].entities).toEqual([{ name: "jane@example.com" }]);
+    expect(result[0].entities).toEqual([]);
   });
 
   it("keeps a fact with a non-PII bracketed token (e.g. [STEP_1]) — not a redactor category", async () => {

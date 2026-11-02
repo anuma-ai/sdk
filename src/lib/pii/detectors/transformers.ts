@@ -21,9 +21,16 @@ interface RawToken {
   score: number;
   index: number;
   word: string;
+  start?: number;
+  end?: number;
 }
 
-type TokenClassifier = (text: string) => Promise<RawToken[]>;
+interface Tokenizer {
+  (text: string, options: { return_tensor: false; truncation: true }): { input_ids: number[] };
+  decode(ids: number[], options: { skip_special_tokens: true }): string;
+}
+
+type TokenClassifier = ((text: string) => Promise<RawToken[]>) & { tokenizer: Tokenizer };
 
 const DEFAULT_MODEL = "Xenova/bert-base-NER";
 const DEFAULT_TAG_MAP: Record<string, string | undefined> = {
@@ -33,39 +40,39 @@ const DEFAULT_TAG_MAP: Record<string, string | undefined> = {
   MISC: undefined,
 };
 
-/**
- * Recover character offsets for tokens (the pipeline returns none) by walking
- * the text with a cursor and locating each token's surface form (minus the
- * WordPiece "##" prefix). Searching the actual text keeps offsets correct across
- * the original spacing, punctuation, and apostrophes.
- */
 interface PlacedToken extends RawToken {
   start: number;
   end: number;
 }
 function placeTokens(tokens: RawToken[], text: string): PlacedToken[] {
-  const placed: PlacedToken[] = [];
-  let cursor = 0;
-  for (const t of tokens) {
-    const surface = t.word.startsWith("##") ? t.word.slice(2) : t.word;
-    const start = text.indexOf(surface, cursor);
-    if (start < 0) {
-      placed.push({ ...t, start: -1, end: -1 });
-      continue;
-    }
-    const end = start + surface.length;
-    placed.push({ ...t, start, end });
-    cursor = end;
-  }
-  return placed;
+  return tokens.map((token) => {
+    const { start = -1, end = -1 } = token;
+    return Number.isInteger(start) &&
+      Number.isInteger(end) &&
+      start >= 0 &&
+      end > start &&
+      end <= text.length
+      ? { ...token, start, end }
+      : { ...token, start: -1, end: -1 };
+  });
 }
 
-/**
- * Aggregate B-/I- subword tokens into whole-entity spans. A new entity starts
- * on a `B-` tag or a tag change; contiguous `I-` tokens (and WordPiece "##"
- * continuations) of the same base tag extend it. (The SDK additionally snaps
- * spans to word boundaries, so dropped trailing subwords are recovered there.)
- */
+function tokenOffsets(text: string, tokenizer: Tokenizer): { start: number; end: number }[] {
+  const { input_ids } = tokenizer(text, { return_tensor: false, truncation: true });
+  let cursor = 0;
+  return input_ids.map((id) => {
+    const word = tokenizer.decode([id], { skip_special_tokens: true });
+    const surface = word.startsWith("##") ? word.slice(2) : word;
+    if (!surface) return { start: -1, end: -1 };
+    const start = text.indexOf(surface, cursor);
+    if (start < 0) return { start: -1, end: -1 };
+    const end = start + surface.length;
+    cursor = end;
+    return { start, end };
+  });
+}
+
+/** Aggregate classified tokens with character offsets into whole-entity spans. */
 export function aggregateTokens(
   tokens: RawToken[],
   text: string,
@@ -153,7 +160,14 @@ export function createTransformersNerDetector(
       if (!text) return [];
       const classify = await load();
       const tokens = await classify(text);
-      return aggregateTokens(tokens, text, tagMap, minScore);
+      if (!tokens.length) return [];
+      const offsets = tokenOffsets(text, classify.tokenizer);
+      return aggregateTokens(
+        tokens.map((token) => ({ ...token, ...offsets[token.index] })),
+        text,
+        tagMap,
+        minScore
+      );
     },
   };
 }
