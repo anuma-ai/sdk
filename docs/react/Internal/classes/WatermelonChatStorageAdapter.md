@@ -1693,6 +1693,18 @@ Fills a chunk vector cache ahead of the first search, for backends that score on
 <tr>
 <td>
 
+`options.limit?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.signal?`
 
 </td>

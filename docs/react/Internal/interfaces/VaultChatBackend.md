@@ -14,7 +14,7 @@ A [ChatBackend](ChatBackend.md) over vault: a cache, an optimistic outbox and a 
 
 > **addMemoryLinks**(`conversationId`: `string`, `items`: [`ConversationMemoryInput`](ConversationMemoryInput.md)\[]): `Promise`<`void`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#68)
+Defined in: [src/lib/storage/ChatBackend.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#69)
 
 Records the memories a turn drew on in recall order, moving already-linked ones to this turn with their new score.
 
@@ -83,7 +83,7 @@ Deletes this account's cached chats and stops caching; call it on logout or a wa
 
 > **clearMemoryLinks**(`conversationId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#69)
+Defined in: [src/lib/storage/ChatBackend.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#70)
 
 **Parameters**
 
@@ -316,7 +316,7 @@ Soft delete. Implementations are responsible for cascading to messages/media.
 
 > **deleteMessage**(`uniqueId`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#65)
+Defined in: [src/lib/storage/ChatBackend.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#66)
 
 **Parameters**
 
@@ -357,7 +357,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:65](https://github.com/anuma-ai/sdk/
 
 > **deleteSummary**(`conversationId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#64)
+Defined in: [src/lib/storage/ChatBackend.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#65)
 
 **Parameters**
 
@@ -575,7 +575,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:50](https://github.com/anuma-
 
 > **getMemoryLinks**(`conversationId`: `string`): `Promise`<[`StoredConversationMemory`](StoredConversationMemory.md)\[]>
 
-Defined in: [src/lib/storage/ChatBackend.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#66)
+Defined in: [src/lib/storage/ChatBackend.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#67)
 
 **Parameters**
 
@@ -848,7 +848,7 @@ rationale as [updateMessageFileIds](ChatStorageAdapter.md#updatemessagefileids))
 
 > **getSummary**(`conversationId`: `string`): `Promise`<`StoredConversationSummary` | `null`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#57)
+Defined in: [src/lib/storage/ChatBackend.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#58)
 
 **Parameters**
 
@@ -1680,7 +1680,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:46](https://github.com/anuma-ai/sdk/
 
 > **upsertSummary**(`conversationId`: `string`, `summary`: `string`, `summarizedUpTo`: `string`, `tokenCount`: `number`): `Promise`<`StoredConversationSummary`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#58)
+Defined in: [src/lib/storage/ChatBackend.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#59)
 
 **Parameters**
 
@@ -1804,6 +1804,18 @@ Fills a chunk vector cache ahead of the first search, for backends that score on
 <td>
 
 `string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.limit?`
+
+</td>
+<td>
+
+`number`
 
 </td>
 </tr>

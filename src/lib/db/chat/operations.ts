@@ -1905,24 +1905,40 @@ async function readChunkVectorRow(
   return { entry: { version, chunks: [], fallback: Float32Array.from(messageVector) }, chunks: [] };
 }
 
-/** Loads every embedded message's vectors that the cache lacks, and returns how many it added. */
+/**
+ * Loads the vectors the cache lacks for the `limit` most recently updated embedded messages (all of them when no limit is given).
+ * @returns How many it added; when aborted, how many it added before stopping.
+ */
 export async function warmChunkVectorCacheOp(
   ctx: StorageOperationsContext,
-  options: { chunkCache: ChunkVectorCache; embeddingModel?: string; signal?: AbortSignal }
+  options: {
+    chunkCache: ChunkVectorCache;
+    embeddingModel?: string;
+    limit?: number;
+    signal?: AbortSignal;
+  }
 ): Promise<number> {
-  const { chunkCache, embeddingModel, signal } = options;
+  const { chunkCache, embeddingModel, limit, signal } = options;
   const source = await chunkRowSource(ctx, {});
   const yieldIfDue = createTimeSliceYielder(CHUNK_SCAN_YIELD_BUDGET_MS);
+  let keys = source.keys.filter(
+    (key) => !embeddingModel || key.embeddingModel === null || key.embeddingModel === embeddingModel
+  );
+  if (limit !== undefined && keys.length > limit) {
+    keys = keys.sort((a, b) => b.version - a.version).slice(0, limit);
+  }
   const missIds: string[] = [];
-  for (const key of source.keys) {
+  for (const key of keys) {
     await yieldIfDue();
-    if (embeddingModel && key.embeddingModel !== null && key.embeddingModel !== embeddingModel)
-      continue;
     if (chunkCache.get(key.id)?.version !== key.version) missIds.push(key.id);
   }
   let warmed = 0;
   let unreadableVectors = 0;
-  for (let offset = 0; offset < missIds.length; offset += CHUNK_VECTOR_BATCH_SIZE) {
+  for (
+    let offset = 0;
+    offset < missIds.length && !signal?.aborted;
+    offset += CHUNK_VECTOR_BATCH_SIZE
+  ) {
     const rows = await source.loadVectorRows(
       missIds.slice(offset, offset + CHUNK_VECTOR_BATCH_SIZE)
     );
@@ -1931,7 +1947,7 @@ export async function warmChunkVectorCacheOp(
       const read = await readChunkVectorRow(ctx, row, () => {
         unreadableVectors++;
       });
-      signal?.throwIfAborted();
+      if (signal?.aborted) break;
       if (!read) continue;
       chunkCache.set(row.id as string, read.entry);
       warmed++;

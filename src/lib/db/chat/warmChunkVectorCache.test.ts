@@ -148,14 +148,37 @@ describe("warmChunkVectorCacheOp", () => {
     expect(await warmChunkVectorCacheOp(ctx, { chunkCache })).toBe(4);
   });
 
+  it("warms only the most recently updated messages up to the limit, and then has nothing to add", async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    await updateMessageChunksOp(
+      ctx,
+      "m-weather",
+      [{ text: "the weather today", vector: [0, 1, 0], startOffset: 0, endOffset: 17 }],
+      MODEL
+    );
+    const chunkCache = createChunkVectorCache();
+
+    expect(await warmChunkVectorCacheOp(ctx, { chunkCache, embeddingModel: MODEL, limit: 1 })).toBe(
+      1
+    );
+    expect([...chunkCache.keys()]).toEqual(["m-weather"]);
+    expect(await warmChunkVectorCacheOp(ctx, { chunkCache, embeddingModel: MODEL, limit: 1 })).toBe(
+      0
+    );
+  });
+
   it("stops when aborted, leaving the cache as it was", async () => {
     const chunkCache = createChunkVectorCache();
     const controller = new AbortController();
     controller.abort(new Error("signed out"));
 
-    await expect(
-      warmChunkVectorCacheOp(ctx, { chunkCache, embeddingModel: MODEL, signal: controller.signal })
-    ).rejects.toThrow("signed out");
+    expect(
+      await warmChunkVectorCacheOp(ctx, {
+        chunkCache,
+        embeddingModel: MODEL,
+        signal: controller.signal,
+      })
+    ).toBe(0);
     expect(chunkCache.size).toBe(0);
   });
 
@@ -170,9 +193,13 @@ describe("warmChunkVectorCacheOp", () => {
     }
     const chunkCache = new AbortAfterFirstWrite();
 
-    await expect(
-      warmChunkVectorCacheOp(ctx, { chunkCache, embeddingModel: MODEL, signal: controller.signal })
-    ).rejects.toThrow("signed out");
+    expect(
+      await warmChunkVectorCacheOp(ctx, {
+        chunkCache,
+        embeddingModel: MODEL,
+        signal: controller.signal,
+      })
+    ).toBe(1);
     expect(chunkCache.size).toBe(1);
   });
 

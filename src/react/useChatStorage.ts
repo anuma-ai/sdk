@@ -96,6 +96,7 @@ import {
   type ChunkVectorCache,
   createChunkVectorCache,
   createRecallTool as createRecallToolBase,
+  DEFAULT_CHUNK_CACHE_SIZE,
   recall as recallBase,
   type RecallOptions,
   type RecallResult,
@@ -861,7 +862,10 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    */
   recall: (query: string, options?: RecallOptions) => Promise<RecallResult>;
 
-  /** Loads past messages' vectors into the recall cache so the first recall does not read them all; resolves to how many it added. */
+  /**
+   * Loads the most recent past messages' vectors, up to the recall cache's size, so the first recall does not read them all.
+   * @returns How many it added. It resolves rather than rejects when aborted or signed out, with how many it added before stopping.
+   */
   warmRecallCache: (signal?: AbortSignal) => Promise<number>;
 
   /**
@@ -1785,6 +1789,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         return await backend.warmChunkCache({
           chunkCache: chunkVectorCacheRef.current,
           embeddingModel,
+          limit: DEFAULT_CHUNK_CACHE_SIZE,
           signal: warm.signal,
         });
       } finally {

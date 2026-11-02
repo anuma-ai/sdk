@@ -52,6 +52,7 @@ export interface ChatBackend extends ChatStorageAdapter {
   warmChunkCache?(options: {
     chunkCache: ChunkVectorCache;
     embeddingModel?: string;
+    limit?: number;
     signal?: AbortSignal;
   }): Promise<number>;
   getSummary(conversationId: string): Promise<StoredConversationSummary | null>;

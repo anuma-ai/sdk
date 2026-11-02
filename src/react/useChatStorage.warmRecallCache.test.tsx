@@ -4,6 +4,7 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ChunkVectorCache } from "../lib/db/chat/operations";
+import { DEFAULT_CHUNK_CACHE_SIZE } from "../lib/memory";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 import type { ChatBackend, ChatBackendFactory } from "../lib/storage";
 import { localChatBackend } from "../lib/storage";
@@ -27,6 +28,7 @@ function makeDatabase(): Database {
 
 function spyingBackend(database: Database, withWarm = true) {
   const warmed: ChunkVectorCache[] = [];
+  const limits: (number | undefined)[] = [];
   const searched: (ChunkVectorCache | undefined)[] = [];
   const factory: ChatBackendFactory = (signer) => {
     const inner = localChatBackend(database)(signer);
@@ -38,6 +40,7 @@ function spyingBackend(database: Database, withWarm = true) {
     if (withWarm) {
       backend.warmChunkCache = (options) => {
         warmed.push(options.chunkCache);
+        limits.push(options.limit);
         return inner.warmChunkCache!(options);
       };
     } else {
@@ -45,7 +48,7 @@ function spyingBackend(database: Database, withWarm = true) {
     }
     return backend;
   };
-  return { factory, warmed, searched };
+  return { factory, warmed, limits, searched };
 }
 
 describe("useChatStorage warmRecallCache", () => {
@@ -69,7 +72,7 @@ describe("useChatStorage warmRecallCache", () => {
     vi.restoreAllMocks();
   });
 
-  it("fills the same cache the chunk lane of recall reads", async () => {
+  it("fills the same cache the chunk lane of recall reads, up to its size", async () => {
     const backend = spyingBackend(makeDatabase());
     const { result } = renderHook(() =>
       useChatStorage({
@@ -86,6 +89,7 @@ describe("useChatStorage warmRecallCache", () => {
     expect(backend.warmed).toHaveLength(1);
     expect(backend.searched).toHaveLength(1);
     expect(backend.searched[0]).toBe(backend.warmed[0]);
+    expect(backend.limits).toEqual([DEFAULT_CHUNK_CACHE_SIZE]);
   });
 
   it("aborts a running warm when the encryption state is cleared, and on the caller's abort", async () => {
