@@ -122,7 +122,9 @@ function setup() {
     return { items, failed };
   });
   const get = vi.fn((id: string) => Promise.resolve(structuredClone(rows.get(id) ?? null)));
-  const list = vi.fn(() => Promise.reject(new Error("The pipeline must not enumerate the vault")));
+  const list = vi
+    .fn<RemoteMemoryPersistence["list"]>()
+    .mockRejectedValue(new Error("The test must not enumerate the vault."));
   const persistence: RemoteMemoryPersistence = {
     claimWork: vi.fn(),
     releaseWork: vi.fn(),
@@ -137,13 +139,15 @@ function setup() {
     candidateSet,
     candidates,
     list,
-    query: vi.fn(() => Promise.reject(new Error("The pipeline must not enumerate the vault"))),
-    queryMetadata: vi.fn(() =>
-      Promise.reject(new Error("The pipeline must not enumerate the vault"))
-    ),
+    query: vi
+      .fn<RemoteMemoryPersistence["query"]>()
+      .mockRejectedValue(new Error("The test must not enumerate the vault.")),
+    queryMetadata: vi
+      .fn<RemoteMemoryPersistence["queryMetadata"]>()
+      .mockRejectedValue(new Error("The test must not enumerate the vault.")),
   };
-  const graphRanking = vi.fn(() => Promise.resolve<string[]>([]));
-  const temporalRanking = vi.fn(() => Promise.resolve<string[]>([]));
+  const graphRanking = vi.fn<() => Promise<string[]>>().mockResolvedValue([]);
+  const temporalRanking = vi.fn<() => Promise<string[]>>().mockResolvedValue([]);
   const pipeline = createRemoteMemoryPipeline({
     persistence,
     embeddingOptions: { apiKey: "device-only", model: "model" },
@@ -246,7 +250,7 @@ describe("remote shared recall/retain pipeline", () => {
         });
       expect(calls.slice(0, batches).flatMap((options) => options.memory_ids!)).toEqual(ids);
       expect(calls.slice(batches).every((options) => options.force_ids!.length === 0)).toBe(true);
-      expect(h.persistence.list).not.toHaveBeenCalled();
+      expect(h.list).not.toHaveBeenCalled();
     }
   );
   it.each(["deleted", "superseded", "live"])(
