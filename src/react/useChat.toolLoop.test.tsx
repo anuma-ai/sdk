@@ -510,6 +510,65 @@ describe("useChat multi-turn tool loop", () => {
       expect(result.current.isLoading).toBe(false);
     });
 
+    it("does not offer a finished tool round as recoverable when unmounted between rounds", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(new Response(null, { headers: { "X-Inference-ID": "round-0" } }))
+        .mockResolvedValue(new Response(null, { status: 200 }));
+      mockCreateSseClient.mockImplementation(
+        (options) =>
+          ({
+            stream: (async function* () {
+              await options.fetch!("https://portal.example/responses");
+              for (const chunk of makeToolCallStream("lookup", {})) yield chunk;
+            })(),
+          }) as ReturnType<typeof sseModule.createSseClient>
+      );
+      let toolStarted: () => void = () => {};
+      const started = new Promise<void>((resolve) => {
+        toolStarted = resolve;
+      });
+      let finishTool: (value: string) => void = () => {};
+      const lookup = makeAutoTool("lookup", () => {
+        toolStarted();
+        return new Promise<string>((resolve) => {
+          finishTool = resolve;
+        });
+      });
+      try {
+        const { result, unmount } = renderHook(() =>
+          useChat({
+            getToken: async () => "token",
+            baseUrl: "https://portal.example",
+            resumable: true,
+            background: true,
+          })
+        );
+        let pending: Promise<SendMessageResult> | undefined;
+        act(() => {
+          pending = result.current.sendMessage({
+            messages: [{ role: "user", content: [{ type: "text", text: "Look it up" }] }],
+            model: "auto",
+            tools: [lookup],
+          });
+        });
+        await act(async () => {
+          await started;
+        });
+        unmount();
+        let response: SendMessageResult | undefined;
+        await act(async () => {
+          finishTool("found");
+          response = await pending;
+        });
+        expect(response).toMatchObject({ error: "Request detached", detached: true, resume: null });
+        expect(fetchSpy.mock.calls.filter(isCancel)).toEqual([]);
+        expect(mockCreateSseClient).toHaveBeenCalledOnce();
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
     it("does not offer a finished tool round as recoverable when the next round fails", async () => {
       const fetchSpy = vi
         .spyOn(globalThis, "fetch")

@@ -538,6 +538,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             toolsChecksum: result.toolsChecksum,
           };
         }
+        if ("detached" in result && result.detached) {
+          keepServerStream = true;
+          return { ...result, resume: null };
+        }
         return result;
       } catch (err) {
         return createErrorResult(
