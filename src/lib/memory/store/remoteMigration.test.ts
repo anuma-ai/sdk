@@ -35,6 +35,7 @@ import {
 } from "./remotePersistence";
 import { storedVector } from "./remotePipeline";
 import { createRemoteMemoryStore } from "./remoteStore";
+import { createTopicCodec } from "./topicCodec";
 import type { MemoryStore } from "./types";
 
 const signatureA = `0x${"a1".repeat(65)}`;
@@ -82,7 +83,7 @@ function requestUrl(input: Parameters<typeof globalThis.fetch>[0]): string {
 function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
   const rows = new Map<string, Stored>();
   const versions = new Map<string, number>();
-  const catalog = new Map<string, { name: string; kind?: string }>();
+  const catalog = new Map<string, { name: string; name_hash: string; kind?: string }>();
   const account = { state: initial.state ?? "none", key_id: initial.key_id };
   const calls: string[] = [];
   let rateLimited = 0;
@@ -99,8 +100,11 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
       typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
     calls.push(`${method} ${path}`);
     if (path === "/topics/import") {
-      for (const t of body.topics as { name: string; kind?: string }[])
-        if (!catalog.has(t.name)) catalog.set(t.name, t);
+      for (const t of body.topics as { name: string; name_hash: string; kind?: string }[]) {
+        expect(t.name).toMatch(/^enc:v3:/);
+        expect(t.name_hash).toMatch(/^[0-9a-f]{64}$/);
+        if (!catalog.has(t.name_hash)) catalog.set(t.name_hash, t);
+      }
       return json(200, {});
     }
 
@@ -124,7 +128,8 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
           size(row.memory_id) > 128 ||
           size(row.content) > 32 << 10 ||
           size(row.kind_value) > 32 << 10 ||
-          ["topics", "media", "source_chunk_ids"].some((f) => size(row[f]) > 16 << 10) ||
+          size(row.topics) > 32 << 10 ||
+          ["media", "source_chunk_ids"].some((f) => size(row[f]) > 16 << 10) ||
           [
             "scope",
             "kind",
@@ -145,6 +150,10 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
       if (account.state === "none") account.state = "migrating";
       for (const row of body.memories as Stored[]) {
         expect(row.content).toMatch(/^enc:v3:/);
+        for (const topic of JSON.parse(row.topics ?? "[]") as Record<string, string>[]) {
+          expect(topic.name).toMatch(/^enc:v3:/);
+          expect(topic.name_hash).toMatch(/^[0-9a-f]{64}$/);
+        }
         const existing = rows.get(row.memory_id);
         if (
           !existing ||
@@ -209,6 +218,9 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
     onImport: (fn: () => Promise<void>) => (onImport = fn),
   };
 }
+
+const readerCodec = async () =>
+  createTopicCodec(memoryCipher(await deriveMemoryKeyRing(signatureA)));
 
 const vector4096 = JSON.stringify(Array.from({ length: 4096 }, (_, i) => (i % 7) + 1));
 
@@ -694,9 +706,28 @@ describe("migrateMemoriesToRemote", () => {
     const nearby = fakeNearby();
     await migrate(nearby, ctx);
 
-    expect(JSON.parse(nearby.rows.get(m.uniqueId)!.topics!)).toEqual([
+    const codec = await readerCodec();
+    expect(JSON.parse(await codec.decodeTopics(nearby.rows.get(m.uniqueId)!.topics!))).toEqual([
       expect.objectContaining({ name: "acme" }),
     ]);
+  });
+
+  it("uploads topic names sealed and verifies them without another upload pass", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const m = await createVaultMemoryOp(ctx, { content: "Works at Acme in Lisbon" });
+    await replaceMemoryEntitiesGuardedOp(ctx.entityCtx!, m.uniqueId, ["Acme", "Lisbon"]);
+    const local = (await ctx.vaultMemoryCollection.find(m.uniqueId))._raw as unknown as {
+      topics: string;
+    };
+    expect(local.topics).toMatch(/Acme.*Lisbon/);
+    const nearby = fakeNearby();
+
+    expect((await migrate(nearby, ctx)).state).toBe("active");
+
+    const wire = nearby.rows.get(m.uniqueId)!.topics!;
+    expect(wire).not.toMatch(/acme|lisbon/i);
+    expect(await (await readerCodec()).decodeTopics(wire)).toBe(local.topics);
+    expect(nearby.calls.filter((c) => c === "POST /import")).toHaveLength(1);
   });
 
   it("activates when the last allowed upload pass finally lands", async () => {
@@ -1013,7 +1044,10 @@ describe("topic migration", () => {
     });
     const server = fakeNearby();
     expect((await migrate(server, ctx)).state).toBe("active");
-    expect([...server.catalog.keys()]).toEqual(["gardening"]);
+    const codec = await readerCodec();
+    expect(
+      await Promise.all([...server.catalog.values()].map((t) => codec.decodeCatalog(t)))
+    ).toEqual([{ name: "gardening" }]);
     expect(server.rows.size).toBe(0);
     expect(server.calls.indexOf("POST /topics/import")).toBeLessThan(
       server.calls.indexOf("PUT /account")

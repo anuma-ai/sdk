@@ -1,6 +1,6 @@
 # RemoteMemoryTopic
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#5)
+Defined in: [src/lib/memory/store/remoteTopics.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#6)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/remoteTopics.ts:5](https://github.com/anuma-ai
 
 > **is\_deleted**: `boolean`
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#9)
+Defined in: [src/lib/memory/store/remoteTopics.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#10)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/store/remoteTopics.ts:9](https://github.com/anuma-ai
 
 > `optional` **kind**: `string`
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#7)
+Defined in: [src/lib/memory/store/remoteTopics.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#8)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/memory/store/remoteTopics.ts:7](https://github.com/anuma-ai
 
 > **name**: `string`
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#6)
+Defined in: [src/lib/memory/store/remoteTopics.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#7)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/memory/store/remoteTopics.ts:6](https://github.com/anuma-ai
 
 > **server\_updated\_at**: `string`
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#10)
+Defined in: [src/lib/memory/store/remoteTopics.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#11)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/lib/memory/store/remoteTopics.ts:10](https://github.com/anuma-a
 
 > **version**: `number`
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#8)
+Defined in: [src/lib/memory/store/remoteTopics.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#9)

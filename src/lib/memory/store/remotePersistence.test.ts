@@ -1,3 +1,5 @@
+import { createHmac } from "node:crypto";
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -122,11 +124,29 @@ function setup() {
   const decrypt = vi.fn(async (ciphertext: string) =>
     Buffer.from(ciphertext.slice(7), "hex").toString().split("|").slice(1).join("|")
   );
+  const hashTopic = vi.fn(async (name: string) =>
+    createHmac("sha256", "topic-key").update(name).digest("hex")
+  );
   const rows = new Map<string, RemoteMemoryRecord>();
+  const catalog: Record<string, unknown>[] = [];
   const requests: { url: URL; init: RequestInit; body?: Record<string, unknown> }[] = [];
-  const account = { state: "active", key_id: "canonical", memory_count: 0 };
+  const account: Record<string, unknown> = {
+    state: "active",
+    key_id: "canonical",
+    memory_count: 0,
+  };
+  let lease: string | undefined;
+  const topicEntries = (memory: RemoteMemoryRow) => {
+    try {
+      const parsed = JSON.parse(memory.topics ?? "null") as unknown;
+      return Array.isArray(parsed) ? (parsed as Record<string, unknown>[]) : [];
+    } catch {
+      return [];
+    }
+  };
   const getToken = vi.fn(async (): Promise<string | null> => "current-token");
   let beforePut: (() => void) | undefined;
+  let beforeBatch: (() => void) | undefined;
   const fetch = vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = new URL(String(input));
     const body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined;
@@ -154,8 +174,59 @@ function setup() {
         ...(offset + limit < visible.length && { next_cursor: `page:${offset + limit}` }),
       });
     }
+    if (url.pathname === "/api/private-memories/topics") {
+      return Response.json({ items: catalog });
+    }
+    if (url.pathname === "/api/private-memories/topics/import") {
+      catalog.push(
+        ...(body!.topics as Record<string, unknown>[]).map((topic) => ({
+          is_deleted: false,
+          ...topic,
+          version: 1,
+          server_updated_at: "2026-10-07T20:00:00Z",
+        }))
+      );
+      return Response.json({});
+    }
+    if (url.pathname === "/api/private-memories/work/claim") {
+      if (body!.token)
+        return Response.json(
+          body!.token === lease
+            ? {
+                lease: {
+                  kind: body!.kind,
+                  token: lease,
+                  processor_version: body!.processor_version,
+                  expires_at: "2099-01-01T00:00:00Z",
+                },
+              }
+            : {}
+        );
+      if (lease) return Response.json({});
+      lease = "lease-token";
+      return Response.json({
+        lease: {
+          kind: body!.kind,
+          token: lease,
+          processor_version: body!.processor_version,
+          expires_at: "2099-01-01T00:00:00Z",
+        },
+      });
+    }
+    if (url.pathname === "/api/private-memories/work/release") {
+      if (body!.token === lease) lease = undefined;
+      return Response.json({});
+    }
     if (url.pathname === "/api/private-memories/memories/query") {
-      const items = [...rows.values()].filter(({ memory: m }) => !m.is_deleted);
+      const hashes = body!.topic_hashes as string[] | undefined;
+      const items = [...rows.values()].filter(
+        ({ memory: m }) =>
+          !m.is_deleted &&
+          (!hashes?.length ||
+            topicEntries(m).some((t) => hashes.includes(t.name_hash as string))) &&
+          (body!.topics_legacy !== true ||
+            topicEntries(m).some((t) => typeof t.name === "string" && t.name_hash === undefined))
+      );
       return Response.json({
         items,
         ...(body!.order === "changed" && { changes_cursor: "resume-here" }),
@@ -170,6 +241,10 @@ function setup() {
       });
     }
     if (url.pathname === "/api/private-memories/memories/batch") {
+      if (body!.lease_token !== undefined && body!.lease_token !== lease)
+        return failure(409, "work_lease_expired");
+      beforeBatch?.();
+      beforeBatch = undefined;
       const writes = body!.writes as { memory: RemoteMemoryRow; expected_version: number }[];
       if (writes.some((w) => (rows.get(w.memory.memory_id)?.version ?? 0) !== w.expected_version))
         return failure(409, "version_conflict");
@@ -216,6 +291,7 @@ function setup() {
     getToken,
     encrypt,
     decrypt,
+    hashTopic,
     fetch,
   };
   const memory = (id: string, content = "Plays chess"): RemoteMemoryRow => ({
@@ -228,16 +304,25 @@ function setup() {
   });
   return {
     rows,
+    catalog,
     requests,
     account,
     options,
     memory,
     encrypt,
     decrypt,
+    hashTopic,
     getToken,
     fetch,
+    topicEntries,
+    holdLease: (token: string | undefined) => {
+      lease = token;
+    },
     race: (work: () => void) => {
       beforePut = work;
+    },
+    raceBatch: (work: () => void) => {
+      beforeBatch = work;
     },
   };
 }
@@ -283,7 +368,14 @@ describe("remote private-memory persistence", () => {
     const wire = h.rows.get(input.memory_id)!;
     expect(wire.memory.content).toMatch(/^enc:v3:/);
     expect(wire.memory.kind_value).toMatch(/^enc:v3:/);
-    expect(wire.memory.topics).toBe(input.topics);
+    expect(wire.memory.topics).not.toContain("Chess");
+    expect(h.topicEntries(wire.memory)).toEqual([
+      {
+        name: expect.stringMatching(/^enc:v3:/),
+        source: "user",
+        name_hash: await h.hashTopic("chess"),
+      },
+    ]);
     expect(h.requests.find(({ init }) => init.method === "PUT")!.url.pathname).toContain(
       "a%2Fb%20%3F%23"
     );
@@ -626,7 +718,8 @@ describe("remote private-memory persistence", () => {
   it("queries with only the filters given, validates bounds first and passes the changes cursor", async () => {
     const h = setup();
     const store = await createRemoteMemoryPersistence(h.options);
-    await store.put(h.memory("a", "Speaks Portuguese"), 0);
+    await store.put({ ...h.memory("a", "Speaks Portuguese"), topics: '[{"name":"Lisbon"}]' }, 0);
+    await store.put({ ...h.memory("b", "Speaks Dutch"), topics: '[{"name":"Utrecht"}]' }, 0);
     const before = h.fetch.mock.calls.length;
     const many = (n: number) => Array.from({ length: n }, (_, i) => `x-${i}`);
     await expect(store.query({ topics: many(101) })).rejects.toThrow("topics accepts at most 100");
@@ -650,7 +743,7 @@ describe("remote private-memory persistence", () => {
     expect(page.changes_cursor).toBe("resume-here");
     expect(h.requests.at(-1)!.body).toEqual({
       order: "changed",
-      topics: ["Lisbon"],
+      topic_hashes: [await h.hashTopic("lisbon")],
       updated_after: 5,
       topics_due: 3,
       topics_extracted: false,
@@ -743,6 +836,165 @@ describe("remote private-memory persistence", () => {
     expect(h.requests.at(-1)!.init.redirect).toBe("error");
     expect(h.getToken.mock.calls.length).toBeGreaterThan(h.requests.length);
     expect(new RemoteMemoryError("Conflict", 409, "version_conflict")).toBeInstanceOf(Error);
+  });
+});
+
+describe("encrypted topic names", () => {
+  const topics = JSON.stringify([
+    { name: "Paris", kind: "place", source: "auto", weight: 0.6 },
+    { name: "Chess", source: "user" },
+  ]);
+  const seed = async (
+    h: ReturnType<typeof setup>,
+    id: string,
+    patch: Partial<RemoteMemoryRow> = {}
+  ) => {
+    const record = {
+      memory: { ...h.memory(id), content: await h.encrypt("Plays chess"), ...patch },
+      version: 1,
+      server_updated_at: "2026-10-07T20:00:00Z",
+    };
+    h.rows.set(id, structuredClone(record));
+    return record;
+  };
+
+  it("never sends a plaintext topic name and reads topics as plaintext on every path", async () => {
+    const h = setup();
+    const writer = await createRemoteMemoryPersistence(h.options);
+    await writer.put({ ...h.memory("a"), topics }, 0);
+    await writer.put({ ...h.memory("b"), topics: '[{"name":"Lisbon"}]' }, 0);
+    const reader = await createRemoteMemoryPersistence(h.options);
+
+    expect((await reader.get("a"))!.memory.topics).toBe(topics);
+    const page = await reader.query({ topics: [" PARIS ", "paris", "Rome"] });
+    expect(page.items.map((item) => item.memory.memory_id)).toEqual(["a"]);
+    expect(h.requests.at(-1)!.body).toEqual({
+      topic_hashes: [await h.hashTopic("paris"), await h.hashTopic("rome")],
+    });
+    const metadata = await reader.queryMetadata({ topics: ["lisbon"] });
+    expect(metadata.items.map((item) => item.memory.topics)).toEqual(['[{"name":"Lisbon"}]']);
+    const before = h.requests.length;
+    expect(await reader.query({ topics: ["  "] })).toEqual({ items: [], failed: [] });
+    expect(h.requests).toHaveLength(before);
+    expect(JSON.stringify(h.requests.map((r) => r.body))).not.toMatch(/Paris|Chess|Lisbon|Rome/i);
+  });
+
+  it("reuses topic ciphertext on rewrites and seals legacy topics on the next write", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    const created = await store.put({ ...h.memory("a"), topics }, 0);
+    const wire = h.rows.get("a")!.memory.topics;
+    const [snapshot] = (await store.list()).items;
+    const edited = await store.put({ ...snapshot.memory, content: "Plays go" }, snapshot);
+    expect(h.rows.get("a")!.memory.topics).toBe(wire);
+    await store.put({ ...edited.memory, updated_at: 5 }, created.version + 1);
+    expect(h.rows.get("a")!.memory.topics).toBe(wire);
+    expect(h.encrypt.mock.calls.filter(([text]) => text === "Paris")).toHaveLength(1);
+
+    await seed(h, "legacy", { topics: '[{"name":"Lisbon","source":"user"}]' });
+    const legacy = (await store.get("legacy"))!;
+    expect(legacy.memory.topics).toBe('[{"name":"Lisbon","source":"user"}]');
+    await store.put({ ...legacy.memory, content: "Lives in Lisbon" }, legacy);
+    expect(h.topicEntries(h.rows.get("legacy")!.memory)).toEqual([
+      {
+        name: expect.stringMatching(/^enc:v3:/),
+        source: "user",
+        name_hash: await h.hashTopic("lisbon"),
+      },
+    ]);
+  });
+
+  it("reports a row whose topic name does not match its hash and keeps its metadata readable", async () => {
+    const h = setup();
+    const store = await createRemoteMemoryPersistence(h.options);
+    await store.put({ ...h.memory("a"), topics }, 0);
+    await store.put(h.memory("b"), 0);
+    const row = h.rows.get("a")!.memory;
+    row.topics = JSON.stringify(
+      h.topicEntries(row).map((t) => ({ ...t, name_hash: "0".repeat(64) }))
+    );
+    const reader = await createRemoteMemoryPersistence(h.options);
+    await expect(reader.get("a")).rejects.toThrow("does not match its hash");
+    const page = await reader.list();
+    expect(page.items.map((item) => item.memory.memory_id)).toEqual(["b"]);
+    expect(page.failed.map((failure) => failure.memory_id)).toEqual(["a"]);
+    const metadata = await reader.queryMetadata();
+    expect(metadata.items.map((item) => [item.memory.memory_id, item.memory.topics])).toEqual([
+      ["a", undefined],
+      ["b", undefined],
+    ]);
+  });
+
+  it("upgrades legacy catalog entries before connecting", async () => {
+    const h = setup();
+    h.catalog.push(
+      { name: "coffee", kind: "drink", version: 3, is_deleted: false, server_updated_at: "x" },
+      { name: "tea", version: 1, is_deleted: true, server_updated_at: "x" }
+    );
+    h.account.legacy_topic_catalog = 2;
+    const store = await createRemoteMemoryPersistence(h.options);
+    const sealed = h.catalog.slice(2);
+    expect(sealed).toEqual([
+      expect.objectContaining({ kind: "drink", name_hash: await h.hashTopic("coffee") }),
+      expect.objectContaining({ is_deleted: true, name_hash: await h.hashTopic("tea") }),
+    ]);
+    expect(JSON.stringify(sealed)).not.toMatch(/coffee|tea/);
+    expect((await store.topics()).map((t) => [t.name, t.version, t.is_deleted])).toEqual([
+      ["coffee", 1, false],
+      ["tea", 1, true],
+    ]);
+    await createRemoteMemoryPersistence(h.options);
+    expect(h.catalog).toHaveLength(4);
+  });
+
+  it("rewrites legacy live rows once in the background under the topics lease", async () => {
+    const h = setup();
+    await seed(h, "a", { topics: '[{"name":"Lisbon"}]', updated_at: 7, embedding: vector() });
+    await seed(h, "b", { topics: '[{"name":"Porto"}]' });
+    await seed(h, "gone", { topics: '[{"name":"Faro"}]', is_deleted: true });
+    const content = h.rows.get("a")!.memory.content;
+    h.account.legacy_topic_memories = 2;
+    h.raceBatch(() => {
+      const b = h.rows.get("b")!;
+      h.rows.set("b", { ...b, version: 2, memory: { ...b.memory, topics: "[]" } });
+    });
+    await createRemoteMemoryPersistence(h.options);
+    await vi.waitFor(() =>
+      expect(h.requests.filter((r) => r.url.pathname.endsWith("/work/release"))).toHaveLength(1)
+    );
+    const a = h.rows.get("a")!;
+    expect(a).toMatchObject({ version: 2, memory: { content, updated_at: 7 } });
+    expect(h.topicEntries(a.memory)).toEqual([
+      { name: expect.stringMatching(/^enc:v3:/), name_hash: await h.hashTopic("lisbon") },
+    ]);
+    expect(h.rows.get("b")).toMatchObject({ version: 2, memory: { topics: "[]" } });
+    expect(h.rows.get("gone")).toMatchObject({
+      version: 1,
+      memory: { topics: '[{"name":"Faro"}]' },
+    });
+    const batches = h.requests.filter((r) => r.url.pathname.endsWith("/memories/batch"));
+    expect(batches.map((r) => (r.body!.writes as unknown[]).length)).toEqual([2, 1, 1]);
+    expect(batches.every((r) => r.body!.lease_token === "lease-token")).toBe(true);
+    expect(h.requests.find((r) => r.body?.topics_legacy)!.body).toMatchObject({
+      topics_legacy: true,
+      include_archived: true,
+      include_quarantined: true,
+      include_superseded: true,
+    });
+  });
+
+  it("leaves legacy rows alone while another device holds the topics lease", async () => {
+    const h = setup();
+    await seed(h, "a", { topics: '[{"name":"Lisbon"}]' });
+    h.account.legacy_topic_memories = 1;
+    h.holdLease("other-device");
+    await createRemoteMemoryPersistence(h.options);
+    await vi.waitFor(() =>
+      expect(h.requests.some((r) => r.url.pathname.endsWith("/work/claim"))).toBe(true)
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(h.requests.some((r) => r.body?.topics_legacy)).toBe(false);
+    expect(h.rows.get("a")!.version).toBe(1);
   });
 });
 

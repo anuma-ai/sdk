@@ -1,5 +1,6 @@
 import { normalizeEntityName } from "../../db/entities/types.js";
 import { type NearbyRequest, RemoteMemoryError } from "./remotePersistence.js";
+import type { TopicCodec } from "./topicCodec.js";
 
 /** @public */
 export interface RemoteMemoryTopic {
@@ -23,12 +24,17 @@ export interface RemoteTopicPersistence {
   ): Promise<void>;
 }
 
-function topic(value: unknown): RemoteMemoryTopic {
-  const t = value as Partial<RemoteMemoryTopic> | null;
+interface WireTopic extends RemoteMemoryTopic {
+  name_hash?: string;
+}
+
+function topic(value: unknown): WireTopic {
+  const t = value as Partial<WireTopic> | null;
   if (
     !t ||
     typeof t.name !== "string" ||
     !t.name ||
+    (t.name_hash !== undefined && typeof t.name_hash !== "string") ||
     !Number.isSafeInteger(t.version) ||
     t.version! < 1 ||
     typeof t.is_deleted !== "boolean" ||
@@ -36,54 +42,129 @@ function topic(value: unknown): RemoteMemoryTopic {
     (t.kind !== undefined && typeof t.kind !== "string")
   )
     throw new Error("Invalid nearby topic");
-  return t as RemoteMemoryTopic;
+  return t as WireTopic;
 }
 
-export function createRemoteTopicPersistence(request: NearbyRequest): RemoteTopicPersistence {
+async function wireTopics(request: NearbyRequest, signal?: AbortSignal): Promise<WireTopic[]> {
+  const out: WireTopic[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = (await request(
+      "/topics?limit=200" + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""),
+      {},
+      signal
+    )) as { items?: unknown; next_cursor?: unknown };
+    if (
+      !Array.isArray(page.items) ||
+      (page.next_cursor !== undefined && typeof page.next_cursor !== "string")
+    )
+      throw new Error("Invalid nearby topic page");
+    out.push(...page.items.map(topic));
+    cursor = page.next_cursor;
+  } while (cursor);
+  return out;
+}
+
+function hashesOf(items: readonly WireTopic[]): Set<string> {
+  return new Set(items.flatMap((t) => (t.name_hash === undefined ? [] : [t.name_hash])));
+}
+
+async function sealedImport(
+  request: NearbyRequest,
+  codec: TopicCodec,
+  topics: readonly { name: string; kind?: string; is_deleted?: boolean }[],
+  signal?: AbortSignal
+): Promise<void> {
+  for (let i = 0; i < topics.length; i += 50) {
+    signal?.throwIfAborted();
+    const sealed = (
+      await Promise.all(topics.slice(i, i + 50).map((t) => codec.encodeCatalog(t)))
+    ).filter((t) => t !== null);
+    if (sealed.length)
+      await request(
+        "/topics/import",
+        { method: "POST", body: JSON.stringify({ topics: sealed }) },
+        signal
+      );
+  }
+  signal?.throwIfAborted();
+}
+
+export function createRemoteTopicPersistence(
+  request: NearbyRequest,
+  codec: TopicCodec
+): RemoteTopicPersistence {
+  let legacyOnly = new Set<string>();
   return {
     topics: async () => {
-      const out: RemoteMemoryTopic[] = [];
-      let cursor: string | undefined;
-      do {
-        const page = (await request(
-          "/topics?limit=200" + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""),
-          {}
-        )) as { items?: unknown; next_cursor?: unknown };
-        if (
-          !Array.isArray(page.items) ||
-          (page.next_cursor !== undefined && typeof page.next_cursor !== "string")
-        )
-          throw new Error("Invalid nearby topic page");
-        out.push(...page.items.map(topic));
-        cursor = page.next_cursor;
-      } while (cursor);
-      return out;
+      const items = await wireTopics(request);
+      const hashed = hashesOf(items);
+      const legacy = new Set<string>();
+      const decoded = await Promise.all(
+        items.map(async (item) => {
+          if (item.name_hash === undefined) {
+            const hash = await codec.hash(item.name);
+            if (hash !== null && hashed.has(hash)) return null;
+            legacy.add(normalizeEntityName(item.name));
+          }
+          const plain = await codec.decodeCatalog(item);
+          return { ...plain, name: normalizeEntityName(plain.name) };
+        })
+      );
+      legacyOnly = legacy;
+      return decoded.filter((t) => t !== null);
     },
     putTopic: async (value, expectedVersion) => {
       if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0)
         throw new Error("Expected topic version must be a nonnegative integer");
-      return topic(
+      const sealed = await codec.encodeCatalog(value);
+      if (!sealed) throw new Error("Topic name must not be empty");
+      const saved = topic(
         await request("/topics", {
           method: "PUT",
-          body: JSON.stringify({ topic: value, expected_version: expectedVersion }),
+          body: JSON.stringify({
+            topic: sealed,
+            expected_version: legacyOnly.has(normalizeEntityName(value.name)) ? 0 : expectedVersion,
+          }),
         })
       );
+      const decoded = await codec.decodeCatalog(saved);
+      legacyOnly.delete(decoded.name);
+      return decoded;
     },
-    importTopics: async (topics, signal) => {
-      for (let i = 0; i < topics.length; i += 50) {
-        signal?.throwIfAborted();
-        await request(
-          "/topics/import",
-          {
-            method: "POST",
-            body: JSON.stringify({ topics: topics.slice(i, i + 50) }),
-          },
-          signal
-        );
-      }
-      signal?.throwIfAborted();
-    },
+    importTopics: (topics, signal) =>
+      sealedImport(
+        request,
+        codec,
+        topics.map(({ name, kind }) => ({ name, ...(kind !== undefined && { kind }) })),
+        signal
+      ),
   };
+}
+
+export async function upgradeLegacyTopicCatalog(
+  request: NearbyRequest,
+  codec: TopicCodec,
+  signal?: AbortSignal
+): Promise<number> {
+  const items = await wireTopics(request, signal);
+  const hashed = hashesOf(items);
+  const hashes = await Promise.all(
+    items.map(async (item) => (item.name_hash === undefined ? codec.hash(item.name) : null))
+  );
+  const legacy: { name: string; kind?: string; is_deleted?: boolean }[] = [];
+  items.forEach((item, i) => {
+    const hash = hashes[i];
+    if (item.name_hash !== undefined || hash === null || hashed.has(hash)) return;
+    hashed.add(hash);
+    legacy.push({
+      name: item.name,
+      ...(item.kind !== undefined && { kind: item.kind }),
+      ...(item.is_deleted && { is_deleted: true }),
+    });
+  });
+  await sealedImport(request, codec, legacy, signal);
+  return legacy.length;
 }
 
 export async function createRemoteTopic(

@@ -1,4 +1,4 @@
-import { normalizeEntityName } from "../../db/entities/types.js";
+import { normalizeEntityName, parseTopics } from "../../db/entities/types.js";
 import {
   backfillMemoryTopicsOp,
   getAllVaultMemoryRowsOp,
@@ -25,6 +25,7 @@ import {
 } from "./remotePersistence.js";
 import { storedVector } from "./remotePipeline.js";
 import { createRemoteTopicPersistence } from "./remoteTopics.js";
+import { createTopicCodec, type TopicCodec } from "./topicCodec.js";
 
 const IMPORT_BATCH = 50;
 const EMBED_BATCH = 100;
@@ -38,8 +39,9 @@ const DEFAULT_RATE_LIMIT_WAIT_MS = 10_000;
 const MAX_ID_BYTES = 128;
 const MAX_CONTENT_BYTES = 32 << 10;
 const MAX_TEXT_BYTES = 16 << 10;
+const MAX_TOPICS_BYTES = 32 << 10;
 const MAX_SHORT_BYTES = 256;
-const TEXT_FIELDS = ["topics", "media", "source_chunk_ids"] as const;
+const TEXT_FIELDS = ["media", "source_chunk_ids"] as const;
 const SHORT_FIELDS = [
   "scope",
   "kind",
@@ -224,6 +226,7 @@ function fitsNearby(row: RemoteMemoryRow): boolean {
     bytes(row.memory_id) <= MAX_ID_BYTES &&
     bytes(row.content) <= MAX_CONTENT_BYTES &&
     bytes(row.kind_value) <= MAX_CONTENT_BYTES &&
+    bytes(row.topics) <= MAX_TOPICS_BYTES &&
     TEXT_FIELDS.every((field) => bytes(row[field]) <= MAX_TEXT_BYTES) &&
     SHORT_FIELDS.every((field) => bytes(row[field]) <= MAX_SHORT_BYTES)
   );
@@ -289,6 +292,7 @@ interface PreparedRow {
 async function prepareRow(
   raw: RawRow,
   canonical: MemoryKeyRing,
+  codec: TopicCodec,
   rings: readonly MemoryKeyRing[],
   model: string,
   updatedAt: number
@@ -306,10 +310,12 @@ async function prepareRow(
     plaintext = undefined;
     kindValue = undefined;
   }
+  const fields = metadata(raw, model);
   const row: RemoteMemoryRow = {
     ...defined({
-      ...metadata(raw, model),
+      ...fields,
       kind_value: kindValue === undefined ? undefined : await encrypt(kindValue),
+      topics: fields.topics === undefined ? undefined : await codec.encodeTopics(fields.topics),
     }),
     memory_id: raw.id as string,
     content: await encrypt(plaintext ?? ""),
@@ -359,6 +365,8 @@ function sameMetadata(local: RawRow, remote: Record<string, unknown>, model: str
     if (field === "visibility") return (a ?? "private") === (b ?? "private");
     if (field === "is_deleted" || field === "topics_user_managed" || field === "twin_opt_in")
       return (a ?? false) === (b ?? false);
+    if (field === "topics")
+      return JSON.stringify(parseTopics(a)) === JSON.stringify(parseTopics(b));
     return a === b;
   });
 }
@@ -435,6 +443,7 @@ async function missingIds(
 
 async function remoteMetadata(
   request: NearbyRequest,
+  codec: TopicCodec,
   ids: string[],
   signal?: AbortSignal
 ): Promise<Map<string, Record<string, unknown>>> {
@@ -461,7 +470,12 @@ async function remoteMetadata(
       if (!Array.isArray(page.items)) throw new Error("Invalid nearby private-memory page");
       for (const item of page.items as { memory?: Record<string, unknown> }[])
         if (item.memory && typeof item.memory.memory_id === "string")
-          rows.set(item.memory.memory_id, item.memory);
+          rows.set(item.memory.memory_id, {
+            ...item.memory,
+            ...(typeof item.memory.topics === "string" && {
+              topics: await codec.decodeTopics(item.memory.topics).catch(() => null),
+            }),
+          });
       cursor = typeof page.next_cursor === "string" ? page.next_cursor : undefined;
     } while (cursor);
   }
@@ -490,6 +504,7 @@ export async function migrateMemoriesToRemote(
   const rings = [canonical, ...(options.fallbacks ?? [])];
   const model = options.embeddingOptions?.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const request = createNearbyRequest(options);
+  const codec = createTopicCodec(memoryCipher(canonical));
   const account = (await request("/account", {}, signal)) as { state?: unknown; key_id?: unknown };
   if (typeof account.key_id === "string" && account.key_id !== canonical.keyId)
     throw new RemoteMemoryError(
@@ -518,7 +533,7 @@ export async function migrateMemoriesToRemote(
           .filter((t) => t.name.length > 0)
       : []);
   if (localTopics.length)
-    await createRemoteTopicPersistence(request).importTopics(localTopics, signal);
+    await createRemoteTopicPersistence(request, codec).importTopics(localTopics, signal);
 
   const skipped = new Map<string, MemoryMigrationSkip["reason"]>();
   const reembedded = new Set<string>();
@@ -538,6 +553,7 @@ export async function migrateMemoriesToRemote(
       if (pending.size === 0 && !active) {
         const remote = await remoteMetadata(
           request,
+          codec,
           candidates.map((raw) => raw.id as string),
           signal
         );
@@ -589,7 +605,7 @@ export async function migrateMemoriesToRemote(
         const updatedAt = pending.get(raw.id as string);
         if (updatedAt === undefined) continue;
         try {
-          prepared.push(await prepareRow(raw, canonical, rings, model, updatedAt));
+          prepared.push(await prepareRow(raw, canonical, codec, rings, model, updatedAt));
         } catch (error) {
           if (!(error instanceof MemoryKeyError)) throw error;
           skipped.set(raw.id as string, "unreadable");

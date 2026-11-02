@@ -1,6 +1,6 @@
 # RemoteTopicPersistence
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#14)
+Defined in: [src/lib/memory/store/remoteTopics.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#15)
 
 ## Extended by
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/memory/store/remoteTopics.ts:14](https://github.com/anuma-a
 
 > **importTopics**(`topics`: readonly `object`\[], `signal?`: `AbortSignal`): `Promise`<`void`>
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#20)
+Defined in: [src/lib/memory/store/remoteTopics.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#21)
 
 **Parameters**
 
@@ -61,7 +61,7 @@ readonly `object`\[]
 
 > **putTopic**(`topic`: `Pick`<[`RemoteMemoryTopic`](RemoteMemoryTopic.md), `"name"` | `"kind"` | `"is_deleted"`>, `expectedVersion`: `number`): `Promise`<[`RemoteMemoryTopic`](RemoteMemoryTopic.md)>
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#16)
+Defined in: [src/lib/memory/store/remoteTopics.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#17)
 
 **Parameters**
 
@@ -110,7 +110,7 @@ Defined in: [src/lib/memory/store/remoteTopics.ts:16](https://github.com/anuma-a
 
 > **topics**(): `Promise`<[`RemoteMemoryTopic`](RemoteMemoryTopic.md)\[]>
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#15)
+Defined in: [src/lib/memory/store/remoteTopics.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#16)
 
 **Returns**
 

@@ -8,15 +8,17 @@ import {
 import { isEncrypted } from "../../db/encryption-utils.js";
 
 const KEY_ID_DOMAIN = "anuma-private-memory-key-id-v1";
+const TOPIC_HASH_INFO = "anuma-private-memory-topic-hash-v1";
 
 /**
- * AES-GCM keys derived from one wallet signature over `SIGN_MESSAGE`.
+ * AES-GCM keys and the topic HMAC key derived from one wallet signature over `SIGN_MESSAGE`.
  * @public
  */
 export interface MemoryKeyRing {
   keyId: string;
   v3: CryptoKey;
   v2: CryptoKey;
+  topicHash: CryptoKey;
 }
 
 /**
@@ -40,8 +42,33 @@ async function importAesKey(hex: string): Promise<CryptoKey> {
   );
 }
 
+async function deriveTopicHashKey(hex: string): Promise<CryptoKey> {
+  const material = await crypto.subtle.importKey(
+    "raw",
+    hexToBytes(hex).buffer as ArrayBuffer,
+    { name: "HKDF" },
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array(32),
+      info: new TextEncoder().encode(TOPIC_HASH_INFO),
+    },
+    material,
+    256
+  );
+  return crypto.subtle.importKey("raw", bits, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+}
+
+function toHex(bytes: ArrayBuffer): string {
+  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 /**
- * Derive the v3 and legacy v2 memory keys from a hex wallet signature.
+ * Derive the v3 and legacy v2 memory keys and the topic HMAC key from a hex wallet signature.
  * @public
  */
 export async function deriveMemoryKeyRing(signatureHex: string): Promise<MemoryKeyRing> {
@@ -50,13 +77,11 @@ export async function deriveMemoryKeyRing(signatureHex: string): Promise<MemoryK
     "SHA-256",
     new TextEncoder().encode(`${KEY_ID_DOMAIN}:${v3Hex}`)
   );
-  const keyId =
-    "v3:" +
-    Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   return {
-    keyId,
+    keyId: "v3:" + toHex(digest),
     v3: await importAesKey(v3Hex),
     v2: await importAesKey(await deriveKeyFromSignature(signatureHex)),
+    topicHash: await deriveTopicHashKey(v3Hex),
   };
 }
 
@@ -73,12 +98,13 @@ async function decryptWith(value: string, rings: readonly MemoryKeyRing[]): Prom
 }
 
 /**
- * Encrypt and decrypt callbacks for `createRemoteMemoryPersistence` under the canonical key.
+ * Encrypt, decrypt and topic-hash callbacks for `createRemoteMemoryPersistence` under the canonical key.
  * @public
  */
 export function memoryCipher(canonical: MemoryKeyRing): {
   encrypt: (plaintext: string) => Promise<string>;
   decrypt: (ciphertext: string) => Promise<string>;
+  hashTopic: (normalized: string) => Promise<string>;
 } {
   return {
     encrypt: async (plaintext) => `enc:v3:${await encryptDataWithKey(plaintext, canonical.v3)}`,
@@ -87,6 +113,10 @@ export function memoryCipher(canonical: MemoryKeyRing): {
         throw new MemoryKeyError("Remote memory content must be enc:v3 ciphertext");
       return decryptWith(ciphertext, [canonical]);
     },
+    hashTopic: async (normalized) =>
+      toHex(
+        await crypto.subtle.sign("HMAC", canonical.topicHash, new TextEncoder().encode(normalized))
+      ),
   };
 }
 

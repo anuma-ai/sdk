@@ -1,9 +1,19 @@
+import { getLogger } from "../../logger.js";
 import { parseRetryAfterMs } from "../portalLlm.js";
-import { createRemoteTopicPersistence, type RemoteTopicPersistence } from "./remoteTopics.js";
-import { createRemoteWorkPersistence, type RemoteMemoryWorkPersistence } from "./remoteWork.js";
+import {
+  createRemoteTopicPersistence,
+  type RemoteTopicPersistence,
+  upgradeLegacyTopicCatalog,
+} from "./remoteTopics.js";
+import {
+  createRemoteWorkPersistence,
+  type RemoteMemoryWorkPersistence,
+  withRemoteWorkLease,
+} from "./remoteWork.js";
+import { ciphertextPattern, createTopicCodec } from "./topicCodec.js";
 import type { MemoryCounts } from "./types.js";
 
-/** The nearby private-memory row. Content and kind_value are plaintext ONLY on the device. */
+/** The nearby private-memory row. Content, kind_value and topic names are plaintext ONLY on the device. */
 export interface RemoteMemoryRow {
   memory_id: string;
   content: string;
@@ -132,8 +142,10 @@ export interface RemoteMemoryPersistenceOptions {
   keyId: string;
   encrypt: (plaintext: string) => Promise<string>;
   decrypt: (ciphertext: string) => Promise<string>;
+  /** Keyed hash of a normalized topic name, as provided by `memoryCipher`. */
+  hashTopic: (normalized: string) => Promise<string>;
   fetch?: typeof globalThis.fetch;
-  /** Cancellation for the initial account/key check. Individual operations take their own signal. */
+  /** Cancellation for the initial account/key check and the background topic upgrade. Individual operations take their own signal. */
   signal?: AbortSignal;
   timeoutMs?: number;
 }
@@ -202,7 +214,8 @@ export interface RemoteMemoryPersistence
   ): Promise<{ items: RemoteMemoryRecord[]; failed: RemoteMemoryDecodeFailure[] }>;
 }
 
-const ciphertextPattern = /^enc:v\d+:[0-9a-f]+$/i;
+const TOPIC_UPGRADE_PROCESSOR = "topic-hash-v1";
+const TOPIC_UPGRADE_PAGE = 50;
 // Mirror nearby's additionalProperties:false row schema. Reject extra fields
 // rather than accidentally forwarding credentials or dropping future metadata.
 const memoryFields = {
@@ -267,7 +280,8 @@ const queryFields = [
   "fact_types",
   "visibility",
   "memory_ids",
-  "topics",
+  "topic_hashes",
+  "topics_legacy",
   "updated_after",
   "topics_due",
   "topics_extracted",
@@ -282,6 +296,16 @@ interface PreparedWrite {
   body: { expected_version: number; memory: RemoteMemoryRow };
   content: string;
   kindValue?: string;
+  topics?: string;
+}
+
+type WireQueryOptions = Omit<RemoteMemoryQueryOptions, "topics" | "signal"> & {
+  topic_hashes?: string[];
+  topics_legacy?: boolean;
+};
+
+function isVersionConflict(error: unknown): boolean {
+  return error instanceof RemoteMemoryError && error.code === "version_conflict";
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -474,6 +498,15 @@ export async function createRemoteMemoryPersistence(
       "key_mismatch"
     );
   }
+  const codec = createTopicCodec(options);
+  if (typeof account.legacy_topic_catalog === "number" && account.legacy_topic_catalog > 0) {
+    try {
+      await upgradeLegacyTopicCatalog(request, codec, options.signal);
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
+      getLogger().warn("[memory/remote] Topic catalog upgrade failed:", error);
+    }
+  }
 
   // Per-returned-snapshot ciphertext, not a replica: weak entries cannot be
   // enumerated or serve reads and disappear when callers release snapshots.
@@ -484,8 +517,10 @@ export async function createRemoteMemoryPersistence(
       version: number;
       content: string;
       kindValue?: string;
+      topics?: string;
       encryptedContent: string;
       encryptedKindValue?: string;
+      encryptedTopics?: string;
     }
   >();
   const decode = async (value: unknown): Promise<RemoteMemoryRecord> => {
@@ -505,6 +540,9 @@ export async function createRemoteMemoryPersistence(
         ...(item.memory.kind_value !== undefined && {
           kind_value: await decrypt(item.memory.kind_value),
         }),
+        ...(item.memory.topics !== undefined && {
+          topics: await codec.decodeTopics(item.memory.topics),
+        }),
       },
     };
     return remember(decoded, item);
@@ -515,8 +553,10 @@ export async function createRemoteMemoryPersistence(
       version: item.version,
       content: decoded.memory.content,
       kindValue: decoded.memory.kind_value,
+      topics: decoded.memory.topics,
       encryptedContent: item.memory.content,
       encryptedKindValue: item.memory.kind_value,
+      encryptedTopics: item.memory.topics,
     });
     return decoded;
   };
@@ -544,7 +584,8 @@ export async function createRemoteMemoryPersistence(
     if (
       item.memory.memory_id !== write.body.memory.memory_id ||
       item.memory.content !== write.body.memory.content ||
-      item.memory.kind_value !== write.body.memory.kind_value
+      item.memory.kind_value !== write.body.memory.kind_value ||
+      item.memory.topics !== write.body.memory.topics
     )
       return decode(item);
     return remember(
@@ -554,6 +595,7 @@ export async function createRemoteMemoryPersistence(
           ...item.memory,
           content: write.content,
           ...(write.kindValue !== undefined && { kind_value: write.kindValue }),
+          ...(write.topics !== undefined && { topics: write.topics }),
         },
       },
       item
@@ -626,14 +668,29 @@ export async function createRemoteMemoryPersistence(
         : (snapshot?.kindValue ?? decoded?.memory.kind_value) === memory.kind_value
           ? (snapshot?.encryptedKindValue ?? existing!.memory.kind_value)
           : await encryptField(memory.kind_value);
+    const wireTopics = snapshot ? snapshot.encryptedTopics : existing?.memory.topics;
+    const topics =
+      memory.topics === undefined
+        ? undefined
+        : (snapshot?.topics ?? decoded?.memory.topics) === memory.topics &&
+            wireTopics !== undefined &&
+            !codec.isLegacy(wireTopics)
+          ? wireTopics
+          : await codec.encodeTopics(memory.topics);
 
     return {
       body: {
         expected_version: expectedVersion,
-        memory: { ...memory, content, ...(kindValue !== undefined && { kind_value: kindValue }) },
+        memory: {
+          ...memory,
+          content,
+          ...(kindValue !== undefined && { kind_value: kindValue }),
+          ...(topics !== undefined && { topics }),
+        },
       },
       content: memory.content,
       kindValue: memory.kind_value,
+      topics: memory.topics,
     };
   };
 
@@ -693,17 +750,27 @@ export async function createRemoteMemoryPersistence(
       throw new Error("Invalid nearby candidate response");
     return result as Record<string, unknown> & { items: unknown[] };
   };
-  const fetchQueryPage = async (queryOptions: RemoteMemoryQueryOptions) => {
-    const { signal, ...query } = queryOptions;
+  const fetchQueryPage = async (
+    queryOptions: RemoteMemoryQueryOptions & { topics_legacy?: boolean }
+  ): Promise<{ items: unknown[]; next_cursor?: string; changes_cursor?: string }> => {
+    const { signal, topics: names, ...wire } = queryOptions;
     if (
-      query.limit !== undefined &&
-      (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 200)
+      wire.limit !== undefined &&
+      (!Number.isInteger(wire.limit) || wire.limit < 1 || wire.limit > 200)
     )
       throw new Error("Page limit must be 1–200");
     for (const [key, max] of queryListLimits) {
-      const values = query[key];
+      const values = queryOptions[key];
       if (values && values.length > max)
         throw new Error(`Query ${key} accepts at most ${max} entries (got ${values.length})`);
+    }
+    const body: WireQueryOptions = wire;
+    if (names !== undefined) {
+      const hashes = (await Promise.all(names.map((name) => codec.hash(name)))).filter(
+        (h) => h !== null
+      );
+      if (names.length > 0 && hashes.length === 0) return { items: [] };
+      body.topic_hashes = [...new Set(hashes)];
     }
     const page = await request(
       "/memories/query",
@@ -711,7 +778,7 @@ export async function createRemoteMemoryPersistence(
         method: "POST",
         body: JSON.stringify(
           Object.fromEntries(
-            queryFields.filter((key) => query[key] !== undefined).map((key) => [key, query[key]])
+            queryFields.filter((key) => body[key] !== undefined).map((key) => [key, body[key]])
           )
         ),
       },
@@ -746,8 +813,8 @@ export async function createRemoteMemoryPersistence(
     };
   };
 
-  return {
-    ...createRemoteTopicPersistence(request),
+  const persistence: RemoteMemoryPersistence = {
+    ...createRemoteTopicPersistence(request, codec),
     ...createRemoteWorkPersistence(request),
     supportsRealtimeChanges: account.realtime_changes === true,
     counts: async () => {
@@ -892,14 +959,22 @@ export async function createRemoteMemoryPersistence(
     queryMetadata: async (queryOptions = {}) => {
       const page = await fetchQueryPage(queryOptions);
       return {
-        items: page.items.map((item) => {
-          const {
-            memory: { content: _content, kind_value: _kindValue, ...memory },
-            version,
-            server_updated_at,
-          } = memoryRecord(item);
-          return { memory, version, server_updated_at };
-        }),
+        items: await Promise.all(
+          page.items.map(async (item) => {
+            const {
+              memory: { content: _content, kind_value: _kindValue, topics, ...memory },
+              version,
+              server_updated_at,
+            } = memoryRecord(item);
+            const plain =
+              topics === undefined ? undefined : await codec.decodeTopics(topics).catch(() => null);
+            return {
+              memory: { ...memory, ...(typeof plain === "string" && { topics: plain }) },
+              version,
+              server_updated_at,
+            };
+          })
+        ),
         ...(page.next_cursor !== undefined && { next_cursor: page.next_cursor }),
       };
     },
@@ -907,4 +982,49 @@ export async function createRemoteMemoryPersistence(
     candidates: async (embedding, candidateOptions = {}) =>
       decodeAll((await fetchCandidates(embedding, candidateOptions, false)).items),
   };
+
+  const rewriteLegacyTopics = async (records: RemoteMemoryRecord[], token: string) => {
+    const write = (batch: RemoteMemoryRecord[]) =>
+      persistence.putMany(
+        batch.map((item) => ({ memory: item.memory, expectedVersion: item })),
+        options.signal,
+        token
+      );
+    try {
+      await write(records);
+    } catch (error) {
+      if (!isVersionConflict(error) || records.length === 1) throw error;
+      for (const item of records)
+        await write([item]).catch((rowError: unknown) => {
+          if (!isVersionConflict(rowError)) throw rowError;
+        });
+    }
+  };
+  const upgradeLegacyTopics = () =>
+    withRemoteWorkLease(persistence, "topics", TOPIC_UPGRADE_PROCESSOR, async (token, lease) => {
+      let cursor: string | undefined;
+      do {
+        options.signal?.throwIfAborted();
+        if (lease.aborted) return;
+        const page = await fetchQueryPage({
+          topics_legacy: true,
+          include_archived: true,
+          include_quarantined: true,
+          include_superseded: true,
+          limit: TOPIC_UPGRADE_PAGE,
+          ...(cursor !== undefined && { cursor }),
+          signal: options.signal,
+        });
+        const { items } = await decodeAll(page.items);
+        const legacy = items.filter((item) => codec.isLegacy(snapshots.get(item)?.encryptedTopics));
+        if (legacy.length) await rewriteLegacyTopics(legacy, token);
+        cursor = page.next_cursor;
+      } while (cursor);
+    });
+  if (typeof account.legacy_topic_memories === "number" && account.legacy_topic_memories > 0)
+    void upgradeLegacyTopics().catch((error: unknown) => {
+      if (!options.signal?.aborted)
+        getLogger().warn("[memory/remote] Topic upgrade failed:", error);
+    });
+  return persistence;
 }
