@@ -27,7 +27,6 @@ const messageMetadata = new Set(["conversationId", "uniqueId", "vector", "chunks
 const alwaysStored = new Set(["role", "content", "responseDuration"]);
 const maxBubbles = 3;
 const maxTurnIdBytes = 128;
-// Keeps a valid turn far below recordBudgetBytes so fitRecord never cuts a bubbled turn's content.
 const maxBubbleBytes = 16_384;
 const anumaOrigins = new Set<string>(["intro", "reply"]);
 
@@ -72,7 +71,7 @@ export function readAnumaTurn(value: unknown): AnumaTurn | undefined {
   };
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
+export function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
