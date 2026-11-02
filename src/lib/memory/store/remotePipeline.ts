@@ -34,6 +34,8 @@ import {
 } from "./remotePersistence.js";
 import type { MemoryRecallOptions, MemoryRetainOptions } from "./types.js";
 
+const MAX_QUERY_IDS = 1000;
+
 export interface RemoteMemoryPipelineOptions {
   persistence: RemoteMemoryPersistence;
   embeddingOptions: EmbeddingOptions;
@@ -245,9 +247,20 @@ export function createRemoteMemoryPipeline(
           Math.max(0, start + budgetMs - Date.now())
         );
         try {
+          const idFilters: Pick<RemoteMemoryCandidateOptions, "memory_ids">[] = [];
+          if (search.memoryIds && search.memoryIds.length > MAX_QUERY_IDS) {
+            const ids = [...new Set(search.memoryIds)];
+            for (let i = 0; i < ids.length; i += MAX_QUERY_IDS)
+              idFilters.push({ memory_ids: ids.slice(i, i + MAX_QUERY_IDS) });
+          } else idFilters.push({});
           windows = await Promise.all(
-            vectors.map((embedding, i) =>
-              persistence.candidates(embedding, windowOptions(i, deadline.signal))
+            vectors.flatMap((embedding, i) =>
+              idFilters.map((filter) =>
+                persistence.candidates(embedding, {
+                  ...windowOptions(i, deadline.signal),
+                  ...filter,
+                })
+              )
             )
           );
         } finally {
