@@ -379,6 +379,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
       setIsLoading(true);
       let keepServerStream = false;
+      const deferredErrors: Error[] = [];
 
       try {
         const tokenGetterValidation = validateTokenGetter(getToken);
@@ -498,7 +499,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             if (globalOnThinking) globalOnThinking(chunk);
           },
           onFinish,
-          onError,
+          onError: keepAlive ? (error) => deferredErrors.push(error) : onError,
           onToolCall,
           onServerToolCall,
           onToolCallArgumentsDelta,
@@ -518,13 +519,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onPiiRedacted,
         });
 
+        const pending = pendingInferenceRef.current;
+        const handle = pending && !pending.settled ? pending.handle : null;
+        const detach =
+          result.error !== null && keepAlive && handle && result.error !== "Request aborted";
+        if (!detach) deferredErrors.forEach((error) => onError?.(error));
         if (result.error === null) {
           keepServerStream = true;
           return result;
         }
-        const pending = pendingInferenceRef.current;
-        const handle = pending && !pending.settled ? pending.handle : null;
-        if (keepAlive && handle && result.error !== "Request aborted") {
+        if (detach) {
           keepServerStream = true;
           return {
             data: result.data,

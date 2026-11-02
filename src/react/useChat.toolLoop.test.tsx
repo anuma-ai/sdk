@@ -234,12 +234,14 @@ describe("useChat multi-turn tool loop", () => {
           }) as ReturnType<typeof sseModule.createSseClient>
       );
       try {
+        const onError = vi.fn();
         const { result } = renderHook(() =>
           useChat({
             getToken: async () => "token",
             baseUrl: "https://portal.example",
             resumable: true,
             background: true,
+            onError,
           })
         );
         let response: SendMessageResult | undefined;
@@ -250,6 +252,7 @@ describe("useChat multi-turn tool loop", () => {
             conversationId: "conv_1",
           });
         });
+        expect(onError).not.toHaveBeenCalled();
         expect(response).toMatchObject({
           error: "Request detached",
           detached: true,
@@ -264,6 +267,30 @@ describe("useChat multi-turn tool loop", () => {
       } finally {
         fetchSpy.mockRestore();
       }
+    });
+
+    it("still reports a background failure that happens before any stream starts", async () => {
+      mockCreateSseClient.mockImplementation(
+        () =>
+          ({
+            stream: (async function* () {
+              throw new Error("SSE failed: 503 Service Unavailable");
+            })(),
+          }) as ReturnType<typeof sseModule.createSseClient>
+      );
+      const onError = vi.fn();
+      const { result } = renderHook(() =>
+        useChat({ getToken: async () => "token", resumable: true, background: true, onError })
+      );
+      let response: SendMessageResult | undefined;
+      await act(async () => {
+        response = await result.current.sendMessage({
+          messages: [{ role: "user", content: [{ type: "text", text: "hello" }] }],
+          model: "auto",
+        });
+      });
+      expect(response?.error).not.toBe("Request detached");
+      expect(onError).toHaveBeenCalledOnce();
     });
 
     it("detaches instead of cancelling on unmount", async () => {
