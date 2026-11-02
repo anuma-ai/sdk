@@ -1,6 +1,6 @@
 import type { AnumaTurn, AnumaTurnOrigin, StoredMessage } from "../db/chat/types";
 import { type ChatRecord, type ChatSnapshot, type ChatStore, ChatStoreError } from "./types";
-import { conversationSortKey, plain, readAnumaTurn } from "./vaultRecords";
+import { conversationSortKey, isObject, plain, readAnumaTurn } from "./vaultRecords";
 
 export type { AnumaTurn, AnumaTurnOrigin };
 export { readAnumaTurn };
@@ -9,10 +9,6 @@ export { readAnumaTurn };
 export const ANUMA_CONVERSATION_ID = "anuma-1on1";
 
 const maxAttempts = 3;
-
-function object(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 /** The message text for a turn's bubbles, so readers that ignore bubbles still see every line. */
 export function anumaTurnContent(bubbles: readonly string[]): string {
@@ -23,7 +19,7 @@ export function anumaTurnContent(bubbles: readonly string[]): string {
 export function anumaLastReadSortKey(conversation: ChatRecord | ChatSnapshot | null): number {
   const record = conversation && "record" in conversation ? conversation.record : conversation;
   const state = record?.data.anuma;
-  if (!object(state)) return 0;
+  if (!isObject(state)) return 0;
   const sortKey = state.lastReadSortKey;
   return Number.isSafeInteger(sortKey) && (sortKey as number) > 0 ? (sortKey as number) : 0;
 }
@@ -89,7 +85,7 @@ export async function markAnumaRead(
     const read = anumaLastReadSortKey(current);
     if (sortKey <= read) return current;
     const record = current.record;
-    const state = object(record.data.anuma) ? record.data.anuma : {};
+    const state = isObject(record.data.anuma) ? record.data.anuma : {};
     const data = plain({ ...record.data, anuma: { ...state, lastReadSortKey: sortKey } });
     try {
       const [written] = await store.putMany(
