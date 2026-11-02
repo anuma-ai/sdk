@@ -529,8 +529,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         const pending = pendingInferenceRef.current;
         const handle = pending && !pending.settled ? pending.handle : null;
+        const detachedByLoop = result.error !== null && result.detached === true;
         const detach =
-          result.error !== null && keepAlive && handle && result.error !== "Request aborted";
+          result.error !== null &&
+          keepAlive &&
+          (detachedByLoop || (handle !== null && result.connectionLost === true));
         if (!detach) deferredErrors.forEach((error) => onError?.(error));
         if (result.error === null) {
           keepServerStream = true;
@@ -545,10 +548,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             resume: handle,
             toolsChecksum: result.toolsChecksum,
           };
-        }
-        if ("detached" in result && result.detached) {
-          keepServerStream = true;
-          return { ...result, resume: null };
         }
         return result;
       } catch (err) {

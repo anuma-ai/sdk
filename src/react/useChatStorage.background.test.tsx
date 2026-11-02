@@ -117,7 +117,7 @@ describe("useChatStorage background turns", () => {
   it("writes no assistant or error row when the turn detaches", async () => {
     vi.mocked(runToolLoop).mockImplementation(async (options) => {
       options.onStreamMeta?.({ inferenceId: "0xdetached", round: 0 });
-      return { data: null, error: "SSE failed: network" } as never;
+      return { data: null, error: "network error", connectionLost: true } as never;
     });
     const { result } = renderStorage();
 
@@ -134,6 +134,28 @@ describe("useChatStorage background turns", () => {
     const messages = await result.current.getMessages("conv_bg");
     expect(messages.map((m) => m.role)).toEqual(["user"]);
     expect(messages[0].error).toBeFalsy();
+  });
+
+  it("stores a provider error under the turn's reply id instead of detaching", async () => {
+    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+      options.onStreamMeta?.({ inferenceId: "0xprovider", round: 0 });
+      return { data: null, error: "Provider rate limited" } as never;
+    });
+    const { result } = renderStorage();
+
+    let sent: Awaited<ReturnType<typeof result.current.sendMessage>> | undefined;
+    await act(async () => {
+      sent = await result.current.sendMessage(userTurn);
+    });
+
+    expect(sent).not.toHaveProperty("detached");
+    const replyId = vi.mocked(runToolLoop).mock.calls[0][0].headers?.["X-Assistant-Message-ID"];
+    const messages = await result.current.getMessages("conv_bg");
+    expect(messages.map((m) => [m.role, m.error ?? null])).toEqual([
+      ["user", "Provider rate limited"],
+      ["assistant", "Provider rate limited"],
+    ]);
+    expect(messages[1].uniqueId).toBe(replyId);
   });
 
   it("stores a stopped answer under the turn's reply id", async () => {

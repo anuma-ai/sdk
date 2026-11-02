@@ -699,6 +699,8 @@ export type RunToolLoopResult =
       detached?: true;
       /** Non-null only when `resumable` was true AND an inference id was captured before detach. */
       resume?: StreamResumeHandle | null;
+      /** True when the connection failed rather than the generation: the portal may still be generating. */
+      connectionLost?: true;
       /**
        * Terminal state of the final model response, when the failure is one the
        * loop diagnosed FROM that response — today, the truncated-to-nothing
@@ -2121,7 +2123,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       err instanceof Error && "statusCode" in err
         ? (err as { statusCode: number }).statusCode
         : undefined;
-    return { data: null, error: errorMsg, statusCode };
+    const connectionLost = !(err instanceof ProviderStreamError) && !(err instanceof SseError);
+    return {
+      data: null,
+      error: errorMsg,
+      statusCode,
+      ...(connectionLost ? { connectionLost: true as const } : {}),
+    };
   } finally {
     cleanupSignalLink();
   }
