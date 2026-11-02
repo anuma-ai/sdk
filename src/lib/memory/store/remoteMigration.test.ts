@@ -901,9 +901,9 @@ describe("migrateMemoriesToRemote", () => {
     expect(nearby.rows.get(tombstone.uniqueId)).toEqual({
       memory_id: tombstone.uniqueId,
       content: "",
-      scope: expect.any(String),
-      created_at: expect.any(Number),
-      updated_at: expect.any(Number),
+      scope: expect.any(String) as string,
+      created_at: expect.any(Number) as number,
+      updated_at: expect.any(Number) as number,
       is_deleted: true,
       embedding: storedVector(JSON.parse(vector4096) as number[]),
       embedding_model: DEFAULT_API_EMBEDDING_MODEL,

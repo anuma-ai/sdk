@@ -1876,7 +1876,7 @@ describe("remote MemoryStore", () => {
     expect(server.rows.get(deleted.uniqueId)!.memory).toMatchObject({
       content: "",
       is_deleted: true,
-      embedding: expect.any(Array),
+      embedding: expect.any(Array) as unknown[],
     });
     expect(server.rows.get(deleted.uniqueId)!.memory).not.toHaveProperty("topics");
 
