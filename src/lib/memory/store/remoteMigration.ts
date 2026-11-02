@@ -87,6 +87,14 @@ const METADATA_FIELDS = [
   "geohash",
 ] as const;
 
+const TOMBSTONE_FIELDS = [
+  "scope",
+  "is_deleted",
+  "embedding_model",
+  "topics_updated_at",
+  "last_observed_at",
+] as const satisfies readonly (typeof METADATA_FIELDS)[number][];
+
 /**
  * Options for {@link migrateMemoriesToRemote}.
  * @public
@@ -352,7 +360,8 @@ async function embedMissing(
 
 function sameMetadata(local: RawRow, remote: Record<string, unknown>, model: string): boolean {
   const mine = metadata(local, model) as Record<string, unknown>;
-  return METADATA_FIELDS.every((field) => {
+  const fields: readonly string[] = bool(local.is_deleted) ? TOMBSTONE_FIELDS : METADATA_FIELDS;
+  return fields.every((field) => {
     const a = mine[field] ?? null;
     const b = remote[field] ?? null;
     if (field === "embedding_model" && a === null) return true;
