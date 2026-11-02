@@ -96,6 +96,7 @@ import {
   type ChunkVectorCache,
   createChunkVectorCache,
   createRecallTool as createRecallToolBase,
+  DEFAULT_CHUNK_CACHE_SIZE,
   recall as recallBase,
   type RecallOptions,
   type RecallResult,
@@ -862,6 +863,12 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   recall: (query: string, options?: RecallOptions) => Promise<RecallResult>;
 
   /**
+   * Loads the most recent past messages' vectors, up to the recall cache's size, so the first recall does not read them all.
+   * @returns How many it added. It resolves rather than rejects when aborted or signed out, with how many it added before stopping.
+   */
+  warmRecallCache: (signal?: AbortSignal) => Promise<number>;
+
+  /**
    * Search vault memories programmatically using semantic similarity.
    * Returns structured results sorted by descending similarity.
    * Gracefully returns [] when auth is unavailable.
@@ -1614,6 +1621,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   const chunkVectorCacheRef = useRef<ChunkVectorCache>(createChunkVectorCache());
+  const recallWarmsRef = useRef(new Set<AbortController>());
 
   const clientToolEmbeddingsCacheRef = useRef<Map<string, number[]>>(new Map());
 
@@ -1631,6 +1639,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   useEffect(() => {
     return onClearAllEncryptionState(() => {
       vaultEmbeddingCache.clear();
+      for (const warm of recallWarmsRef.current) warm.abort();
+      recallWarmsRef.current.clear();
       chunkVectorCacheRef.current.clear();
     });
   }, [vaultEmbeddingCache]);
@@ -1765,6 +1775,29 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       memoryStore,
       storeMaskMissing,
     ]
+  );
+
+  const warmRecallCache = useCallback(
+    async (signal?: AbortSignal): Promise<number> => {
+      if (!backend.warmChunkCache) return 0;
+      const warm = new AbortController();
+      const stop = () => warm.abort(signal?.reason);
+      if (signal?.aborted) stop();
+      signal?.addEventListener("abort", stop, { once: true });
+      recallWarmsRef.current.add(warm);
+      try {
+        return await backend.warmChunkCache({
+          chunkCache: chunkVectorCacheRef.current,
+          embeddingModel,
+          limit: DEFAULT_CHUNK_CACHE_SIZE,
+          signal: warm.signal,
+        });
+      } finally {
+        recallWarmsRef.current.delete(warm);
+        signal?.removeEventListener("abort", stop);
+      }
+    },
+    [backend, embeddingModel]
   );
 
   const {
@@ -3143,6 +3176,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     createMemoryVaultSearchTool,
     createRecallTool,
     recall: recallFn,
+    warmRecallCache,
     searchVaultMemories: searchVaultMemoriesFn,
     vaultEmbeddingCache,
     getVaultMemories,

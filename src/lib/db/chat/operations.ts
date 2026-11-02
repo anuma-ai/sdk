@@ -1884,6 +1884,85 @@ async function chunkRowSource(
   }
 }
 
+async function readChunkVectorRow(
+  ctx: StorageOperationsContext,
+  row: Record<string, unknown>,
+  onUnreadable: () => void
+): Promise<{ entry: CachedChunkVectors; chunks: MessageChunk[] } | null> {
+  const version = Number(row.updated_at) || 0;
+  const chunks = await readRawJsonField<MessageChunk[]>(row, "chunks", ctx.walletAddress);
+  if (chunks && chunks.length > 0) {
+    return {
+      entry: {
+        version,
+        chunks: chunks.map((chunk) => decodeChunkVector(chunk.vector, onUnreadable)),
+      },
+      chunks,
+    };
+  }
+  const messageVector = await readRawJsonField<number[]>(row, "vector", ctx.walletAddress);
+  if (!messageVector || messageVector.length === 0) return null;
+  return { entry: { version, chunks: [], fallback: Float32Array.from(messageVector) }, chunks: [] };
+}
+
+/**
+ * Loads the vectors the cache lacks for the `limit` most recently updated embedded messages (all of them when no limit is given).
+ * @returns How many it added; when aborted, how many it added before stopping.
+ */
+export async function warmChunkVectorCacheOp(
+  ctx: StorageOperationsContext,
+  options: {
+    chunkCache: ChunkVectorCache;
+    embeddingModel?: string;
+    limit?: number;
+    signal?: AbortSignal;
+  }
+): Promise<number> {
+  const { chunkCache, embeddingModel, limit, signal } = options;
+  const source = await chunkRowSource(ctx, {});
+  const yieldIfDue = createTimeSliceYielder(CHUNK_SCAN_YIELD_BUDGET_MS);
+  let keys = source.keys.filter(
+    (key) => !embeddingModel || key.embeddingModel === null || key.embeddingModel === embeddingModel
+  );
+  if (limit !== undefined && keys.length > limit) {
+    keys = keys.sort((a, b) => b.version - a.version).slice(0, limit);
+  }
+  const missIds: string[] = [];
+  for (const key of keys) {
+    await yieldIfDue();
+    if (chunkCache.get(key.id)?.version !== key.version) missIds.push(key.id);
+  }
+  let warmed = 0;
+  let unreadableVectors = 0;
+  for await (const row of loadVectorRowsInBatches(source, missIds)) {
+    await yieldIfDue();
+    const read = await readChunkVectorRow(ctx, row, () => {
+      unreadableVectors++;
+    });
+    if (signal?.aborted) break;
+    if (!read) continue;
+    chunkCache.set(row.id as string, read.entry);
+    warmed++;
+  }
+  warnUnreadableChunkVectors("warmChunkVectorCacheOp", unreadableVectors);
+  return warmed;
+}
+
+async function* loadVectorRowsInBatches(source: ChunkRowSource, ids: string[]) {
+  for (let offset = 0; offset < ids.length; offset += CHUNK_VECTOR_BATCH_SIZE) {
+    yield* await source.loadVectorRows(ids.slice(offset, offset + CHUNK_VECTOR_BATCH_SIZE));
+  }
+}
+
+function warnUnreadableChunkVectors(operation: string, count: number): void {
+  if (count === 0) return;
+  getLogger().warn(
+    `${operation}: could not read ${count} chunk vectors and left them out of ` +
+      `ranking — the stored value is corrupt, so those chunks stay unsearchable until the ` +
+      `message is re-embedded via chunkAndEmbedAllMessages`
+  );
+}
+
 /**
  * Search through message chunks for fine-grained semantic search.
  * Returns the matching chunk text along with the parent message.
@@ -1990,48 +2069,40 @@ export async function searchChunksOp(
     for (const row of rows) {
       await yieldIfDue();
       const id = row.id as string;
-      const version = Number(row.updated_at) || 0;
       const order = orderById.get(id) ?? Number.MAX_SAFE_INTEGER;
-      const chunks = await readRawJsonField<MessageChunk[]>(row, "chunks", ctx.walletAddress);
+      const read = await readChunkVectorRow(ctx, row, () => {
+        unreadableVectors++;
+      });
+      if (!read) continue;
+      const { entry, chunks } = read;
+      const { version } = entry;
+      chunkCache?.set(id, entry);
 
-      if (chunks && chunks.length > 0) {
-        const vectors: Float32Array[] = chunks.map((chunk) =>
-          decodeChunkVector(chunk.vector, () => {
-            unreadableVectors++;
-          })
-        );
-        chunkCache?.set(id, { version, chunks: vectors });
-
-        for (let ci = 0; ci < chunks.length; ci++) {
-          const vec = vectors[ci];
-          if (vec.length === 0) continue;
-          const similarity = cosineSimilarity(queryVector, vec);
-          if (similarity >= minSimilarity) {
-            candidates.push({
-              id,
-              version,
-              order,
-              similarity,
-              chunkTextSource: { kind: "chunk", chunk: chunks[ci], siblings: chunks },
-            });
-          }
+      if (entry.fallback) {
+        const similarity = cosineSimilarity(queryVector, entry.fallback);
+        if (similarity >= minSimilarity) {
+          candidates.push({
+            id,
+            version,
+            order,
+            similarity,
+            chunkTextSource: { kind: "message" },
+          });
         }
-      } else {
-        const messageVector = await readRawJsonField<number[]>(row, "vector", ctx.walletAddress);
-        if (messageVector && messageVector.length > 0) {
-          const fallback = Float32Array.from(messageVector);
-          chunkCache?.set(id, { version, chunks: [], fallback });
-
-          const similarity = cosineSimilarity(queryVector, fallback);
-          if (similarity >= minSimilarity) {
-            candidates.push({
-              id,
-              version,
-              order,
-              similarity,
-              chunkTextSource: { kind: "message" },
-            });
-          }
+        continue;
+      }
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const vec = entry.chunks[ci];
+        if (vec.length === 0) continue;
+        const similarity = cosineSimilarity(queryVector, vec);
+        if (similarity >= minSimilarity) {
+          candidates.push({
+            id,
+            version,
+            order,
+            similarity,
+            chunkTextSource: { kind: "chunk", chunk: chunks[ci], siblings: chunks },
+          });
         }
       }
     }
@@ -2046,13 +2117,7 @@ export async function searchChunksOp(
     );
   }
 
-  if (unreadableVectors > 0) {
-    getLogger().warn(
-      `searchChunksOp: could not read ${unreadableVectors} chunk vectors and left them out of ` +
-        `ranking — the stored value is corrupt, so those chunks stay unsearchable until the ` +
-        `message is re-embedded via chunkAndEmbedAllMessages`
-    );
-  }
+  warnUnreadableChunkVectors("searchChunksOp", unreadableVectors);
 
   const topK = candidates
     .sort((a, b) => b.similarity - a.similarity || a.order - b.order)
