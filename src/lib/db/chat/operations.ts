@@ -1934,27 +1934,24 @@ export async function warmChunkVectorCacheOp(
   }
   let warmed = 0;
   let unreadableVectors = 0;
-  for (
-    let offset = 0;
-    offset < missIds.length && !signal?.aborted;
-    offset += CHUNK_VECTOR_BATCH_SIZE
-  ) {
-    const rows = await source.loadVectorRows(
-      missIds.slice(offset, offset + CHUNK_VECTOR_BATCH_SIZE)
-    );
-    for (const row of rows) {
-      await yieldIfDue();
-      const read = await readChunkVectorRow(ctx, row, () => {
-        unreadableVectors++;
-      });
-      if (signal?.aborted) break;
-      if (!read) continue;
-      chunkCache.set(row.id as string, read.entry);
-      warmed++;
-    }
+  for await (const row of loadVectorRowsInBatches(source, missIds)) {
+    await yieldIfDue();
+    const read = await readChunkVectorRow(ctx, row, () => {
+      unreadableVectors++;
+    });
+    if (signal?.aborted) break;
+    if (!read) continue;
+    chunkCache.set(row.id as string, read.entry);
+    warmed++;
   }
   warnUnreadableChunkVectors("warmChunkVectorCacheOp", unreadableVectors);
   return warmed;
+}
+
+async function* loadVectorRowsInBatches(source: ChunkRowSource, ids: string[]) {
+  for (let offset = 0; offset < ids.length; offset += CHUNK_VECTOR_BATCH_SIZE) {
+    yield* await source.loadVectorRows(ids.slice(offset, offset + CHUNK_VECTOR_BATCH_SIZE));
+  }
 }
 
 function warnUnreadableChunkVectors(operation: string, count: number): void {
