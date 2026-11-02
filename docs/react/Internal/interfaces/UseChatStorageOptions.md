@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:554](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#554)
+Defined in: [src/react/useChatStorage.ts:552](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#552)
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **activeToolSets**: `string`\[]
 
-Defined in: [src/react/useChatStorage.ts:660](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#660)
+Defined in: [src/react/useChatStorage.ts:656](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#656)
 
 Tool set names that should expand unconditionally for this request,
 bypassing the anchor-similarity check. Use when conversation state
@@ -37,7 +37,7 @@ Names must match a set's `name` from `BUILT_IN_TOOL_SETS` or
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:571](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#571)
+Defined in: [src/react/useChatStorage.ts:567](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#567)
 
 Which API endpoint to use. Default: "responses"
 
@@ -85,7 +85,7 @@ true
 
 > `optional` **autoFlushOnKeyAvailable**: `boolean`
 
-Defined in: [src/react/useChatStorage.ts:633](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#633)
+Defined in: [src/react/useChatStorage.ts:629](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#629)
 
 Automatically flush queued operations when the encryption key becomes
 available. Requires `enableQueue` to be true.
@@ -102,10 +102,10 @@ true
 
 > `optional` **background**: `boolean`
 
-Defined in: [src/react/useChatStorage.ts:561](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#561)
+Defined in: [src/react/useChatStorage.ts:559](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#559)
 
-Keep a resumable generation running when the request fails or the hook unmounts,
-and record it in `pendingStreams` so `resumePendingStreams` can store its answer later.
+Keep a resumable generation running when the request fails or the hook unmounts.
+Portal stores the answer of a turn that finishes with no client attached.
 
 ***
 
@@ -183,7 +183,7 @@ Title for auto-created conversations (default: "New conversation")
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/react/useChatStorage.ts:611](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#611)
+Defined in: [src/react/useChatStorage.ts:607](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#607)
 
 Function for silent signing with Privy embedded wallets.
 When provided, enables automatic encryption key derivation without
@@ -215,7 +215,7 @@ DEFAULT_API_EMBEDDING_MODEL
 
 > `optional` **enableQueue**: `boolean`
 
-Defined in: [src/react/useChatStorage.ts:626](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#626)
+Defined in: [src/react/useChatStorage.ts:622](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#622)
 
 Enable the in-memory write queue for operations when encryption key
 isn't yet available. When enabled, operations are held in memory and
@@ -233,7 +233,7 @@ true
 
 > `optional` **extraToolSets**: [`ToolSet`](ToolSet.md)\[]
 
-Defined in: [src/react/useChatStorage.ts:644](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#644)
+Defined in: [src/react/useChatStorage.ts:640](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#640)
 
 Additional tool sets to apply on top of the built-in ones (app-generation,
 slides, github). When any anchor tool in a custom set is selected by
@@ -445,7 +445,7 @@ Function to retrieve the auth token for API requests
 
 > `optional` **getWalletAddress**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useChatStorage.ts:618](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#618)
+Defined in: [src/react/useChatStorage.ts:614](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#614)
 
 Async function that returns the wallet address when available.
 Used for polling during Privy embedded wallet initialization.
@@ -762,7 +762,7 @@ Use this to show activity indicators like "Searching..." in the UI.
 
 > `optional` **onStreamMeta**: (`meta`: [`StreamResumeHandle`](../type-aliases/StreamResumeHandle.md) & `object`) => `void`
 
-Defined in: [src/react/useChatStorage.ts:565](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#565)
+Defined in: [src/react/useChatStorage.ts:561](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#561)
 
 Stream handle for each HTTP round, including client-tool continuations.
 
@@ -888,7 +888,7 @@ Use for live preview of artifacts (HTML, slides) being generated.
 
 > `optional` **onToolSelection**: (`info`: `object`) => `void`
 
-Defined in: [src/react/useChatStorage.ts:580](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#580)
+Defined in: [src/react/useChatStorage.ts:576](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#576)
 
 Called once per `sendMessage` with the user prompt and the FINAL tool
 selection — after semantic filtering, tool-set expansion, and exclusions;
@@ -963,16 +963,6 @@ Errors thrown by the callback are swallowed.
 
 ***
 
-### pendingStreams?
-
-> `optional` **pendingStreams**: [`PendingStreamStore`](PendingStreamStore.md)
-
-Defined in: [src/react/useChatStorage.ts:563](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#563)
-
-Where background turns are recorded; required for `background` to recover answers.
-
-***
-
 ### piiRedaction?
 
 > `optional` **piiRedaction**: `boolean` | [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
@@ -1019,7 +1009,7 @@ a custom one matching `PromptPreProcessor`.
 
 > `optional` **resumable**: `boolean`
 
-Defined in: [src/react/useChatStorage.ts:556](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#556)
+Defined in: [src/react/useChatStorage.ts:554](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#554)
 
 Opt into the portal stream buffer for every generated round.
 
@@ -1069,7 +1059,7 @@ DeferLoadingConfig.
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: [src/react/useChatStorage.ts:604](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#604)
+Defined in: [src/react/useChatStorage.ts:600](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#600)
 
 Function to sign a message for encryption key derivation.
 Typically from Privy's useSignMessage hook.
@@ -1121,7 +1111,7 @@ remembered at every call site is one bad send away from leaking.
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/react/useChatStorage.ts:597](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#597)
+Defined in: [src/react/useChatStorage.ts:593](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#593)
 
 Wallet address for encrypted file storage and field-level encryption.
 When provided with signMessage, all sensitive message content, conversation titles,

@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1088](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1088)
+Defined in: [src/react/useChatStorage.ts:1065](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1065)
 
 A React hook that wraps useChat and persists messages and conversations to WatermelonDB as they are sent and received.
 
@@ -160,8 +160,8 @@ true
 </td>
 <td>
 
-Keep a resumable generation running when the request fails or the hook unmounts,
-and record it in `pendingStreams` so `resumePendingStreams` can store its answer later.
+Keep a resumable generation running when the request fails or the hook unmounts.
+Portal stores the answer of a turn that finishes with no client attached.
 
 </td>
 </tr>
@@ -769,23 +769,6 @@ selection — after semantic filtering, tool-set expansion, and exclusions;
 exactly the tools the request carries. Intended for debug logging and
 selection QA (e.g. a prefixed plain-text console line you can filter on).
 Errors thrown by the callback are swallowed.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`options.pendingStreams?`
-
-</td>
-<td>
-
-[`PendingStreamStore`](../Internal/interfaces/PendingStreamStore.md)
-
-</td>
-<td>
-
-Where background turns are recorded; required for `background` to recover answers.
 
 </td>
 </tr>
