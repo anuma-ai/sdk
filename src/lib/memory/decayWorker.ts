@@ -1,9 +1,8 @@
 import {
-  archiveVaultMemoryOp,
+  applyDecayTransitionsOp,
   assertVaultScopeForSweep,
   type DecayCandidateRaw,
   getDecayCandidatesRawOp,
-  hardDeleteDecayedOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations.js";
 import { getLogger } from "../logger.js";
@@ -184,25 +183,9 @@ type DecaySweepOptions = Omit<CreateDecaySweeperOptions, "vaultCtx"> & {
 function vaultDecayBackend(vaultCtx: VaultMemoryOperationsContext): DecaySweepBackend {
   return {
     candidates: () => getDecayCandidatesRawOp(vaultCtx),
-    archive: async (rows, now) => {
-      const archived = new Set<string>();
-      for (const c of rows) {
-        const ok = await archiveVaultMemoryOp(vaultCtx, c.uniqueId, {
-          now,
-          expectedUpdatedAt: c.updatedAt,
-          expectedLastObservedAt: c.lastObservedAt ?? null,
-        });
-        if (ok) archived.add(c.uniqueId);
-      }
-      return archived;
-    },
-    hardDelete: async (rows, deleteOptions) => {
-      const deleted = new Set<string>();
-      for (const c of rows) {
-        if (await hardDeleteDecayedOp(vaultCtx, c.uniqueId, deleteOptions)) deleted.add(c.uniqueId);
-      }
-      return deleted;
-    },
+    archive: (rows, now) => applyDecayTransitionsOp(vaultCtx, rows, { transition: "archive", now }),
+    hardDelete: (rows, deleteOptions) =>
+      applyDecayTransitionsOp(vaultCtx, rows, { transition: "delete", ...deleteOptions }),
   };
 }
 

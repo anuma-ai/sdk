@@ -2192,6 +2192,69 @@ export async function getDecayCandidatesRawOp(
   }));
 }
 
+export async function applyDecayTransitionsOp(
+  ctx: VaultMemoryOperationsContext,
+  candidates: readonly DecayCandidateRaw[],
+  opts: { now: number } & (
+    | { transition: "archive" }
+    | { transition: "delete"; hardDeleteWindowMs: number }
+  )
+): Promise<ReadonlySet<string>> {
+  assertVaultScopeForSweep(ctx);
+  const byId = new Map(candidates.map((candidate) => [candidate.uniqueId, candidate]));
+  const ids = Array.from(byId.keys());
+  const changed = new Set<string>();
+  const CHUNK = 500;
+
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    let applied: string[] = [];
+    try {
+      await ctx.database.write(async () => {
+        await assertCanWrite(ctx);
+        const records = await ctx.vaultMemoryCollection
+          .query(
+            Q.where("id", Q.oneOf(ids.slice(i, i + CHUNK))),
+            ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : [])
+          )
+          .fetch();
+        const eligible = records.filter((record) => {
+          if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+          if (opts.transition === "delete") {
+            return (
+              record.archivedAt !== null && opts.now - record.archivedAt > opts.hardDeleteWindowMs
+            );
+          }
+          const candidate = byId.get(record.id)!;
+          return (
+            record.archivedAt === null &&
+            record.updatedAt.getTime() === candidate.updatedAt &&
+            (record.lastObservedAt ?? null) === (candidate.lastObservedAt ?? null)
+          );
+        });
+        const prepared = eligible.map((record) =>
+          record.prepareUpdate((row) => {
+            if (opts.transition === "archive") row._setRaw("archived_at", opts.now);
+            else row._setRaw("is_deleted", true);
+          })
+        );
+        if (prepared.length > 0) await ctx.database.batch(prepared);
+        applied = eligible.map((record) => record.id);
+      });
+    } catch {
+      continue;
+    }
+    for (const id of applied) changed.add(id);
+    if (opts.transition === "delete" && ctx.entityCtx) {
+      try {
+        await unlinkMemoryEntitiesOp(ctx.entityCtx, applied);
+      } catch {
+        continue;
+      }
+    }
+  }
+  return changed;
+}
+
 /**
  * Archive a memory (decay soft state, PR2) — set `archived_at`. An archived row
  * drops out of every recall lane via the `baseVaultConditions` choke point but
