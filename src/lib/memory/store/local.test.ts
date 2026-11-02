@@ -130,6 +130,34 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
     }
   });
 
+  it.each([true, false])(
+    "notifies subscribers when only twin opt-in changes to %s",
+    async (twinOptIn) => {
+      const { store } = setup();
+      const memory = await store.create({ content: "Plays chess", embedding: "[1,0]" });
+      const published = await store.setVisibility(memory.uniqueId, "public", {
+        twinOptIn: !twinOptIn,
+      });
+      const onChange = vi.fn();
+      const unsubscribe = store.subscribe(onChange);
+      try {
+        const expected = {
+          visibility: "public",
+          twinOptIn,
+          updatedAt: memory.updatedAt,
+          publishedAt: published?.publishedAt,
+        };
+        expect(await store.setVisibility(memory.uniqueId, "public", { twinOptIn })).toMatchObject(
+          expected
+        );
+        await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+        expect(await store.get(memory.uniqueId)).toMatchObject(expected);
+      } finally {
+        unsubscribe();
+      }
+    }
+  );
+
   it("notifies embedding subscribers while keeping deleted-inclusive watches membership-only", async () => {
     const { store, vaultCtx } = setup();
     const m = await store.create({ content: "Plays chess", embedding: "[1,0]" });
