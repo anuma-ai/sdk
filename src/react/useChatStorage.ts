@@ -8,6 +8,7 @@ import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import { attachFileContextToLastUserMessage } from "../lib/chat/fileContext";
 import { isSendableImageURL } from "../lib/chat/imageParts";
+import { exportInboxPublicKey, openInboxItem, type VaultInbox } from "../lib/chat/inbox";
 import type {
   ActiveStream,
   ResumeStreamResult,
@@ -174,7 +175,12 @@ import { carriedToolSets, recordToolSetTurn } from "../lib/tools/selection/recen
 import { type StreamMeta, useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
-import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
+import {
+  getEncryptionKey,
+  getKeyPair,
+  hasEncryptionKey,
+  requestEncryptionKey,
+} from "./useEncryption";
 import { onClearAllEncryptionState, onKeyAvailable } from "./useEncryption";
 
 /**
@@ -557,6 +563,8 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
    * Portal stores the answer of a turn that finishes with no client attached.
    */
   background?: boolean;
+  /** The vault inbox that receives answers finished while no client was attached. */
+  inbox?: VaultInbox;
   /** Stream handle for each HTTP round, including client-tool continuations. */
   onStreamMeta?: (meta: StreamMeta) => void;
   /**
@@ -753,6 +761,18 @@ export type SendMessageWithStorageResult =
       userMessage: StoredMessage;
       assistantMessage?: undefined;
     };
+
+/**
+ * Outcome of delivering one vault inbox item with `deliverInbox`.
+ * @public
+ */
+export type InboxDeliveryResult = {
+  id: string;
+  conversationId: string | null;
+  status: "stored" | "delivered" | "unreadable" | "retry";
+  assistantMessage: StoredMessage | null;
+  error?: string;
+};
 
 /**
  * Options for searching messages
@@ -971,6 +991,9 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
 
   /** Show a running generation from its first frame; nothing is stored. */
   watchStream: (stream: ActiveStream) => Promise<ResumeStreamResult>;
+
+  /** Register the inbox public key, then store and remove every answer portal sealed into the inbox. */
+  deliverInbox: () => Promise<InboxDeliveryResult[]>;
 }
 
 const NO_STORE_FOLDERS = "Folders are not supported with a memoryStore";
@@ -1078,6 +1101,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onToolCallArgumentsDelta,
     resumable,
     background = false,
+    inbox,
     onStreamMeta,
     apiType,
     walletAddress,
@@ -3228,11 +3252,102 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [baseResumeStream]
   );
 
+  const registeredInboxKeyRef = useRef<string | null>(null);
+  const deliverInbox = useCallback(async (): Promise<InboxDeliveryResult[]> => {
+    if (!inbox || !walletAddress || !signMessage) return [];
+    const keyPair = await getKeyPair(walletAddress, signMessage, embeddedWalletSigner);
+    const publicKey = await exportInboxPublicKey(keyPair.publicKey);
+    if (registeredInboxKeyRef.current !== publicKey) {
+      await inbox.putPublicKey(publicKey);
+      registeredInboxKeyRef.current = publicKey;
+    }
+
+    const results: InboxDeliveryResult[] = [];
+    for (const item of await inbox.list()) {
+      let opened: Awaited<ReturnType<typeof openInboxItem>>;
+      try {
+        opened = await openInboxItem(item, keyPair);
+      } catch (err) {
+        results.push({
+          id: item.id,
+          conversationId: null,
+          status: "unreadable",
+          assistantMessage: null,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        continue;
+      }
+      const base = { id: item.id, conversationId: opened.conversation_id };
+      try {
+        const messageId = opened.assistant_message_id ?? `msg_bg_${opened.inference_id}`;
+        const [existing] = await backend.getMessagesByIds([messageId]);
+        let stored = existing;
+        if (!stored) {
+          const { redactor } = resolveCallPii(undefined, piiRedaction, () =>
+            getConversationRedactor(opened.conversation_id, nerDetectorRef.current)
+          );
+          const knownToolCallEventIds = await backend.getToolCallEventIds(opened.conversation_id);
+          const { fields, fileIds } = await toAssistantMessageFields(
+            opened.response,
+            opened.conversation_id,
+            knownToolCallEventIds
+          );
+          stored = await backend.createMessage({
+            ...fields,
+            content: redactor ? redactor.deAnonymize(fields.content) : fields.content,
+            thinking:
+              redactor && fields.thinking ? redactor.deAnonymize(fields.thinking) : fields.thinking,
+            conversationId: opened.conversation_id,
+            role: "assistant",
+            model: opened.model,
+            parentMessageId: opened.parent_message_id ?? undefined,
+            wasStopped: opened.status === "tool_request" ? true : undefined,
+            uniqueId: messageId,
+          });
+          if (fileIds.length > 0) {
+            try {
+              await updateMediaMessageIdBatchOp(mediaCtx, fileIds, stored.uniqueId);
+            } catch (err) {
+              getLogger().warn("[useChatStorage] Failed to link inbox media:", err);
+            }
+          }
+          void embedMessageAsync(stored, (text) => (redactor ? redactor.maskText(text) : text));
+        }
+        await inbox.remove(item.id);
+        results.push({
+          ...base,
+          status: existing ? "delivered" : "stored",
+          assistantMessage: stored,
+        });
+      } catch (err) {
+        results.push({
+          ...base,
+          status: "retry",
+          assistantMessage: null,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    return results;
+  }, [
+    inbox,
+    walletAddress,
+    signMessage,
+    embeddedWalletSigner,
+    backend,
+    piiRedaction,
+    getConversationRedactor,
+    toAssistantMessageFields,
+    mediaCtx,
+    embedMessageAsync,
+  ]);
+
   return {
     isLoading,
     sendMessage,
     stop,
     getActiveStreams,
+    deliverInbox,
     watchStream,
     conversationId: currentConversationId,
     setConversationId: setCurrentConversationId,

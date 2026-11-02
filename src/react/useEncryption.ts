@@ -1343,7 +1343,8 @@ function clearPersistedKeyPair(address: string): void {
   localStorage.removeItem(storageKey);
 }
 
-async function getKeyPair(
+/** Returns the wallet's ECDH key pair, deriving it from a signature on first use. */
+export async function getKeyPair(
   address: string,
   signMessage: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn
