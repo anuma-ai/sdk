@@ -1,4 +1,5 @@
 import { normalizeEntityName } from "../../db/entities/types.js";
+import { getLogger } from "../../logger.js";
 import { type NearbyRequest, RemoteMemoryError } from "./remotePersistence.js";
 import type { TopicCodec } from "./topicCodec.js";
 
@@ -142,6 +143,42 @@ export function createRemoteTopicPersistence(
   };
 }
 
+async function retireLegacyTopics(
+  request: NearbyRequest,
+  topics: readonly WireTopic[],
+  signal?: AbortSignal
+): Promise<void> {
+  const failures: unknown[] = [];
+  for (const item of topics) {
+    signal?.throwIfAborted();
+    try {
+      await request(
+        "/topics",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            topic: {
+              name: item.name,
+              ...(item.kind !== undefined && { kind: item.kind }),
+              is_deleted: true,
+            },
+            expected_version: item.version,
+          }),
+        },
+        signal
+      );
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      if (!(error instanceof RemoteMemoryError && error.status === 409)) failures.push(error);
+    }
+  }
+  if (failures.length)
+    getLogger().warn(
+      `[memory/remote] Could not retire ${failures.length} upgraded topic catalog entries:`,
+      failures[0]
+    );
+}
+
 export async function upgradeLegacyTopicCatalog(
   request: NearbyRequest,
   codec: TopicCodec,
@@ -152,18 +189,23 @@ export async function upgradeLegacyTopicCatalog(
   const hashes = await Promise.all(
     items.map(async (item) => (item.name_hash === undefined ? codec.hash(item.name) : null))
   );
-  const legacy: { name: string; kind?: string; is_deleted?: boolean }[] = [];
+  const sources = new Map<string, WireTopic>();
+  const live: WireTopic[] = [];
   items.forEach((item, i) => {
     const hash = hashes[i];
-    if (item.name_hash !== undefined || hash === null || hashed.has(hash)) return;
-    hashed.add(hash);
-    legacy.push({
-      name: item.name,
-      ...(item.kind !== undefined && { kind: item.kind }),
-      ...(item.is_deleted && { is_deleted: true }),
-    });
+    if (hash === null) return;
+    if (!item.is_deleted) live.push(item);
+    if (hashed.has(hash)) return;
+    const source = sources.get(hash);
+    if (!source || (source.is_deleted && !item.is_deleted)) sources.set(hash, item);
   });
+  const legacy = [...sources.values()].map((item) => ({
+    name: item.name,
+    ...(item.kind !== undefined && { kind: item.kind }),
+    ...(item.is_deleted && { is_deleted: true }),
+  }));
   await sealedImport(request, codec, legacy, signal);
+  await retireLegacyTopics(request, live, signal);
   return legacy.length;
 }
 

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { getLogger } from "../../logger";
+
 import { deriveMemoryKeyRing, memoryCipher } from "./memoryKeys";
 import { type NearbyRequest, RemoteMemoryError } from "./remotePersistence";
 import {
@@ -24,6 +26,38 @@ const sealed = async (name: string, extra: Record<string, unknown> = {}) => ({
   ...extra,
   ...(await codec().encodeCatalog({ name })),
 });
+
+function fakeCatalog(items: Record<string, unknown>[], failPut?: (name: unknown) => Error | null) {
+  const catalog = structuredClone(items);
+  const request = vi.fn<NearbyRequest>(async (path, init = {}) => {
+    const body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+    if (path === "/topics/import") {
+      for (const t of body.topics as Record<string, unknown>[])
+        if (!catalog.some((c) => c.name_hash === t.name_hash))
+          catalog.push({ ...entry, is_deleted: false, ...t, version: 1 });
+      return {};
+    }
+    if (init.method === "PUT") {
+      const t = body.topic as Record<string, unknown>;
+      const failure = failPut?.(t.name);
+      if (failure) throw failure;
+      const index = catalog.findIndex((c) => c.name_hash === undefined && c.name === t.name);
+      if (index < 0 || catalog[index].version !== body.expected_version)
+        throw new RemoteMemoryError("conflict", 409, "version_conflict");
+      catalog[index] = { ...entry, ...t, version: (body.expected_version as number) + 1 };
+      return catalog[index];
+    }
+    return { items: structuredClone(catalog) };
+  });
+  const liveLegacy = () =>
+    catalog.filter((c) => c.name_hash === undefined && !c.is_deleted).map((c) => c.name);
+  return { catalog, request, liveLegacy };
+}
+
+const putBodies = (request: ReturnType<typeof fakeCatalog>["request"]) =>
+  request.mock.calls
+    .filter((call) => call[1]?.method === "PUT")
+    .map((call) => JSON.parse(String(call[1]?.body)) as Record<string, unknown>);
 
 describe("remote topic catalog", () => {
   it("pages and decrypts metadata including deletions and batches sealed imports at 50 topics", async () => {
@@ -93,17 +127,15 @@ describe("remote topic catalog", () => {
   });
 
   it("upgrades only legacy entries that have no hashed entry, keeping kind and deletion", async () => {
-    const request = vi.fn<NearbyRequest>().mockResolvedValueOnce({
-      items: [
-        { ...entry, name: "coffee" },
-        await sealed("coffee"),
-        { ...entry, name: "tea", kind: "drink", is_deleted: true },
-        { ...entry, name: "cake" },
-      ],
-    });
+    const vault = fakeCatalog([
+      { ...entry, name: "coffee" },
+      await sealed("coffee"),
+      { ...entry, name: "tea", kind: "drink", is_deleted: true },
+      { ...entry, name: "cake" },
+    ]);
     const upgrade = codec();
-    expect(await upgradeLegacyTopicCatalog(request, upgrade)).toBe(2);
-    const [, [path, init]] = request.mock.calls;
+    expect(await upgradeLegacyTopicCatalog(vault.request, upgrade)).toBe(2);
+    const [, [path, init]] = vault.request.mock.calls;
     expect(path).toBe("/topics/import");
     const topics = (JSON.parse(String(init?.body)) as { topics: Record<string, unknown>[] }).topics;
     expect(topics).toEqual([
@@ -115,6 +147,112 @@ describe("remote topic catalog", () => {
       },
       { name: expect.stringMatching(/^enc:v3:/), name_hash: await upgrade.hash("cake") },
     ]);
+  });
+
+  it("retires live legacy entries once their hashed entry exists", async () => {
+    const vault = fakeCatalog([
+      { ...entry, name: "Coffee", kind: "drink", version: 5 },
+      { ...entry, name: "tea", is_deleted: true, version: 3 },
+      { ...entry, name: "cake", version: 2 },
+      await sealed("cake", { version: 9 }),
+    ]);
+    const upgrade = codec();
+    expect(await upgradeLegacyTopicCatalog(vault.request, upgrade)).toBe(2);
+    expect(putBodies(vault.request)).toEqual([
+      { topic: { name: "Coffee", kind: "drink", is_deleted: true }, expected_version: 5 },
+      { topic: { name: "cake", is_deleted: true }, expected_version: 2 },
+    ]);
+    expect(vault.liveLegacy()).toEqual([]);
+    expect(
+      (await createRemoteTopicPersistence(vault.request, upgrade).topics()).map((t) => [
+        t.name,
+        t.kind,
+        t.version,
+        t.is_deleted,
+      ])
+    ).toEqual([
+      ["cake", undefined, 9, false],
+      ["coffee", "drink", 1, false],
+      ["tea", undefined, 1, true],
+    ]);
+    vault.request.mockClear();
+    expect(await upgradeLegacyTopicCatalog(vault.request, upgrade)).toBe(0);
+    expect(vault.request.mock.calls.map((call) => call[1]?.method ?? "GET")).toEqual(["GET"]);
+  });
+
+  it("imports a live legacy duplicate over a deleted one", async () => {
+    const vault = fakeCatalog([
+      { ...entry, name: "Coffee", is_deleted: true },
+      { ...entry, name: "coffee", version: 4 },
+    ]);
+    const upgrade = codec();
+    await upgradeLegacyTopicCatalog(vault.request, upgrade);
+    expect(putBodies(vault.request)).toEqual([
+      { topic: { name: "coffee", is_deleted: true }, expected_version: 4 },
+    ]);
+    expect(
+      (await createRemoteTopicPersistence(vault.request, upgrade).topics()).map((t) => [
+        t.name,
+        t.is_deleted,
+      ])
+    ).toEqual([["coffee", false]]);
+  });
+
+  it("skips legacy entries changed elsewhere and continues past failed retirements", async () => {
+    const vault = fakeCatalog(
+      [
+        { ...entry, name: "coffee", version: 2 },
+        { ...entry, name: "tea", version: 2 },
+        { ...entry, name: "cake", version: 2 },
+      ],
+      (name) => (name === "cake" ? new RemoteMemoryError("unavailable", 503) : null)
+    );
+    vault.request.mockImplementationOnce(async () => ({
+      items: [
+        { ...entry, name: "coffee", version: 1 },
+        { ...entry, name: "tea", version: 2 },
+        { ...entry, name: "cake", version: 2 },
+      ],
+    }));
+    const upgrade = codec();
+    const warn = vi.spyOn(getLogger(), "warn").mockImplementation(() => {});
+    await expect(upgradeLegacyTopicCatalog(vault.request, upgrade)).resolves.toBe(3);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][1]).toMatchObject({ status: 503 });
+    warn.mockRestore();
+    expect(putBodies(vault.request).map((b) => (b.topic as { name: string }).name)).toEqual([
+      "coffee",
+      "tea",
+      "cake",
+    ]);
+    expect(vault.liveLegacy()).toEqual(["coffee", "cake"]);
+    expect(
+      (await createRemoteTopicPersistence(vault.request, upgrade).topics()).map((t) => [
+        t.name,
+        t.is_deleted,
+      ])
+    ).toEqual([
+      ["coffee", false],
+      ["tea", false],
+      ["cake", false],
+    ]);
+  });
+
+  it("stops retiring legacy entries when cancelled", async () => {
+    const controller = new AbortController();
+    const vault = fakeCatalog([
+      { ...entry, name: "coffee" },
+      { ...entry, name: "tea" },
+    ]);
+    vault.request.mockImplementation(async (path, init) => {
+      if (init?.method !== "PUT") return path === "/topics/import" ? {} : { items: vault.catalog };
+      controller.abort(new Error("cancelled"));
+      throw new Error("aborted");
+    });
+    await expect(
+      upgradeLegacyTopicCatalog(vault.request, codec(), controller.signal)
+    ).rejects.toThrow("aborted");
+    expect(putBodies(vault.request)).toHaveLength(1);
   });
 
   it.each([1, 123])("honors cancellation for an import of %i topics", async (count) => {

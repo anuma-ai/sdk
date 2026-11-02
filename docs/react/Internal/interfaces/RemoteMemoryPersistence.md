@@ -253,7 +253,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:178](https://github.com/a
 
 > **importTopics**(`topics`: readonly `object`\[], `signal?`: `AbortSignal`): `Promise`<`void`>
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#21)
+Defined in: [src/lib/memory/store/remoteTopics.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#22)
 
 **Parameters**
 
@@ -471,7 +471,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:195](https://github.com/a
 
 > **putTopic**(`topic`: `Pick`<[`RemoteMemoryTopic`](RemoteMemoryTopic.md), `"name"` | `"kind"` | `"is_deleted"`>, `expectedVersion`: `number`): `Promise`<[`RemoteMemoryTopic`](RemoteMemoryTopic.md)>
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#17)
+Defined in: [src/lib/memory/store/remoteTopics.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#18)
 
 **Parameters**
 
@@ -726,7 +726,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:177](https://github.com/a
 
 > **topics**(): `Promise`<[`RemoteMemoryTopic`](RemoteMemoryTopic.md)\[]>
 
-Defined in: [src/lib/memory/store/remoteTopics.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#16)
+Defined in: [src/lib/memory/store/remoteTopics.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteTopics.ts#17)
 
 **Returns**
 

@@ -155,7 +155,12 @@ function setup() {
       Response.json({ detail: code, code }, { status });
     if (new Headers(init.headers).get("Authorization") !== "Bearer current-token")
       return failure(401, "unauthorized");
-    if (url.pathname === "/api/private-memories/account") return Response.json(account);
+    if (url.pathname === "/api/private-memories/account")
+      return Response.json({
+        ...account,
+        legacy_topic_catalog: catalog.filter((t) => t.name_hash === undefined && !t.is_deleted)
+          .length,
+      });
     if (url.pathname === "/api/private-memories/memories") {
       const visible = [...rows.values()]
         .filter(
@@ -174,18 +179,36 @@ function setup() {
         ...(offset + limit < visible.length && { next_cursor: `page:${offset + limit}` }),
       });
     }
+    if (url.pathname === "/api/private-memories/topics" && init.method === "PUT") {
+      const topic = body!.topic as Record<string, unknown>;
+      const index = catalog.findIndex((t) =>
+        topic.name_hash === undefined
+          ? t.name_hash === undefined && t.name === topic.name
+          : t.name_hash === topic.name_hash
+      );
+      if ((index < 0 ? 0 : (catalog[index].version as number)) !== body!.expected_version)
+        return failure(409, "version_conflict");
+      const saved = {
+        ...topic,
+        version: (body!.expected_version as number) + 1,
+        server_updated_at: "2026-10-07T20:00:00Z",
+      };
+      if (index < 0) catalog.push(saved);
+      else catalog[index] = saved;
+      return Response.json(saved);
+    }
     if (url.pathname === "/api/private-memories/topics") {
       return Response.json({ items: catalog });
     }
     if (url.pathname === "/api/private-memories/topics/import") {
-      catalog.push(
-        ...(body!.topics as Record<string, unknown>[]).map((topic) => ({
-          is_deleted: false,
-          ...topic,
-          version: 1,
-          server_updated_at: "2026-10-07T20:00:00Z",
-        }))
-      );
+      for (const topic of body!.topics as Record<string, unknown>[])
+        if (!catalog.some((t) => t.name_hash === topic.name_hash))
+          catalog.push({
+            is_deleted: false,
+            ...topic,
+            version: 1,
+            server_updated_at: "2026-10-07T20:00:00Z",
+          });
       return Response.json({});
     }
     if (url.pathname === "/api/private-memories/work/claim") {
@@ -925,13 +948,12 @@ describe("encrypted topic names", () => {
     ]);
   });
 
-  it("upgrades legacy catalog entries before connecting", async () => {
+  it("upgrades legacy catalog entries before connecting and retires the live ones", async () => {
     const h = setup();
     h.catalog.push(
       { name: "coffee", kind: "drink", version: 3, is_deleted: false, server_updated_at: "x" },
       { name: "tea", version: 1, is_deleted: true, server_updated_at: "x" }
     );
-    h.account.legacy_topic_catalog = 2;
     const store = await createRemoteMemoryPersistence(h.options);
     const sealed = h.catalog.slice(2);
     expect(sealed).toEqual([
@@ -939,11 +961,17 @@ describe("encrypted topic names", () => {
       expect.objectContaining({ is_deleted: true, name_hash: await h.hashTopic("tea") }),
     ]);
     expect(JSON.stringify(sealed)).not.toMatch(/coffee|tea/);
+    expect(h.catalog.slice(0, 2)).toEqual([
+      expect.objectContaining({ name: "coffee", kind: "drink", version: 4, is_deleted: true }),
+      expect.objectContaining({ name: "tea", version: 1, is_deleted: true }),
+    ]);
     expect((await store.topics()).map((t) => [t.name, t.version, t.is_deleted])).toEqual([
       ["coffee", 1, false],
       ["tea", 1, true],
     ]);
+    h.requests.length = 0;
     await createRemoteMemoryPersistence(h.options);
+    expect(h.requests.map((r) => r.url.pathname)).toEqual(["/api/private-memories/account"]);
     expect(h.catalog).toHaveLength(4);
   });
 
