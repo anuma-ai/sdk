@@ -26,6 +26,7 @@ export interface TopicCodec {
   encodeTopics(json: string): Promise<string>;
   decodeTopics(json: string): Promise<string>;
   isLegacy(json: string | undefined): boolean;
+  matchesLegacy(json: unknown, names: ReadonlySet<string>, hashes: ReadonlySet<string>): boolean;
   encodeCatalog<T extends { name: string }>(
     topic: T
   ): Promise<(Omit<T, "name"> & SealedTopicName) | null>;
@@ -144,6 +145,19 @@ export function createTopicCodec(cipher: TopicCipher): TopicCodec {
       (entries(json) ?? []).some(
         (entry) => record(entry) && typeof entry.name === "string" && !hashed(entry)
       ),
+    matchesLegacy: (json, names, hashes) => {
+      const list = typeof json === "string" ? (entries(json) ?? []) : [];
+      return (
+        !list.some((entry) => hashed(entry) && hashes.has(entry.name_hash)) &&
+        list.some(
+          (entry) =>
+            record(entry) &&
+            typeof entry.name === "string" &&
+            !hashed(entry) &&
+            names.has(normalizeEntityName(entry.name))
+        )
+      );
+    },
     encodeCatalog: async (topic) => {
       const sealed = await seal(normalizeEntityName(topic.name));
       return sealed && { ...topic, name: sealed.name, name_hash: sealed.name_hash };

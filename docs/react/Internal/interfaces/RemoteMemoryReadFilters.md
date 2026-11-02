@@ -1,6 +1,6 @@
 # RemoteMemoryReadFilters
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#62)
+Defined in: [src/lib/memory/store/remotePersistence.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#63)
 
 ## Extended by
 
@@ -13,7 +13,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:62](https://github.com/an
 
 > `optional` **fact\_types**: `string`\[]
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#66)
+Defined in: [src/lib/memory/store/remotePersistence.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#67)
 
 ***
 
@@ -21,7 +21,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:66](https://github.com/an
 
 > `optional` **include\_archived**: `boolean`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#63)
+Defined in: [src/lib/memory/store/remotePersistence.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#64)
 
 ***
 
@@ -29,7 +29,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:63](https://github.com/an
 
 > `optional` **include\_quarantined**: `boolean`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#64)
+Defined in: [src/lib/memory/store/remotePersistence.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#65)
 
 ***
 
@@ -37,4 +37,4 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:64](https://github.com/an
 
 > `optional` **include\_superseded**: `boolean`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#65)
+Defined in: [src/lib/memory/store/remotePersistence.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#66)

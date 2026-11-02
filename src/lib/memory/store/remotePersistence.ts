@@ -1,3 +1,4 @@
+import { normalizeEntityName } from "../../db/entities/types.js";
 import { getLogger } from "../../logger.js";
 import { parseRetryAfterMs } from "../portalLlm.js";
 import {
@@ -216,6 +217,7 @@ export interface RemoteMemoryPersistence
 
 const TOPIC_UPGRADE_PROCESSOR = "topic-hash-v1";
 const TOPIC_UPGRADE_PAGE = 50;
+const LEGACY_TOPIC_CURSOR = "legacy-topics:";
 // Mirror nearby's additionalProperties:false row schema. Reject extra fields
 // rather than accidentally forwarding credentials or dropping future metadata.
 const memoryFields = {
@@ -499,6 +501,8 @@ export async function createRemoteMemoryPersistence(
     );
   }
   const codec = createTopicCodec(options);
+  let legacyTopicRows =
+    typeof account.legacy_topic_memories === "number" && account.legacy_topic_memories > 0;
   if (typeof account.legacy_topic_catalog === "number" && account.legacy_topic_catalog > 0) {
     try {
       await upgradeLegacyTopicCatalog(request, codec, options.signal);
@@ -769,13 +773,46 @@ export async function createRemoteMemoryPersistence(
         throw new Error(`Query ${key} accepts at most ${max} entries (got ${values.length})`);
     }
     const body: WireQueryOptions = wire;
-    if (names !== undefined) {
-      const hashes = (await Promise.all(names.map((name) => codec.hash(name)))).filter(
-        (h) => h !== null
+    if (names === undefined) return postQuery(body, signal);
+    const hashes = [
+      ...new Set(
+        (await Promise.all(names.map((name) => codec.hash(name)))).filter((h) => h !== null)
+      ),
+    ];
+    if (names.length > 0 && hashes.length === 0) return { items: [] };
+    if (hashes.length > 0 && wire.cursor?.startsWith(LEGACY_TOPIC_CURSOR)) {
+      const page = await postQuery(
+        {
+          ...wire,
+          cursor: wire.cursor.slice(LEGACY_TOPIC_CURSOR.length) || undefined,
+          topics_legacy: true,
+        },
+        signal
       );
-      if (names.length > 0 && hashes.length === 0) return { items: [] };
-      body.topic_hashes = [...new Set(hashes)];
+      const wanted = new Set(names.map(normalizeEntityName));
+      const hashed = new Set(hashes);
+      return {
+        ...page,
+        items: page.items.filter((item) =>
+          codec.matchesLegacy(
+            record(item) && record(item.memory) ? item.memory.topics : undefined,
+            wanted,
+            hashed
+          )
+        ),
+        next_cursor:
+          page.next_cursor === undefined ? undefined : LEGACY_TOPIC_CURSOR + page.next_cursor,
+      };
     }
+    const page = await postQuery({ ...body, topic_hashes: hashes }, signal);
+    return hashes.length > 0 && legacyTopicRows && page.next_cursor === undefined
+      ? { ...page, next_cursor: LEGACY_TOPIC_CURSOR }
+      : page;
+  };
+  const postQuery = async (
+    body: WireQueryOptions,
+    signal?: AbortSignal
+  ): Promise<{ items: unknown[]; next_cursor?: string; changes_cursor?: string }> => {
     const page = await request(
       "/memories/query",
       {
@@ -996,20 +1033,26 @@ export async function createRemoteMemoryPersistence(
       );
     try {
       await write(records);
+      return true;
     } catch (error) {
-      if (!isVersionConflict(error) || records.length === 1) throw error;
+      if (!isVersionConflict(error)) throw error;
+      if (records.length === 1) return false;
+      let complete = true;
       for (const item of records)
         await write([item]).catch((rowError: unknown) => {
           if (!isVersionConflict(rowError)) throw rowError;
+          complete = false;
         });
+      return complete;
     }
   };
   const upgradeLegacyTopics = () =>
     withRemoteWorkLease(persistence, "topics", TOPIC_UPGRADE_PROCESSOR, async (token, lease) => {
       let cursor: string | undefined;
+      let complete = true;
       do {
         options.signal?.throwIfAborted();
-        if (lease.aborted) return;
+        if (lease.aborted) return false;
         const page = await fetchQueryPage({
           topics_legacy: true,
           include_archived: true,
@@ -1021,14 +1064,19 @@ export async function createRemoteMemoryPersistence(
         });
         const { items } = await decodeAll(page.items);
         const legacy = items.filter((item) => codec.isLegacy(snapshots.get(item)?.encryptedTopics));
-        if (legacy.length) await rewriteLegacyTopics(legacy, token);
+        if (legacy.length && !(await rewriteLegacyTopics(legacy, token))) complete = false;
         cursor = page.next_cursor;
       } while (cursor);
+      return complete;
     });
-  if (typeof account.legacy_topic_memories === "number" && account.legacy_topic_memories > 0)
-    void upgradeLegacyTopics().catch((error: unknown) => {
-      if (!options.signal?.aborted)
-        getLogger().warn("[memory/remote] Topic upgrade failed:", error);
-    });
+  if (legacyTopicRows)
+    void upgradeLegacyTopics()
+      .then((complete) => {
+        if (complete) legacyTopicRows = false;
+      })
+      .catch((error: unknown) => {
+        if (!options.signal?.aborted)
+          getLogger().warn("[memory/remote] Topic upgrade failed:", error);
+      });
   return persistence;
 }

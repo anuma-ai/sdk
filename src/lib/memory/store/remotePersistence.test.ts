@@ -2,6 +2,8 @@ import { createHmac } from "node:crypto";
 
 import { describe, expect, it, vi } from "vitest";
 
+import { getLogger } from "../../logger";
+
 import {
   createNearbyRequest,
   createRemoteMemoryPersistence,
@@ -154,6 +156,7 @@ function setup({ scrubTombstones = false } = {}) {
     memory_count: 0,
   };
   let lease: string | undefined;
+  let queryPageSize = Infinity;
   const topicEntries = (memory: RemoteMemoryRow) => {
     try {
       const parsed = JSON.parse(memory.topics ?? "null") as unknown;
@@ -260,7 +263,7 @@ function setup({ scrubTombstones = false } = {}) {
     }
     if (url.pathname === "/api/private-memories/memories/query") {
       const hashes = body!.topic_hashes as string[] | undefined;
-      const items = [...rows.values()].filter(
+      const matching = [...rows.values()].filter(
         ({ memory: m }) =>
           !m.is_deleted &&
           (!hashes?.length ||
@@ -268,8 +271,13 @@ function setup({ scrubTombstones = false } = {}) {
           (body!.topics_legacy !== true ||
             topicEntries(m).some((t) => typeof t.name === "string" && t.name_hash === undefined))
       );
+      const offset = Number(String(body!.cursor ?? "q:0").split(":")[1]);
+      const limit = Math.min(Number(body!.limit ?? Infinity), queryPageSize);
+      const items = structuredClone(matching.slice(offset, offset + limit));
+      if (body!.include_embeddings !== true) items.forEach((item) => delete item.memory.embedding);
       return Response.json({
         items,
+        ...(offset + limit < matching.length && { next_cursor: `q:${offset + limit}` }),
         ...(body!.order === "changed" && { changes_cursor: "resume-here" }),
       });
     }
@@ -291,11 +299,19 @@ function setup({ scrubTombstones = false } = {}) {
       const writes = body!.writes as { memory: RemoteMemoryRow; expected_version: number }[];
       if (writes.some((w) => (rows.get(w.memory.memory_id)?.version ?? 0) !== w.expected_version))
         return failure(409, "version_conflict");
-      const items = writes.map((w) => ({
-        memory: scrubTombstones ? scrubTombstone(w.memory) : w.memory,
-        version: w.expected_version + 1,
-        server_updated_at: "2026-10-07T20:00:00Z",
-      }));
+      const items = writes.map((w) => {
+        const memory = scrubTombstones ? scrubTombstone(w.memory) : w.memory;
+        const current = rows.get(memory.memory_id)?.memory;
+        if (memory.embedding === undefined && current?.content === memory.content) {
+          memory.embedding = current.embedding;
+          memory.embedding_model = current.embedding_model;
+        }
+        return {
+          memory,
+          version: w.expected_version + 1,
+          server_updated_at: "2026-10-07T20:00:00Z",
+        };
+      });
       items.forEach((item) => rows.set(item.memory.memory_id, structuredClone(item)));
       return Response.json({ items });
     }
@@ -369,6 +385,9 @@ function setup({ scrubTombstones = false } = {}) {
     topicEntries,
     holdLease: (token: string | undefined) => {
       lease = token;
+    },
+    limitQueryPages: (size: number) => {
+      queryPageSize = size;
     },
     race: (work: () => void) => {
       beforePut = work;
@@ -1096,7 +1115,12 @@ describe("encrypted topic names", () => {
 
   it("rewrites legacy live rows once in the background under the topics lease", async () => {
     const h = setup();
-    await seed(h, "a", { topics: '[{"name":"Lisbon"}]', updated_at: 7, embedding: vector() });
+    await seed(h, "a", {
+      topics: '[{"name":"Lisbon"}]',
+      updated_at: 7,
+      embedding: vector(),
+      embedding_model: "openai/text-embedding-3-small",
+    });
     await seed(h, "b", { topics: '[{"name":"Porto"}]' });
     await seed(h, "gone", { topics: '[{"name":"Faro"}]', is_deleted: true });
     const content = h.rows.get("a")!.memory.content;
@@ -1110,7 +1134,15 @@ describe("encrypted topic names", () => {
       expect(h.requests.filter((r) => r.url.pathname.endsWith("/work/release"))).toHaveLength(1)
     );
     const a = h.rows.get("a")!;
-    expect(a).toMatchObject({ version: 2, memory: { content, updated_at: 7 } });
+    expect(a).toMatchObject({
+      version: 2,
+      memory: {
+        content,
+        updated_at: 7,
+        embedding: vector(),
+        embedding_model: "openai/text-embedding-3-small",
+      },
+    });
     expect(h.topicEntries(a.memory)).toEqual([
       { name: expect.stringMatching(/^enc:v3:/), name_hash: await h.hashTopic("lisbon") },
     ]);
@@ -1130,6 +1162,48 @@ describe("encrypted topic names", () => {
     });
   });
 
+  it("skips a single conflicting row and continues with later upgrade pages", async () => {
+    const h = setup();
+    await seed(h, "a", { topics: '[{"name":"Lisbon"}]' });
+    await seed(h, "b", { topics: '[{"name":"Porto"}]' });
+    h.account.legacy_topic_memories = 2;
+    h.limitQueryPages(1);
+    h.raceBatch(() => {
+      const a = h.rows.get("a")!;
+      h.rows.set("a", { ...a, version: 2 });
+    });
+    const warn = vi.spyOn(getLogger(), "warn").mockImplementation(() => {});
+    const store = await createRemoteMemoryPersistence(h.options);
+    await vi.waitFor(() =>
+      expect(h.requests.filter((r) => r.url.pathname.endsWith("/work/release"))).toHaveLength(1)
+    );
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+    expect(h.rows.get("a")).toMatchObject({
+      version: 2,
+      memory: { topics: '[{"name":"Lisbon"}]' },
+    });
+    expect(h.topicEntries(h.rows.get("b")!.memory)).toEqual([
+      { name: expect.stringMatching(/^enc:v3:/), name_hash: await h.hashTopic("porto") },
+    ]);
+    expect((await store.query({ topics: ["Lisbon"] })).next_cursor).toBe("legacy-topics:");
+  });
+
+  it("stops reading legacy rows for topic queries once the upgrade completes", async () => {
+    const h = setup();
+    await seed(h, "a", { topics: '[{"name":"Lisbon"}]' });
+    h.account.legacy_topic_memories = 1;
+    const store = await createRemoteMemoryPersistence(h.options);
+    await vi.waitFor(() =>
+      expect(h.requests.filter((r) => r.url.pathname.endsWith("/work/release"))).toHaveLength(1)
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const page = await store.query({ topics: ["Lisbon"] });
+    expect(page.items.map((item) => item.memory.memory_id)).toEqual(["a"]);
+    expect(page.next_cursor).toBeUndefined();
+    expect(h.requests.at(-1)!.body).toEqual({ topic_hashes: [await h.hashTopic("lisbon")] });
+  });
+
   it("leaves legacy rows alone while another device holds the topics lease", async () => {
     const h = setup();
     await seed(h, "a", { topics: '[{"name":"Lisbon"}]' });
@@ -1142,6 +1216,55 @@ describe("encrypted topic names", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(h.requests.some((r) => r.body?.topics_legacy)).toBe(false);
     expect(h.rows.get("a")!.version).toBe(1);
+  });
+
+  it("matches rows that still hold legacy topics locally until the upgrade completes", async () => {
+    const h = setup();
+    const lisbon = await h.hashTopic("lisbon");
+    await seed(h, "legacy", { topics: '[{"name":" LISBON ","source":"user"}]' });
+    await seed(h, "other", { topics: '[{"name":"Porto"}]' });
+    await seed(h, "mixed", {
+      topics: JSON.stringify([
+        { name: await h.encrypt("Lisbon"), name_hash: lisbon },
+        { name: "Porto" },
+      ]),
+    });
+    h.account.legacy_topic_memories = 3;
+    h.holdLease("other-device");
+    const store = await createRemoteMemoryPersistence(h.options);
+    await store.put({ ...h.memory("hashed"), topics: '[{"name":"Lisbon"}]' }, 0);
+
+    const ids = (page: { items: RemoteMemoryRecord[] }) =>
+      page.items.map((item) => item.memory.memory_id);
+    const first = await store.query({ topics: ["Lisbon"], scopes: ["private"] });
+    expect(ids(first)).toEqual(["mixed", "hashed"]);
+    expect(first.next_cursor).toBe("legacy-topics:");
+    expect(h.requests.at(-1)!.body).toEqual({ scopes: ["private"], topic_hashes: [lisbon] });
+
+    h.limitQueryPages(2);
+    const second = await store.queryMetadata({
+      topics: ["Lisbon"],
+      scopes: ["private"],
+      limit: 2,
+      cursor: first.next_cursor,
+    });
+    expect(second.items.map((item) => item.memory.memory_id)).toEqual(["legacy"]);
+    expect(second.next_cursor).toBe("legacy-topics:q:2");
+    expect(h.requests.at(-1)!.body).toEqual({
+      scopes: ["private"],
+      limit: 2,
+      topics_legacy: true,
+    });
+    const third = await store.query({
+      topics: ["Lisbon"],
+      scopes: ["private"],
+      limit: 2,
+      cursor: second.next_cursor,
+    });
+    expect(ids(third)).toEqual([]);
+    expect(third.next_cursor).toBeUndefined();
+    expect(h.requests.at(-1)!.body).toMatchObject({ cursor: "q:2", topics_legacy: true });
+    expect(JSON.stringify(h.requests.map((r) => r.body))).not.toMatch(/lisbon/i);
   });
 });
 
