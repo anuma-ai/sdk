@@ -2035,6 +2035,78 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     mcpR2Domain,
   });
 
+  const toAssistantMessageFields = useCallback(
+    async (
+      responseData: ApiResponse,
+      convId: string,
+      knownToolCallEventIds: Set<string>,
+      requestedImageModel?: string
+    ) => {
+      let assistantContent = "";
+      let thinkingContent: string | undefined;
+
+      if ("output" in responseData && Array.isArray(responseData.output)) {
+        type OutputItem = { type?: string; content?: Array<{ text?: string }> };
+        const outputItems = (responseData.output as OutputItem[]).filter(Boolean);
+        const messageOutput = outputItems.find((item) => item?.type === "message");
+        assistantContent = messageOutput?.content?.map((part) => part.text || "").join("") || "";
+
+        const reasoningOutput = outputItems.find((item) => item?.type === "reasoning");
+        thinkingContent =
+          reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
+      } else if ("choices" in responseData && responseData.choices) {
+        const message = responseData.choices?.[0]?.message;
+        if (message?.content) {
+          assistantContent = Array.isArray(message.content)
+            ? message.content.map((part: { text?: string }) => part.text || "").join("")
+            : String(message.content);
+        }
+      }
+
+      const toolCallEvents = getToolCallEvents(responseData)?.filter(
+        (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
+      );
+
+      const sources = extractSourcesFromToolCallEvents(toolCallEvents).filter(
+        (source: SearchSource) => !source.url?.includes(mcpR2Domain)
+      );
+
+      let content = assistantContent.replace(/\n{3,}/g, "\n\n");
+      let fileIds: string[] = [];
+      let mcpImageModel: string | undefined;
+
+      if (walletAddress && isEncryptionReady()) {
+        const stored = await extractAndStoreEncryptedMCPImages(
+          content,
+          walletAddress,
+          convId,
+          toolCallEvents
+        );
+        fileIds = stored.fileIds;
+        content = stored.cleanedContent;
+        mcpImageModel = stored.imageModel;
+      } else {
+        mcpImageModel = extractMCPImageUrls("", toolCallEvents, mcpR2Domain).find(
+          (u) => u.mediaType === "image"
+        )?.model;
+      }
+
+      return {
+        fileIds,
+        fields: {
+          content,
+          imageModel: requestedImageModel || getImageModel(responseData) || mcpImageModel,
+          fileIds: fileIds.length > 0 ? fileIds : undefined,
+          usage: convertUsageToStored(responseData),
+          sources,
+          thinking: thinkingContent,
+          toolCallEvents: toolCallEvents && toolCallEvents.length > 0 ? toolCallEvents : undefined,
+        },
+      };
+    },
+    [walletAddress, isEncryptionReady, extractAndStoreEncryptedMCPImages, mcpR2Domain]
+  );
+
   const sendMessage = useCallback(
     async (args: SendMessageWithStorageArgs): Promise<SendMessageWithStorageResult> => {
       const {
@@ -2943,81 +3015,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       recordToolSetTurn(database, convId, matchedToolSets);
 
       const responseData = result.data;
-      let assistantContent = "";
-      let thinkingContent: string | undefined;
-
-      if ("output" in responseData && Array.isArray(responseData.output)) {
-        type OutputItem = { type?: string; content?: Array<{ text?: string }> };
-        const outputItems = (responseData.output as OutputItem[]).filter(Boolean);
-        const messageOutput = outputItems.find((item) => item?.type === "message");
-        assistantContent = messageOutput?.content?.map((part) => part.text || "").join("") || "";
-
-        const reasoningOutput = outputItems.find((item) => item?.type === "reasoning");
-        thinkingContent =
-          reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
-      } else if ("choices" in responseData && responseData.choices) {
-        const completionsData = responseData;
-        const choice = completionsData.choices?.[0];
-        const message = choice?.message;
-        if (message?.content) {
-          if (Array.isArray(message.content)) {
-            assistantContent = message.content
-              .map((part: { text?: string }) => part.text || "")
-              .join("");
-          } else {
-            assistantContent = String(message.content);
-          }
-        }
-      }
-
-      const currentTurnToolCallEvents = getToolCallEvents(responseData)?.filter(
-        (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
+      const { fileIds: assistantFileIds, fields: assistantFields } = await toAssistantMessageFields(
+        responseData,
+        convId,
+        knownToolCallEventIds,
+        imageModel
       );
-
-      const extractedSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents).filter(
-        (source: SearchSource) => !source.url?.includes(mcpR2Domain)
-      );
-
-      let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");
-
-      let assistantFileIds: string[] = [];
-      let mcpImageModel: string | undefined;
-
-      if (walletAddress && isEncryptionReady()) {
-        const result = await extractAndStoreEncryptedMCPImages(
-          cleanedContent,
-          walletAddress,
-          convId,
-          currentTurnToolCallEvents
-        );
-        assistantFileIds = result.fileIds;
-        cleanedContent = result.cleanedContent;
-        mcpImageModel = result.imageModel;
-      } else {
-        mcpImageModel = extractMCPImageUrls("", currentTurnToolCallEvents, mcpR2Domain).find(
-          (u) => u.mediaType === "image"
-        )?.model;
-      }
-
-      const resolvedImageModel = imageModel || getImageModel(responseData) || mcpImageModel;
 
       const assistantMsgOpts: CreateMessageOptions = {
+        ...assistantFields,
         conversationId: convId,
         role: "assistant",
-        content: cleanedContent,
         model: responseData.model || model,
-        imageModel: resolvedImageModel,
-        fileIds: assistantFileIds.length > 0 ? assistantFileIds : undefined,
-        usage: convertUsageToStored(responseData),
         responseDuration,
-        sources: extractedSources,
         thoughtProcess: resolveThoughtProcess(),
-        thinking: thinkingContent,
         parentMessageId: storedUserMessage.uniqueId,
-        toolCallEvents:
-          currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
-            ? currentTurnToolCallEvents
-            : undefined,
         uniqueId: assistantUniqueId || `msg_${uuidv7()}`,
       };
 
@@ -3134,6 +3146,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       signMessage,
       embeddedWalletSigner,
       extractAndStoreEncryptedMCPImages,
+      toAssistantMessageFields,
       mcpR2Domain,
       embedMessageAsync,
       isEncryptionReady,
