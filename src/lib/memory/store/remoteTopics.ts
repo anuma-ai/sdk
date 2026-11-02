@@ -145,31 +145,56 @@ export function createRemoteTopicPersistence(
 
 async function retireLegacyTopics(
   request: NearbyRequest,
+  codec: TopicCodec,
   topics: readonly WireTopic[],
+  imported: ReadonlySet<string>,
   signal?: AbortSignal
 ): Promise<void> {
   const failures: unknown[] = [];
-  for (const item of topics) {
-    signal?.throwIfAborted();
+  const put = async (topic: unknown, expectedVersion: number) => {
     try {
       await request(
         "/topics",
-        {
-          method: "PUT",
-          body: JSON.stringify({
-            topic: {
-              name: item.name,
-              ...(item.kind !== undefined && { kind: item.kind }),
-              is_deleted: true,
-            },
-            expected_version: item.version,
-          }),
-        },
+        { method: "PUT", body: JSON.stringify({ topic, expected_version: expectedVersion }) },
         signal
       );
+      return "saved";
     } catch (error) {
       if (signal?.aborted) throw error;
-      if (!(error instanceof RemoteMemoryError && error.status === 409)) failures.push(error);
+      if (error instanceof RemoteMemoryError && error.status === 409) return "conflict";
+      failures.push(error);
+      return "failed";
+    }
+  };
+  const retire = (item: WireTopic) =>
+    put(
+      { name: item.name, ...(item.kind !== undefined && { kind: item.kind }), is_deleted: true },
+      item.version
+    );
+  const changed: WireTopic[] = [];
+  for (const item of topics) {
+    signal?.throwIfAborted();
+    if ((await retire(item)) === "conflict") changed.push(item);
+  }
+  if (changed.length) {
+    const current = await wireTopics(request, signal);
+    for (const stale of changed) {
+      const hash = await codec.hash(stale.name);
+      const legacy = current.find((t) => t.name_hash === undefined && t.name === stale.name);
+      const copy = current.find((t) => t.name_hash !== undefined && t.name_hash === hash);
+      if (!legacy || !copy || hash === null) continue;
+      const newer =
+        imported.has(hash) ||
+        Date.parse(legacy.server_updated_at) > Date.parse(copy.server_updated_at);
+      if (newer && (legacy.is_deleted !== copy.is_deleted || legacy.kind !== copy.kind)) {
+        const sealed = await codec.encodeCatalog({
+          name: legacy.name,
+          ...(legacy.kind !== undefined && { kind: legacy.kind }),
+          is_deleted: legacy.is_deleted,
+        });
+        if (!sealed || (await put(sealed, copy.version)) !== "saved") continue;
+      }
+      if (!legacy.is_deleted) await retire(legacy);
     }
   }
   if (failures.length)
@@ -205,7 +230,7 @@ export async function upgradeLegacyTopicCatalog(
     ...(item.is_deleted && { is_deleted: true }),
   }));
   await sealedImport(request, codec, legacy, signal);
-  await retireLegacyTopics(request, live, signal);
+  await retireLegacyTopics(request, codec, live, new Set(sources.keys()), signal);
   return legacy.length;
 }
 

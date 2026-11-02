@@ -41,7 +41,11 @@ function fakeCatalog(items: Record<string, unknown>[], failPut?: (name: unknown)
       const t = body.topic as Record<string, unknown>;
       const failure = failPut?.(t.name);
       if (failure) throw failure;
-      const index = catalog.findIndex((c) => c.name_hash === undefined && c.name === t.name);
+      const index = catalog.findIndex((c) =>
+        t.name_hash === undefined
+          ? c.name_hash === undefined && c.name === t.name
+          : c.name_hash === t.name_hash
+      );
       if (index < 0 || catalog[index].version !== body.expected_version)
         throw new RemoteMemoryError("conflict", 409, "version_conflict");
       catalog[index] = { ...entry, ...t, version: (body.expected_version as number) + 1 };
@@ -198,7 +202,7 @@ describe("remote topic catalog", () => {
     ).toEqual([["coffee", false]]);
   });
 
-  it("skips legacy entries changed elsewhere and continues past failed retirements", async () => {
+  it("retries legacy entries changed elsewhere and continues past failed retirements", async () => {
     const vault = fakeCatalog(
       [
         { ...entry, name: "coffee", version: 2 },
@@ -220,12 +224,13 @@ describe("remote topic catalog", () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][1]).toMatchObject({ status: 503 });
     warn.mockRestore();
-    expect(putBodies(vault.request).map((b) => (b.topic as { name: string }).name)).toEqual([
-      "coffee",
-      "tea",
-      "cake",
+    expect(putBodies(vault.request)).toEqual([
+      { topic: { name: "coffee", is_deleted: true }, expected_version: 1 },
+      { topic: { name: "tea", is_deleted: true }, expected_version: 2 },
+      { topic: { name: "cake", is_deleted: true }, expected_version: 2 },
+      { topic: { name: "coffee", is_deleted: true }, expected_version: 2 },
     ]);
-    expect(vault.liveLegacy()).toEqual(["coffee", "cake"]);
+    expect(vault.liveLegacy()).toEqual(["cake"]);
     expect(
       (await createRemoteTopicPersistence(vault.request, upgrade).topics()).map((t) => [
         t.name,
@@ -235,6 +240,54 @@ describe("remote topic catalog", () => {
       ["coffee", false],
       ["tea", false],
       ["cake", false],
+    ]);
+  });
+
+  it("carries a deletion made elsewhere during the upgrade onto the hashed copy", async () => {
+    let raced = false;
+    const vault = fakeCatalog(
+      [
+        { ...entry, name: "coffee", version: 2 },
+        { ...entry, name: "tea", version: 2 },
+        await sealed("tea", { version: 4, server_updated_at: "2026-10-22T00:00:00Z" }),
+      ],
+      () => {
+        if (raced) return null;
+        raced = true;
+        for (const name of ["coffee", "tea"]) {
+          const legacy = vault.catalog.find((c) => c.name_hash === undefined && c.name === name)!;
+          Object.assign(legacy, {
+            version: 3,
+            is_deleted: true,
+            server_updated_at: "2026-10-21T00:00:00Z",
+          });
+        }
+        return null;
+      }
+    );
+    const upgrade = codec();
+    await expect(upgradeLegacyTopicCatalog(vault.request, upgrade)).resolves.toBe(1);
+    expect(putBodies(vault.request)).toEqual([
+      { topic: { name: "coffee", is_deleted: true }, expected_version: 2 },
+      { topic: { name: "tea", is_deleted: true }, expected_version: 2 },
+      {
+        topic: {
+          name: expect.stringMatching(/^enc:v3:/) as string,
+          name_hash: await upgrade.hash("coffee"),
+          is_deleted: true,
+        },
+        expected_version: 1,
+      },
+    ]);
+    expect(
+      (await createRemoteTopicPersistence(vault.request, upgrade).topics()).map((t) => [
+        t.name,
+        t.version,
+        t.is_deleted,
+      ])
+    ).toEqual([
+      ["tea", 4, false],
+      ["coffee", 2, true],
     ]);
   });
 
