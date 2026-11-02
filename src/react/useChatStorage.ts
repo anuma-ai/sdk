@@ -754,11 +754,7 @@ export type SendMessageWithStorageResult =
     };
 
 /**
- * Outcome of recovering one background turn.
- * - `completed` / `interrupted`: the replayed answer was stored
- * - `delivered`: the answer was already stored
- * - `expired`: the portal buffer is gone; the record was dropped
- * - `retry`: a transient failure; the record was kept
+ * Outcome of recovering one background turn with `resumePendingStreams`.
  * @public
  */
 export type ResumePendingStreamResult = {
@@ -769,6 +765,15 @@ export type ResumePendingStreamResult = {
   assistantMessage: StoredMessage | null;
   error?: string;
 };
+
+type BackgroundTurn = {
+  conversationId: string;
+  parentMessageId: string;
+  assistantUniqueId?: string;
+  assistantMessageId?: string;
+};
+
+const claimedBackgroundTurns = new Set<string>();
 
 /**
  * Options for searching messages
@@ -1841,16 +1846,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   const recordsBackground = resumable === true && background && pendingStreams !== undefined;
-  const activeSendRef = useRef<{ conversationId: string; parentMessageId: string } | null>(null);
+  const activeSendRef = useRef<BackgroundTurn | null>(null);
   const handleStreamMeta = useCallback(
     (meta: StreamMeta) => {
       const active = activeSendRef.current;
       if (recordsBackground && active) {
         const { round: _round, ...handle } = meta;
+        active.assistantMessageId =
+          active.assistantUniqueId ?? backgroundMessageId(handle.inferenceId);
         pendingStreams.put({
           ...handle,
           conversationId: active.conversationId,
           parentMessageId: active.parentMessageId,
+          assistantMessageId: active.assistantMessageId,
           walletAddress,
           createdAt: Date.now(),
         });
@@ -2954,11 +2962,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
-      if (recordsBackground) {
-        activeSendRef.current = {
-          conversationId: convId,
-          parentMessageId: storedUserMessage.uniqueId,
-        };
+      const backgroundTurn: BackgroundTurn | null = recordsBackground
+        ? { conversationId: convId, parentMessageId: storedUserMessage.uniqueId, assistantUniqueId }
+        : null;
+      if (backgroundTurn) {
+        activeSendRef.current = backgroundTurn;
+        claimedBackgroundTurns.add(backgroundTurn.parentMessageId);
       }
       const result = await baseSendMessage({
         messages: messagesToSend,
@@ -2990,8 +2999,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         piiRedaction: callPiiRedaction,
       });
 
-      if (activeSendRef.current?.parentMessageId === storedUserMessage.uniqueId) {
-        activeSendRef.current = null;
+      if (backgroundTurn) {
+        if (activeSendRef.current === backgroundTurn) activeSendRef.current = null;
+        claimedBackgroundTurns.delete(backgroundTurn.parentMessageId);
       }
       const detached = result as { detached?: true; resume?: StreamResumeHandle | null };
       if (recordsBackground && detached.detached && detached.resume) {
@@ -3003,7 +3013,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMessage: storedUserMessage,
         };
       }
-      if (recordsBackground) pendingStreams.remove(storedUserMessage.uniqueId);
+      const forgetBackgroundTurn = () => {
+        if (recordsBackground) pendingStreams.remove(storedUserMessage.uniqueId);
+      };
+      if (result.error || !result.data) forgetBackgroundTurn();
 
       const responseDuration = (Date.now() - startTime) / 1000;
 
@@ -3115,8 +3128,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         responseDuration,
         thoughtProcess: resolveThoughtProcess(),
         parentMessageId: storedUserMessage.uniqueId,
-        uniqueId: assistantUniqueId || `msg_${uuidv7()}`,
+        uniqueId: backgroundTurn?.assistantMessageId || assistantUniqueId || `msg_${uuidv7()}`,
       };
+      const upsertsBackgroundAnswer = backgroundTurn?.assistantMessageId !== undefined;
 
       let storedAssistantMessage: StoredMessage;
       let assistantMsgQueueId: string | undefined;
@@ -3124,12 +3138,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const assistantMsgResult = await writeOrQueue(
           "createMessage",
           assistantMsgOpts,
-          (b) => b.createMessage(assistantMsgOpts),
+          (b) =>
+            upsertsBackgroundAnswer
+              ? b.upsertMessage({ ...assistantMsgOpts, uniqueId: assistantMsgOpts.uniqueId! })
+              : b.createMessage(assistantMsgOpts),
           () => makeSyntheticStoredMessage(assistantMsgOpts),
           userMsgQueueId ? [userMsgQueueId] : []
         );
         storedAssistantMessage = assistantMsgResult.result;
         assistantMsgQueueId = assistantMsgResult.queueId;
+        if (!assistantMsgResult.queued) forgetBackgroundTurn();
 
         if (!assistantMsgResult.queued) {
           void embedMessageAsync(storedAssistantMessage, maskForCall);
@@ -3253,27 +3271,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [backend]
   );
 
-  const resumingRef = useRef(new Set<string>());
   const resumePendingStreams = useCallback(async (): Promise<ResumePendingStreamResult[]> => {
     if (!pendingStreams) return [];
-    const wallet = walletAddress?.toLowerCase();
+    const wallet = walletAddress?.toLowerCase() ?? null;
     const entries = pendingStreams
       .list()
-      .filter(
-        (entry) => !wallet || !entry.walletAddress || entry.walletAddress.toLowerCase() === wallet
-      )
-      .filter((entry) => !resumingRef.current.has(entry.parentMessageId));
+      .filter((entry) => (entry.walletAddress?.toLowerCase() ?? null) === wallet);
 
     const results: ResumePendingStreamResult[] = [];
     for (const entry of entries) {
-      resumingRef.current.add(entry.parentMessageId);
+      if (claimedBackgroundTurns.has(entry.parentMessageId)) continue;
+      claimedBackgroundTurns.add(entry.parentMessageId);
       const base = {
         conversationId: entry.conversationId,
         parentMessageId: entry.parentMessageId,
         inferenceId: entry.inferenceId,
       };
       try {
-        const messageId = backgroundMessageId(entry.inferenceId);
+        const messageId = entry.assistantMessageId ?? backgroundMessageId(entry.inferenceId);
         const [existing] = await backend.getMessagesByIds([messageId]);
         if (existing) {
           pendingStreams.remove(entry.parentMessageId);
@@ -3281,9 +3296,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           continue;
         }
 
+        const { redactor } = resolveCallPii(undefined, piiRedaction, () =>
+          getConversationRedactor(entry.conversationId, nerDetectorRef.current)
+        );
         let replay: Awaited<ReturnType<typeof baseResumeStream>>;
         try {
-          replay = await baseResumeStream(entry, { headless: true });
+          replay = await baseResumeStream(entry, { headless: true, piiRedactor: redactor });
         } catch (err) {
           if (!(err instanceof StreamExpiredError)) throw err;
           pendingStreams.remove(entry.parentMessageId);
@@ -3302,7 +3320,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
 
         const knownToolCallEventIds = await backend.getToolCallEventIds(entry.conversationId);
-        const { fields } = await toAssistantMessageFields(
+        const { fields, fileIds } = await toAssistantMessageFields(
           replay.data,
           entry.conversationId,
           knownToolCallEventIds
@@ -3316,8 +3334,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           wasStopped: replay.interrupted ? true : undefined,
           uniqueId: messageId,
         });
+        if (fileIds.length > 0) {
+          try {
+            await updateMediaMessageIdBatchOp(mediaCtx, fileIds, stored.uniqueId);
+          } catch (err) {
+            getLogger().warn("[useChatStorage] Failed to link recovered media:", err);
+          }
+        }
         pendingStreams.remove(entry.parentMessageId);
-        void embedMessageAsync(stored, maskForEmbedding);
+        void embedMessageAsync(stored, (text) => (redactor ? redactor.maskText(text) : text));
         results.push({
           ...base,
           status: replay.interrupted ? "interrupted" : "completed",
@@ -3331,7 +3356,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           error: err instanceof Error ? err.message : String(err),
         });
       } finally {
-        resumingRef.current.delete(entry.parentMessageId);
+        claimedBackgroundTurns.delete(entry.parentMessageId);
       }
     }
     return results;
@@ -3342,7 +3367,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     baseResumeStream,
     toAssistantMessageFields,
     embedMessageAsync,
-    maskForEmbedding,
+    piiRedaction,
+    getConversationRedactor,
+    mediaCtx,
   ]);
 
   return {

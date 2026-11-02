@@ -7,6 +7,7 @@ import type { StreamResumeHandle } from "./toolLoop";
 export type PendingStream = StreamResumeHandle & {
   conversationId: string;
   parentMessageId: string;
+  assistantMessageId?: string;
   walletAddress?: string;
   createdAt: number;
 };

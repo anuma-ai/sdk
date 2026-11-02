@@ -15,6 +15,18 @@ vi.mock("../lib/chat/resumeStream", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/chat/resumeStream")>();
   return { ...orig, resumeStream: vi.fn() };
 });
+const conversationRedactors = vi.hoisted(() => new Map<string | null, unknown>());
+vi.mock("../lib/pii/useConversationRedactors", async () => {
+  const { PiiRedactor: Redactor } = await import("../lib/pii/redactor");
+  return {
+    useConversationRedactors: () => (conversationId: string | null) => {
+      if (!conversationRedactors.has(conversationId)) {
+        conversationRedactors.set(conversationId, new Redactor());
+      }
+      return conversationRedactors.get(conversationId);
+    },
+  };
+});
 vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/memoryEngine/generate")>();
   return {
@@ -31,6 +43,8 @@ import {
 } from "../lib/chat/pendingStreams";
 import { resumeStream, StreamExpiredError } from "../lib/chat/resumeStream";
 import { runToolLoop } from "../lib/chat/toolLoop";
+import { PiiRedactor } from "../lib/pii/redactor";
+import { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
 import { useChatStorage } from "./useChatStorage";
 
 function makeDatabase(): Database {
@@ -128,6 +142,199 @@ describe("useChatStorage background turns", () => {
       "X-Parent-Message-ID": sent?.userMessage?.uniqueId,
     });
     expect(pending.list()).toEqual([]);
+  });
+
+  it("stores a live answer under the recorded id, so a concurrent recovery cannot add a second reply", async () => {
+    const pending = memoryStore();
+    const database = makeDatabase();
+    let release: () => void = () => {};
+    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+      options.onStreamMeta?.({ inferenceId: "0xshared", round: 0 });
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return { data: answer("Live answer."), error: null } as never;
+    });
+    const { result } = renderStorage(pending, database);
+
+    let sending: Promise<unknown> | undefined;
+    act(() => {
+      sending = result.current.sendMessage(userTurn);
+    });
+    await vi.waitFor(() => expect(pending.list()).toHaveLength(1));
+    const [recorded] = pending.list();
+    expect(recorded.assistantMessageId).toBe("msg_bg_0xshared");
+
+    const otherTab = localChatBackend(database)({});
+    await otherTab.upsertMessage({
+      conversationId: "conv_bg",
+      role: "assistant",
+      content: "Live answer.",
+      model: "m",
+      parentMessageId: recorded.parentMessageId,
+      uniqueId: "msg_bg_0xshared",
+    });
+    await act(async () => {
+      release();
+      await sending;
+    });
+
+    const assistants = (await result.current.getMessages("conv_bg")).filter(
+      (m) => m.role === "assistant"
+    );
+    expect(assistants.map((m) => m.uniqueId)).toEqual(["msg_bg_0xshared"]);
+    expect(pending.list()).toEqual([]);
+  });
+
+  it("does not replay a turn this page is still streaming", async () => {
+    const pending = memoryStore();
+    let release: () => void = () => {};
+    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+      options.onStreamMeta?.({ inferenceId: "0xstreaming", round: 0 });
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return { data: answer("Done."), error: null } as never;
+    });
+    const { result } = renderStorage(pending);
+
+    let sending: Promise<unknown> | undefined;
+    act(() => {
+      sending = result.current.sendMessage(userTurn);
+    });
+    await vi.waitFor(() => expect(pending.list()).toHaveLength(1));
+    let resumed: Awaited<ReturnType<typeof result.current.resumePendingStreams>> | undefined;
+    await act(async () => {
+      resumed = await result.current.resumePendingStreams();
+    });
+
+    expect(resumed).toEqual([]);
+    expect(resumeStream).not.toHaveBeenCalled();
+    await act(async () => {
+      release();
+      await sending;
+    });
+  });
+
+  it("keeps the record when the live answer cannot be stored", async () => {
+    const pending = memoryStore();
+    const database = makeDatabase();
+    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+      options.onStreamMeta?.({ inferenceId: "0xunsaved", round: 0 });
+      return { data: answer("Done."), error: null } as never;
+    });
+    const local = localChatBackend(database);
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database,
+        conversationId: "conv_bg",
+        getToken: async () => "tok",
+        resumable: true,
+        background: true,
+        pendingStreams: pending,
+        chatBackend: (signer) => {
+          const backend = local(signer);
+          backend.upsertMessage = async () => {
+            throw new Error("disk full");
+          };
+          return backend;
+        },
+      })
+    );
+
+    let sent: Awaited<ReturnType<typeof result.current.sendMessage>> | undefined;
+    await act(async () => {
+      sent = await result.current.sendMessage(userTurn);
+    });
+
+    expect(sent?.error).toBe("disk full");
+    expect(pending.list().map((p) => p.inferenceId)).toEqual(["0xunsaved"]);
+  });
+
+  it("replays each recorded turn once when recoveries overlap", async () => {
+    const pending = memoryStore();
+    failAfterStreamStarts("0xoverlap");
+    const { result } = renderStorage(pending);
+    await act(async () => {
+      await result.current.sendMessage(userTurn);
+    });
+    let release: () => void = () => {};
+    vi.mocked(resumeStream).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({ data: answer("Recovered.") as never, error: null, interrupted: false });
+        })
+    );
+
+    let first: Promise<unknown> | undefined;
+    let second: Promise<unknown> | undefined;
+    act(() => {
+      first = result.current.resumePendingStreams();
+      second = result.current.resumePendingStreams();
+    });
+    await vi.waitFor(() => expect(resumeStream).toHaveBeenCalled());
+    await act(async () => {
+      release();
+      await Promise.all([first, second]);
+    });
+
+    expect(resumeStream).toHaveBeenCalledOnce();
+  });
+
+  it("restores placeholders with the redactor of the turn's own conversation", async () => {
+    const pending = memoryStore();
+    failAfterStreamStarts("0xpii");
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: makeDatabase(),
+        conversationId: "conv_bg",
+        getToken: async () => "tok",
+        resumable: true,
+        background: true,
+        pendingStreams: pending,
+        piiRedaction: true,
+      })
+    );
+    await act(async () => {
+      await result.current.sendMessage(userTurn);
+    });
+    act(() => result.current.setConversationId("conv_other"));
+    vi.mocked(resumeStream).mockResolvedValue({
+      data: answer("Recovered.") as never,
+      error: null,
+      interrupted: false,
+    });
+
+    await act(async () => {
+      await result.current.resumePendingStreams();
+    });
+
+    const usedForRecovery = vi.mocked(resumeStream).mock.calls[0][0].piiRedactor;
+    expect(usedForRecovery).toBeInstanceOf(PiiRedactor);
+    expect(usedForRecovery).toBe(conversationRedactors.get("conv_bg"));
+    expect(usedForRecovery).not.toBe(conversationRedactors.get("conv_other"));
+  });
+
+  it("does not recover a wallet's turns before the hook knows the wallet", async () => {
+    const pending = memoryStore();
+    pending.put({
+      inferenceId: "0xwallet-turn",
+      apiType: "responses",
+      conversationId: "conv_bg",
+      parentMessageId: "msg_wallet",
+      walletAddress: "0xMine",
+      createdAt: Date.now(),
+    });
+    const { result } = renderStorage(pending);
+
+    let resumed: Awaited<ReturnType<typeof result.current.resumePendingStreams>> | undefined;
+    await act(async () => {
+      resumed = await result.current.resumePendingStreams();
+    });
+
+    expect(resumed).toEqual([]);
+    expect(pending.list()).toHaveLength(1);
   });
 
   it("keeps a detached turn recorded and writes no assistant or error row", async () => {

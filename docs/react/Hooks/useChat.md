@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/react/useChat.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/react/useChat.ts#183)
+Defined in: [src/react/useChat.ts:185](https://github.com/anuma-ai/sdk/blob/main/src/react/useChat.ts#185)
 
 A React hook for managing chat completions with authentication.
 

@@ -1,6 +1,6 @@
 # PendingStreamStore
 
-Defined in: [src/lib/chat/pendingStreams.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#18)
+Defined in: [src/lib/chat/pendingStreams.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#19)
 
 Durable record of background turns, so a later session can recover their answers.
 
@@ -10,7 +10,7 @@ Durable record of background turns, so a later session can recover their answers
 
 > **list**(): [`PendingStream`](../type-aliases/PendingStream.md)\[]
 
-Defined in: [src/lib/chat/pendingStreams.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#19)
+Defined in: [src/lib/chat/pendingStreams.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#20)
 
 **Returns**
 
@@ -22,7 +22,7 @@ Defined in: [src/lib/chat/pendingStreams.ts:19](https://github.com/anuma-ai/sdk/
 
 > **put**(`stream`: [`PendingStream`](../type-aliases/PendingStream.md)): `void`
 
-Defined in: [src/lib/chat/pendingStreams.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#20)
+Defined in: [src/lib/chat/pendingStreams.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#21)
 
 **Parameters**
 
@@ -59,7 +59,7 @@ Defined in: [src/lib/chat/pendingStreams.ts:20](https://github.com/anuma-ai/sdk/
 
 > **remove**(`parentMessageId`: `string`): `void`
 
-Defined in: [src/lib/chat/pendingStreams.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#21)
+Defined in: [src/lib/chat/pendingStreams.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/pendingStreams.ts#22)
 
 **Parameters**
 

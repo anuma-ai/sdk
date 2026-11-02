@@ -2,14 +2,9 @@
 
 > **ResumePendingStreamResult** = `object`
 
-Defined in: [src/react/useChatStorage.ts:764](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#764)
+Defined in: [src/react/useChatStorage.ts:760](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#760)
 
-Outcome of recovering one background turn.
-
-* `completed` / `interrupted`: the replayed answer was stored
-* `delivered`: the answer was already stored
-* `expired`: the portal buffer is gone; the record was dropped
-* `retry`: a transient failure; the record was kept
+Outcome of recovering one background turn with `resumePendingStreams`.
 
 ## Properties
 
@@ -17,7 +12,7 @@ Outcome of recovering one background turn.
 
 > **assistantMessage**: [`StoredMessage`](../interfaces/StoredMessage.md) | `null`
 
-Defined in: [src/react/useChatStorage.ts:769](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#769)
+Defined in: [src/react/useChatStorage.ts:765](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#765)
 
 ***
 
@@ -25,7 +20,7 @@ Defined in: [src/react/useChatStorage.ts:769](https://github.com/anuma-ai/sdk/bl
 
 > **conversationId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:765](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#765)
+Defined in: [src/react/useChatStorage.ts:761](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#761)
 
 ***
 
@@ -33,7 +28,7 @@ Defined in: [src/react/useChatStorage.ts:765](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **error**: `string`
 
-Defined in: [src/react/useChatStorage.ts:770](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#770)
+Defined in: [src/react/useChatStorage.ts:766](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#766)
 
 ***
 
@@ -41,7 +36,7 @@ Defined in: [src/react/useChatStorage.ts:770](https://github.com/anuma-ai/sdk/bl
 
 > **inferenceId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:767](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#767)
+Defined in: [src/react/useChatStorage.ts:763](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#763)
 
 ***
 
@@ -49,7 +44,7 @@ Defined in: [src/react/useChatStorage.ts:767](https://github.com/anuma-ai/sdk/bl
 
 > **parentMessageId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:766](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#766)
+Defined in: [src/react/useChatStorage.ts:762](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#762)
 
 ***
 
@@ -57,4 +52,4 @@ Defined in: [src/react/useChatStorage.ts:766](https://github.com/anuma-ai/sdk/bl
 
 > **status**: `"completed"` | `"interrupted"` | `"delivered"` | `"expired"` | `"retry"`
 
-Defined in: [src/react/useChatStorage.ts:768](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#768)
+Defined in: [src/react/useChatStorage.ts:764](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#764)

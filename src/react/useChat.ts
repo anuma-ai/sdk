@@ -124,7 +124,9 @@ type UseChatResult = BaseUseChatResult & {
   /** Replay a resumable stream from the portal buffer, from its first frame. */
   resumeStream: (
     handle: StreamResumeHandle,
-    opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing"> & { headless?: boolean }
+    opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing" | "piiRedactor"> & {
+      headless?: boolean;
+    }
   ) => Promise<ResumeStreamResult>;
 };
 
@@ -267,7 +269,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   const resumeStream = useCallback(
     async (
       handle: StreamResumeHandle,
-      opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing"> & { headless?: boolean }
+      opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing" | "piiRedactor"> & {
+        headless?: boolean;
+      }
     ): Promise<ResumeStreamResult> => {
       const getterValidation = validateTokenGetter(getToken);
       if (!getterValidation.valid) {
