@@ -9,6 +9,7 @@ import {
   createChatStoreHarness,
 } from "../../../test/chat/vaultHarness";
 import type { StoredConversation, StoredMessage } from "../db/chat/types";
+import { ANUMA_CONVERSATION_ID } from "./anuma";
 import { ChatStoreError } from "./types";
 import { createVaultChatBackend, type VaultChatBackend, type VaultChatEvent } from "./vaultBackend";
 import type { ChatOutboxLocks, ChatOutboxStorage } from "./vaultOutbox";
@@ -537,6 +538,15 @@ describe("vault chat backend", () => {
     expect(fake.calls.filter((c) => c === "putMany")).toHaveLength(0);
     expect(events.filter((e) => e.type === "dropped")).toEqual([]);
     expect(await b.getConversation("conv_1")).toBeNull();
+  });
+
+  it("refuses to delete the Anuma conversation", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: ANUMA_CONVERSATION_ID });
+    expect(await b.deleteConversation(ANUMA_CONVERSATION_ID)).toBe(false);
+    await b.flush();
+    expect(await b.getConversation(ANUMA_CONVERSATION_ID)).not.toBeNull();
   });
 
   it("shrinks a message over vault's record limit and marks what it cut", async () => {

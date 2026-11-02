@@ -24,6 +24,7 @@ import type {
   ChatStorageObservable,
   ConversationQueryOptions,
 } from "../storage/ChatStorageAdapter";
+import { ANUMA_CONVERSATION_ID } from "./anuma";
 import { batches, conversationRecord, messageRecord } from "./chatImports";
 import { validChatId } from "./remote";
 import {
@@ -976,6 +977,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       return updateConversation(conversationId, { pinnedAt: pinned ? now() : null });
     },
     async deleteConversation(conversationId) {
+      if (conversationId === ANUMA_CONVERSATION_ID) return false;
       const record = await conversation(conversationId);
       if (!record || record.isDeleted) return false;
       for (const [k, patch] of pending)
