@@ -192,6 +192,184 @@ describe("useChat multi-turn tool loop", () => {
     }
   });
 
+  describe("background", () => {
+    function hangingStream(inferenceId: string) {
+      mockCreateSseClient.mockImplementation(
+        (options) =>
+          ({
+            stream: (async function* () {
+              await options.fetch!("https://portal.example/responses");
+              yield { type: "response.output_text.delta", delta: "partial" };
+              await new Promise<void>((_resolve, reject) =>
+                options.signal?.addEventListener(
+                  "abort",
+                  () => reject(new DOMException("aborted", "AbortError")),
+                  { once: true }
+                )
+              );
+            })(),
+          }) as ReturnType<typeof sseModule.createSseClient>
+      );
+      return vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(new Response(null, { headers: { "X-Inference-ID": inferenceId } }))
+        .mockResolvedValue(new Response(null, { status: 200 }));
+    }
+
+    const isCancel = (call: unknown[]) => String(call[0]).endsWith("/cancel");
+
+    it("reports a failed stream as detached with its resume handle and keeps it running", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(new Response(null, { headers: { "X-Inference-ID": "bg-failed" } }))
+        .mockResolvedValue(new Response(null, { status: 200 }));
+      mockCreateSseClient.mockImplementation(
+        (options) =>
+          ({
+            stream: (async function* () {
+              await options.fetch!("https://portal.example/responses");
+              yield { type: "response.output_text.delta", delta: "partial" };
+              throw new Error("connection lost");
+            })(),
+          }) as ReturnType<typeof sseModule.createSseClient>
+      );
+      try {
+        const { result } = renderHook(() =>
+          useChat({
+            getToken: async () => "token",
+            baseUrl: "https://portal.example",
+            resumable: true,
+            background: true,
+          })
+        );
+        let response: SendMessageResult | undefined;
+        await act(async () => {
+          response = await result.current.sendMessage({
+            messages: [{ role: "user", content: [{ type: "text", text: "hello" }] }],
+            model: "auto",
+            conversationId: "conv_1",
+          });
+        });
+        expect(response).toMatchObject({
+          error: "Request detached",
+          detached: true,
+          resume: {
+            inferenceId: "bg-failed",
+            apiType: "responses",
+            model: "auto",
+            conversationId: "conv_1",
+          },
+        });
+        expect(fetchSpy.mock.calls.filter(isCancel)).toEqual([]);
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it("detaches instead of cancelling on unmount", async () => {
+      const fetchSpy = hangingStream("bg-unmount");
+      try {
+        const onStreamMeta = vi.fn();
+        const { result, unmount } = renderHook(() =>
+          useChat({
+            getToken: async () => "token",
+            baseUrl: "https://portal.example",
+            resumable: true,
+            background: true,
+            onStreamMeta,
+          })
+        );
+        let pending: Promise<SendMessageResult> | undefined;
+        act(() => {
+          pending = result.current.sendMessage({
+            messages: [{ role: "user", content: [{ type: "text", text: "hello" }] }],
+            model: "auto",
+          });
+        });
+        await waitFor(() => expect(onStreamMeta).toHaveBeenCalledOnce());
+        unmount();
+        let response: SendMessageResult | undefined;
+        await act(async () => {
+          response = await pending;
+        });
+        expect(response).toMatchObject({
+          error: "Request detached",
+          detached: true,
+          resume: { inferenceId: "bg-unmount" },
+        });
+        expect(fetchSpy.mock.calls.filter(isCancel)).toEqual([]);
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it("still cancels on stop", async () => {
+      const fetchSpy = hangingStream("bg-stop");
+      try {
+        const onStreamMeta = vi.fn();
+        const { result } = renderHook(() =>
+          useChat({
+            getToken: async () => "token",
+            baseUrl: "https://portal.example",
+            resumable: true,
+            background: true,
+            onStreamMeta,
+          })
+        );
+        let pending: Promise<SendMessageResult> | undefined;
+        act(() => {
+          pending = result.current.sendMessage({
+            messages: [{ role: "user", content: [{ type: "text", text: "hello" }] }],
+            model: "auto",
+          });
+        });
+        await waitFor(() => expect(onStreamMeta).toHaveBeenCalledOnce());
+        act(() => result.current.stop());
+        let response: SendMessageResult | undefined;
+        await act(async () => {
+          response = await pending;
+        });
+        expect(response?.error).toBe("Request aborted");
+        await waitFor(() =>
+          expect(fetchSpy).toHaveBeenCalledWith(
+            "https://portal.example/api/v1/chat/streams/bg-stop/cancel",
+            { method: "POST", headers: { Authorization: "Bearer token" } }
+          )
+        );
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it("replays a stream with a fresh token through resumeStream", async () => {
+      const getToken = vi.fn(async () => "fresh-token");
+      mockCreateSseClient.mockReturnValue(
+        makeMockStream([
+          { type: "response.output_text.delta", delta: "Recovered" },
+          { type: "response.output_text.delta", delta: " answer" },
+          { type: "response.completed", response: { id: "resp" } },
+        ]) as ReturnType<typeof sseModule.createSseClient>
+      );
+      const { result } = renderHook(() =>
+        useChat({ getToken, baseUrl: "https://portal.example", resumable: true, background: true })
+      );
+      let replay: Awaited<ReturnType<typeof result.current.resumeStream>> | undefined;
+      await act(async () => {
+        replay = await result.current.resumeStream(
+          { inferenceId: "bg-replay", apiType: "responses" },
+          { headless: true, smoothing: false }
+        );
+      });
+      expect(replay?.error).toBeNull();
+      const output = (replay?.data as { output?: Array<{ content?: Array<{ text?: string }> }> })
+        ?.output;
+      expect(JSON.stringify(output)).toContain("Recovered answer");
+      const call = mockCreateSseClient.mock.calls[0][0] as { url: string; method?: string };
+      expect(call.url).toBe("https://portal.example/api/v1/chat/streams/bg-replay");
+      expect(getToken).toHaveBeenCalledOnce();
+    });
+  });
+
   it("reports portal inference IDs for every tool continuation", async () => {
     const onStreamMeta = vi.fn();
     const fetchSpy = vi
@@ -229,8 +407,8 @@ describe("useChat multi-turn tool loop", () => {
       });
       expect(response?.error).toBeNull();
       expect(onStreamMeta.mock.calls).toEqual([
-        [{ inferenceId: "first", round: 0 }],
-        [{ inferenceId: "second", round: 1 }],
+        [{ inferenceId: "first", round: 0, apiType: "responses", model: "auto" }],
+        [{ inferenceId: "second", round: 1, apiType: "responses", model: "auto" }],
       ]);
       expect(mockCreateSseClient.mock.calls[0][0].headers).toEqual(
         expect.objectContaining({ "X-Stream-Resumable": "1" })
