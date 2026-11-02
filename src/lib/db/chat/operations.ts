@@ -1921,20 +1921,33 @@ export async function warmChunkVectorCacheOp(
     if (chunkCache.get(key.id)?.version !== key.version) missIds.push(key.id);
   }
   let warmed = 0;
+  let unreadableVectors = 0;
   for (let offset = 0; offset < missIds.length; offset += CHUNK_VECTOR_BATCH_SIZE) {
-    signal?.throwIfAborted();
     const rows = await source.loadVectorRows(
       missIds.slice(offset, offset + CHUNK_VECTOR_BATCH_SIZE)
     );
     for (const row of rows) {
       await yieldIfDue();
-      const read = await readChunkVectorRow(ctx, row, () => {});
+      const read = await readChunkVectorRow(ctx, row, () => {
+        unreadableVectors++;
+      });
+      signal?.throwIfAborted();
       if (!read) continue;
       chunkCache.set(row.id as string, read.entry);
       warmed++;
     }
   }
+  warnUnreadableChunkVectors("warmChunkVectorCacheOp", unreadableVectors);
   return warmed;
+}
+
+function warnUnreadableChunkVectors(operation: string, count: number): void {
+  if (count === 0) return;
+  getLogger().warn(
+    `${operation}: could not read ${count} chunk vectors and left them out of ` +
+      `ranking — the stored value is corrupt, so those chunks stay unsearchable until the ` +
+      `message is re-embedded via chunkAndEmbedAllMessages`
+  );
 }
 
 /**
@@ -2091,13 +2104,7 @@ export async function searchChunksOp(
     );
   }
 
-  if (unreadableVectors > 0) {
-    getLogger().warn(
-      `searchChunksOp: could not read ${unreadableVectors} chunk vectors and left them out of ` +
-        `ranking — the stored value is corrupt, so those chunks stay unsearchable until the ` +
-        `message is re-embedded via chunkAndEmbedAllMessages`
-    );
-  }
+  warnUnreadableChunkVectors("searchChunksOp", unreadableVectors);
 
   const topK = candidates
     .sort((a, b) => b.similarity - a.similarity || a.order - b.order)

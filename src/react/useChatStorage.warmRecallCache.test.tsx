@@ -8,7 +8,7 @@ import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 import type { ChatBackend, ChatBackendFactory } from "../lib/storage";
 import { localChatBackend } from "../lib/storage";
 import { useChatStorage } from "./useChatStorage";
-import { clearEncryptionKey } from "./useEncryption";
+import { clearAllEncryptionState, clearEncryptionKey } from "./useEncryption";
 
 const walletAddress = "0x00000000000000000000000000000000000000c3";
 
@@ -86,6 +86,37 @@ describe("useChatStorage warmRecallCache", () => {
     expect(backend.warmed).toHaveLength(1);
     expect(backend.searched).toHaveLength(1);
     expect(backend.searched[0]).toBe(backend.warmed[0]);
+  });
+
+  it("aborts a running warm when the encryption state is cleared, and on the caller's abort", async () => {
+    const signals: AbortSignal[] = [];
+    const factory: ChatBackendFactory = (signer) => {
+      const backend: ChatBackend = Object.create(localChatBackend(makeDatabase())(signer));
+      backend.warmChunkCache = ({ signal }) => {
+        signals.push(signal!);
+        return new Promise<number>(() => undefined);
+      };
+      return backend;
+    };
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: makeDatabase(),
+        chatBackend: factory,
+        getToken: () => Promise.resolve("token"),
+        autoEmbedMessages: false,
+      })
+    );
+
+    void result.current.warmRecallCache();
+    const caller = new AbortController();
+    void result.current.warmRecallCache(caller.signal);
+    expect(signals.map((s) => s.aborted)).toEqual([false, false]);
+
+    caller.abort();
+    expect(signals.map((s) => s.aborted)).toEqual([false, true]);
+
+    clearAllEncryptionState();
+    expect(signals.map((s) => s.aborted)).toEqual([true, true]);
   });
 
   it("resolves to zero for a backend that ranks off the device", async () => {

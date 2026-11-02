@@ -1617,6 +1617,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   const chunkVectorCacheRef = useRef<ChunkVectorCache>(createChunkVectorCache());
+  const recallWarmsRef = useRef(new Set<AbortController>());
 
   const clientToolEmbeddingsCacheRef = useRef<Map<string, number[]>>(new Map());
 
@@ -1634,6 +1635,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   useEffect(() => {
     return onClearAllEncryptionState(() => {
       vaultEmbeddingCache.clear();
+      for (const warm of recallWarmsRef.current) warm.abort();
+      recallWarmsRef.current.clear();
       chunkVectorCacheRef.current.clear();
     });
   }, [vaultEmbeddingCache]);
@@ -1771,12 +1774,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   const warmRecallCache = useCallback(
-    async (signal?: AbortSignal): Promise<number> =>
-      (await backend.warmChunkCache?.({
-        chunkCache: chunkVectorCacheRef.current,
-        embeddingModel,
-        ...(signal && { signal }),
-      })) ?? 0,
+    async (signal?: AbortSignal): Promise<number> => {
+      if (!backend.warmChunkCache) return 0;
+      const warm = new AbortController();
+      const stop = () => warm.abort(signal?.reason);
+      if (signal?.aborted) stop();
+      signal?.addEventListener("abort", stop, { once: true });
+      recallWarmsRef.current.add(warm);
+      try {
+        return await backend.warmChunkCache({
+          chunkCache: chunkVectorCacheRef.current,
+          embeddingModel,
+          signal: warm.signal,
+        });
+      } finally {
+        recallWarmsRef.current.delete(warm);
+        signal?.removeEventListener("abort", stop);
+      }
+    },
     [backend, embeddingModel]
   );
 

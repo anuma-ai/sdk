@@ -1,12 +1,14 @@
 // @vitest-environment node
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { type Logger, noopLogger, setLogger } from "../../logger";
 import { createChunkVectorCache } from "../../memory/chunkVectorCache";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../schema";
 import { Conversation } from "./models";
 import {
+  type CachedChunkVectors,
   type ChunkSearchStats,
   createConversationOp,
   createMessageOp,
@@ -155,5 +157,64 @@ describe("warmChunkVectorCacheOp", () => {
       warmChunkVectorCacheOp(ctx, { chunkCache, embeddingModel: MODEL, signal: controller.signal })
     ).rejects.toThrow("signed out");
     expect(chunkCache.size).toBe(0);
+  });
+
+  it("writes nothing more once aborted while a row is being read", async () => {
+    const controller = new AbortController();
+    class AbortAfterFirstWrite extends Map<string, CachedChunkVectors> {
+      override set(key: string, value: CachedChunkVectors) {
+        super.set(key, value);
+        controller.abort(new Error("signed out"));
+        return this;
+      }
+    }
+    const chunkCache = new AbortAfterFirstWrite();
+
+    await expect(
+      warmChunkVectorCacheOp(ctx, { chunkCache, embeddingModel: MODEL, signal: controller.signal })
+    ).rejects.toThrow("signed out");
+    expect(chunkCache.size).toBe(1);
+  });
+
+  describe("with an unreadable vector", () => {
+    const warnings: string[] = [];
+
+    beforeEach(() => {
+      warnings.length = 0;
+      const spy: Logger = {
+        ...noopLogger,
+        warn: (...args: unknown[]) => {
+          warnings.push(String(args[0]));
+        },
+      };
+      setLogger(spy);
+    });
+
+    afterEach(() => setLogger(noopLogger));
+
+    it("says how many it could not read, as a search would", async () => {
+      await createMessageOp(ctx, {
+        conversationId: "live",
+        role: "assistant",
+        content: "truncated payload",
+        uniqueId: "m-corrupt",
+      });
+      await updateMessageChunksOp(
+        ctx,
+        "m-corrupt",
+        [{ text: "truncated payload", vector: "!!!not-base64!!!", startOffset: 0, endOffset: 17 }],
+        MODEL
+      );
+
+      expect(
+        await warmChunkVectorCacheOp(ctx, {
+          chunkCache: createChunkVectorCache(),
+          embeddingModel: MODEL,
+        })
+      ).toBe(4);
+      expect(warnings.filter((w) => w.includes("could not read"))).toEqual([
+        expect.stringContaining("warmChunkVectorCacheOp: could not read 1 chunk vectors"),
+      ]);
+    });
   });
 });
