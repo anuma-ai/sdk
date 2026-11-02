@@ -352,7 +352,23 @@ describe("useChatStorage background turns", () => {
 
     const walletSigner = vi.fn(async () => "0x" + "ab".repeat(65));
 
-    function renderWithInbox(inbox: VaultInbox, database = makeDatabase()) {
+    async function deviceWithTurn(...parents: string[]): Promise<Database> {
+      const database = makeDatabase();
+      const local = localChatBackend(database)({});
+      await local.createConversation({ conversationId: "conv_bg" });
+      for (const uniqueId of parents) {
+        await local.createMessage({
+          conversationId: "conv_bg",
+          role: "user",
+          content: "question",
+          model: "",
+          uniqueId,
+        });
+      }
+      return database;
+    }
+
+    function renderWithInbox(inbox: VaultInbox, database: Database) {
       return renderHook(() =>
         useChatStorage({
           database,
@@ -377,7 +393,7 @@ describe("useChatStorage background turns", () => {
           },
         },
       ]);
-      const { result } = renderWithInbox(inbox);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn("msg_parent"));
 
       let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
       await act(async () => {
@@ -406,7 +422,7 @@ describe("useChatStorage background turns", () => {
 
     it("falls back to the inference id when the sender sent no reply id", async () => {
       const { inbox } = fakeInbox([{ id: "0xnoid", plaintext: sealedAnswer("0xnoid", null) }]);
-      const { result } = renderWithInbox(inbox);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn());
 
       let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
       await act(async () => {
@@ -419,7 +435,7 @@ describe("useChatStorage background turns", () => {
     });
 
     it("never overwrites an answer the live client already stored", async () => {
-      const database = makeDatabase();
+      const database = await deviceWithTurn("msg_parent");
       await localChatBackend(database)({}).createMessage({
         conversationId: "conv_bg",
         role: "assistant",
@@ -451,9 +467,36 @@ describe("useChatStorage background turns", () => {
       expect(assistants.map((m) => m.content)).toEqual(["Live answer."]);
     });
 
+    it("leaves an answer for the device that has the turn", async () => {
+      const { inbox, removed } = fakeInbox([
+        {
+          id: "0xother",
+          plaintext: {
+            ...sealedAnswer("0xother", "msg_on_laptop"),
+            assistant_message_id: "msg_bg_x",
+          },
+        },
+        { id: "0xnoparent", plaintext: sealedAnswer("0xnoparent", null) },
+      ]);
+      const phone = makeDatabase();
+      const { result } = renderWithInbox(inbox, phone);
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([
+        { id: "0xother", status: "elsewhere", assistantMessage: null },
+        { id: "0xnoparent", status: "elsewhere", assistantMessage: null },
+      ]);
+      expect(removed).toEqual([]);
+      expect(await localChatBackend(phone)({}).getMessagesByIds(["msg_bg_x"])).toEqual([]);
+    });
+
     it("keeps an item it cannot open", async () => {
       const { inbox, removed } = fakeInbox([{ id: "0xbad", sealed: '{"v":9}' }]);
-      const { result } = renderWithInbox(inbox);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn());
 
       let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
       await act(async () => {
@@ -468,7 +511,7 @@ describe("useChatStorage background turns", () => {
       const { inbox } = fakeInbox([
         { id: "0xtool", plaintext: sealedAnswer("0xtool", "msg_tool_parent", "tool_request") },
       ]);
-      const { result } = renderWithInbox(inbox);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn("msg_tool_parent"));
 
       let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
       await act(async () => {

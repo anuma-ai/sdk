@@ -769,7 +769,7 @@ export type SendMessageWithStorageResult =
 export type InboxDeliveryResult = {
   id: string;
   conversationId: string | null;
-  status: "stored" | "delivered" | "unreadable" | "retry";
+  status: "stored" | "delivered" | "elsewhere" | "unreadable" | "retry";
   assistantMessage: StoredMessage | null;
   error?: string;
 };
@@ -3281,6 +3281,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       try {
         const messageId = opened.assistant_message_id ?? `msg_bg_${opened.inference_id}`;
         const [existing] = await backend.getMessagesByIds([messageId]);
+        if (!existing) {
+          const parent = opened.parent_message_id;
+          const ownsTurn = parent
+            ? (await backend.getMessagesByIds([parent])).length > 0
+            : (await backend.getConversation(opened.conversation_id)) !== null;
+          if (!ownsTurn) {
+            results.push({ ...base, status: "elsewhere", assistantMessage: null });
+            continue;
+          }
+        }
         let stored = existing;
         if (!stored) {
           const { redactor } = resolveCallPii(undefined, piiRedaction, () =>

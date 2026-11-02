@@ -42,6 +42,6 @@ Defined in: [src/react/useChatStorage.ts:770](https://github.com/anuma-ai/sdk/bl
 
 ### status
 
-> **status**: `"stored"` | `"delivered"` | `"unreadable"` | `"retry"`
+> **status**: `"stored"` | `"delivered"` | `"elsewhere"` | `"unreadable"` | `"retry"`
 
 Defined in: [src/react/useChatStorage.ts:772](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#772)
