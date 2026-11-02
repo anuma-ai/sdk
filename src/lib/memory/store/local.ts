@@ -159,6 +159,7 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     "trust_tier",
     "superseded_by",
     "visibility",
+    "twin_opt_in",
     "published_at",
     "geohash",
     "topics",

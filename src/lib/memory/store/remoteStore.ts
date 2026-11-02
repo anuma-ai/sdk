@@ -237,6 +237,7 @@ function subscriptionState({ memory, version }: RemoteMemoryRecord): Subscriptio
             memory.event_time_kind,
             memory.trust_tier,
             memory.visibility,
+            memory.twin_opt_in,
             memory.published_at,
             memory.geohash,
             memory.topics,

@@ -2,7 +2,7 @@
 
 > **ResumeStreamResult** = { `data`: `ApiResponse`; `empty?`: `boolean`; `error`: `null`; `interrupted`: `false`; } | { `data`: `ApiResponse` | `null`; `error`: `string`; `interrupted`: `boolean`; `statusCode?`: `number`; }
 
-Defined in: [src/lib/chat/resumeStream.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#122)
+Defined in: [src/lib/chat/resumeStream.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#125)
 
 Result of [resumeStream](../functions/resumeStream.md). A `410 Gone` is the only outcome that throws
 ([StreamExpiredError](../classes/StreamExpiredError.md)); every other terminal is returned.

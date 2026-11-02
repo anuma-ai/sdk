@@ -80,7 +80,29 @@ function requestUrl(input: Parameters<typeof globalThis.fetch>[0]): string {
   return typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 }
 
-function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
+const TOMBSTONE_FIELDS = new Set([
+  "memory_id",
+  "scope",
+  "created_at",
+  "updated_at",
+  "is_deleted",
+  "embedding",
+  "embedding_model",
+  "topics_updated_at",
+  "last_observed_at",
+]);
+
+function scrubTombstone(row: Stored): Stored {
+  if (!row.is_deleted) return row;
+  return {
+    ...(Object.fromEntries(
+      Object.entries(row).filter(([field]) => TOMBSTONE_FIELDS.has(field))
+    ) as Stored),
+    content: "",
+  };
+}
+
+function fakeNearby(initial: { state?: string; key_id?: string; scrubTombstones?: boolean } = {}) {
   const rows = new Map<string, Stored>();
   const versions = new Map<string, number>();
   const catalog = new Map<string, { name: string; name_hash: string; kind?: string }>();
@@ -160,7 +182,7 @@ function fakeNearby(initial: { state?: string; key_id?: string } = {}) {
           row.updated_at > existing.updated_at ||
           (row.updated_at === existing.updated_at && row.is_deleted && !existing.is_deleted)
         )
-          rows.set(row.memory_id, row);
+          rows.set(row.memory_id, initial.scrubTombstones ? scrubTombstone(row) : row);
       }
       await onImport?.();
       return json(200, { written: (body.memories as unknown[]).length });
@@ -886,6 +908,37 @@ describe("migrateMemoriesToRemote", () => {
       embedding: storedVector(JSON.parse(vector4096) as number[]),
     });
     expect(nearby.calls.filter((c) => c === "POST /import")).toHaveLength(2);
+  });
+
+  it("activates a tombstone nearby stores without its payload in a single upload", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const tombstone = await createVaultMemoryOp(ctx, {
+      content: "Had a cat",
+      embedding: vector4096,
+      source: "auto-extracted",
+      factType: "other",
+    });
+    await deleteVaultMemoryOp(ctx, tombstone.uniqueId);
+    await setRaw(ctx, tombstone.uniqueId, {
+      topics: JSON.stringify([{ name: "cats" }]),
+      proof_count: 3,
+    });
+    const nearby = fakeNearby({ scrubTombstones: true });
+
+    const result = await migrate(nearby, ctx, { embeddingOptions: {} });
+
+    expect(result).toMatchObject({ state: "active", imported: 1, reembedded: 0 });
+    expect(nearby.calls.filter((c) => c === "POST /import")).toHaveLength(1);
+    expect(nearby.rows.get(tombstone.uniqueId)).toEqual({
+      memory_id: tombstone.uniqueId,
+      content: "",
+      scope: expect.any(String) as string,
+      created_at: expect.any(Number) as number,
+      updated_at: expect.any(Number) as number,
+      is_deleted: true,
+      embedding: storedVector(JSON.parse(vector4096) as number[]),
+      embedding_model: DEFAULT_API_EMBEDDING_MODEL,
+    });
   });
 
   it("repairs a vector an interrupted earlier run uploaded without one", async () => {

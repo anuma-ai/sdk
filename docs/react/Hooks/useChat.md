@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/react/useChat.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/react/useChat.ts#156)
+Defined in: [src/react/useChat.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/react/useChat.ts#183)
 
 A React hook for managing chat completions with authentication.
 
@@ -56,6 +56,24 @@ Which API endpoint to use. Default: "auto"
 * "auto": automatically selects the best API based on model support
 * "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
 * "completions": OpenAI Chat Completions API (wider model compatibility)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.background?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Keep a resumable generation running server-side when the request fails or
+the hook unmounts; only `stop()` cancels it. Replay it with `resumeStream`.
 
 </td>
 </tr>
@@ -233,12 +251,12 @@ Useful for progress indicators, cost tracking, and custom early-exit logic.
 </td>
 <td>
 
-(`meta`: `object`) => `void`
+(`meta`: [`StreamResumeHandle`](../Internal/type-aliases/StreamResumeHandle.md) & `object`) => `void`
 
 </td>
 <td>
 
-Inference identifier for each HTTP round, including client-tool continuations.
+Stream handle for each HTTP round, including client-tool continuations.
 
 </td>
 </tr>

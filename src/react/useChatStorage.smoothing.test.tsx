@@ -42,7 +42,12 @@ describe("storage stream pacing", () => {
       error: null,
       autoExecutedToolResults: toolResults,
     });
-    vi.mocked(useChat).mockReturnValue({ isLoading: false, sendMessage: send, stop: vi.fn() });
+    vi.mocked(useChat).mockReturnValue({
+      isLoading: false,
+      sendMessage: send,
+      stop: vi.fn(),
+      resumeStream: vi.fn(),
+    });
     const { result } = renderHook(() =>
       useChatStorage({ database, autoCreateConversation: false })
     );
