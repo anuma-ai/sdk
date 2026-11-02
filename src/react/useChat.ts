@@ -212,6 +212,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     round: number;
     cancel: () => void;
     handle: StreamResumeHandle;
+    settled?: boolean;
   } | null>(null);
   const cancelInference = useCallback(
     (inferenceId: string, requestToken?: string) => {
@@ -248,8 +249,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
   useEffect(
     () => () => {
-      if (keepAliveRef.current && detachControllerRef.current) {
-        detachControllerRef.current.abort();
+      if (keepAliveRef.current) {
+        if (detachControllerRef.current) {
+          detachControllerRef.current.abort();
+          return;
+        }
+        pendingInferenceRef.current = null;
+        abortControllerRef.current?.abort();
+        abortControllerRef.current = null;
         return;
       }
       stop();
@@ -266,25 +273,47 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       if (!getterValidation.valid) {
         return { data: null, error: getterValidation.message, interrupted: false };
       }
-      const token = await getToken!();
-      const tokenValidation = validateToken(token);
-      if (!tokenValidation.valid) {
-        return { data: null, error: tokenValidation.message, interrupted: false };
-      }
 
       const { headless, ...resumeOpts } = opts ?? {};
+      if (!headless && abortControllerRef.current) {
+        return { data: null, error: "A request is already in progress", interrupted: false };
+      }
+
       const abortController = new AbortController();
+      const requestId = headless ? null : ++requestIdRef.current;
       if (!headless) {
         abortControllerRef.current = abortController;
+        pendingInferenceRef.current = {
+          id: handle.inferenceId,
+          round: -1,
+          cancel: () => cancelInference(handle.inferenceId),
+          handle,
+        };
         setIsLoading(true);
       }
+      const ownsForeground = () => requestId !== null && requestIdRef.current === requestId;
+
       try {
+        let token: string | null;
+        try {
+          token = await getToken!();
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error(String(err));
+          if (!headless) onError?.(error);
+          return { data: null, error: error.message, interrupted: false };
+        }
+        const tokenValidation = validateToken(token);
+        if (!tokenValidation.valid) {
+          return { data: null, error: tokenValidation.message, interrupted: false };
+        }
+
         return await runResumeStream({
           handle,
           token: token!,
           baseUrl,
           smoothing,
           signal: abortController.signal,
+          piiRedactor: typeof resolvedPiiRedaction === "object" ? resolvedPiiRedaction : undefined,
           ...(headless
             ? {}
             : {
@@ -296,13 +325,24 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           ...resumeOpts,
         });
       } finally {
-        if (!headless) setIsLoading(false);
-        if (abortControllerRef.current === abortController) {
-          abortControllerRef.current = null;
+        if (ownsForeground()) {
+          setIsLoading(false);
+          if (abortControllerRef.current === abortController) abortControllerRef.current = null;
+          if (pendingInferenceRef.current?.round === -1) pendingInferenceRef.current = null;
         }
       }
     },
-    [getToken, baseUrl, smoothing, globalOnData, globalOnThinking, onFinish, onError]
+    [
+      getToken,
+      baseUrl,
+      smoothing,
+      cancelInference,
+      resolvedPiiRedaction,
+      globalOnData,
+      globalOnThinking,
+      onFinish,
+      onError,
+    ]
   );
 
   const sendMessage = useCallback(
@@ -462,7 +502,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onToolCall,
           onServerToolCall,
           onToolCallArgumentsDelta,
-          onStepFinish,
+          onStepFinish:
+            keepAlive || onStepFinish
+              ? (event) => {
+                  const pending = pendingInferenceRef.current;
+                  if (keepAlive && pending && requestIdRef.current === requestId) {
+                    pendingInferenceRef.current = { ...pending, settled: true };
+                  }
+                  onStepFinish?.(event);
+                }
+              : undefined,
           preProcessors,
           hooks,
           piiRedaction: requestPiiRedaction ?? resolvedPiiRedaction,
@@ -473,7 +522,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           keepServerStream = true;
           return result;
         }
-        const handle = pendingInferenceRef.current?.handle ?? null;
+        const pending = pendingInferenceRef.current;
+        const handle = pending && !pending.settled ? pending.handle : null;
         if (keepAlive && handle && result.error !== "Request aborted") {
           keepServerStream = true;
           return {

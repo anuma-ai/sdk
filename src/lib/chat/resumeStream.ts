@@ -1,4 +1,5 @@
 import { BASE_URL } from "../../clientConfig";
+import { createStreamingDeAnonymizer, type PiiRedactor } from "../pii/redactor";
 import type { StreamingTransport, StreamResumeHandle } from "./toolLoop";
 import { defaultTransport } from "./toolLoop";
 import { getStrategy } from "./useChat/strategies";
@@ -93,6 +94,8 @@ export interface ResumeStreamOptions {
   onData?: (chunk: string) => void;
   /** Thinking/reasoning deltas as they replay. */
   onThinking?: (chunk: string) => void;
+  /** Restores the placeholders this redactor assigned when the original request was sent. */
+  piiRedactor?: PiiRedactor;
   /** Called once on a clean completion. Never called for 410 nor interrupted terminals. */
   onFinish?: (response: ApiResponse) => void;
   /** Called on a transient/unexpected failure. Never called for 410 (throws) nor interrupted terminals. */
@@ -165,17 +168,40 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     onThinking,
     onFinish,
     onError,
+    piiRedactor,
   } = options;
 
   const strategy = getStrategy(handle.apiType);
 
   const accumulator = createStreamAccumulator(handle.model || undefined);
+  const contentDeAnon =
+    piiRedactor && onData ? createStreamingDeAnonymizer(piiRedactor, onData) : null;
+  const thinkingDeAnon =
+    piiRedactor && onThinking ? createStreamingDeAnonymizer(piiRedactor, onThinking) : null;
   const contentSmoother = new StreamSmoother((text) => {
-    if (onData) onData(text);
+    if (contentDeAnon) contentDeAnon.push(text);
+    else if (onData) onData(text);
   }, smoothing);
   const thinkingSmoother = new StreamSmoother((text) => {
-    if (onThinking) onThinking(text);
+    if (thinkingDeAnon) thinkingDeAnon.push(text);
+    else if (onThinking) onThinking(text);
   }, smoothing);
+  const flushOutput = () => {
+    contentSmoother.flush();
+    thinkingSmoother.flush();
+    contentDeAnon?.flush();
+    thinkingDeAnon?.flush();
+  };
+  const buildFinal = (): ApiResponse =>
+    strategy.buildFinalResponse(
+      piiRedactor
+        ? {
+            ...accumulator,
+            content: piiRedactor.deAnonymize(accumulator.content),
+            thinking: piiRedactor.deAnonymize(accumulator.thinking),
+          }
+        : accumulator
+    );
 
   const idleController = new AbortController();
   let watchdog: ReturnType<typeof setTimeout> | undefined;
@@ -225,12 +251,8 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
   };
 
   const buildInterrupted = (message: string): ResumeStreamResult => {
-    contentSmoother.flush();
-    thinkingSmoother.flush();
-    const data =
-      accumulator.toolCalls.size > 0
-        ? stripToolCalls(strategy.buildFinalResponse(accumulator))
-        : strategy.buildFinalResponse(accumulator);
+    flushOutput();
+    const data = accumulator.toolCalls.size > 0 ? stripToolCalls(buildFinal()) : buildFinal();
     return { data, error: message, interrupted: true };
   };
 
@@ -287,8 +309,7 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     const statusCode = parseSseStatusCode(err);
 
     if (statusCode === 410) {
-      contentSmoother.flush();
-      thinkingSmoother.flush();
+      flushOutput();
       throw new StreamExpiredError(handle.inferenceId);
     }
 
@@ -296,11 +317,10 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
       return buildInterrupted(abortMessage());
     }
 
-    contentSmoother.flush();
-    thinkingSmoother.flush();
+    flushOutput();
     if (onError) onError(err);
     return {
-      data: strategy.buildFinalResponse(accumulator),
+      data: buildFinal(),
       error: err.message,
       interrupted: false,
       statusCode,
@@ -319,7 +339,9 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
     draining = true;
     await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
     if (playbackAborted) return buildInterrupted(abortMessage());
-    const response = strategy.buildFinalResponse(accumulator);
+    contentDeAnon?.flush();
+    thinkingDeAnon?.flush();
+    const response = buildFinal();
     const deliveredOutput = emittedOutput || (accumulator.toolCallEvents?.length ?? 0) > 0;
     if (onFinish && deliveredOutput) onFinish(response);
     return { data: response, error: null, interrupted: false, empty: !deliveredOutput };
