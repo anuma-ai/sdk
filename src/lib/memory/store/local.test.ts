@@ -15,8 +15,8 @@ vi.mock("../../memoryEngine/embeddings", () => {
     return v.map((x) => x / norm);
   };
   return {
-    generateEmbedding: vi.fn(async (text: string) => embed(text)),
-    generateEmbeddings: vi.fn(async (texts: string[]) => texts.map(embed)),
+    generateEmbedding: vi.fn((text: string) => Promise.resolve(embed(text))),
+    generateEmbeddings: vi.fn((texts: string[]) => Promise.resolve(texts.map(embed))),
   };
 });
 
@@ -35,9 +35,9 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../../db/memoryVault/operations";
-import { eagerEmbedContent } from "../../memoryVault/searchTool";
-import { generateEmbedding } from "../../memoryEngine/embeddings";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../../db/schema";
+import { generateEmbedding } from "../../memoryEngine/embeddings";
+import { eagerEmbedContent } from "../../memoryVault/searchTool";
 import { recall } from "../recall";
 import { runMemoryStoreContract } from "./contract";
 import { createLocalMemoryStore } from "./local";
@@ -130,17 +130,29 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
     }
   });
 
-  it.each([true, false])(
-    "notifies subscribers when only twin opt-in changes to %s",
-    async (twinOptIn) => {
+  it.each([
+    { twinOptIn: true, embeddings: false },
+    { twinOptIn: false, embeddings: false },
+    { twinOptIn: true, embeddings: true },
+    { twinOptIn: false, embeddings: true },
+  ])(
+    "notifies subscribers when only twin opt-in changes to $twinOptIn with embeddings=$embeddings",
+    async ({ twinOptIn, embeddings }) => {
       const { store } = setup();
       const memory = await store.create({ content: "Plays chess", embedding: "[1,0]" });
       const published = await store.setVisibility(memory.uniqueId, "public", {
         twinOptIn: !twinOptIn,
       });
+      expect(published).toMatchObject({
+        visibility: "public",
+        twinOptIn: !twinOptIn,
+        updatedAt: memory.updatedAt,
+      });
+      expect(typeof published?.publishedAt).toBe("number");
       const onChange = vi.fn();
-      const unsubscribe = store.subscribe(onChange);
+      const unsubscribe = store.subscribe(onChange, { embeddings });
       try {
+        expect(onChange).not.toHaveBeenCalled();
         const expected = {
           visibility: "public",
           twinOptIn,
@@ -334,7 +346,7 @@ describe("createLocalMemoryStore write eligibility", () => {
     const store = createLocalMemoryStore({
       database,
       embeddingOptions,
-      canWrite: async () => writable,
+      canWrite: () => Promise.resolve(writable),
     });
     const memory = await store.create({ content: "Original memory", embedding: "[1,0]" });
     let release!: () => void;
@@ -393,7 +405,7 @@ describe("createLocalMemoryStore write eligibility", () => {
     const store = createLocalMemoryStore({
       database,
       embeddingOptions,
-      canWrite: async () => writable,
+      canWrite: () => Promise.resolve(writable),
     });
     const retained = store.retain("A delayed fact", { enableAutoMerge: false });
     const rejected = expect(retained).rejects.toThrow("Memory source is no longer eligible");
@@ -416,7 +428,7 @@ describe("createLocalMemoryStore write eligibility", () => {
       []
     );
     await expect(
-      store.addTopics(row.uniqueId, ["Disallowed"], { canWrite: async () => false })
+      store.addTopics(row.uniqueId, ["Disallowed"], { canWrite: () => Promise.resolve(false) })
     ).rejects.toThrow("Memory source is no longer eligible");
     expect(await store.topicsByMemories([row.uniqueId])).toEqual(
       new Map([[row.uniqueId, new Set(["user choice"])]])
