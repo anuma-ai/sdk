@@ -202,7 +202,14 @@ describe("warmChunkVectorCacheOp", () => {
       await updateMessageChunksOp(
         ctx,
         "m-corrupt",
-        [{ text: "truncated payload", vector: "!!!not-base64!!!", startOffset: 0, endOffset: 17 }],
+        [
+          {
+            text: "truncated payload",
+            vector: "!!!not-base64!!!",
+            startOffset: 0,
+            endOffset: 17,
+          } as unknown as MessageChunk,
+        ],
         MODEL
       );
 
