@@ -1,6 +1,6 @@
 # ResumeStreamOptions
 
-Defined in: [src/lib/chat/resumeStream.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#61)
+Defined in: [src/lib/chat/resumeStream.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#62)
 
 Options for [resumeStream](../functions/resumeStream.md).
 
@@ -10,7 +10,7 @@ Options for [resumeStream](../functions/resumeStream.md).
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/chat/resumeStream.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#71)
+Defined in: [src/lib/chat/resumeStream.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#72)
 
 Base URL for the portal.
 
@@ -26,7 +26,7 @@ the SDK's configured BASE_URL.
 
 > **handle**: [`StreamResumeHandle`](../type-aliases/StreamResumeHandle.md)
 
-Defined in: [src/lib/chat/resumeStream.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#63)
+Defined in: [src/lib/chat/resumeStream.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#64)
 
 The handle captured from a detached `runToolLoop` result.
 
@@ -36,7 +36,7 @@ The handle captured from a detached `runToolLoop` result.
 
 > `optional` **idleTimeoutMs**: `number`
 
-Defined in: [src/lib/chat/resumeStream.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#91)
+Defined in: [src/lib/chat/resumeStream.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#92)
 
 Client-side watchdog for a dead live-tail.
 
@@ -57,7 +57,7 @@ the portal is reachable. Set to 0 / Infinity to disable.
 
 > `optional` **onData**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/chat/resumeStream.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#93)
+Defined in: [src/lib/chat/resumeStream.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#94)
 
 Content text deltas as they replay (always from seq 0 — reset accumulated text first).
 
@@ -96,7 +96,7 @@ Content text deltas as they replay (always from seq 0 — reset accumulated text
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/lib/chat/resumeStream.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#99)
+Defined in: [src/lib/chat/resumeStream.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#102)
 
 Called on a transient/unexpected failure. Never called for 410 (throws) nor interrupted terminals.
 
@@ -135,7 +135,7 @@ Called on a transient/unexpected failure. Never called for 410 (throws) nor inte
 
 > `optional` **onFinish**: (`response`: `ApiResponse`) => `void`
 
-Defined in: [src/lib/chat/resumeStream.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#97)
+Defined in: [src/lib/chat/resumeStream.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#100)
 
 Called once on a clean completion. Never called for 410 nor interrupted terminals.
 
@@ -174,7 +174,7 @@ Called once on a clean completion. Never called for 410 nor interrupted terminal
 
 > `optional` **onThinking**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/chat/resumeStream.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#95)
+Defined in: [src/lib/chat/resumeStream.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#96)
 
 Thinking/reasoning deltas as they replay.
 
@@ -209,11 +209,21 @@ Thinking/reasoning deltas as they replay.
 
 ***
 
+### piiRedactor?
+
+> `optional` **piiRedactor**: [`PiiRedactor`](../../../expo/Internal/classes/PiiRedactor.md)
+
+Defined in: [src/lib/chat/resumeStream.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#98)
+
+Restores the placeholders this redactor assigned when the original request was sent.
+
+***
+
 ### signal?
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [src/lib/chat/resumeStream.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#78)
+Defined in: [src/lib/chat/resumeStream.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#79)
 
 Aborts the replay; the partial is returned as an interrupted result.
 
@@ -223,7 +233,7 @@ Aborts the replay; the partial is returned as an interrupted result.
 
 > `optional` **smoothing**: `boolean` | [`StreamSmoothingConfig`](../type-aliases/StreamSmoothingConfig.md)
 
-Defined in: [src/lib/chat/resumeStream.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#80)
+Defined in: [src/lib/chat/resumeStream.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#81)
 
 Adaptive output smoothing for the replayed content.
 
@@ -239,7 +249,7 @@ true
 
 > **token**: `string`
 
-Defined in: [src/lib/chat/resumeStream.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#69)
+Defined in: [src/lib/chat/resumeStream.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#70)
 
 Fresh bearer token. The CALLER fetches it at resume time — a multi-minute
 background gap expires the bearer, so a token captured when the original
@@ -251,7 +261,7 @@ stream started must never be reused (see `useChat.resumeStream`).
 
 > `optional` **transport**: `StreamingTransport`
 
-Defined in: [src/lib/chat/resumeStream.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#76)
+Defined in: [src/lib/chat/resumeStream.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#77)
 
 Streaming transport. Defaults to the GET-capable fetch transport; Expo
 passes `xhrTransport` (RN can't stream `fetch` bodies).

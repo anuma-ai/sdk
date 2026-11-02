@@ -614,3 +614,27 @@ describe("resumeStream", () => {
     expect(JSON.stringify(second.data)).not.toContain("first-run");
   });
 });
+
+describe("resumeStream PII restoration", () => {
+  it("restores placeholders the original request's redactor assigned", async () => {
+    const { PiiRedactor } = await import("../pii/redactor");
+    const redactor = new PiiRedactor();
+    expect(redactor.redactText("mail john@example.com").text).toBe("mail [EMAIL_1]");
+    const { transport } = captureTransport(makeTextStream("Sent to [EMA", "IL_1] now"));
+    const chunks: string[] = [];
+
+    const result = await resumeStream({
+      handle,
+      token: "t",
+      transport,
+      smoothing: false,
+      piiRedactor: redactor,
+      onData: (chunk) => chunks.push(chunk),
+    });
+
+    expect(result.error).toBeNull();
+    expect(chunks.join("")).toBe("Sent to john@example.com now");
+    expect(JSON.stringify(result.data)).toContain("Sent to john@example.com now");
+    expect(JSON.stringify(result.data)).not.toContain("[EMAIL_1]");
+  });
+});
