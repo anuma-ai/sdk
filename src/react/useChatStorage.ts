@@ -3252,14 +3252,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [baseResumeStream]
   );
 
-  const registeredInboxKeyRef = useRef<string | null>(null);
+  const registeredInboxKeyRef = useRef<{ inbox: VaultInbox; publicKey: string } | null>(null);
   const deliverInbox = useCallback(async (): Promise<InboxDeliveryResult[]> => {
     if (!inbox || !walletAddress || !signMessage) return [];
     const keyPair = await getKeyPair(walletAddress, signMessage, embeddedWalletSigner);
     const publicKey = await exportInboxPublicKey(keyPair.publicKey);
-    if (registeredInboxKeyRef.current !== publicKey) {
+    const registered = registeredInboxKeyRef.current;
+    if (registered?.inbox !== inbox || registered.publicKey !== publicKey) {
       await inbox.putPublicKey(publicKey);
-      registeredInboxKeyRef.current = publicKey;
+      registeredInboxKeyRef.current = { inbox, publicKey };
     }
 
     const results: InboxDeliveryResult[] = [];

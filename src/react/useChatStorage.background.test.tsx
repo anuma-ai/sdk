@@ -420,6 +420,36 @@ describe("useChatStorage background turns", () => {
       expect(fromB64url(registered[0])).toHaveLength(65);
     });
 
+    it("registers the key with a new inbox handed to the same hook", async () => {
+      const first = fakeInbox([]);
+      const second = fakeInbox([]);
+      const database = await deviceWithTurn();
+      const { result, rerender } = renderHook(
+        ({ inbox }: { inbox: VaultInbox }) =>
+          useChatStorage({
+            database,
+            conversationId: "conv_bg",
+            getToken: async () => "tok",
+            walletAddress: "0x1111111111111111111111111111111111111111",
+            signMessage: walletSigner,
+            resumable: true,
+            background: true,
+            inbox,
+          }),
+        { initialProps: { inbox: first.inbox } }
+      );
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+      rerender({ inbox: second.inbox });
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+
+      expect(first.registered).toHaveLength(1);
+      expect(second.registered).toEqual(first.registered);
+    });
+
     it("falls back to the inference id when the sender sent no reply id", async () => {
       const { inbox } = fakeInbox([{ id: "0xnoid", plaintext: sealedAnswer("0xnoid", null) }]);
       const { result } = renderWithInbox(inbox, await deviceWithTurn());
