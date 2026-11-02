@@ -1928,7 +1928,6 @@ export async function warmChunkVectorCacheOp(
     );
     for (const row of rows) {
       await yieldIfDue();
-      signal?.throwIfAborted();
       const read = await readChunkVectorRow(ctx, row, () => {});
       if (!read) continue;
       chunkCache.set(row.id as string, read.entry);
