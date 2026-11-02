@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1040](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1040)
+Defined in: [src/react/useChatStorage.ts:1078](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1078)
 
 A React hook that wraps useChat and persists messages and conversations to WatermelonDB as they are sent and received.
 
@@ -144,6 +144,24 @@ available. Requires `enableQueue` to be true.
 ```ts
 true
 ```
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.background?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Keep a resumable generation running when the request fails or the hook unmounts,
+and record it in `pendingStreams` so `resumePendingStreams` can store its answer later.
 
 </td>
 </tr>
@@ -689,12 +707,12 @@ Use this to show activity indicators like "Searching..." in the UI.
 </td>
 <td>
 
-(`meta`: `object`) => `void`
+(`meta`: [`StreamResumeHandle`](../Internal/type-aliases/StreamResumeHandle.md) & `object`) => `void`
 
 </td>
 <td>
 
-Inference identifier for each HTTP round, including client-tool continuations.
+Stream handle for each HTTP round, including client-tool continuations.
 
 </td>
 </tr>
@@ -751,6 +769,23 @@ selection — after semantic filtering, tool-set expansion, and exclusions;
 exactly the tools the request carries. Intended for debug logging and
 selection QA (e.g. a prefixed plain-text console line you can filter on).
 Errors thrown by the callback are swallowed.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.pendingStreams?`
+
+</td>
+<td>
+
+[`PendingStreamStore`](../Internal/interfaces/PendingStreamStore.md)
+
+</td>
+<td>
+
+Where background turns are recorded; required for `background` to recover answers.
 
 </td>
 </tr>

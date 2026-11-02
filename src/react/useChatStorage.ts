@@ -8,6 +8,8 @@ import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import { attachFileContextToLastUserMessage } from "../lib/chat/fileContext";
 import { isSendableImageURL } from "../lib/chat/imageParts";
+import { backgroundMessageId, type PendingStreamStore } from "../lib/chat/pendingStreams";
+import { StreamExpiredError, type StreamResumeHandle } from "../lib/chat/resumeStream";
 import { extractSourcesFromToolCallEvents } from "../lib/chat/sources";
 import {
   cleanupConversationSummary,
@@ -166,7 +168,7 @@ import {
 } from "../lib/tools";
 import { mergeActiveToolSets } from "../lib/tools/selection/activeToolSets";
 import { carriedToolSets, recordToolSetTurn } from "../lib/tools/selection/recentToolSets";
-import { useChat } from "./useChat";
+import { type StreamMeta, useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
 import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
@@ -547,8 +549,15 @@ export async function storedToLlmapiMessage(
 export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
   /** Opt into the portal stream buffer for every generated round. */
   resumable?: boolean;
-  /** Inference identifier for each HTTP round, including client-tool continuations. */
-  onStreamMeta?: (meta: { inferenceId: string; round: number }) => void;
+  /**
+   * Keep a resumable generation running when the request fails or the hook unmounts,
+   * and record it in `pendingStreams` so `resumePendingStreams` can store its answer later.
+   */
+  background?: boolean;
+  /** Where background turns are recorded; required for `background` to recover answers. */
+  pendingStreams?: PendingStreamStore;
+  /** Stream handle for each HTTP round, including client-tool continuations. */
+  onStreamMeta?: (meta: StreamMeta) => void;
   /**
    * Which API endpoint to use. Default: "responses"
    * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
@@ -733,7 +742,33 @@ export type SendMessageWithStorageResult =
       error: string;
       userMessage?: StoredMessage;
       assistantMessage?: undefined;
+    }
+  | {
+      data: null;
+      error: "Request detached";
+      detached: true;
+      /** Recover the answer with `resumePendingStreams` once the page is back. */
+      resume: StreamResumeHandle;
+      userMessage: StoredMessage;
+      assistantMessage?: undefined;
     };
+
+/**
+ * Outcome of recovering one background turn.
+ * - `completed` / `interrupted`: the replayed answer was stored
+ * - `delivered`: the answer was already stored
+ * - `expired`: the portal buffer is gone; the record was dropped
+ * - `retry`: a transient failure; the record was kept
+ * @public
+ */
+export type ResumePendingStreamResult = {
+  conversationId: string;
+  parentMessageId: string;
+  inferenceId: string;
+  status: "completed" | "interrupted" | "delivered" | "expired" | "retry";
+  assistantMessage: StoredMessage | null;
+  error?: string;
+};
 
 /**
  * Options for searching messages
@@ -946,6 +981,9 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * Current status of the write queue.
    */
   queueStatus: QueueStatus;
+
+  /** Replay every recorded background turn for this wallet and store the recovered answers. */
+  resumePendingStreams: () => Promise<ResumePendingStreamResult[]>;
 }
 
 const NO_STORE_FOLDERS = "Folders are not supported with a memoryStore";
@@ -1052,6 +1090,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onServerToolCall,
     onToolCallArgumentsDelta,
     resumable,
+    background = false,
+    pendingStreams,
     onStreamMeta,
     apiType,
     walletAddress,
@@ -1800,10 +1840,31 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [backend, embeddingModel]
   );
 
+  const recordsBackground = resumable === true && background && pendingStreams !== undefined;
+  const activeSendRef = useRef<{ conversationId: string; parentMessageId: string } | null>(null);
+  const handleStreamMeta = useCallback(
+    (meta: StreamMeta) => {
+      const active = activeSendRef.current;
+      if (recordsBackground && active) {
+        const { round: _round, ...handle } = meta;
+        pendingStreams.put({
+          ...handle,
+          conversationId: active.conversationId,
+          parentMessageId: active.parentMessageId,
+          walletAddress,
+          createdAt: Date.now(),
+        });
+      }
+      onStreamMeta?.(meta);
+    },
+    [recordsBackground, pendingStreams, walletAddress, onStreamMeta]
+  );
+
   const {
     isLoading,
     sendMessage: baseSendMessage,
     stop,
+    resumeStream: baseResumeStream,
   } = useChat({
     getToken,
     baseUrl,
@@ -1814,7 +1875,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onServerToolCall,
     onToolCallArgumentsDelta,
     resumable,
-    onStreamMeta,
+    background,
+    onStreamMeta: recordsBackground ? handleStreamMeta : onStreamMeta,
     apiType,
     preProcessors,
     hooks,
@@ -2892,11 +2954,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
+      if (recordsBackground) {
+        activeSendRef.current = {
+          conversationId: convId,
+          parentMessageId: storedUserMessage.uniqueId,
+        };
+      }
       const result = await baseSendMessage({
         messages: messagesToSend,
         model,
         onData: perRequestOnData,
-        headers,
+        headers: recordsBackground
+          ? { ...headers, "X-Parent-Message-ID": storedUserMessage.uniqueId }
+          : headers,
         memoryContext,
         searchContext,
         fileContext: fileContextIsCurrentTurn ? undefined : fileContextForRequest,
@@ -2919,6 +2989,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         conversationId: convId,
         piiRedaction: callPiiRedaction,
       });
+
+      if (activeSendRef.current?.parentMessageId === storedUserMessage.uniqueId) {
+        activeSendRef.current = null;
+      }
+      const detached = result as { detached?: true; resume?: StreamResumeHandle | null };
+      if (recordsBackground && detached.detached && detached.resume) {
+        return {
+          data: null,
+          error: "Request detached",
+          detached: true,
+          resume: detached.resume,
+          userMessage: storedUserMessage,
+        };
+      }
+      if (recordsBackground) pendingStreams.remove(storedUserMessage.uniqueId);
 
       const responseDuration = (Date.now() - startTime) / 1000;
 
@@ -3147,6 +3232,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       embeddedWalletSigner,
       extractAndStoreEncryptedMCPImages,
       toAssistantMessageFields,
+      recordsBackground,
+      pendingStreams,
       mcpR2Domain,
       embedMessageAsync,
       isEncryptionReady,
@@ -3166,10 +3253,103 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [backend]
   );
 
+  const resumingRef = useRef(new Set<string>());
+  const resumePendingStreams = useCallback(async (): Promise<ResumePendingStreamResult[]> => {
+    if (!pendingStreams) return [];
+    const wallet = walletAddress?.toLowerCase();
+    const entries = pendingStreams
+      .list()
+      .filter(
+        (entry) => !wallet || !entry.walletAddress || entry.walletAddress.toLowerCase() === wallet
+      )
+      .filter((entry) => !resumingRef.current.has(entry.parentMessageId));
+
+    const results: ResumePendingStreamResult[] = [];
+    for (const entry of entries) {
+      resumingRef.current.add(entry.parentMessageId);
+      const base = {
+        conversationId: entry.conversationId,
+        parentMessageId: entry.parentMessageId,
+        inferenceId: entry.inferenceId,
+      };
+      try {
+        const messageId = backgroundMessageId(entry.inferenceId);
+        const [existing] = await backend.getMessagesByIds([messageId]);
+        if (existing) {
+          pendingStreams.remove(entry.parentMessageId);
+          results.push({ ...base, status: "delivered", assistantMessage: existing });
+          continue;
+        }
+
+        let replay: Awaited<ReturnType<typeof baseResumeStream>>;
+        try {
+          replay = await baseResumeStream(entry, { headless: true });
+        } catch (err) {
+          if (!(err instanceof StreamExpiredError)) throw err;
+          pendingStreams.remove(entry.parentMessageId);
+          results.push({ ...base, status: "expired", assistantMessage: null });
+          continue;
+        }
+
+        if (replay.error !== null && !replay.interrupted) {
+          results.push({ ...base, status: "retry", assistantMessage: null, error: replay.error });
+          continue;
+        }
+        if (!replay.data || (replay.error === null && replay.empty)) {
+          pendingStreams.remove(entry.parentMessageId);
+          results.push({ ...base, status: "expired", assistantMessage: null });
+          continue;
+        }
+
+        const knownToolCallEventIds = await backend.getToolCallEventIds(entry.conversationId);
+        const { fields } = await toAssistantMessageFields(
+          replay.data,
+          entry.conversationId,
+          knownToolCallEventIds
+        );
+        const stored = await backend.upsertMessage({
+          ...fields,
+          conversationId: entry.conversationId,
+          role: "assistant",
+          model: replay.data.model || entry.model || "",
+          parentMessageId: entry.parentMessageId,
+          wasStopped: replay.interrupted ? true : undefined,
+          uniqueId: messageId,
+        });
+        pendingStreams.remove(entry.parentMessageId);
+        void embedMessageAsync(stored, maskForEmbedding);
+        results.push({
+          ...base,
+          status: replay.interrupted ? "interrupted" : "completed",
+          assistantMessage: stored,
+        });
+      } catch (err) {
+        results.push({
+          ...base,
+          status: "retry",
+          assistantMessage: null,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      } finally {
+        resumingRef.current.delete(entry.parentMessageId);
+      }
+    }
+    return results;
+  }, [
+    pendingStreams,
+    walletAddress,
+    backend,
+    baseResumeStream,
+    toAssistantMessageFields,
+    embedMessageAsync,
+    maskForEmbedding,
+  ]);
+
   return {
     isLoading,
     sendMessage,
     stop,
+    resumePendingStreams,
     conversationId: currentConversationId,
     setConversationId: setCurrentConversationId,
     createConversation,

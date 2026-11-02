@@ -88,6 +88,12 @@ export {
   buildAttachedFilesText,
   isAttachedFilesText,
 } from "../lib/chat/fileContext";
+export type { PendingStream, PendingStreamStore } from "../lib/chat/pendingStreams";
+export {
+  backgroundMessageId,
+  createLocalStoragePendingStreams,
+  PENDING_STREAM_MAX_AGE_MS,
+} from "../lib/chat/pendingStreams";
 export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
 export type { ReservationReceipt } from "../lib/chat/reservationReceipts";
 export { extractReservationReceipts } from "../lib/chat/reservationReceipts";
@@ -906,8 +912,10 @@ export type {
   ProviderAuthState,
 } from "./useBackupAuth";
 export { BackupAuthProvider, useBackupAuth } from "./useBackupAuth";
+export type { StreamMeta } from "./useChat";
 export { useChat } from "./useChat";
 export type {
+  ResumePendingStreamResult,
   SearchMessagesOptions,
   SendMessageWithStorageArgs,
   SendMessageWithStorageResult,

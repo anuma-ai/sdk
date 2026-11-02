@@ -117,7 +117,7 @@ interface UseChatOptions extends BaseUseChatOptions {
  * A resumable stream handle plus the tool-loop round that issued it.
  * @inline
  */
-type StreamMeta = StreamResumeHandle & { round: number };
+export type StreamMeta = StreamResumeHandle & { round: number };
 
 type UseChatResult = BaseUseChatResult & {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
