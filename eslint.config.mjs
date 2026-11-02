@@ -63,6 +63,7 @@ const checkedTestFiles = [
   "src/lib/memoryVault/searchTool.test.ts",
   "src/lib/memory/decay.test.ts",
   "src/lib/pii/chatStorageSession.test.tsx",
+  "src/lib/pii/detectors/transformers.test.ts",
   "src/lib/processors/preprocessor.remoteUrls.test.ts",
   "src/react/useAccountFetch.abort.test.tsx",
   "src/react/useChatStorage.fileSize.test.tsx",
