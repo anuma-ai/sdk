@@ -27,6 +27,7 @@ const checkedTestFiles = [
   "src/lib/chatStore/migrateChats.test.ts",
   "src/lib/chatStore/remote.test.ts",
   "src/lib/chatStore/vaultAttachments.test.ts",
+  "src/lib/memory/store/local.test.ts",
   "src/lib/memory/store/remoteMigration.test.ts",
   "src/lib/memory/store/remoteStore.test.ts",
   ...appGenerationTests,

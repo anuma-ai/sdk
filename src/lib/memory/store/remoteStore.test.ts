@@ -2046,6 +2046,45 @@ describe("remote MemoryStore", () => {
     ).rejects.toMatchObject({ code: "version_conflict" });
   });
 
+  it.each([true, false])(
+    "notifies subscribers when only twin opt-in changes to %s on another device",
+    async (twinOptIn) => {
+      const { store: laptop, server, keys } = await remoteStore();
+      const memory = await laptop.create({ content: "Plays chess", embedding: axis(0) });
+      const published = await laptop.setVisibility(memory.uniqueId, "public", {
+        twinOptIn: !twinOptIn,
+      });
+      const { store: phone } = await remoteStore(server, keys, 20);
+      const onChange = vi.fn();
+      const unsubscribe = phone.subscribe(onChange);
+      try {
+        await vi.waitFor(() =>
+          expect(
+            server.fetch.mock.calls.some(
+              ([input, init]) =>
+                requestUrl(input).endsWith("/memories/query") &&
+                parseBody(init!.body).cursor !== undefined
+            )
+          ).toBe(true)
+        );
+        expect(onChange).not.toHaveBeenCalled();
+        const expected = {
+          visibility: "public",
+          twinOptIn,
+          updatedAt: memory.updatedAt,
+          publishedAt: published?.publishedAt,
+        };
+        expect(await laptop.setVisibility(memory.uniqueId, "public", { twinOptIn })).toMatchObject(
+          expected
+        );
+        await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+        expect(await phone.get(memory.uniqueId)).toMatchObject(expected);
+      } finally {
+        unsubscribe();
+      }
+    }
+  );
+
   it("polls nearby so a subscriber sees another device's write", async () => {
     const ring = await deriveMemoryKeyRing(`0x${"e5".repeat(65)}`);
     const shared = fakeNearby(ring.keyId);
