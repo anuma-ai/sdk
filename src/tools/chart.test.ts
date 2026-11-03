@@ -34,6 +34,32 @@ describe("display_chart tool", () => {
     });
   });
 
+  it("rejects numbers that overflow to Infinity", async () => {
+    const result = await run({
+      chartType: "bar",
+      data: [{ day: "Mon", value: "1e309" }],
+      dataKeys: ["value"],
+      xAxisKey: "day",
+    });
+
+    expect(result).toHaveProperty("error");
+  });
+
+  it("rejects a decimal comma instead of reading it as thousands", async () => {
+    const result = await run({
+      chartType: "bar",
+      data: [
+        { day: "Mon", value: "1,5" },
+        { day: "Tue", value: "12,345,678.9" },
+      ],
+      dataKeys: ["value"],
+      xAxisKey: "day",
+    });
+
+    expect(result).toHaveProperty("error");
+    expect((result as { error: string }).error).toContain('"1,5"');
+  });
+
   it("rejects a series with a non-numeric value", async () => {
     const result = await run({
       chartType: "bar",

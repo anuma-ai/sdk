@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import React from "react";
 import { ChartCard } from "./chart";
-import type { DisplayChartResult } from "../tools/chart";
+import type { ChartDataPoint, DisplayChartResult } from "../tools/chart";
 
 vi.mock("recharts", () => {
   function safeAttrs(props: Record<string, unknown>) {
@@ -202,7 +202,7 @@ describe("ChartCard", () => {
     });
 
     const yAxis = screen.getByTestId("YAxis");
-    expect(yAxis.getAttribute("data-tick-sample")).toBe("2.2T");
+    expect(yAxis.getAttribute("data-tick-sample")).toBe("2.15T");
     expect(Number(yAxis.getAttribute("data-width"))).toBeGreaterThanOrEqual(40);
   });
 
@@ -235,6 +235,20 @@ describe("ChartCard", () => {
     expect(container.querySelector('[data-slot="chart"]')?.getAttribute("aria-hidden")).toBe(
       "true"
     );
+  });
+
+  it("renders non-primitive labels as empty table cells instead of crashing", async () => {
+    await renderChart({
+      chartType: "bar",
+      data: [{ label: { text: "Mon" }, value: 10 }] as unknown as ChartDataPoint[],
+      dataKeys: ["value"],
+      xAxisKey: "label",
+    });
+
+    const cells = Array.from(screen.getByRole("table").querySelectorAll("tbody td")).map(
+      (td) => td.textContent
+    );
+    expect(cells).toEqual(["", "10"]);
   });
 
   it("gives every pie slice a distinct color", async () => {

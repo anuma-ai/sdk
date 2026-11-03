@@ -18,12 +18,18 @@ export type DisplayChartResult =
     };
 
 const NUMERIC_STRING = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?$/i;
+const THOUSANDS_GROUPED = /^[-+]?\d{1,3}(?:,\d{3})+(?:\.\d*)?$/;
 
 function toNumber(value: unknown): number | undefined {
   if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
   if (typeof value !== "string") return undefined;
-  const cleaned = value.replace(/[\s,$€£¥%]/g, "");
-  return NUMERIC_STRING.test(cleaned) ? Number(cleaned) : undefined;
+  let cleaned = value.replace(/[\s$€£¥%]/g, "");
+  if (cleaned.includes(",")) {
+    if (!THOUSANDS_GROUPED.test(cleaned)) return undefined;
+    cleaned = cleaned.replace(/,/g, "");
+  }
+  const number = NUMERIC_STRING.test(cleaned) ? Number(cleaned) : undefined;
+  return number !== undefined && Number.isFinite(number) ? number : undefined;
 }
 
 /**

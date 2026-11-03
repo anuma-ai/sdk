@@ -340,7 +340,16 @@ function paletteColor(index: number): string {
     : `hsl(${Math.round((index * 137.508) % 360)} 65% 55%)`;
 }
 
-const compactNumber = new Intl.NumberFormat(undefined, { notation: "compact" });
+const compactNumber = new Intl.NumberFormat(undefined, {
+  notation: "compact",
+  maximumSignificantDigits: 3,
+});
+
+function cellText(value: unknown): string {
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+    ? String(value)
+    : "";
+}
 
 function formatTick(value: unknown): string {
   return typeof value === "number" ? compactNumber.format(value) : String(value);
@@ -432,7 +441,7 @@ export function ChartCard({ data }: ChartCardProps) {
             {chartData.map((point, row) => (
               <tr key={row}>
                 {tableColumns.map((column) => (
-                  <td key={column}>{point[column] ?? ""}</td>
+                  <td key={column}>{cellText(point[column])}</td>
                 ))}
               </tr>
             ))}
