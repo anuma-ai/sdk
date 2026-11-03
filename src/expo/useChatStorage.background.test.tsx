@@ -38,7 +38,7 @@ vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
 
 import { sealInboxItem } from "../lib/chat/fixtures/sealInboxItem";
 import type { InboxItem, VaultInbox } from "../lib/chat/inbox";
-import { listActiveStreams, resumeStream } from "../lib/chat/resumeStream";
+import { listActiveStreams, resumeStream, StreamExpiredError } from "../lib/chat/resumeStream";
 import { runToolLoop } from "../lib/chat/toolLoop";
 import { PiiRedactor } from "../lib/pii/redactor";
 import { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
@@ -281,7 +281,8 @@ describe("expo useChatStorage background turns", () => {
   });
 
   describe("inbox", () => {
-    function fakeInbox(entries: Array<{ id: string; plaintext: unknown }>) {
+    type InboxEntry = { id: string; plaintext: unknown };
+    function fakeInbox(entries: InboxEntry[] | (() => InboxEntry[])) {
       let publicKey: string | null = null;
       const removed: string[] = [];
       const inbox: VaultInbox = {
@@ -290,7 +291,7 @@ describe("expo useChatStorage background turns", () => {
         },
         list: async () => {
           const items: InboxItem[] = [];
-          for (const entry of entries) {
+          for (const entry of typeof entries === "function" ? entries() : entries) {
             if (removed.includes(entry.id)) continue;
             items.push({
               id: entry.id,
@@ -409,6 +410,106 @@ describe("expo useChatStorage background turns", () => {
 
       expect(delivered).toMatchObject([{ status: "stored" }]);
       expect(delivered?.[0].assistantMessage?.parentMessageId ?? null).toBeNull();
+    });
+
+    function detachWithPartial(inferenceId: string) {
+      vi.mocked(runToolLoop).mockImplementationOnce(async (options) => {
+        options.onStreamMeta?.({ inferenceId, round: 0 });
+        return {
+          data: answer("Half an"),
+          error: "Request detached",
+          detached: true,
+          resume: { inferenceId, apiType: "responses" },
+        } as never;
+      });
+    }
+
+    async function detachedTurn(inbox: VaultInbox, database = makeDatabase()) {
+      detachWithPartial("0xturn");
+      const rendered = renderStorage({ inbox, withWallet: true, database });
+      let sent: Awaited<ReturnType<typeof rendered.result.current.sendMessage>> | undefined;
+      await act(async () => {
+        sent = await rendered.result.current.sendMessage(userTurn);
+      });
+      const replyId = vi.mocked(runToolLoop).mock.calls[0][0].headers?.["X-Assistant-Message-ID"];
+      return { ...rendered, replyId: replyId!, parent: sent!.userMessage!.uniqueId, database };
+    }
+
+    it("keeps an inbox answer when the detached turn is later retired by the next send", async () => {
+      const turn: { replyId?: string; parent?: string } = {};
+      const box = fakeInbox(() => [
+        {
+          id: "0xturn",
+          plaintext: {
+            ...sealed("0xturn", turn.parent!),
+            assistant_message_id: turn.replyId,
+            response: answer("The full answer."),
+          },
+        },
+      ]);
+      const { result, replyId, parent } = await detachedTurn(box.inbox);
+      Object.assign(turn, { replyId, parent });
+
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+      vi.mocked(runToolLoop).mockResolvedValue({ data: answer("Next."), error: null } as never);
+      await act(async () => {
+        await result.current.sendMessage(userTurn);
+      });
+
+      const stored = (await result.current.getMessages("conv_bg")).find(
+        (m) => m.uniqueId === replyId
+      );
+      expect(stored).toMatchObject({ content: "The full answer." });
+      expect(stored?.wasStopped).toBeFalsy();
+    });
+
+    it("forgets the detached turn once its answer arrives through the inbox", async () => {
+      const turn: { replyId?: string; parent?: string } = {};
+      const box = fakeInbox(() => [
+        {
+          id: "0xturn",
+          plaintext: {
+            ...sealed("0xturn", turn.parent!),
+            assistant_message_id: turn.replyId,
+          },
+        },
+      ]);
+      const { result, replyId, parent } = await detachedTurn(box.inbox);
+      Object.assign(turn, { replyId, parent });
+
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+      let resumed: Awaited<ReturnType<typeof result.current.resumeStream>> | undefined;
+      await act(async () => {
+        resumed = await result.current.resumeStream();
+      });
+
+      expect(resumed?.error).toBe("No resumable stream");
+    });
+
+    it("never lets a stopped partial replace an answer stored elsewhere", async () => {
+      const { result, replyId, database } = await detachedTurn(fakeInbox([]).inbox);
+      await localChatBackend(database)({}).upsertMessage({
+        conversationId: "conv_bg",
+        role: "assistant",
+        content: "Answer synced from another device.",
+        model: "m",
+        uniqueId: replyId,
+      });
+      vi.mocked(resumeStream).mockRejectedValue(new StreamExpiredError("0xturn"));
+
+      await act(async () => {
+        await result.current.resumeStream();
+      });
+
+      const stored = (await result.current.getMessages("conv_bg")).find(
+        (m) => m.uniqueId === replyId
+      );
+      expect(stored).toMatchObject({ content: "Answer synced from another device." });
+      expect(stored?.wasStopped).toBeFalsy();
     });
 
     it("leaves an answer for the device that has the turn", async () => {

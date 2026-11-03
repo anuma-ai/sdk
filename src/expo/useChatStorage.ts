@@ -1613,6 +1613,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             : undefined,
         uniqueId: ctx.assistantUniqueId!,
       };
+      if (wasStopped) {
+        try {
+          const [current] = await backend.getMessagesByIds([rowOpts.uniqueId]);
+          if (current && !current.wasStopped) return current;
+        } catch (err) {
+          getLogger().warn("[useChatStorage] Could not check for a stored answer:", err);
+        }
+      }
       if (!viaQueue) return backend.upsertMessage(rowOpts);
       const { result } = await writeOrQueue(
         "createMessage",
@@ -2900,7 +2908,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       await inbox.putPublicKey(publicKey);
       registeredInboxKeyRef.current = { inbox, publicKey };
     }
-    return deliverInboxAnswers({
+    const results = await deliverInboxAnswers({
       inbox,
       keyPair,
       backend,
@@ -2931,6 +2939,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         return stored;
       },
     });
+    const pending = pendingResumeRef.current;
+    const answered = results.some(
+      (r) =>
+        (r.status === "stored" || r.status === "delivered") &&
+        r.assistantMessage?.uniqueId === pending?.assistantUniqueId
+    );
+    if (pending && answered) pendingResumeRef.current = null;
+    return results;
   }, [
     inbox,
     walletAddress,
