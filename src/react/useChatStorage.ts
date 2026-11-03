@@ -8,6 +8,12 @@ import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import { attachFileContextToLastUserMessage } from "../lib/chat/fileContext";
 import { isSendableImageURL } from "../lib/chat/imageParts";
+import { exportInboxPublicKey, openInboxItem, type VaultInbox } from "../lib/chat/inbox";
+import type {
+  ActiveStream,
+  ResumeStreamResult,
+  StreamResumeHandle,
+} from "../lib/chat/resumeStream";
 import { extractSourcesFromToolCallEvents } from "../lib/chat/sources";
 import {
   cleanupConversationSummary,
@@ -166,10 +172,15 @@ import {
 } from "../lib/tools";
 import { mergeActiveToolSets } from "../lib/tools/selection/activeToolSets";
 import { carriedToolSets, recordToolSetTurn } from "../lib/tools/selection/recentToolSets";
-import { useChat } from "./useChat";
+import { type StreamMeta, useChat } from "./useChat";
 import { useChatMedia } from "./useChatMedia";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
-import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
+import {
+  getEncryptionKey,
+  getKeyPair,
+  hasEncryptionKey,
+  requestEncryptionKey,
+} from "./useEncryption";
 import { onClearAllEncryptionState, onKeyAvailable } from "./useEncryption";
 
 /**
@@ -547,8 +558,15 @@ export async function storedToLlmapiMessage(
 export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
   /** Opt into the portal stream buffer for every generated round. */
   resumable?: boolean;
-  /** Inference identifier for each HTTP round, including client-tool continuations. */
-  onStreamMeta?: (meta: { inferenceId: string; round: number }) => void;
+  /**
+   * Keep a resumable generation running when the request fails or the hook unmounts.
+   * Portal stores the answer of a turn that finishes with no client attached.
+   */
+  background?: boolean;
+  /** The vault inbox that receives answers finished while no client was attached. */
+  inbox?: VaultInbox;
+  /** Stream handle for each HTTP round, including client-tool continuations. */
+  onStreamMeta?: (meta: StreamMeta) => void;
   /**
    * Which API endpoint to use. Default: "responses"
    * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
@@ -733,7 +751,28 @@ export type SendMessageWithStorageResult =
       error: string;
       userMessage?: StoredMessage;
       assistantMessage?: undefined;
+    }
+  | {
+      data: null;
+      error: "Request detached";
+      detached: true;
+      /** The generation keeps running; watch it with `watchStream`. */
+      resume: StreamResumeHandle;
+      userMessage: StoredMessage;
+      assistantMessage?: undefined;
     };
+
+/**
+ * Outcome of delivering one vault inbox item with `deliverInbox`.
+ * @public
+ */
+export type InboxDeliveryResult = {
+  id: string;
+  conversationId: string | null;
+  status: "stored" | "delivered" | "elsewhere" | "unreadable" | "retry";
+  assistantMessage: StoredMessage | null;
+  error?: string;
+};
 
 /**
  * Options for searching messages
@@ -946,6 +985,15 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * Current status of the write queue.
    */
   queueStatus: QueueStatus;
+
+  /** The caller's generations still running on the portal, optionally for one conversation. */
+  getActiveStreams: (conversationId?: string) => Promise<ActiveStream[]>;
+
+  /** Show a running generation from its first frame; nothing is stored. */
+  watchStream: (stream: ActiveStream) => Promise<ResumeStreamResult>;
+
+  /** Register the inbox public key, then store and remove every answer portal sealed into the inbox. */
+  deliverInbox: () => Promise<InboxDeliveryResult[]>;
 }
 
 const NO_STORE_FOLDERS = "Folders are not supported with a memoryStore";
@@ -1052,6 +1100,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onServerToolCall,
     onToolCallArgumentsDelta,
     resumable,
+    background = false,
+    inbox,
     onStreamMeta,
     apiType,
     walletAddress,
@@ -1800,10 +1850,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [backend, embeddingModel]
   );
 
+  const tracksBackgroundTurns = resumable === true && background;
+
   const {
     isLoading,
     sendMessage: baseSendMessage,
     stop,
+    resumeStream: baseResumeStream,
+    getActiveStreams,
   } = useChat({
     getToken,
     baseUrl,
@@ -1814,6 +1868,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onServerToolCall,
     onToolCallArgumentsDelta,
     resumable,
+    background,
     onStreamMeta,
     apiType,
     preProcessors,
@@ -2034,6 +2089,78 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     mediaCtx,
     mcpR2Domain,
   });
+
+  const toAssistantMessageFields = useCallback(
+    async (
+      responseData: ApiResponse,
+      convId: string,
+      knownToolCallEventIds: Set<string>,
+      requestedImageModel?: string
+    ) => {
+      let assistantContent = "";
+      let thinkingContent: string | undefined;
+
+      if ("output" in responseData && Array.isArray(responseData.output)) {
+        type OutputItem = { type?: string; content?: Array<{ text?: string }> };
+        const outputItems = (responseData.output as OutputItem[]).filter(Boolean);
+        const messageOutput = outputItems.find((item) => item?.type === "message");
+        assistantContent = messageOutput?.content?.map((part) => part.text || "").join("") || "";
+
+        const reasoningOutput = outputItems.find((item) => item?.type === "reasoning");
+        thinkingContent =
+          reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
+      } else if ("choices" in responseData && responseData.choices) {
+        const message = responseData.choices?.[0]?.message;
+        if (message?.content) {
+          assistantContent = Array.isArray(message.content)
+            ? message.content.map((part: { text?: string }) => part.text || "").join("")
+            : String(message.content);
+        }
+      }
+
+      const toolCallEvents = getToolCallEvents(responseData)?.filter(
+        (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
+      );
+
+      const sources = extractSourcesFromToolCallEvents(toolCallEvents).filter(
+        (source: SearchSource) => !source.url?.includes(mcpR2Domain)
+      );
+
+      let content = assistantContent.replace(/\n{3,}/g, "\n\n");
+      let fileIds: string[] = [];
+      let mcpImageModel: string | undefined;
+
+      if (walletAddress && isEncryptionReady()) {
+        const stored = await extractAndStoreEncryptedMCPImages(
+          content,
+          walletAddress,
+          convId,
+          toolCallEvents
+        );
+        fileIds = stored.fileIds;
+        content = stored.cleanedContent;
+        mcpImageModel = stored.imageModel;
+      } else {
+        mcpImageModel = extractMCPImageUrls("", toolCallEvents, mcpR2Domain).find(
+          (u) => u.mediaType === "image"
+        )?.model;
+      }
+
+      return {
+        fileIds,
+        fields: {
+          content,
+          imageModel: requestedImageModel || getImageModel(responseData) || mcpImageModel,
+          fileIds: fileIds.length > 0 ? fileIds : undefined,
+          usage: convertUsageToStored(responseData),
+          sources,
+          thinking: thinkingContent,
+          toolCallEvents: toolCallEvents && toolCallEvents.length > 0 ? toolCallEvents : undefined,
+        },
+      };
+    },
+    [walletAddress, isEncryptionReady, extractAndStoreEncryptedMCPImages, mcpR2Domain]
+  );
 
   const sendMessage = useCallback(
     async (args: SendMessageWithStorageArgs): Promise<SendMessageWithStorageResult> => {
@@ -2820,11 +2947,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
+      const turnAssistantId =
+        assistantUniqueId ?? (tracksBackgroundTurns ? `msg_bg_${uuidv7()}` : undefined);
       const result = await baseSendMessage({
         messages: messagesToSend,
         model,
         onData: perRequestOnData,
-        headers,
+        headers: tracksBackgroundTurns
+          ? {
+              ...headers,
+              "X-Parent-Message-ID": storedUserMessage.uniqueId,
+              "X-Assistant-Message-ID": turnAssistantId!,
+            }
+          : headers,
         memoryContext,
         searchContext,
         fileContext: fileContextIsCurrentTurn ? undefined : fileContextForRequest,
@@ -2847,6 +2982,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         conversationId: convId,
         piiRedaction: callPiiRedaction,
       });
+
+      const detached = result as { detached?: true; resume?: StreamResumeHandle | null };
+      if (tracksBackgroundTurns && detached.detached && detached.resume) {
+        return {
+          data: null,
+          error: "Request detached",
+          detached: true,
+          resume: detached.resume,
+          userMessage: storedUserMessage,
+        };
+      }
 
       const responseDuration = (Date.now() - startTime) / 1000;
 
@@ -2880,7 +3026,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               thoughtProcess: resolveThoughtProcess(),
               thinking: abortedThinkingContent,
               parentMessageId: storedUserMessage.uniqueId,
-              uniqueId: assistantUniqueId,
+              uniqueId: turnAssistantId,
             });
 
             void embedMessageAsync(storedAssistantMessage, maskForCall);
@@ -2928,7 +3074,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             thoughtProcess: resolveThoughtProcess(),
             error: errorMessage,
             parentMessageId: storedUserMessage.uniqueId,
-            uniqueId: assistantUniqueId,
+            uniqueId: turnAssistantId,
           });
         } catch {
           // Ignore storage failure for error message
@@ -2943,82 +3089,22 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       recordToolSetTurn(database, convId, matchedToolSets);
 
       const responseData = result.data;
-      let assistantContent = "";
-      let thinkingContent: string | undefined;
-
-      if ("output" in responseData && Array.isArray(responseData.output)) {
-        type OutputItem = { type?: string; content?: Array<{ text?: string }> };
-        const outputItems = (responseData.output as OutputItem[]).filter(Boolean);
-        const messageOutput = outputItems.find((item) => item?.type === "message");
-        assistantContent = messageOutput?.content?.map((part) => part.text || "").join("") || "";
-
-        const reasoningOutput = outputItems.find((item) => item?.type === "reasoning");
-        thinkingContent =
-          reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
-      } else if ("choices" in responseData && responseData.choices) {
-        const completionsData = responseData;
-        const choice = completionsData.choices?.[0];
-        const message = choice?.message;
-        if (message?.content) {
-          if (Array.isArray(message.content)) {
-            assistantContent = message.content
-              .map((part: { text?: string }) => part.text || "")
-              .join("");
-          } else {
-            assistantContent = String(message.content);
-          }
-        }
-      }
-
-      const currentTurnToolCallEvents = getToolCallEvents(responseData)?.filter(
-        (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
+      const { fileIds: assistantFileIds, fields: assistantFields } = await toAssistantMessageFields(
+        responseData,
+        convId,
+        knownToolCallEventIds,
+        imageModel
       );
-
-      const extractedSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents).filter(
-        (source: SearchSource) => !source.url?.includes(mcpR2Domain)
-      );
-
-      let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");
-
-      let assistantFileIds: string[] = [];
-      let mcpImageModel: string | undefined;
-
-      if (walletAddress && isEncryptionReady()) {
-        const result = await extractAndStoreEncryptedMCPImages(
-          cleanedContent,
-          walletAddress,
-          convId,
-          currentTurnToolCallEvents
-        );
-        assistantFileIds = result.fileIds;
-        cleanedContent = result.cleanedContent;
-        mcpImageModel = result.imageModel;
-      } else {
-        mcpImageModel = extractMCPImageUrls("", currentTurnToolCallEvents, mcpR2Domain).find(
-          (u) => u.mediaType === "image"
-        )?.model;
-      }
-
-      const resolvedImageModel = imageModel || getImageModel(responseData) || mcpImageModel;
 
       const assistantMsgOpts: CreateMessageOptions = {
+        ...assistantFields,
         conversationId: convId,
         role: "assistant",
-        content: cleanedContent,
         model: responseData.model || model,
-        imageModel: resolvedImageModel,
-        fileIds: assistantFileIds.length > 0 ? assistantFileIds : undefined,
-        usage: convertUsageToStored(responseData),
         responseDuration,
-        sources: extractedSources,
         thoughtProcess: resolveThoughtProcess(),
-        thinking: thinkingContent,
         parentMessageId: storedUserMessage.uniqueId,
-        toolCallEvents:
-          currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
-            ? currentTurnToolCallEvents
-            : undefined,
-        uniqueId: assistantUniqueId || `msg_${uuidv7()}`,
+        uniqueId: turnAssistantId || `msg_${uuidv7()}`,
       };
 
       let storedAssistantMessage: StoredMessage;
@@ -3134,6 +3220,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       signMessage,
       embeddedWalletSigner,
       extractAndStoreEncryptedMCPImages,
+      toAssistantMessageFields,
+      tracksBackgroundTurns,
       mcpR2Domain,
       embedMessageAsync,
       isEncryptionReady,
@@ -3153,10 +3241,125 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [backend]
   );
 
+  const watchStream = useCallback(
+    (stream: ActiveStream) =>
+      baseResumeStream({
+        inferenceId: stream.inferenceId,
+        apiType: stream.apiType,
+        model: stream.model,
+        conversationId: stream.conversationId ?? undefined,
+      }),
+    [baseResumeStream]
+  );
+
+  const registeredInboxKeyRef = useRef<{ inbox: VaultInbox; publicKey: string } | null>(null);
+  const deliverInbox = useCallback(async (): Promise<InboxDeliveryResult[]> => {
+    if (!inbox || !walletAddress || !signMessage) return [];
+    const keyPair = await getKeyPair(walletAddress, signMessage, embeddedWalletSigner);
+    const publicKey = await exportInboxPublicKey(keyPair.publicKey);
+    const registered = registeredInboxKeyRef.current;
+    if (registered?.inbox !== inbox || registered.publicKey !== publicKey) {
+      await inbox.putPublicKey(publicKey);
+      registeredInboxKeyRef.current = { inbox, publicKey };
+    }
+
+    const results: InboxDeliveryResult[] = [];
+    for (const item of await inbox.list()) {
+      let opened: Awaited<ReturnType<typeof openInboxItem>>;
+      try {
+        opened = await openInboxItem(item, keyPair);
+      } catch (err) {
+        results.push({
+          id: item.id,
+          conversationId: null,
+          status: "unreadable",
+          assistantMessage: null,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        continue;
+      }
+      const base = { id: item.id, conversationId: opened.conversation_id };
+      try {
+        const messageId = opened.assistant_message_id ?? `msg_bg_${opened.inference_id}`;
+        const [existing] = await backend.getMessagesByIds([messageId]);
+        if (!existing) {
+          const parent = opened.parent_message_id;
+          const ownsTurn = parent
+            ? (await backend.getMessagesByIds([parent])).length > 0
+            : (await backend.getConversation(opened.conversation_id)) !== null;
+          if (!ownsTurn) {
+            results.push({ ...base, status: "elsewhere", assistantMessage: null });
+            continue;
+          }
+        }
+        let stored = existing;
+        if (!stored) {
+          const { redactor } = resolveCallPii(undefined, piiRedaction, () =>
+            getConversationRedactor(opened.conversation_id, nerDetectorRef.current)
+          );
+          const knownToolCallEventIds = await backend.getToolCallEventIds(opened.conversation_id);
+          const { fields, fileIds } = await toAssistantMessageFields(
+            opened.response,
+            opened.conversation_id,
+            knownToolCallEventIds
+          );
+          stored = await backend.createMessage({
+            ...fields,
+            content: redactor ? redactor.deAnonymize(fields.content) : fields.content,
+            thinking:
+              redactor && fields.thinking ? redactor.deAnonymize(fields.thinking) : fields.thinking,
+            conversationId: opened.conversation_id,
+            role: "assistant",
+            model: opened.model,
+            parentMessageId: opened.parent_message_id ?? undefined,
+            wasStopped: opened.status === "tool_request" ? true : undefined,
+            uniqueId: messageId,
+          });
+          if (fileIds.length > 0) {
+            try {
+              await updateMediaMessageIdBatchOp(mediaCtx, fileIds, stored.uniqueId);
+            } catch (err) {
+              getLogger().warn("[useChatStorage] Failed to link inbox media:", err);
+            }
+          }
+          void embedMessageAsync(stored, (text) => (redactor ? redactor.maskText(text) : text));
+        }
+        await inbox.remove(item.id);
+        results.push({
+          ...base,
+          status: existing ? "delivered" : "stored",
+          assistantMessage: stored,
+        });
+      } catch (err) {
+        results.push({
+          ...base,
+          status: "retry",
+          assistantMessage: null,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    return results;
+  }, [
+    inbox,
+    walletAddress,
+    signMessage,
+    embeddedWalletSigner,
+    backend,
+    piiRedaction,
+    getConversationRedactor,
+    toAssistantMessageFields,
+    mediaCtx,
+    embedMessageAsync,
+  ]);
+
   return {
     isLoading,
     sendMessage,
     stop,
+    getActiveStreams,
+    deliverInbox,
+    watchStream,
     conversationId: currentConversationId,
     setConversationId: setCurrentConversationId,
     createConversation,

@@ -47,6 +47,7 @@ describe("storage stream pacing", () => {
       sendMessage: send,
       stop: vi.fn(),
       resumeStream: vi.fn(),
+      getActiveStreams: vi.fn(),
     });
     const { result } = renderHook(() =>
       useChatStorage({ database, autoCreateConversation: false })

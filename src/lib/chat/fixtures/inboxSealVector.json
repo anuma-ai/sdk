@@ -1,0 +1,22 @@
+{
+  "description": "Background-completion inbox envelope v1 (anuma-ai/vault#19). Sealing plaintext to recipient_public_key with the fixed ephemeral key and iv must produce sealed exactly; opening sealed with the recipient private key must return plaintext. Keys are raw P-256 scalars (hex) and base64url-unpadded 65-byte uncompressed points.",
+  "recipient_private_key_hex": "c37b3a3bd42af96d3516ab329892ebfc28c43e4a9b9c781406b008ada76a6aba",
+  "recipient_private_jwk": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "r6_vVXrMKr6LXPo1vzxxtwsYALC4L5KgqQ2ykF44RKw",
+    "y": "RuDreE8TvFrHMTTPuXBv8iZZ_IaRpt9X1djVA61bS_A",
+    "d": "w3s6O9Qq-W01FqsymJLr_CjEPkqbnHgUBrAIradqaro"
+  },
+  "recipient_public_key": "BK-v71V6zCq-i1z6Nb88cbcLGACwuC-SoKkNspBeOESsRuDreE8TvFrHMTTPuXBv8iZZ_IaRpt9X1djVA61bS_A",
+  "ephemeral_private_key_hex": "c486d7041bb6bc4356012910e1c7f1fc9e2d80b7d2b3f893f87afddee32f86b1",
+  "ephemeral_public_key": "BCw3TFljl-ZX_39Pu8pB6_lM8Bu6J7XzQ2pDo9cxU1SZvNOPn8wP3TYs2u9verXo8E3OLdDQRg5h1983jXwWL5s",
+  "iv": "gU7xYDM0GV2e9qIi",
+  "id": "0x19d41b2422862a5f5bd31f658db6cdc544fd3e79be17793c4481fe1913078a0e",
+  "plaintext": "{\"v\":1,\"inference_id\":\"0x19d41b2422862a5f5bd31f658db6cdc544fd3e79be17793c4481fe1913078a0e\",\"conversation_id\":\"conv_8b1e4d\",\"parent_message_id\":\"msg_7f3c2a\",\"api_type\":\"responses\",\"model\":\"openai/gpt-5\",\"status\":\"completed\",\"pending_tool\":null,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"model\":\"openai/gpt-5\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hello from the background — ünïcödé ✓\"}]}],\"usage\":{\"input_tokens\":12,\"output_tokens\":9,\"total_tokens\":21}},\"finished_at\":\"2026-11-02T12:00:00Z\"}",
+  "shared_secret_hex": "60cae0523d5e32319f9b61b72cb74faf44a4d8ce69a4342c087b813cd5c6f157",
+  "hkdf_salt_hex": "042c374c596397e657ff7f4fbbca41ebf94cf01bba27b5f3436a43a3d731535499bcd38f9fcc0fdd362cdaef6f7ab5e8f04dce2dd0d0460e61d7df378d7c162f9b04afafef557acc2abe8b5cfa35bf3c71b70b1800b0b82f92a0a90db2905e3844ac46e0eb784f13bc5ac73134cfb9706ff22659fc8691a6df57d5d8d503ad5b4bf0",
+  "hkdf_info": "anuma-inbox-v1:0x19d41b2422862a5f5bd31f658db6cdc544fd3e79be17793c4481fe1913078a0e",
+  "aes_key_hex": "692957653b6fa1b2a5854c693afe1c20093b49217ec301df9d6ee0e01b386d18",
+  "sealed": "{\"v\":1,\"alg\":\"ECDH-ES+HKDF-SHA256+A256GCM\",\"epk\":\"BCw3TFljl-ZX_39Pu8pB6_lM8Bu6J7XzQ2pDo9cxU1SZvNOPn8wP3TYs2u9verXo8E3OLdDQRg5h1983jXwWL5s\",\"iv\":\"gU7xYDM0GV2e9qIi\",\"ct\":\"qgfZAxN0YNXrRZre6v2XskHT1knejDcsp1hEZdsKe62hiIqIRy88_wRh-UAh5GN_nakeZvF8437BiQ_43iBvnQ2RAHMm0lWiYYsd4Aiazvh1ISfzLyaDnPvf0g1J0Xrb8o5c6LhtAPhk6Kh9F2gczNwPsWhDrUwSOkh9AsB9yallfxCoWoPwNO1xxdiKuZ9dX7YHi7meA05uZE0D-eblteQIloP3-T6M1XYFdJNZuoV7ldfb_Zb0MnhZSSrjCtd-Hhi7YRFjUE1Ra-K1wkBbuwZYN_O37iPP6xMHIdbc9D0WyiTXVwCMR_dgZ7LkeydeocHmw6rMzWIN5fA2CWoMOG6pIUlV4EXb6CCmak_35LFnGdxxggFv2vXuyPRUV62ZS92ztZe7PUBWSwL1_vJz0OjI1UyJLRlXRCuPeh8OBMHgga-Yd6KhA2HAsIdlTuYSSe9BzSrvoTgYfSX9AnDQdRBGa7bV1Tjzy1UI_VkgjEOe7k-Fdx7VSu-i9w0W05nEL-uprzgNqy_bD7AJUMUeRwTkg-itSHcMI93cVfFVzD2FNrVbSxOWaTeh3k4iwozv2YhTMGr-jrYGNwD1PdtBeGivyj-OHCjp6mcmeWbfkapeW2MW_-GQQsVTjuvC0y8nDttMnhkVRsumFbZR2g5rhdHL-A9Bby0XqV14xAjVGyqJtqiHfneBqYVMpbZ4TQ9ziVxBgvYIy_ebutuzLFDwnnplAKTfYcYWrXhA-HDRr195s7cywEAiztw\"}"
+}

@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1040](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1040)
+Defined in: [src/react/useChatStorage.ts:1088](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1088)
 
 A React hook that wraps useChat and persists messages and conversations to WatermelonDB as they are sent and received.
 
@@ -144,6 +144,24 @@ available. Requires `enableQueue` to be true.
 ```ts
 true
 ```
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.background?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Keep a resumable generation running when the request fails or the hook unmounts.
+Portal stores the answer of a turn that finishes with no client attached.
 
 </td>
 </tr>
@@ -515,6 +533,23 @@ Run lifecycle hooks for telemetry and tracing, for example from `createMetricsHo
 <tr>
 <td>
 
+`options.inbox?`
+
+</td>
+<td>
+
+[`VaultInbox`](../Internal/interfaces/VaultInbox.md)
+
+</td>
+<td>
+
+The vault inbox that receives answers finished while no client was attached.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.mcpR2Domain?`
 
 </td>
@@ -689,12 +724,12 @@ Use this to show activity indicators like "Searching..." in the UI.
 </td>
 <td>
 
-(`meta`: `object`) => `void`
+(`meta`: [`StreamResumeHandle`](../Internal/type-aliases/StreamResumeHandle.md) & `object`) => `void`
 
 </td>
 <td>
 
-Inference identifier for each HTTP round, including client-tool continuations.
+Stream handle for each HTTP round, including client-tool continuations.
 
 </td>
 </tr>

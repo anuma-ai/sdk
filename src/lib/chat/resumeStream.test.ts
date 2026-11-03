@@ -638,3 +638,59 @@ describe("resumeStream PII restoration", () => {
     expect(JSON.stringify(result.data)).not.toContain("[EMAIL_1]");
   });
 });
+
+describe("listActiveStreams", () => {
+  it("maps the portal's running generations and drops malformed entries", async () => {
+    const { listActiveStreams } = await import("./resumeStream");
+    const fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            streams: [
+              {
+                inference_id: "0xlive",
+                assistant_message_id: "msg_bg_live",
+                conversation_id: "conv 1",
+                parent_message_id: null,
+                api_type: "responses",
+                model: "m",
+                started_at: "2026-11-02T12:00:00Z",
+              },
+              { inference_id: "0xbad", api_type: "other" },
+              { api_type: "responses" },
+            ],
+          }),
+          { status: 200 }
+        )
+    );
+
+    const streams = await listActiveStreams({
+      token: "tok",
+      baseUrl: "https://portal.example",
+      conversationId: "conv 1",
+      fetch,
+    });
+
+    expect(streams).toEqual([
+      {
+        inferenceId: "0xlive",
+        assistantMessageId: "msg_bg_live",
+        conversationId: "conv 1",
+        parentMessageId: null,
+        apiType: "responses",
+        model: "m",
+        startedAt: "2026-11-02T12:00:00Z",
+      },
+    ]);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://portal.example/api/v1/chat/streams/active?conversation_id=conv%201",
+      { headers: { Authorization: "Bearer tok" } }
+    );
+  });
+
+  it("rejects when the portal refuses", async () => {
+    const { listActiveStreams } = await import("./resumeStream");
+    const fetch = vi.fn(async () => new Response(null, { status: 401 }));
+    await expect(listActiveStreams({ token: "tok", fetch })).rejects.toThrow("401");
+  });
+});
