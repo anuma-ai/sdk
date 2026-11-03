@@ -2,7 +2,7 @@
 
 > **InboxPlaintext** = `object`
 
-Defined in: [src/lib/chat/inbox.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#8)
+Defined in: [src/lib/chat/inbox.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#10)
 
 A finished background answer, as portal sealed it into the vault inbox.
 
@@ -12,7 +12,7 @@ A finished background answer, as portal sealed it into the vault inbox.
 
 > **api\_type**: `"responses"` | `"completions"`
 
-Defined in: [src/lib/chat/inbox.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#14)
+Defined in: [src/lib/chat/inbox.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#16)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/chat/inbox.ts:14](https://github.com/anuma-ai/sdk/blob/main
 
 > `optional` **assistant\_message\_id**: `string` | `null`
 
-Defined in: [src/lib/chat/inbox.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#13)
+Defined in: [src/lib/chat/inbox.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#15)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/chat/inbox.ts:13](https://github.com/anuma-ai/sdk/blob/main
 
 > **conversation\_id**: `string`
 
-Defined in: [src/lib/chat/inbox.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#11)
+Defined in: [src/lib/chat/inbox.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#13)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/lib/chat/inbox.ts:11](https://github.com/anuma-ai/sdk/blob/main
 
 > **finished\_at**: `string`
 
-Defined in: [src/lib/chat/inbox.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#19)
+Defined in: [src/lib/chat/inbox.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#21)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/lib/chat/inbox.ts:19](https://github.com/anuma-ai/sdk/blob/main
 
 > **inference\_id**: `string`
 
-Defined in: [src/lib/chat/inbox.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#10)
+Defined in: [src/lib/chat/inbox.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#12)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [src/lib/chat/inbox.ts:10](https://github.com/anuma-ai/sdk/blob/main
 
 > **model**: `string`
 
-Defined in: [src/lib/chat/inbox.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#15)
+Defined in: [src/lib/chat/inbox.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#17)
 
 ***
 
@@ -60,7 +60,7 @@ Defined in: [src/lib/chat/inbox.ts:15](https://github.com/anuma-ai/sdk/blob/main
 
 > **parent\_message\_id**: `string` | `null`
 
-Defined in: [src/lib/chat/inbox.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#12)
+Defined in: [src/lib/chat/inbox.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#14)
 
 ***
 
@@ -68,7 +68,7 @@ Defined in: [src/lib/chat/inbox.ts:12](https://github.com/anuma-ai/sdk/blob/main
 
 > **pending\_tool**: `string` | `null`
 
-Defined in: [src/lib/chat/inbox.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#17)
+Defined in: [src/lib/chat/inbox.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#19)
 
 ***
 
@@ -76,7 +76,7 @@ Defined in: [src/lib/chat/inbox.ts:17](https://github.com/anuma-ai/sdk/blob/main
 
 > **response**: `ApiResponse`
 
-Defined in: [src/lib/chat/inbox.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#18)
+Defined in: [src/lib/chat/inbox.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#20)
 
 ***
 
@@ -84,7 +84,7 @@ Defined in: [src/lib/chat/inbox.ts:18](https://github.com/anuma-ai/sdk/blob/main
 
 > **status**: `"completed"` | `"tool_request"`
 
-Defined in: [src/lib/chat/inbox.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#16)
+Defined in: [src/lib/chat/inbox.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#18)
 
 ***
 
@@ -92,4 +92,4 @@ Defined in: [src/lib/chat/inbox.ts:16](https://github.com/anuma-ai/sdk/blob/main
 
 > **v**: `1`
 
-Defined in: [src/lib/chat/inbox.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#9)
+Defined in: [src/lib/chat/inbox.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#11)

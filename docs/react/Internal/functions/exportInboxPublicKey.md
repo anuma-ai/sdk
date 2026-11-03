@@ -2,7 +2,7 @@
 
 > **exportInboxPublicKey**(`publicKey`: `CryptoKey`): `Promise`<`string`>
 
-Defined in: [src/lib/chat/inbox.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#92)
+Defined in: [src/lib/chat/inbox.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#94)
 
 The 65-byte uncompressed P-256 point, base64url, as vault stores it.
 

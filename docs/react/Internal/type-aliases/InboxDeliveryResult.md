@@ -2,9 +2,9 @@
 
 > **InboxDeliveryResult** = `object`
 
-Defined in: [src/react/useChatStorage.ts:769](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#769)
+Defined in: [src/lib/chat/inbox.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#154)
 
-Outcome of delivering one vault inbox item with `deliverInbox`.
+Outcome of delivering one vault inbox item.
 
 ## Properties
 
@@ -12,7 +12,7 @@ Outcome of delivering one vault inbox item with `deliverInbox`.
 
 > **assistantMessage**: [`StoredMessage`](../interfaces/StoredMessage.md) | `null`
 
-Defined in: [src/react/useChatStorage.ts:773](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#773)
+Defined in: [src/lib/chat/inbox.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#158)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/react/useChatStorage.ts:773](https://github.com/anuma-ai/sdk/bl
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/react/useChatStorage.ts:771](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#771)
+Defined in: [src/lib/chat/inbox.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#156)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/react/useChatStorage.ts:771](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **error**: `string`
 
-Defined in: [src/react/useChatStorage.ts:774](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#774)
+Defined in: [src/lib/chat/inbox.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#159)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/react/useChatStorage.ts:774](https://github.com/anuma-ai/sdk/bl
 
 > **id**: `string`
 
-Defined in: [src/react/useChatStorage.ts:770](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#770)
+Defined in: [src/lib/chat/inbox.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#155)
 
 ***
 
@@ -44,4 +44,4 @@ Defined in: [src/react/useChatStorage.ts:770](https://github.com/anuma-ai/sdk/bl
 
 > **status**: `"stored"` | `"delivered"` | `"elsewhere"` | `"unreadable"` | `"retry"`
 
-Defined in: [src/react/useChatStorage.ts:772](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#772)
+Defined in: [src/lib/chat/inbox.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#157)

@@ -727,6 +727,8 @@ const CONVERSATION_ID_HEADER = "X-Conversation-ID";
  */
 export type StreamResumeHandle = {
   inferenceId: string;
+  /** The reply id the storage hook writes this turn's answer under, when it chose one. */
+  assistantMessageId?: string;
   /** The RESOLVED api type (never "auto") — resolveApiType() already ran inside runToolLoop. */
   apiType: Exclude<ApiType, "auto">;
   model?: string;

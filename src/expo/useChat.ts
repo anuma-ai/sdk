@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
 import {
+  type ActiveStream,
+  listActiveStreams,
   resumeStream as runResumeStream,
   type ResumeStreamOptions,
   type ResumeStreamResult,
@@ -143,6 +145,8 @@ interface UseChatOptions extends BaseUseChatOptions {
 
 type UseChatResult = BaseUseChatResult & {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
+  /** The caller's generations still running on the portal, optionally for one conversation. */
+  getActiveStreams: (conversationId?: string) => Promise<ActiveStream[]>;
   /**
    * Tear down the in-flight request as a DETACH rather than a stop: the portal
    * keeps generating server-side and `sendMessage` resolves with the detached
@@ -574,6 +578,18 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     ]
   );
 
+  const getActiveStreams = useCallback(
+    async (conversationId?: string): Promise<ActiveStream[]> => {
+      const getterValidation = validateTokenGetter(getToken);
+      if (!getterValidation.valid) throw new Error(getterValidation.message);
+      const token = await getToken!();
+      const tokenValidation = validateToken(token);
+      if (!tokenValidation.valid) throw new Error(tokenValidation.message);
+      return listActiveStreams({ token: token!, baseUrl, conversationId });
+    },
+    [getToken, baseUrl]
+  );
+
   return {
     isLoading,
     sendMessage,
@@ -581,5 +597,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     cancel,
     detach,
     resumeStream,
+    getActiveStreams,
   };
 }

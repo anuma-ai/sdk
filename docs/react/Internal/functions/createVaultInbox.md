@@ -2,7 +2,7 @@
 
 > **createVaultInbox**(`options`: `object`): [`VaultInbox`](../interfaces/VaultInbox.md)
 
-Defined in: [src/lib/chat/inbox.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#67)
+Defined in: [src/lib/chat/inbox.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#69)
 
 The vault inbox client, under the same `/api/private-chats` routes as the chat store.
 

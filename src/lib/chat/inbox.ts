@@ -1,4 +1,6 @@
+import type { StoredMessage } from "../db/chat/types";
 import { createNearbyRequest } from "../memory/store/remotePersistence";
+import type { ChatBackend } from "../storage/ChatBackend";
 import type { ApiResponse } from "./useChat/strategies/types";
 
 /**
@@ -143,4 +145,72 @@ export async function openInboxItem(
     throw new Error("Inbox item does not match its id");
   }
   return opened;
+}
+
+/**
+ * Outcome of delivering one vault inbox item.
+ * @public
+ */
+export type InboxDeliveryResult = {
+  id: string;
+  conversationId: string | null;
+  status: "stored" | "delivered" | "elsewhere" | "unreadable" | "retry";
+  assistantMessage: StoredMessage | null;
+  error?: string;
+};
+
+/** Store every inbox answer that belongs to a turn on this device, then remove it from the inbox. */
+export async function deliverInboxAnswers(options: {
+  inbox: VaultInbox;
+  keyPair: CryptoKeyPair;
+  backend: Pick<ChatBackend, "getMessagesByIds" | "getConversation">;
+  store: (opened: InboxPlaintext, messageId: string) => Promise<StoredMessage>;
+}): Promise<InboxDeliveryResult[]> {
+  const { inbox, keyPair, backend, store } = options;
+  const results: InboxDeliveryResult[] = [];
+  for (const item of await inbox.list()) {
+    let opened: InboxPlaintext;
+    try {
+      opened = await openInboxItem(item, keyPair);
+    } catch (err) {
+      results.push({
+        id: item.id,
+        conversationId: null,
+        status: "unreadable",
+        assistantMessage: null,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      continue;
+    }
+    const base = { id: item.id, conversationId: opened.conversation_id };
+    try {
+      const messageId = opened.assistant_message_id ?? `msg_bg_${opened.inference_id}`;
+      const [existing] = await backend.getMessagesByIds([messageId]);
+      if (!existing) {
+        const parent = opened.parent_message_id;
+        const ownsTurn = parent
+          ? (await backend.getMessagesByIds([parent])).length > 0
+          : (await backend.getConversation(opened.conversation_id)) !== null;
+        if (!ownsTurn) {
+          results.push({ ...base, status: "elsewhere", assistantMessage: null });
+          continue;
+        }
+      }
+      const stored = existing ?? (await store(opened, messageId));
+      await inbox.remove(item.id);
+      results.push({
+        ...base,
+        status: existing ? "delivered" : "stored",
+        assistantMessage: stored,
+      });
+    } catch (err) {
+      results.push({
+        ...base,
+        status: "retry",
+        assistantMessage: null,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  return results;
 }

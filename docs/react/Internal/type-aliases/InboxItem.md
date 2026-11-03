@@ -2,7 +2,7 @@
 
 > **InboxItem** = `object`
 
-Defined in: [src/lib/chat/inbox.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#26)
+Defined in: [src/lib/chat/inbox.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#28)
 
 One sealed item in the vault inbox.
 
@@ -12,7 +12,7 @@ One sealed item in the vault inbox.
 
 > **created\_at**: `string`
 
-Defined in: [src/lib/chat/inbox.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#26)
+Defined in: [src/lib/chat/inbox.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#28)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/chat/inbox.ts:26](https://github.com/anuma-ai/sdk/blob/main
 
 > **id**: `string`
 
-Defined in: [src/lib/chat/inbox.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#26)
+Defined in: [src/lib/chat/inbox.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#28)
 
 ***
 
@@ -28,4 +28,4 @@ Defined in: [src/lib/chat/inbox.ts:26](https://github.com/anuma-ai/sdk/blob/main
 
 > **sealed**: `string`
 
-Defined in: [src/lib/chat/inbox.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#26)
+Defined in: [src/lib/chat/inbox.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#28)

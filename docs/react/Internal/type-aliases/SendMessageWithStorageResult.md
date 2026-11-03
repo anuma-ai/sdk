@@ -2,7 +2,7 @@
 
 > **SendMessageWithStorageResult** = { `assistantMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `toolResultsMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); `userMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); } | { `assistantMessage?`: `undefined`; `autoExecutedToolResults?`: `object`\[]; `data`: `ApiResponse`; `error`: `null`; `skipped`: `true`; `userMessage?`: `undefined`; } | { `assistantMessage?`: `undefined`; `data`: `null`; `error`: `string`; `userMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); } | { `assistantMessage?`: `undefined`; `data`: `null`; `detached`: `true`; `error`: `"Request detached"`; `resume`: [`StreamResumeHandle`](StreamResumeHandle.md); `userMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); }
 
-Defined in: [src/react/useChatStorage.ts:724](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#724)
+Defined in: [src/react/useChatStorage.ts:729](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#729)
 
 Result from sendMessage with storage (React version)
 The `data` field contains the raw server response which includes `tools_checksum`.
