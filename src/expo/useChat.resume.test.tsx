@@ -734,7 +734,7 @@ describe("useChat resumable surface", () => {
     it("fails a send the provider ended with an error", async () => {
       const { sent, onError } = await send({ resumable: true, meta: true, failure: "provider" });
 
-      expect(sent).toMatchObject({ error: "Provider rate limited" });
+      expect(sent).toMatchObject({ error: "Provider rate limited", data: null });
       expect(sent).not.toHaveProperty("detached");
       expect(onError).toHaveBeenCalledTimes(1);
     });
@@ -798,6 +798,7 @@ describe("useChat resumable surface", () => {
       const { sent, onError } = await sendWithToolRound(true);
 
       expect(sent).toMatchObject({ detached: true, resume: { inferenceId: "inf-round-1" } });
+      expect(extractAssistantText(sent!.data!).content).toBe("Half");
       expect(onError).not.toHaveBeenCalled();
     });
 
