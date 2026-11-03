@@ -419,20 +419,6 @@ export function isAbortError(err: unknown): boolean {
 }
 
 /**
- * Checks if an SSE chunk is an in-stream error event from Bifrost.
- *
- * Some providers (OpenRouter Qwen, MiniMax) keep the HTTP connection open on
- * an upstream timeout and emit a structured error *inside* the stream instead
- * of returning a 5xx. Shape:
- *
- *   { "error": { "message": "...", "type": "timeout_error", "code": "timeout",
- *                "trace_id": "...", "request_id": "..." } }
- *
- * If we don't detect this, the stream just ends silently with no tool call
- * and no usable response. Detecting it lets the strategy throw, which the
- * tool loop surfaces as a normal error to the caller.
- */
-/**
  * Error thrown when an upstream provider emits an in-stream error event.
  * Carries the provider's code (e.g. `"timeout"`) so callers can match
  * programmatically via `err instanceof ProviderStreamError && err.code === "timeout"`
@@ -447,6 +433,20 @@ export class ProviderStreamError extends Error {
   }
 }
 
+/**
+ * Checks if an SSE chunk is an in-stream error event from Bifrost.
+ *
+ * Some providers (OpenRouter Qwen, MiniMax) keep the HTTP connection open on
+ * an upstream timeout and emit a structured error *inside* the stream instead
+ * of returning a 5xx. Shape:
+ *
+ *   { "error": { "message": "...", "type": "timeout_error", "code": "timeout",
+ *                "trace_id": "...", "request_id": "..." } }
+ *
+ * If we don't detect this, the stream just ends silently with no tool call
+ * and no usable response. Detecting it lets the strategy throw, which the
+ * tool loop surfaces as a normal error to the caller.
+ */
 export function getInStreamErrorMessage(chunk: unknown): string | null {
   if (!chunk || typeof chunk !== "object") return null;
   const obj = chunk as { error?: unknown };
