@@ -3270,7 +3270,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           opened.conversation_id,
           knownToolCallEventIds
         );
-        const stored = await backend.createMessage({
+        const stored = await backend.upsertMessage({
           ...fields,
           content: redactor ? redactor.deAnonymize(fields.content) : fields.content,
           thinking:
@@ -3279,7 +3279,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           role: "assistant",
           model: opened.model,
           parentMessageId: opened.parent_message_id ?? undefined,
-          wasStopped: opened.status === "tool_request" ? true : undefined,
+          wasStopped: opened.status === "tool_request",
           uniqueId: messageId,
         });
         if (fileIds.length > 0) {

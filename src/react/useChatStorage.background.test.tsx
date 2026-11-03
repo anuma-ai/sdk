@@ -446,6 +446,40 @@ describe("useChatStorage background turns", () => {
       expect(assistants.map((m) => m.content)).toEqual(["Live answer."]);
     });
 
+    it("replaces a stopped partial under the reply id with the finished answer", async () => {
+      const database = await deviceWithTurn("msg_parent");
+      await localChatBackend(database)({}).createMessage({
+        conversationId: "conv_bg",
+        role: "assistant",
+        content: "Half an",
+        model: "m",
+        wasStopped: true,
+        parentMessageId: "msg_parent",
+        uniqueId: "msg_bg_cut",
+      });
+      const { inbox, removed } = fakeInbox([
+        {
+          id: "0xcut",
+          plaintext: { ...sealedAnswer("0xcut", "msg_parent"), assistant_message_id: "msg_bg_cut" },
+        },
+      ]);
+      const { result } = renderWithInbox(inbox, database);
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([{ status: "stored" }]);
+      expect(removed).toEqual(["0xcut"]);
+      const assistants = (await result.current.getMessages("conv_bg")).filter(
+        (m) => m.role === "assistant"
+      );
+      expect(assistants.map((m) => [m.uniqueId, m.content, !!m.wasStopped])).toEqual([
+        ["msg_bg_cut", "Answer from the inbox.", false],
+      ]);
+    });
+
     it("leaves an answer for the device that has the turn", async () => {
       const { inbox, removed } = fakeInbox([
         {

@@ -185,8 +185,10 @@ export async function deliverInboxAnswers(options: {
     const base = { id: item.id, conversationId: opened.conversation_id };
     try {
       const messageId = opened.assistant_message_id ?? `msg_bg_${opened.inference_id}`;
-      const [existing] = await backend.getMessagesByIds([messageId]);
-      if (!existing) {
+      const [found] = await backend.getMessagesByIds([messageId]);
+      const supersedesPartial = found?.wasStopped === true && opened.status === "completed";
+      const existing = supersedesPartial ? undefined : found;
+      if (!found) {
         const parent = opened.parent_message_id;
         const ownsTurn = parent
           ? (await backend.getMessagesByIds([parent])).length > 0

@@ -2861,6 +2861,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       retirementStopRequestedRef.current = true;
       return;
     }
+    const replaying = activeResumeRef.current;
+    if (replaying && !replaying.headless && replaying.context.handle) {
+      baseCancel(replaying.context.handle);
+    }
     const pending = pendingResumeRef.current;
     if (pending && pending.assistantUniqueId && !isResumingRef.current) {
       const finalize = pending;
@@ -2885,7 +2889,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       })();
     }
     baseStop();
-  }, [baseStop, finalizeResumedRow]);
+  }, [baseStop, baseCancel, finalizeResumedRow]);
 
   const watchStream = useCallback(
     (stream: ActiveStream) =>

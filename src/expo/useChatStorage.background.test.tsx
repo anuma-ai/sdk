@@ -280,6 +280,76 @@ describe("expo useChatStorage background turns", () => {
     expect(await result.current.getMessages("conv_bg")).toEqual([]);
   });
 
+  describe("stop", () => {
+    function cancelPosts(fetchSpy: { mock: { calls: unknown[][] } }) {
+      return fetchSpy.mock.calls
+        .filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")
+        .map(([url]) => String(url));
+    }
+
+    it("cancels the generation on portal when the user stops a replay of a saved handle", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(null, { status: 204 }));
+      vi.mocked(resumeStream).mockImplementationOnce(
+        (opts) =>
+          new Promise((resolve) => {
+            opts.signal?.addEventListener("abort", () =>
+              resolve({ data: null, error: "Request aborted", interrupted: false })
+            );
+          })
+      );
+      const { result } = renderStorage({});
+
+      let replay: Promise<unknown> | undefined;
+      act(() => {
+        replay = result.current.resumeStream({ inferenceId: "0xcold", apiType: "responses" });
+      });
+      await vi.waitFor(() => expect(resumeStream).toHaveBeenCalled());
+      await act(async () => {
+        result.current.stop();
+        await replay;
+      });
+
+      await vi.waitFor(() =>
+        expect(cancelPosts(fetchSpy)).toEqual([
+          "https://portal.example/api/v1/chat/streams/0xcold/cancel",
+        ])
+      );
+      fetchSpy.mockRestore();
+    });
+
+    it("cancels the generation on portal when the user stops a detached turn", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(null, { status: 204 }));
+      vi.mocked(runToolLoop).mockImplementationOnce(async (options) => {
+        options.onStreamMeta?.({ inferenceId: "0xdet", round: 0 });
+        return {
+          data: answer("Half an"),
+          error: "Request detached",
+          detached: true,
+          resume: { inferenceId: "0xdet", apiType: "responses" },
+        } as never;
+      });
+      const { result } = renderStorage({});
+      await act(async () => {
+        await result.current.sendMessage(userTurn);
+      });
+
+      await act(async () => {
+        result.current.stop();
+      });
+
+      await vi.waitFor(() =>
+        expect(cancelPosts(fetchSpy)).toEqual([
+          "https://portal.example/api/v1/chat/streams/0xdet/cancel",
+        ])
+      );
+      fetchSpy.mockRestore();
+    });
+  });
+
   describe("inbox", () => {
     type InboxEntry = { id: string; plaintext: unknown };
     function fakeInbox(entries: InboxEntry[] | (() => InboxEntry[])) {
@@ -510,6 +580,64 @@ describe("expo useChatStorage background turns", () => {
       );
       expect(stored).toMatchObject({ content: "Answer synced from another device." });
       expect(stored?.wasStopped).toBeFalsy();
+    });
+
+    function finishedTurnInbox(status = "completed") {
+      const turn: { replyId?: string; parent?: string } = {};
+      const box = fakeInbox(() => [
+        {
+          id: "0xturn",
+          plaintext: {
+            ...sealed("0xturn", turn.parent!, status),
+            assistant_message_id: turn.replyId,
+            response: answer("The full answer."),
+          },
+        },
+      ]);
+      return { ...box, turn };
+    }
+
+    async function partialFromExpiredReplay(status = "completed") {
+      const box = finishedTurnInbox(status);
+      const detached = await detachedTurn(box.inbox);
+      Object.assign(box.turn, { replyId: detached.replyId, parent: detached.parent });
+      vi.mocked(resumeStream).mockRejectedValueOnce(new StreamExpiredError("0xturn"));
+      await act(async () => {
+        await detached.result.current.resumeStream();
+      });
+      const row = async () =>
+        (await detached.result.current.getMessages("conv_bg")).find(
+          (m) => m.uniqueId === detached.replyId
+        );
+      expect(await row()).toMatchObject({ content: "Half an", wasStopped: true });
+      return { ...detached, removed: box.removed, row };
+    }
+
+    it("replaces a partial an expired replay wrote with the finished inbox answer", async () => {
+      const { result, removed, row } = await partialFromExpiredReplay();
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([{ status: "stored" }]);
+      expect(await row()).toMatchObject({ content: "The full answer." });
+      expect((await row())?.wasStopped).toBeFalsy();
+      expect(removed).toEqual(["0xturn"]);
+    });
+
+    it("keeps the partial when the inbox item stopped for a device tool", async () => {
+      const { result, removed, row } = await partialFromExpiredReplay("tool_request");
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([{ status: "delivered" }]);
+      expect(await row()).toMatchObject({ content: "Half an", wasStopped: true });
+      expect(removed).toEqual(["0xturn"]);
     });
 
     it("leaves an answer for the device that has the turn", async () => {
