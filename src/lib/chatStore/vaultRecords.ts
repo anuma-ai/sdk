@@ -44,15 +44,21 @@ export function conversationSortKey(data: ChatData, createdAt: number): number {
 
 const CONTEXT_FIELD_PREFIX = "context.";
 
-export function contextField(key: string): string {
+function contextField(key: string): string {
   return `${CONTEXT_FIELD_PREFIX}${key}`;
+}
+
+export function contextFields(context: { [key: string]: ChatJson | null } | undefined): ChatData {
+  return plain(
+    Object.fromEntries(Object.entries(context ?? {}).map(([k, value]) => [contextField(k), value]))
+  );
 }
 
 function conversationContext(data: ChatData): { [key: string]: ChatJson } | undefined {
   const entries = Object.entries(data)
     .filter(([field]) => field.startsWith(CONTEXT_FIELD_PREFIX))
     .map(([field, value]) => [field.slice(CONTEXT_FIELD_PREFIX.length), value] as const);
-  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+  return entries.length > 0 ? plain(Object.fromEntries(entries)) : undefined;
 }
 
 export function toConversation(record: ChatRecord): StoredConversation {

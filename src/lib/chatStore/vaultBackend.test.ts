@@ -226,6 +226,44 @@ describe("vault chat backend", () => {
     expect(await b.updateConversationContext("conv_1", {})).toBe(false);
   });
 
+  it("does not let a caller change context it already handed over or read back", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1" });
+    const branches: { [key: string]: number } = { __root__: 1 };
+    await b.updateConversationContext("conv_1", { branches });
+    branches.__root__ = 9;
+    const read = (await b.getConversation("conv_1"))?.context;
+    expect(read).toEqual({ branches: { __root__: 1 } });
+    (read?.branches as { [key: string]: number }).__root__ = 7;
+    await b.flush();
+    expect((await backend(fake).b.getConversation("conv_1"))?.context).toEqual({
+      branches: { __root__: 1 },
+    });
+    expect((await b.getConversation("conv_1"))?.context).toEqual({ branches: { __root__: 1 } });
+  });
+
+  it("imports a conversation with its context", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    const at = new Date(1_000);
+    await b.importChats([
+      {
+        conversation: {
+          uniqueId: "conv_1",
+          conversationId: "conv_1",
+          title: "Trip",
+          createdAt: at,
+          updatedAt: at,
+          isDeleted: false,
+          context: { mode: "trade" },
+        },
+        messages: [],
+      },
+    ]);
+    expect((await backend(fake).b.getConversation("conv_1"))?.context).toEqual({ mode: "trade" });
+  });
+
   it("announces a context change like any other conversation edit", async () => {
     const fake = await createChatStoreHarness();
     const { b, events } = backend(fake);

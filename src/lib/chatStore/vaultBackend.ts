@@ -51,10 +51,10 @@ import {
   acceptedVector,
   type ChatData,
   chunkOffsets,
+  contextFields,
   fitChunks,
   messageData,
   plain,
-  contextField,
   toConversation,
   toLinks,
   toMessage,
@@ -978,9 +978,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       return updateConversation(conversationId, { pinnedAt: pinned ? now() : null });
     },
     async updateConversationContext(conversationId, context) {
-      const set = Object.fromEntries(
-        Object.entries(context).map(([k, value]) => [contextField(k), value])
-      );
+      const set = contextFields(context);
       if (Object.keys(set).length > 0) return updateConversation(conversationId, set);
       const record = await conversation(conversationId);
       return !!record && !record.isDeleted;
