@@ -640,6 +640,108 @@ describe("expo useChatStorage background turns", () => {
       expect(removed).toEqual(["0xturn"]);
     });
 
+    async function droppedTurn(inbox: VaultInbox) {
+      vi.mocked(runToolLoop).mockImplementationOnce(async (options) => {
+        options.onStreamMeta?.({ inferenceId: "0xturn", round: 0 });
+        return { data: null, error: "network error", connectionLost: true } as never;
+      });
+      const rendered = renderStorage({ inbox, withWallet: true });
+      let sent: Awaited<ReturnType<typeof rendered.result.current.sendMessage>> | undefined;
+      await act(async () => {
+        sent = await rendered.result.current.sendMessage(userTurn);
+      });
+      const replyId = vi.mocked(runToolLoop).mock.calls[0][0].headers?.["X-Assistant-Message-ID"];
+      const rows = () => rendered.result.current.getMessages("conv_bg");
+      expect((await rows()).map((m) => [m.role, m.uniqueId === replyId, m.error ?? null])).toEqual([
+        ["user", false, "network error"],
+        ["assistant", true, "network error"],
+      ]);
+      return { ...rendered, replyId: replyId!, parent: sent!.userMessage!.uniqueId, rows };
+    }
+
+    async function droppedTurnWithInbox(status = "completed") {
+      const box = finishedTurnInbox(status);
+      const dropped = await droppedTurn(box.inbox);
+      Object.assign(box.turn, { replyId: dropped.replyId, parent: dropped.parent });
+      return { ...dropped, removed: box.removed };
+    }
+
+    it("replaces the error row a dropped connection left and clears the question's error", async () => {
+      const { result, removed, rows } = await droppedTurnWithInbox();
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([{ status: "stored" }]);
+      expect(delivered?.[0].assistantMessage?.error).toBeFalsy();
+      expect((await rows()).map((m) => [m.role, m.content, !!m.error, !!m.wasStopped])).toEqual([
+        ["user", "hello", false, false],
+        ["assistant", "The full answer.", false, false],
+      ]);
+      expect(removed).toEqual(["0xturn"]);
+    });
+
+    it("replaces the error row with a turn that stopped for a device tool", async () => {
+      const { result, removed, rows } = await droppedTurnWithInbox("tool_request");
+
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+
+      expect((await rows()).map((m) => [m.role, m.content, !!m.error, !!m.wasStopped])).toEqual([
+        ["user", "hello", false, false],
+        ["assistant", "The full answer.", false, true],
+      ]);
+      expect(removed).toEqual(["0xturn"]);
+    });
+
+    it("clears the error row when a replay of the dropped turn finishes", async () => {
+      const { result, replyId, rows } = await droppedTurn(fakeInbox([]).inbox);
+      vi.mocked(resumeStream).mockResolvedValueOnce({
+        data: answer("Replayed."),
+        error: null,
+      } as never);
+
+      await act(async () => {
+        await result.current.resumeStream({
+          inferenceId: "0xturn",
+          apiType: "responses",
+          conversationId: "conv_bg",
+          assistantMessageId: replyId,
+        });
+      });
+
+      expect((await rows()).map((m) => [m.role, m.content, !!m.error, !!m.wasStopped])).toEqual([
+        ["user", "hello", false, false],
+        ["assistant", "Replayed.", false, false],
+      ]);
+    });
+
+    it("stores an interrupted replay of the dropped turn over its error row", async () => {
+      const { result, replyId, rows } = await droppedTurn(fakeInbox([]).inbox);
+      vi.mocked(resumeStream).mockResolvedValueOnce({
+        data: answer("Half an"),
+        error: "network error",
+        interrupted: true,
+      });
+
+      await act(async () => {
+        await result.current.resumeStream({
+          inferenceId: "0xturn",
+          apiType: "responses",
+          conversationId: "conv_bg",
+          assistantMessageId: replyId,
+        });
+      });
+
+      expect((await rows()).map((m) => [m.role, m.content, !!m.error, !!m.wasStopped])).toEqual([
+        ["user", "hello", false, false],
+        ["assistant", "Half an", false, true],
+      ]);
+    });
+
     it("leaves an answer for the device that has the turn", async () => {
       const { inbox, removed } = fakeInbox([
         { id: "0xaway", plaintext: sealed("0xaway", "msg_x") },

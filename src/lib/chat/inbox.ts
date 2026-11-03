@@ -159,6 +159,24 @@ export type InboxDeliveryResult = {
   error?: string;
 };
 
+function inboxReplaces(row: StoredMessage, opened: InboxPlaintext): boolean {
+  if (row.error) return true;
+  return row.wasStopped === true && opened.status === "completed";
+}
+
+export async function clearTurnErrors(
+  backend: Pick<ChatBackend, "getMessagesByIds" | "updateMessageError">,
+  answer: StoredMessage
+): Promise<StoredMessage> {
+  const parentId = answer.parentMessageId;
+  if (parentId) {
+    const [parent] = await backend.getMessagesByIds([parentId]);
+    if (parent?.error) await backend.updateMessageError(parentId, null);
+  }
+  if (!answer.error) return answer;
+  return (await backend.updateMessageError(answer.uniqueId, null)) ?? answer;
+}
+
 /** Store every inbox answer that belongs to a turn on this device, then remove it from the inbox. */
 export async function deliverInboxAnswers(options: {
   inbox: VaultInbox;
@@ -186,8 +204,7 @@ export async function deliverInboxAnswers(options: {
     try {
       const messageId = opened.assistant_message_id ?? `msg_bg_${opened.inference_id}`;
       const [found] = await backend.getMessagesByIds([messageId]);
-      const supersedesPartial = found?.wasStopped === true && opened.status === "completed";
-      const existing = supersedesPartial ? undefined : found;
+      const existing = found && inboxReplaces(found, opened) ? undefined : found;
       if (!found) {
         const parent = opened.parent_message_id;
         const ownsTurn = parent

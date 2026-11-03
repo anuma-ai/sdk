@@ -1448,7 +1448,7 @@ async function findEncryptedContent(
 export async function updateMessageErrorOp(
   ctx: StorageOperationsContext,
   uniqueId: string,
-  error: string
+  error: string | null
 ): Promise<StoredMessage | null> {
   let message;
   try {
@@ -1459,7 +1459,7 @@ export async function updateMessageErrorOp(
 
   await ctx.database.write(async () => {
     await message.update((msg) => {
-      msg._setRaw("error", error);
+      msg._setRaw("error", error ?? "");
     });
   });
 

@@ -8,6 +8,7 @@ import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import { isSendableImageURL } from "../lib/chat/imageParts";
 import {
+  clearTurnErrors,
   deliverInboxAnswers,
   exportInboxPublicKey,
   type InboxDeliveryResult,
@@ -1616,12 +1617,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (wasStopped) {
         try {
           const [current] = await backend.getMessagesByIds([rowOpts.uniqueId]);
-          if (current && !current.wasStopped) return current;
+          if (current && !current.wasStopped && !current.error) return current;
         } catch (err) {
           getLogger().warn("[useChatStorage] Could not check for a stored answer:", err);
         }
       }
-      if (!viaQueue) return backend.upsertMessage(rowOpts);
+      if (!viaQueue) return clearTurnErrors(backend, await backend.upsertMessage(rowOpts));
       const { result } = await writeOrQueue(
         "createMessage",
         rowOpts,

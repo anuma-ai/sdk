@@ -105,7 +105,7 @@ export interface ChatStorageAdapter {
     embeddingModel: string
   ): Promise<StoredMessage | null>;
 
-  updateMessageError(uniqueId: string, error: string): Promise<StoredMessage | null>;
+  updateMessageError(uniqueId: string, error: string | null): Promise<StoredMessage | null>;
 
   updateMessageFeedback(uniqueId: string, feedback: MessageFeedback): Promise<StoredMessage | null>;
 

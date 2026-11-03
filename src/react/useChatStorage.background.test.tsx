@@ -480,6 +480,48 @@ describe("useChatStorage background turns", () => {
       ]);
     });
 
+    it("replaces the error row of a turn that dropped before portal's id arrived", async () => {
+      vi.mocked(runToolLoop).mockResolvedValueOnce({
+        data: null,
+        error: "network error",
+        connectionLost: true,
+      } as never);
+      const entries: Array<{ id: string; plaintext: unknown }> = [];
+      const { inbox, removed } = fakeInbox(entries);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn());
+
+      let sent: Awaited<ReturnType<typeof result.current.sendMessage>> | undefined;
+      await act(async () => {
+        sent = await result.current.sendMessage(userTurn);
+      });
+      const replyId = vi.mocked(runToolLoop).mock.calls[0][0].headers?.["X-Assistant-Message-ID"];
+      const rows = () => result.current.getMessages("conv_bg");
+      expect((await rows()).map((m) => [m.role, m.uniqueId === replyId, m.error ?? null])).toEqual([
+        ["user", false, "network error"],
+        ["assistant", true, "network error"],
+      ]);
+      entries.push({
+        id: "0xdrop",
+        plaintext: {
+          ...sealedAnswer("0xdrop", sent!.userMessage!.uniqueId),
+          assistant_message_id: replyId,
+        },
+      });
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([{ status: "stored" }]);
+      expect(delivered?.[0].assistantMessage?.error).toBeFalsy();
+      expect((await rows()).map((m) => [m.role, m.content, !!m.error, !!m.wasStopped])).toEqual([
+        ["user", "hello", false, false],
+        ["assistant", "Answer from the inbox.", false, false],
+      ]);
+      expect(removed).toEqual(["0xdrop"]);
+    });
+
     it("leaves an answer for the device that has the turn", async () => {
       const { inbox, removed } = fakeInbox([
         {

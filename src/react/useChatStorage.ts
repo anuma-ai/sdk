@@ -9,6 +9,7 @@ import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import { attachFileContextToLastUserMessage } from "../lib/chat/fileContext";
 import { isSendableImageURL } from "../lib/chat/imageParts";
 import {
+  clearTurnErrors,
   deliverInboxAnswers,
   exportInboxPublicKey,
   type InboxDeliveryResult,
@@ -3270,7 +3271,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           opened.conversation_id,
           knownToolCallEventIds
         );
-        const stored = await backend.upsertMessage({
+        const upserted = await backend.upsertMessage({
           ...fields,
           content: redactor ? redactor.deAnonymize(fields.content) : fields.content,
           thinking:
@@ -3282,6 +3283,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           wasStopped: opened.status === "tool_request",
           uniqueId: messageId,
         });
+        const stored = await clearTurnErrors(backend, upserted);
         if (fileIds.length > 0) {
           try {
             await updateMediaMessageIdBatchOp(mediaCtx, fileIds, stored.uniqueId);
