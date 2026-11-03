@@ -2,4 +2,4 @@
 
 > **ChartConfig** = { \[k in string]: { icon?: React.ComponentType; label?: React.ReactNode } & ({ color?: string; theme?: never } | { color?: never; theme: Record\<keyof typeof THEMES, string> }) }
 
-Defined in: [src/react/chart.tsx:28](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#28)
+Defined in: [src/react/chart.tsx:39](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#39)
