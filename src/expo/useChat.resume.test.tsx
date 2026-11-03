@@ -673,7 +673,12 @@ describe("useChat resumable surface", () => {
   });
 
   describe("connection drop", () => {
-    type Failure = "network" | "provider" | "response.failed" | "typed error";
+    type Failure =
+      | "network"
+      | "provider"
+      | "response.failed"
+      | "bare response.failed"
+      | "typed error";
     const failureChunks: Record<Failure, unknown> = {
       network: null,
       provider: { error: { code: "rate_limited", message: "Provider rate limited" } },
@@ -681,6 +686,7 @@ describe("useChat resumable surface", () => {
         type: "response.failed",
         response: { error: { code: "server_error", message: "Upstream overloaded" } },
       },
+      "bare response.failed": { type: "response.failed" },
       "typed error": { error: { type: "server_error" } },
     };
 
@@ -693,7 +699,12 @@ describe("useChat resumable surface", () => {
       })();
     }
 
-    async function send(options: { resumable: boolean; meta: boolean; failure?: Failure }) {
+    async function send(options: {
+      resumable: boolean;
+      meta: boolean;
+      failure?: Failure;
+      apiType?: "responses" | "completions";
+    }) {
       transportImpl = (transportOptions) => {
         if (options.meta) transportOptions.onStreamMeta?.({ inferenceId: "inf-drop" });
         return { stream: droppingStream(options.failure ?? "network") };
@@ -707,7 +718,7 @@ describe("useChat resumable surface", () => {
         sent = await result.current.sendMessage({
           messages: userMessages,
           model: "test-model",
-          apiType: "responses",
+          apiType: options.apiType ?? "responses",
         });
       });
       return { sent, onError, result };
@@ -808,12 +819,14 @@ describe("useChat resumable surface", () => {
     });
 
     it.each([
-      ["response.failed", "[server_error] Upstream overloaded", "server_error"],
-      ["typed error", "[server_error] server_error", undefined],
+      ["responses", "response.failed", "[server_error] Upstream overloaded", "server_error"],
+      ["responses", "bare response.failed", "Upstream request failed (response.failed)", undefined],
+      ["responses", "typed error", "[server_error] server_error", undefined],
+      ["completions", "typed error", "[server_error] server_error", undefined],
     ] as const)(
-      "fails a send that portal ended with a %s event",
-      async (failure, message, code) => {
-        const { sent, onError } = await send({ resumable: true, meta: true, failure });
+      "fails a %s send that portal ended with a %s event",
+      async (apiType, failure, message, code) => {
+        const { sent, onError } = await send({ resumable: true, meta: true, failure, apiType });
 
         expect(sent).toMatchObject({ error: message, data: null });
         expect(sent).not.toHaveProperty("detached");
