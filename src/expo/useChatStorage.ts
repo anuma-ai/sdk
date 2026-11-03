@@ -6,7 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import type { LlmapiMessage } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
-import { storeDetachedToolResults } from "../lib/chat/detachedTools";
+import { renderToolNames, storeDetachedToolResults } from "../lib/chat/detachedTools";
 import { isSendableImageURL } from "../lib/chat/imageParts";
 import {
   clearTurnErrors,
@@ -2796,7 +2796,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const activeResume = { context: rctx, headless: opts?.headless === true, settled };
       activeResumeRef.current = activeResume;
       try {
-        const result = await baseResumeStream(handle, { headless: opts?.headless });
+        const result = await baseResumeStream(handle, {
+          headless: opts?.headless,
+          finishedToolNames: renderToolNames(detachedToolsRef.current),
+        });
         const responseDuration = (Date.now() - rctx.startTime) / 1000;
 
         const hasReplayedOutput = (data: ApiResponse | null): boolean => {
@@ -2977,13 +2980,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           opened.status === "tool_request",
           0
         );
-        await runDetachedTools(
-          stored,
-          opened.response,
-          redactor ? (text) => redactor.deAnonymize(text) : undefined
-        );
         void embedMessageAsync(stored, (text) => (redactor ? redactor.maskText(text) : text));
         return stored;
+      },
+      complete: async (opened, answer) => {
+        const { redactor } = resolveCallPii(undefined, piiRedaction, () =>
+          getConversationRedactor(opened.conversation_id, nerDetectorRef.current)
+        );
+        await storeDetachedToolResults({
+          backend,
+          answer,
+          response: opened.response,
+          tools: detachedToolsRef.current,
+          deAnonymize: redactor ? (text) => redactor.deAnonymize(text) : undefined,
+        });
       },
     });
     const pending = pendingResumeRef.current;

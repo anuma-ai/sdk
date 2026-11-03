@@ -1,4 +1,4 @@
-import type { ToolConfig } from "../lib/chat/useChat/types.js";
+import type { ToolConfig, ToolExecutionContext } from "../lib/chat/useChat/types.js";
 
 /**
  * Minimal context interface required by tool factories.
@@ -236,10 +236,14 @@ export function createDisplayTool<TArgs = Record<string, unknown>, TResult = unk
       description: config.description,
       arguments: config.parameters,
     },
-    executor: async (args: Record<string, unknown>): Promise<unknown> => {
+    executor: async (
+      args: Record<string, unknown>,
+      _signal?: AbortSignal,
+      execution?: ToolExecutionContext
+    ): Promise<unknown> => {
       const result = await Promise.resolve(config.execute(args as unknown as TArgs));
 
-      const context = options.getContext();
+      const context = execution?.detached ? null : options.getContext();
       if (context) {
         const interactionId = generateInteractionId(config.displayType);
         const replacesInteractionId = config.getReplacesInteractionId?.(args as unknown as TArgs);

@@ -1,5 +1,3 @@
-import { v7 as uuidv7 } from "uuid";
-
 import type { LlmapiChatCompletionTool } from "../../client";
 import type { StoredMessage } from "../db/chat/types";
 import type { ChatBackend } from "../storage/ChatBackend";
@@ -9,11 +7,9 @@ import { TOOL_RESULT_ORIGIN } from "./toolResults";
 import type { ApiResponse } from "./useChat/strategies/types";
 import { getToolCallEvents } from "./useChat/strategies/types";
 import type { DetachedToolClass, ToolConfig } from "./useChat/types";
+import { executeToolCall } from "./useChat/utils";
 
-/**
- * The tool result the portal writes for a `deferred` call it answered while the device was away.
- * The device runs every call carrying it when the answer arrives.
- */
+/** The tool result the portal writes for a `deferred` call it answered while the device was away. */
 export const DEFERRED_TOOL_RESULT = "Done. The user's device applies this when it reconnects.";
 
 type ToolLike = LlmapiChatCompletionTool | ToolConfig;
@@ -35,6 +31,14 @@ export function detachedToolClasses(
     if (cls && name) classes[name] = cls;
   }
   return Object.keys(classes).length > 0 ? classes : undefined;
+}
+
+/** Names of the `render` tools in the list. */
+export function renderToolNames(tools: ToolLike[] | undefined): string[] {
+  return (tools ?? [])
+    .filter((tool) => (tool as ToolConfig).detachedClass === "render")
+    .map(toolName)
+    .filter((name): name is string => name !== undefined);
 }
 
 type PendingCall = { id: string; name: string; arguments: string };
@@ -86,11 +90,7 @@ function deferredToolCalls(response: ApiResponse): PendingCall[] {
     }));
 }
 
-/**
- * Runs the device side of a turn the portal finished while the device was away: the `render` calls
- * that ended it and the `deferred` calls the portal answered for the device. Calls to tools without
- * a class, or without an executor here, are left alone. Returns each call's result, in order.
- */
+/** Runs a detached answer's unanswered `render` calls and the `deferred` calls the portal answered. */
 export async function runDetachedToolCalls(
   response: ApiResponse,
   tools: ToolConfig[] | undefined,
@@ -102,50 +102,47 @@ export async function runDetachedToolCalls(
     const name = toolName(tool);
     if (name && tool.detachedClass && tool.executor) byName.set(name, tool);
   }
+  const calls = [
+    ...deferredToolCalls(response).filter(
+      (call) => byName.get(call.name)?.detachedClass === "deferred"
+    ),
+    ...finalToolCalls(response).filter((call) => byName.get(call.name)?.detachedClass === "render"),
+  ];
   const seen = new Set<string>();
   const results: AutoExecutedToolResult[] = [];
-  for (const call of [...deferredToolCalls(response), ...finalToolCalls(response)]) {
+  for (const call of calls) {
     const tool = byName.get(call.name);
     if (!tool?.executor || seen.has(call.id)) continue;
     seen.add(call.id);
-    const raw = deAnonymize && tool.deAnonymizeArgs ? deAnonymize(call.arguments) : call.arguments;
-    let args: Record<string, unknown>;
-    try {
-      args = JSON.parse(raw) as Record<string, unknown>;
-    } catch {
-      continue;
-    }
-    try {
-      results.push({
-        name: call.name,
-        result: await tool.executor(args, undefined, { detached: true }),
-      });
-    } catch (err) {
-      results.push({
-        name: call.name,
-        result: { error: err instanceof Error ? err.message : String(err) },
-      });
-    }
+    const args = deAnonymize && tool.deAnonymizeArgs ? deAnonymize(call.arguments) : call.arguments;
+    const { result, error } = await executeToolCall(
+      { id: call.id, type: "function", name: call.name, arguments: args, status: "pending" },
+      tool.executor,
+      tool.executorTimeout,
+      undefined,
+      { detached: true }
+    );
+    results.push({ name: call.name, result: error !== undefined ? { error } : result });
   }
   return results;
 }
 
-/**
- * Runs a stored detached answer's device-side calls and saves their results as the turn's
- * tool-results row, the same row an attached turn writes. Returns the row, or null when nothing ran.
- */
+/** Runs a stored detached answer's device-side calls once, saving their results as its tool-results row. */
 export async function storeDetachedToolResults(options: {
-  backend: Pick<ChatBackend, "createMessage">;
+  backend: Pick<ChatBackend, "createMessage" | "getMessagesByIds">;
   answer: StoredMessage;
   response: ApiResponse;
   tools: ToolConfig[] | undefined;
   deAnonymize?: (text: string) => string;
 }): Promise<StoredMessage | null> {
   const { backend, answer, response, tools, deAnonymize } = options;
+  const rowId = `${answer.uniqueId}_tool_results`;
+  const [existing] = await backend.getMessagesByIds([rowId]);
+  if (existing) return existing;
   const results = await runDetachedToolCalls(response, tools, deAnonymize);
   if (results.length === 0) return null;
   return backend.createMessage({
-    uniqueId: `msg_${uuidv7()}`,
+    uniqueId: rowId,
     conversationId: answer.conversationId,
     role: "user",
     content: buildToolResultContent(results),

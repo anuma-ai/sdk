@@ -292,6 +292,26 @@ describe("expo useChatStorage background turns", () => {
     });
   });
 
+  it("tells the replay reader which tools the device finishes on arrival", async () => {
+    vi.mocked(resumeStream).mockResolvedValue({
+      data: answer("Recovered.") as never,
+      error: null,
+      interrupted: false,
+    });
+    const { result } = renderStorage({ detachedTools: [chartTool(vi.fn())] });
+
+    await act(async () => {
+      await result.current.resumeStream(
+        { inferenceId: "0xnames", apiType: "responses", conversationId: "conv_bg" },
+        { headless: true }
+      );
+    });
+
+    expect(vi.mocked(resumeStream).mock.calls.at(-1)?.[0]).toMatchObject({
+      finishedToolNames: ["display_chart"],
+    });
+  });
+
   it("runs nothing for a replay that was interrupted", async () => {
     const draw = vi.fn();
     vi.mocked(resumeStream).mockResolvedValue({
@@ -502,6 +522,44 @@ describe("expo useChatStorage background turns", () => {
       expect(rows.find((row) => row.parentMessageId === "msg_reply_0xc")).toMatchObject({
         origin: "tool_result",
       });
+    });
+
+    it("draws the card once when the inbox and a replay both deliver the turn", async () => {
+      const draw = vi.fn(async () => ({ chart: "Rain" }));
+      const { inbox } = fakeInbox([
+        {
+          id: "0xtwice",
+          plaintext: { ...sealed("0xtwice", "msg_p"), response: answerEndingOnChart("Chart:") },
+        },
+      ]);
+      vi.mocked(resumeStream).mockResolvedValue({
+        data: answerEndingOnChart("Chart:") as never,
+        error: null,
+        interrupted: false,
+      });
+      const { result } = renderStorage({
+        inbox,
+        withWallet: true,
+        database: await deviceWithParent("msg_p"),
+        detachedTools: [chartTool(draw)],
+      });
+
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+      await act(async () => {
+        await result.current.resumeStream(
+          {
+            inferenceId: "0xtwice",
+            apiType: "responses",
+            conversationId: "conv_bg",
+            assistantMessageId: "msg_reply_0xtwice",
+          },
+          { headless: true }
+        );
+      });
+
+      expect(draw).toHaveBeenCalledTimes(1);
     });
 
     it("stores a sealed answer under the sender's reply id on the device that owns the turn", async () => {

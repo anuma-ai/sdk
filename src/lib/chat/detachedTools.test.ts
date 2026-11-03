@@ -191,12 +191,34 @@ describe("runDetachedToolCalls", () => {
     expect(executor).not.toHaveBeenCalled();
   });
 
+  it("never runs a deferred call the portal left unanswered", async () => {
+    const save = vi.fn(async () => "Memory saved.");
+    const results = await runDetachedToolCalls(
+      responsesWithCall("memory_vault_save", { content: "likes tea" }),
+      [tool("memory_vault_save", { detachedClass: "deferred", executor: save })]
+    );
+    expect(save).not.toHaveBeenCalled();
+    expect(results).toEqual([]);
+  });
+
   it("restores masked values in the arguments of a tool that asks for it", async () => {
     const save = vi.fn(async () => "ok");
     const draw = vi.fn(async () => "ok");
     const restore = (text: string) => text.replace("[NAME_1]", "Ada");
+    const answered = {
+      object: "response",
+      output: [],
+      tool_call_events: [
+        {
+          id: "c1",
+          name: "memory_vault_save",
+          arguments: '{"content":"[NAME_1] likes tea"}',
+          output: DEFERRED_TOOL_RESULT,
+        },
+      ],
+    } as unknown as ApiResponse;
     await runDetachedToolCalls(
-      responsesWithCall("memory_vault_save", { content: "[NAME_1] likes tea" }),
+      answered,
       [
         tool("memory_vault_save", {
           detachedClass: "deferred",
@@ -224,7 +246,22 @@ describe("runDetachedToolCalls", () => {
         },
       }),
     ]);
-    expect(results).toEqual([{ name: "display_chart", result: { error: "no data" } }]);
+    expect(results).toEqual([
+      { name: "display_chart", result: { error: "Tool execution failed: no data" } },
+    ]);
+  });
+
+  it("gives up on an executor that never settles, after the tool's timeout", async () => {
+    const results = await runDetachedToolCalls(responsesWithCall("display_weather", {}), [
+      tool("display_weather", {
+        detachedClass: "render",
+        executorTimeout: 5,
+        executor: () => new Promise(() => undefined),
+      }),
+    ]);
+    expect(results).toEqual([
+      { name: "display_weather", result: { error: expect.stringContaining("timed out") } },
+    ]);
   });
 });
 
@@ -232,15 +269,16 @@ describe("storeDetachedToolResults", () => {
   const answer = { uniqueId: "reply-1", conversationId: "conv-1" } as never;
 
   it("saves the results as the turn's tool-results row under the answer", async () => {
-    const createMessage = vi.fn(async (opts: Record<string, unknown>) => opts as never);
+    const createMessage = vi.fn(async (opts: unknown) => opts as never);
     await storeDetachedToolResults({
-      backend: { createMessage },
+      backend: { createMessage, getMessagesByIds: async () => [] },
       answer,
       response: responsesWithCall("display_chart", { title: "Rain" }),
       tools: [tool("display_chart", { detachedClass: "render", executor: async () => "drawn" })],
     });
     expect(createMessage).toHaveBeenCalledWith(
       expect.objectContaining({
+        uniqueId: "reply-1_tool_results",
         conversationId: "conv-1",
         role: "user",
         parentMessageId: "reply-1",
@@ -250,10 +288,25 @@ describe("storeDetachedToolResults", () => {
     );
   });
 
+  it("runs nothing again once the answer has its tool-results row", async () => {
+    const draw = vi.fn(async () => "drawn");
+    const createMessage = vi.fn();
+    const existing = { uniqueId: "reply-1_tool_results" } as never;
+    const row = await storeDetachedToolResults({
+      backend: { createMessage, getMessagesByIds: async () => [existing] },
+      answer,
+      response: responsesWithCall("display_chart", {}),
+      tools: [tool("display_chart", { detachedClass: "render", executor: draw })],
+    });
+    expect(row).toBe(existing);
+    expect(draw).not.toHaveBeenCalled();
+    expect(createMessage).not.toHaveBeenCalled();
+  });
+
   it("writes nothing when no call ran", async () => {
     const createMessage = vi.fn();
     const row = await storeDetachedToolResults({
-      backend: { createMessage },
+      backend: { createMessage, getMessagesByIds: async () => [] },
       answer,
       response: responsesWithCall("gmail_send", {}),
       tools: [tool("gmail_send", { executor: async () => "sent" })],
@@ -276,6 +329,24 @@ describe("tool classes", () => {
       }
     );
     expect(display.detachedClass).toBe("render");
+  });
+
+  it("a detached display call draws no live card in whatever chat is open", async () => {
+    const createDisplayInteraction = vi.fn();
+    const display = createDisplayTool(
+      { getContext: () => ({ createDisplayInteraction }) as never },
+      {
+        name: "display_chart",
+        description: "chart",
+        parameters: { type: "object", properties: {} },
+        displayType: "chart",
+        execute: (args) => args,
+      }
+    );
+    await display.executor!({ title: "Rain" }, undefined, { detached: true });
+    expect(createDisplayInteraction).not.toHaveBeenCalled();
+    await display.executor!({ title: "Rain" });
+    expect(createDisplayInteraction).toHaveBeenCalledTimes(1);
   });
 
   it("the memory save tool is deferred and saves without asking when detached", async () => {

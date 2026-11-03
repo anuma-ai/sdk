@@ -91,17 +91,10 @@ export type ToolExecutor = (
 ) => Promise<unknown> | unknown;
 /* eslint-enable @typescript-eslint/no-redundant-type-constituents */
 
-/**
- * How the portal treats a call to a device-side tool while the device is away: `render` ends the
- * turn as completed and the device draws the card when the answer arrives, `deferred` is answered on
- * the portal and the device runs the call when the answer arrives.
- */
+/** How the portal treats a call to this device tool while the device is away. */
 export type DetachedToolClass = "render" | "deferred";
 
-/**
- * Context for one executor run. `detached` is true when the call comes from an answer the portal
- * finished while the device was away, so no user is waiting on a prompt.
- */
+/** Context for one executor run; `detached` marks a call from an answer finished while the device was away. */
 export type ToolExecutionContext = { detached?: boolean };
 
 /**
@@ -173,10 +166,7 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    * files from IndexedDB that `create_file` writes.
    */
   dependsOn?: string[];
-  /**
-   * How the portal handles this tool when the model calls it while the device is away. Unset tools
-   * pause the turn until the device returns. Never sent to the model provider.
-   */
+  /** How the portal handles a call to this tool while the device is away; unset tools pause the turn. */
   detachedClass?: DetachedToolClass;
 };
 

@@ -3300,19 +3300,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             getLogger().warn("[useChatStorage] Failed to link inbox media:", err);
           }
         }
-        try {
-          await storeDetachedToolResults({
-            backend,
-            answer: stored,
-            response: opened.response,
-            tools: detachedToolsRef.current,
-            deAnonymize: redactor ? (text) => redactor.deAnonymize(text) : undefined,
-          });
-        } catch (err) {
-          getLogger().warn("[useChatStorage] Failed to run a detached answer's tool calls:", err);
-        }
         void embedMessageAsync(stored, (text) => (redactor ? redactor.maskText(text) : text));
         return stored;
+      },
+      complete: async (opened, answer) => {
+        const { redactor } = resolveCallPii(undefined, piiRedaction, () =>
+          getConversationRedactor(opened.conversation_id, nerDetectorRef.current)
+        );
+        await storeDetachedToolResults({
+          backend,
+          answer,
+          response: opened.response,
+          tools: detachedToolsRef.current,
+          deAnonymize: redactor ? (text) => redactor.deAnonymize(text) : undefined,
+        });
       },
     });
   }, [

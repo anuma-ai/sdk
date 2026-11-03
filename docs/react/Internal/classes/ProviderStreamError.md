@@ -1,6 +1,6 @@
 # ProviderStreamError
 
-Defined in: [src/lib/chat/useChat/utils.ts:427](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#427)
+Defined in: [src/lib/chat/useChat/utils.ts:433](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#433)
 
 Error thrown when an upstream provider emits an in-stream error event.
 Carries the provider's code (e.g. `"timeout"`) so callers can match
@@ -17,7 +17,7 @@ instead of string-matching the message.
 
 > **new ProviderStreamError**(`message`: `string`, `code?`: `string`): `ProviderStreamError`
 
-Defined in: [src/lib/chat/useChat/utils.ts:429](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#429)
+Defined in: [src/lib/chat/useChat/utils.ts:435](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#435)
 
 **Parameters**
 
@@ -70,7 +70,7 @@ Defined in: [src/lib/chat/useChat/utils.ts:429](https://github.com/anuma-ai/sdk/
 
 > `readonly` **code**: `string` | `undefined`
 
-Defined in: [src/lib/chat/useChat/utils.ts:428](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#428)
+Defined in: [src/lib/chat/useChat/utils.ts:434](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#434)
 
 ***
 

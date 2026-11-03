@@ -154,6 +154,8 @@ export interface ResumeStreamOptions {
   onFinish?: (response: ApiResponse) => void;
   /** Called on a transient/unexpected failure. Never called for 410 (throws) nor interrupted terminals. */
   onError?: (error: Error) => void;
+  /** Tools a finished replay may end on because the device runs them when the answer is stored. */
+  finishedToolNames?: string[];
 }
 
 /**
@@ -386,7 +388,11 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
 
   try {
     if (idleFired) return buildInterrupted(abortMessage());
-    if (accumulator.toolCalls.size > 0) {
+    const finishedHere = new Set(options.finishedToolNames ?? []);
+    const pausedOnTool = [...accumulator.toolCalls.values()].some(
+      (call) => !finishedHere.has(call.name)
+    );
+    if (pausedOnTool) {
       return buildInterrupted("Stream ended with a pending tool request");
     }
 
