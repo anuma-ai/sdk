@@ -670,4 +670,140 @@ describe("useChat resumable surface", () => {
     });
     expect(sendResult!.error).toBeNull();
   });
+
+  describe("connection drop", () => {
+    function droppingStream(failure: "network" | "provider") {
+      return (async function* () {
+        yield { type: "response.created", response: { id: "r", model: "m" } };
+        yield { type: "response.output_text.delta", delta: { OfString: "Half" } };
+        if (failure === "provider") {
+          yield { error: { code: "rate_limited", message: "Provider rate limited" } };
+        }
+        throw new Error("Network request failed");
+      })();
+    }
+
+    async function send(options: {
+      resumable: boolean;
+      meta: boolean;
+      failure?: "network" | "provider";
+    }) {
+      transportImpl = (transportOptions) => {
+        if (options.meta) transportOptions.onStreamMeta?.({ inferenceId: "inf-drop" });
+        return { stream: droppingStream(options.failure ?? "network") };
+      };
+      const onError = vi.fn();
+      const { result } = renderHook(() =>
+        useChat({ getToken: async () => "tok", resumable: options.resumable, onError })
+      );
+      let sent: Awaited<ReturnType<typeof result.current.sendMessage>> | undefined;
+      await act(async () => {
+        sent = await result.current.sendMessage({
+          messages: userMessages,
+          model: "test-model",
+          apiType: "responses",
+        });
+      });
+      return { sent, onError, result };
+    }
+
+    it("detaches a resumable send whose connection drops after the inference id arrived", async () => {
+      const { sent, onError, result } = await send({ resumable: true, meta: true });
+
+      expect(sent).toMatchObject({
+        error: "Request detached",
+        detached: true,
+        resume: { inferenceId: "inf-drop", apiType: "responses", model: "test-model" },
+      });
+      expect(onError).not.toHaveBeenCalled();
+      expect(result.current.detach()).toMatchObject({ inferenceId: "inf-drop" });
+    });
+
+    it("fails a send whose connection drops before the inference id arrived", async () => {
+      const { sent, onError } = await send({ resumable: true, meta: false });
+
+      expect(sent).toMatchObject({ error: "Network request failed" });
+      expect(sent).not.toHaveProperty("detached");
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Network request failed" })
+      );
+    });
+
+    it("fails a send the provider ended with an error", async () => {
+      const { sent, onError } = await send({ resumable: true, meta: true, failure: "provider" });
+
+      expect(sent).toMatchObject({ error: "Provider rate limited" });
+      expect(sent).not.toHaveProperty("detached");
+      expect(onError).toHaveBeenCalledTimes(1);
+    });
+
+    async function sendWithToolRound(secondRoundMeta: boolean) {
+      let round = 0;
+      transportImpl = (transportOptions) => {
+        const current = round++;
+        if (current === 0 || secondRoundMeta) {
+          transportOptions.onStreamMeta?.({ inferenceId: `inf-round-${current}` });
+        }
+        if (current === 1) return { stream: droppingStream("network") };
+        return {
+          stream: (async function* () {
+            yield { type: "response.created", response: { id: "r", model: "m" } };
+            yield {
+              type: "response.output_item.added",
+              item: {
+                type: "function_call",
+                id: "call",
+                call_id: "call",
+                name: "echo",
+                arguments: "{}",
+              },
+            };
+            yield { type: "response.completed", response: { usage: {} } };
+          })(),
+        };
+      };
+      const onError = vi.fn();
+      const { result } = renderHook(() =>
+        useChat({ getToken: async () => "tok", resumable: true, onError })
+      );
+      let sent: Awaited<ReturnType<typeof result.current.sendMessage>> | undefined;
+      await act(async () => {
+        sent = await result.current.sendMessage({
+          messages: userMessages,
+          model: "test-model",
+          apiType: "responses",
+          tools: [
+            {
+              type: "function",
+              function: { name: "echo" },
+              executor: () => Promise.resolve({ ok: true }),
+            },
+          ],
+        });
+      });
+      expect(round).toBe(2);
+      return { sent, onError };
+    }
+
+    it("fails a send that drops after a finished round and before the next inference id", async () => {
+      const { sent, onError } = await sendWithToolRound(false);
+
+      expect(sent).not.toHaveProperty("detached");
+      expect(onError).toHaveBeenCalledTimes(1);
+    });
+
+    it("detaches with the latest round's handle when that round drops", async () => {
+      const { sent, onError } = await sendWithToolRound(true);
+
+      expect(sent).toMatchObject({ detached: true, resume: { inferenceId: "inf-round-1" } });
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it("fails a dropped send when resumable is off", async () => {
+      const { sent, onError } = await send({ resumable: false, meta: true });
+
+      expect(sent).not.toHaveProperty("detached");
+      expect(onError).toHaveBeenCalledTimes(1);
+    });
+  });
 });
