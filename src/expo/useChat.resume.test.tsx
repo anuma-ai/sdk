@@ -3,7 +3,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { STREAM_RESUMABLE_HEADER } from "../lib/chat/toolLoop";
+import { ProviderStreamError, STREAM_RESUMABLE_HEADER } from "../lib/chat/toolLoop";
 import { extractAssistantText } from "../lib/chat/useChat/strategies";
 import type { StreamingTransport, StreamingTransportOptions } from "../lib/chat/toolLoop";
 
@@ -673,22 +673,27 @@ describe("useChat resumable surface", () => {
   });
 
   describe("connection drop", () => {
-    function droppingStream(failure: "network" | "provider") {
+    type Failure = "network" | "provider" | "response.failed" | "typed error";
+    const failureChunks: Record<Failure, unknown> = {
+      network: null,
+      provider: { error: { code: "rate_limited", message: "Provider rate limited" } },
+      "response.failed": {
+        type: "response.failed",
+        response: { error: { code: "server_error", message: "Upstream overloaded" } },
+      },
+      "typed error": { error: { type: "server_error" } },
+    };
+
+    function droppingStream(failure: Failure) {
       return (async function* () {
         yield { type: "response.created", response: { id: "r", model: "m" } };
         yield { type: "response.output_text.delta", delta: { OfString: "Half" } };
-        if (failure === "provider") {
-          yield { error: { code: "rate_limited", message: "Provider rate limited" } };
-        }
+        if (failureChunks[failure]) yield failureChunks[failure];
         throw new Error("Network request failed");
       })();
     }
 
-    async function send(options: {
-      resumable: boolean;
-      meta: boolean;
-      failure?: "network" | "provider";
-    }) {
+    async function send(options: { resumable: boolean; meta: boolean; failure?: Failure }) {
       transportImpl = (transportOptions) => {
         if (options.meta) transportOptions.onStreamMeta?.({ inferenceId: "inf-drop" });
         return { stream: droppingStream(options.failure ?? "network") };
@@ -801,6 +806,23 @@ describe("useChat resumable surface", () => {
       expect(extractAssistantText(sent!.data!).content).toBe("Half");
       expect(onError).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ["response.failed", "[server_error] Upstream overloaded", "server_error"],
+      ["typed error", "[server_error] server_error", undefined],
+    ] as const)(
+      "fails a send that portal ended with a %s event",
+      async (failure, message, code) => {
+        const { sent, onError } = await send({ resumable: true, meta: true, failure });
+
+        expect(sent).toMatchObject({ error: message, data: null });
+        expect(sent).not.toHaveProperty("detached");
+        expect(onError).toHaveBeenCalledTimes(1);
+        const reported = onError.mock.calls[0][0] as unknown;
+        expect(reported).toBeInstanceOf(ProviderStreamError);
+        expect((reported as ProviderStreamError).code).toBe(code);
+      }
+    );
 
     it("fails a dropped send when resumable is off", async () => {
       const { sent, onError } = await send({ resumable: false, meta: true });

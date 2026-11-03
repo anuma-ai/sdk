@@ -156,21 +156,6 @@ function isRetriableStreamError(err: unknown): boolean {
   return false;
 }
 
-/**
- * Error thrown when an upstream provider emits an in-stream error event.
- * Carries the provider's code (e.g. `"timeout"`) so callers can match
- * programmatically via `err instanceof ProviderStreamError && err.code === "timeout"`
- * instead of string-matching the message.
- */
-export class ProviderStreamError extends Error {
-  readonly code: string | undefined;
-  constructor(message: string, code?: string) {
-    super(message);
-    this.name = "ProviderStreamError";
-    this.code = code;
-  }
-}
-
 function extractProviderStreamError(chunk: unknown): ProviderStreamError | null {
   if (!chunk || typeof chunk !== "object") return null;
   const errField = (chunk as { error?: unknown }).error;
@@ -207,11 +192,14 @@ import {
   executeToolCall,
   isAbortError,
   isDoneMarker,
+  ProviderStreamError,
   safeJsonStringify,
   toolsToApiFormat,
   validateMessages,
   validateModel,
 } from "./useChat/utils";
+
+export { ProviderStreamError };
 
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
 
