@@ -2,6 +2,26 @@ import { normalizeEntityName } from "../../db/entities/types.js";
 
 export const ciphertextPattern = /^enc:v\d+:[0-9a-f]+$/i;
 const topicHashPattern = /^[0-9a-f]{64}$/;
+/** Nearby's limit for the sealed `name` of a hashed topic entry or catalog entry. */
+export const MAX_SEALED_TOPIC_NAME_BYTES = 1024;
+
+/**
+ * Topic matching key: trimmed, lowercased and NFC-normalized, so composed and
+ * decomposed spellings of one name (as different keyboards produce) hash alike.
+ */
+export function normalizeTopicName(name: string): string {
+  return normalizeEntityName(name).normalize("NFC");
+}
+
+/** Whether every hashed entry of a sealed topics array fits nearby's name limit. */
+export function sealedTopicNamesFit(json: string | undefined): boolean {
+  return (entries(json) ?? []).every(
+    (entry) =>
+      !hashed(entry) ||
+      typeof entry.name !== "string" ||
+      entry.name.length <= MAX_SEALED_TOPIC_NAME_BYTES
+  );
+}
 
 interface TopicCipher {
   encrypt: (plaintext: string) => Promise<string>;
@@ -26,7 +46,11 @@ export interface TopicCodec {
   encodeTopics(json: string): Promise<string>;
   decodeTopics(json: string): Promise<string>;
   isLegacy(json: string | undefined): boolean;
-  matchesLegacy(json: unknown, names: ReadonlySet<string>, hashes: ReadonlySet<string>): boolean;
+  matchesLegacy(
+    json: unknown,
+    names: ReadonlySet<string>,
+    hashes: ReadonlySet<string>
+  ): Promise<boolean>;
   encodeCatalog<T extends { name: string }>(
     topic: T
   ): Promise<(Omit<T, "name"> & SealedTopicName) | null>;
@@ -68,9 +92,10 @@ export function createTopicCodec(cipher: TopicCipher): TopicCodec {
   const hashes = new Map<string, Promise<string>>();
   const opened = new Map<string, Promise<string>>();
   const seals = new Map<string, Promise<SealedTopicName>>();
+  const legacyNames = new Map<string, Promise<string>>();
 
   const hash = async (name: string): Promise<string | null> => {
-    const normalized = normalizeEntityName(name);
+    const normalized = normalizeTopicName(name);
     if (!normalized) return null;
     return cached(hashes, normalized, async () => {
       const digest = await cipher.hashTopic(normalized);
@@ -94,8 +119,22 @@ export function createTopicCodec(cipher: TopicCipher): TopicCodec {
     });
   };
 
+  // An entry without name_hash whose name is ciphertext was written back by a
+  // client that dropped name_hash from a sealed entry. Its name is decrypted
+  // rather than treated, and sealed again, as a plaintext name. A name that does
+  // not decrypt under this key stays as it is.
+  const plain = (name: string): Promise<string> => {
+    if (!ciphertextPattern.test(name)) return Promise.resolve(name);
+    let pending = legacyNames.get(name);
+    if (!pending) {
+      pending = cipher.decrypt(name).catch(() => name);
+      legacyNames.set(name, pending);
+    }
+    return pending;
+  };
+
   const open = async ({ name, name_hash: nameHash }: CatalogTopicFields): Promise<string> => {
-    if (nameHash === undefined) return name;
+    if (nameHash === undefined) return plain(name);
     if (
       typeof name !== "string" ||
       typeof nameHash !== "string" ||
@@ -123,7 +162,7 @@ export function createTopicCodec(cipher: TopicCipher): TopicCodec {
       const sealed = await Promise.all(
         list.map(async (entry) => {
           if (!record(entry) || typeof entry.name !== "string") return null;
-          const name = await seal(entry.name);
+          const name = await seal(await plain(entry.name));
           return name && { ...entry, name: name.name, name_hash: name.name_hash };
         })
       );
@@ -131,10 +170,20 @@ export function createTopicCodec(cipher: TopicCipher): TopicCodec {
     },
     decodeTopics: async (json) => {
       const list = entries(json);
-      if (!list?.some(hashed)) return json;
+      if (
+        !list?.some(
+          (entry) =>
+            hashed(entry) ||
+            (record(entry) && typeof entry.name === "string" && ciphertextPattern.test(entry.name))
+        )
+      )
+        return json;
       const decoded = await Promise.all(
         list.map(async (entry) => {
-          if (!hashed(entry)) return entry;
+          if (!hashed(entry))
+            return record(entry) && typeof entry.name === "string"
+              ? { ...entry, name: await plain(entry.name) }
+              : entry;
           const { name_hash: nameHash, ...rest } = entry;
           return { ...rest, name: await open({ name: entry.name as string, name_hash: nameHash }) };
         })
@@ -145,21 +194,20 @@ export function createTopicCodec(cipher: TopicCipher): TopicCodec {
       (entries(json) ?? []).some(
         (entry) => record(entry) && typeof entry.name === "string" && !hashed(entry)
       ),
-    matchesLegacy: (json, names, hashes) => {
+    matchesLegacy: async (json, names, hashes) => {
       const list = typeof json === "string" ? (entries(json) ?? []) : [];
-      return (
-        !list.some((entry) => hashed(entry) && hashes.has(entry.name_hash)) &&
-        list.some(
-          (entry) =>
-            record(entry) &&
-            typeof entry.name === "string" &&
-            !hashed(entry) &&
-            names.has(normalizeEntityName(entry.name))
+      if (list.some((entry) => hashed(entry) && hashes.has(entry.name_hash))) return false;
+      const legacy = await Promise.all(
+        list.map(async (entry) =>
+          record(entry) && typeof entry.name === "string" && !hashed(entry)
+            ? normalizeTopicName(await plain(entry.name))
+            : null
         )
       );
+      return legacy.some((name) => name !== null && names.has(name));
     },
     encodeCatalog: async (topic) => {
-      const sealed = await seal(normalizeEntityName(topic.name));
+      const sealed = await seal(normalizeTopicName(await plain(topic.name)));
       return sealed && { ...topic, name: sealed.name, name_hash: sealed.name_hash };
     },
     decodeCatalog: async (item) => {

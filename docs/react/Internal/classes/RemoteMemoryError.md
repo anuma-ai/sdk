@@ -1,6 +1,6 @@
 # RemoteMemoryError
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#155)
+Defined in: [src/lib/memory/store/remotePersistence.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#154)
 
 HTTP failures remain distinguishable, particularly version\_conflict and key\_mismatch.
 
@@ -14,7 +14,7 @@ HTTP failures remain distinguishable, particularly version\_conflict and key\_mi
 
 > **new RemoteMemoryError**(`message`: `string`, `status`: `number`, `code?`: `string`, `retryAfterMs?`: `number`, `rateLimitBucket?`: `string`): `RemoteMemoryError`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#156)
+Defined in: [src/lib/memory/store/remotePersistence.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#155)
 
 **Parameters**
 
@@ -103,7 +103,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:156](https://github.com/a
 
 > `readonly` `optional` **code**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#159)
+Defined in: [src/lib/memory/store/remotePersistence.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#158)
 
 ***
 
@@ -135,7 +135,7 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 
 > `readonly` `optional` **rateLimitBucket**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#161)
+Defined in: [src/lib/memory/store/remotePersistence.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#160)
 
 ***
 
@@ -143,7 +143,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:161](https://github.com/a
 
 > `readonly` `optional` **retryAfterMs**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#160)
+Defined in: [src/lib/memory/store/remotePersistence.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#159)
 
 ***
 
@@ -163,7 +163,7 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 
 > `readonly` **status**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#158)
+Defined in: [src/lib/memory/store/remotePersistence.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#157)
 
 ***
 

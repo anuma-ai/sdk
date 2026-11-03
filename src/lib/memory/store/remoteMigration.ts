@@ -25,7 +25,7 @@ import {
 } from "./remotePersistence.js";
 import { storedVector } from "./remotePipeline.js";
 import { createRemoteTopicPersistence } from "./remoteTopics.js";
-import { createTopicCodec, type TopicCodec } from "./topicCodec.js";
+import { createTopicCodec, sealedTopicNamesFit, type TopicCodec } from "./topicCodec.js";
 
 const IMPORT_BATCH = 50;
 const EMBED_BATCH = 100;
@@ -235,6 +235,7 @@ function fitsNearby(row: RemoteMemoryRow): boolean {
     bytes(row.content) <= MAX_CONTENT_BYTES &&
     bytes(row.kind_value) <= MAX_CONTENT_BYTES &&
     bytes(row.topics) <= MAX_TOPICS_BYTES &&
+    sealedTopicNamesFit(row.topics) &&
     TEXT_FIELDS.every((field) => bytes(row[field]) <= MAX_TEXT_BYTES) &&
     SHORT_FIELDS.every((field) => bytes(row[field]) <= MAX_SHORT_BYTES)
   );

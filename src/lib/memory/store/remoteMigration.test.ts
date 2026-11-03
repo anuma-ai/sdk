@@ -1039,6 +1039,26 @@ describe("migrateMemoriesToRemote", () => {
 
     expect(result.skipped).toEqual([{ memoryId: m.uniqueId, reason: "invalid" }]);
   });
+  it("skips a row whose sealed topic name would exceed nearby's limit", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const long = await createVaultMemoryOp(ctx, { content: "Has a long topic" });
+    const short = await createVaultMemoryOp(ctx, { content: "Has a short topic" });
+    for (const [id, name] of [
+      [long.uniqueId, "x".repeat(481)],
+      [short.uniqueId, "y".repeat(480)],
+    ] as const) {
+      const record = await ctx.vaultMemoryCollection.find(id);
+      await ctx.database.write(async () => {
+        await record.update((r) => r._setRaw("topics", JSON.stringify([{ name, source: "user" }])));
+      });
+    }
+
+    const nearby = fakeNearby();
+    const result = await migrate(nearby, ctx);
+
+    expect(result.skipped).toEqual([{ memoryId: long.uniqueId, reason: "invalid" }]);
+    expect(nearby.rows.has(short.uniqueId)).toBe(true);
+  });
 });
 
 describe("topic migration", () => {

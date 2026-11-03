@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { deriveMemoryKeyRing, memoryCipher } from "./memoryKeys";
-import { createTopicCodec } from "./topicCodec";
+import { createTopicCodec, sealedTopicNamesFit } from "./topicCodec";
 
 async function setup() {
   const cipher = memoryCipher(await deriveMemoryKeyRing(`0x${"d4".repeat(65)}`));
@@ -113,5 +113,53 @@ describe("topic codec", () => {
     expect(sealed).toMatchObject({ kind: "drink", name_hash: await codec.hash("coffee") });
     expect(await codec.decodeCatalog(sealed!)).toEqual({ name: "coffee", kind: "drink" });
     expect(await codec.encodeCatalog({ name: " " })).toBeNull();
+  });
+  it("hashes composed and decomposed spellings of a name alike", async () => {
+    const { codec } = await setup();
+    const composed = await codec.hash("Caf\u00e9");
+    expect(await codec.hash("cafe\u0301")).toBe(composed);
+    const wire = JSON.parse(await codec.encodeTopics(JSON.stringify([{ name: "cafe\u0301" }]))) as {
+      name_hash: string;
+    }[];
+    expect(wire[0].name_hash).toBe(composed);
+    expect(
+      await codec.matchesLegacy('[{"name":"cafe\u0301"}]', new Set(["caf\u00e9"]), new Set())
+    ).toBe(true);
+  });
+
+  it("decrypts a legacy entry whose name is ciphertext instead of sealing it again", async () => {
+    const { cipher, codec } = await setup();
+    const rewritten = JSON.stringify([
+      { name: await cipher.encrypt("Paris"), kind: "place" },
+      { name: "Rome" },
+    ]);
+    expect(JSON.parse(await codec.decodeTopics(rewritten))).toEqual([
+      { name: "Paris", kind: "place" },
+      { name: "Rome" },
+    ]);
+    const wire = JSON.parse(await codec.encodeTopics(rewritten)) as Record<string, string>[];
+    expect(wire.map((t) => t.name_hash)).toEqual([
+      await codec.hash("paris"),
+      await codec.hash("rome"),
+    ]);
+    expect(await cipher.decrypt(wire[0].name)).toBe("Paris");
+    expect(await codec.matchesLegacy(rewritten, new Set(["paris"]), new Set())).toBe(true);
+    expect(await codec.decodeCatalog({ name: await cipher.encrypt("coffee") })).toEqual({
+      name: "coffee",
+    });
+
+    const foreign = memoryCipher(await deriveMemoryKeyRing(`0x${"a1".repeat(65)}`));
+    const literal = JSON.stringify([{ name: await foreign.encrypt("Paris") }]);
+    expect(await codec.decodeTopics(literal)).toBe(literal);
+  });
+
+  it("checks sealed names against nearby's limit", async () => {
+    const { codec } = await setup();
+    const fits = await codec.encodeTopics(JSON.stringify([{ name: "a".repeat(480) }]));
+    const over = await codec.encodeTopics(JSON.stringify([{ name: "a".repeat(481) }]));
+    expect(sealedTopicNamesFit(fits)).toBe(true);
+    expect(sealedTopicNamesFit(over)).toBe(false);
+    expect(sealedTopicNamesFit(JSON.stringify([{ name: "a".repeat(2000) }]))).toBe(true);
+    expect(sealedTopicNamesFit(undefined)).toBe(true);
   });
 });

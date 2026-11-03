@@ -243,7 +243,7 @@ describe("remote topic catalog", () => {
     ]);
   });
 
-  it("carries a deletion made elsewhere during the upgrade onto the hashed copy", async () => {
+  it("carries a kind change made elsewhere during the upgrade onto the hashed copy", async () => {
     let raced = false;
     const vault = fakeCatalog(
       [
@@ -258,7 +258,7 @@ describe("remote topic catalog", () => {
           const legacy = vault.catalog.find((c) => c.name_hash === undefined && c.name === name)!;
           Object.assign(legacy, {
             version: 3,
-            is_deleted: true,
+            kind: "drink",
             server_updated_at: "2026-10-21T00:00:00Z",
           });
         }
@@ -274,20 +274,113 @@ describe("remote topic catalog", () => {
         topic: {
           name: expect.stringMatching(/^enc:v3:/) as string,
           name_hash: await upgrade.hash("coffee"),
-          is_deleted: true,
+          kind: "drink",
+          is_deleted: false,
         },
         expected_version: 1,
       },
+      { topic: { name: "coffee", kind: "drink", is_deleted: true }, expected_version: 3 },
+      { topic: { name: "tea", kind: "drink", is_deleted: true }, expected_version: 3 },
     ]);
+    expect(vault.liveLegacy()).toEqual([]);
     expect(
       (await createRemoteTopicPersistence(vault.request, upgrade).topics()).map((t) => [
         t.name,
+        t.kind,
         t.version,
         t.is_deleted,
       ])
     ).toEqual([
-      ["tea", 4, false],
-      ["coffee", 2, true],
+      ["tea", undefined, 4, false],
+      ["coffee", "drink", 2, false],
+    ]);
+  });
+
+  it("keeps the topic when two devices upgrade the catalog at the same time", async () => {
+    const vault = fakeCatalog([
+      { ...entry, name: "gardening", kind: "hobby", version: 2 },
+      { ...entry, name: "chess", version: 5 },
+    ]);
+    const serve = vault.request.getMockImplementation()!;
+    let raced = false;
+    vault.request.mockImplementation(async (path, init, signal) => {
+      if (path === "/topics/import" && !raced) {
+        raced = true;
+        await upgradeLegacyTopicCatalog(serve, codec());
+      }
+      return serve(path, init, signal);
+    });
+    const upgrade = codec();
+    await upgradeLegacyTopicCatalog(vault.request, upgrade);
+    expect(vault.liveLegacy()).toEqual([]);
+    expect(putBodies(vault.request)).toEqual([
+      { topic: { name: "gardening", kind: "hobby", is_deleted: true }, expected_version: 2 },
+      { topic: { name: "chess", is_deleted: true }, expected_version: 5 },
+    ]);
+    expect(
+      (await createRemoteTopicPersistence(vault.request, upgrade).topics()).map((t) => [
+        t.name,
+        t.kind,
+        t.is_deleted,
+      ])
+    ).toEqual([
+      ["gardening", "hobby", false],
+      ["chess", undefined, false],
+    ]);
+  });
+
+  it("retires legacy entries a few at a time in parallel", async () => {
+    const vault = fakeCatalog(
+      Array.from({ length: 20 }, (_, i) => ({ ...entry, name: `topic-${i}`, version: 1 }))
+    );
+    const serve = vault.request.getMockImplementation()!;
+    let inFlight = 0;
+    let peak = 0;
+    vault.request.mockImplementation(async (path, init, signal) => {
+      if (init?.method !== "PUT") return serve(path, init, signal);
+      peak = Math.max(peak, ++inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight--;
+      return serve(path, init, signal);
+    });
+    await upgradeLegacyTopicCatalog(vault.request, codec());
+    expect(peak).toBe(8);
+    expect(putBodies(vault.request)).toHaveLength(20);
+    expect(vault.liveLegacy()).toEqual([]);
+  });
+
+  it("does not import a catalog entry whose sealed name exceeds nearby's limit", async () => {
+    const request = vi.fn<NearbyRequest>().mockResolvedValue(undefined);
+    const warn = vi.spyOn(getLogger(), "warn").mockImplementation(() => {});
+    await createRemoteTopicPersistence(request, codec()).importTopics([
+      { name: "a".repeat(480) },
+      { name: "b".repeat(481) },
+    ]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+    const [[, init]] = request.mock.calls;
+    const topics = (JSON.parse(String(init?.body)) as { topics: { name: string }[] }).topics;
+    expect(topics.map((t) => t.name.length)).toEqual([1023]);
+  });
+
+  it("reads a legacy catalog entry whose name is ciphertext as its plaintext", async () => {
+    const vault = fakeCatalog([
+      { ...entry, name: await cipher.encrypt("Coffee"), version: 3 },
+      { ...entry, name: "tea", version: 1 },
+    ]);
+    const upgrade = codec();
+    expect(
+      (await createRemoteTopicPersistence(vault.request, upgrade).topics()).map((t) => t.name)
+    ).toEqual(["coffee", "tea"]);
+    await upgradeLegacyTopicCatalog(vault.request, upgrade);
+    const hashed = vault.catalog.filter((c) => c.name_hash !== undefined);
+    expect(hashed.map((c) => c.name_hash)).toEqual([
+      await upgrade.hash("coffee"),
+      await upgrade.hash("tea"),
+    ]);
+    expect(await Promise.all(hashed.map((c) => cipher.decrypt(c.name as string)))).toEqual([
+      "coffee",
+      "tea",
     ]);
   });
 
@@ -304,7 +397,7 @@ describe("remote topic catalog", () => {
     });
     await expect(
       upgradeLegacyTopicCatalog(vault.request, codec(), controller.signal)
-    ).rejects.toThrow("aborted");
+    ).rejects.toThrow(/aborted|cancelled/);
     expect(putBodies(vault.request)).toHaveLength(1);
   });
 
@@ -333,6 +426,16 @@ describe("remote topic catalog", () => {
     };
     expect(await createRemoteTopic(persistence, " COFFEE ")).toBe("coffee");
     expect(persistence.putTopic).toHaveBeenCalledWith({ name: "coffee", is_deleted: false }, 2);
+  });
+
+  it("finds an existing topic whatever the Unicode normalization of the name", async () => {
+    const persistence: RemoteTopicPersistence = {
+      topics: vi.fn(async () => [{ ...entry, name: "caf\u00e9" }]),
+      putTopic: vi.fn(),
+      importTopics: vi.fn(),
+    };
+    expect(await createRemoteTopic(persistence, "Cafe\u0301")).toBe("caf\u00e9");
+    expect(persistence.putTopic).not.toHaveBeenCalled();
   });
 
   it("coalesces concurrent creates without overwriting a deletion", async () => {

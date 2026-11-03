@@ -1,6 +1,6 @@
 # RemoteMemoryRow
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#18)
+Defined in: [src/lib/memory/store/remotePersistence.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#17)
 
 The nearby private-memory row. Content, kind\_value and topic names are plaintext ONLY on the device.
 
@@ -10,7 +10,7 @@ The nearby private-memory row. Content, kind\_value and topic names are plaintex
 
 > `optional` **archived\_at**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#47)
+Defined in: [src/lib/memory/store/remotePersistence.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#46)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:47](https://github.com/an
 
 > **content**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#20)
+Defined in: [src/lib/memory/store/remotePersistence.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#19)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:20](https://github.com/an
 
 > **created\_at**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#22)
+Defined in: [src/lib/memory/store/remotePersistence.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#21)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:22](https://github.com/an
 
 > `optional` **embedding**: `number`\[]
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#25)
+Defined in: [src/lib/memory/store/remotePersistence.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#24)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:25](https://github.com/an
 
 > `optional` **embedding\_model**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#26)
+Defined in: [src/lib/memory/store/remotePersistence.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#25)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:26](https://github.com/an
 
 > `optional` **event\_time\_end**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#35)
+Defined in: [src/lib/memory/store/remotePersistence.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#34)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:35](https://github.com/an
 
 > `optional` **event\_time\_kind**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#36)
+Defined in: [src/lib/memory/store/remotePersistence.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#35)
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:36](https://github.com/an
 
 > `optional` **event\_time\_start**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#34)
+Defined in: [src/lib/memory/store/remotePersistence.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#33)
 
 ***
 
@@ -74,7 +74,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:34](https://github.com/an
 
 > `optional` **fact\_type**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#46)
+Defined in: [src/lib/memory/store/remotePersistence.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#45)
 
 ***
 
@@ -82,7 +82,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:46](https://github.com/an
 
 > `optional` **folder\_id**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#30)
+Defined in: [src/lib/memory/store/remotePersistence.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#29)
 
 ***
 
@@ -90,7 +90,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:30](https://github.com/an
 
 > `optional` **geohash**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#52)
+Defined in: [src/lib/memory/store/remotePersistence.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#51)
 
 ***
 
@@ -98,7 +98,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:52](https://github.com/an
 
 > **is\_deleted**: `boolean`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#24)
+Defined in: [src/lib/memory/store/remotePersistence.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#23)
 
 ***
 
@@ -106,7 +106,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:24](https://github.com/an
 
 > `optional` **kind**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#27)
+Defined in: [src/lib/memory/store/remotePersistence.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#26)
 
 ***
 
@@ -114,7 +114,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:27](https://github.com/an
 
 > `optional` **kind\_value**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#28)
+Defined in: [src/lib/memory/store/remotePersistence.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#27)
 
 ***
 
@@ -122,7 +122,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:28](https://github.com/an
 
 > `optional` **last\_observed\_at**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#45)
+Defined in: [src/lib/memory/store/remotePersistence.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#44)
 
 ***
 
@@ -130,7 +130,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:45](https://github.com/an
 
 > `optional` **level**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#29)
+Defined in: [src/lib/memory/store/remotePersistence.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#28)
 
 ***
 
@@ -138,7 +138,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:29](https://github.com/an
 
 > `optional` **media**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#40)
+Defined in: [src/lib/memory/store/remotePersistence.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#39)
 
 ***
 
@@ -146,7 +146,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:40](https://github.com/an
 
 > **memory\_id**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#19)
+Defined in: [src/lib/memory/store/remotePersistence.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#18)
 
 ***
 
@@ -154,7 +154,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:19](https://github.com/an
 
 > `optional` **proof\_count**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#32)
+Defined in: [src/lib/memory/store/remotePersistence.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#31)
 
 ***
 
@@ -162,7 +162,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:32](https://github.com/an
 
 > `optional` **published\_at**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#51)
+Defined in: [src/lib/memory/store/remotePersistence.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#50)
 
 ***
 
@@ -170,7 +170,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:51](https://github.com/an
 
 > **scope**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#21)
+Defined in: [src/lib/memory/store/remotePersistence.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#20)
 
 ***
 
@@ -178,7 +178,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:21](https://github.com/an
 
 > `optional` **source**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#33)
+Defined in: [src/lib/memory/store/remotePersistence.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#32)
 
 ***
 
@@ -186,7 +186,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:33](https://github.com/an
 
 > `optional` **source\_chunk\_ids**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#31)
+Defined in: [src/lib/memory/store/remotePersistence.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#30)
 
 ***
 
@@ -194,7 +194,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:31](https://github.com/an
 
 > `optional` **superseded\_at**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#44)
+Defined in: [src/lib/memory/store/remotePersistence.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#43)
 
 ***
 
@@ -202,7 +202,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:44](https://github.com/an
 
 > `optional` **superseded\_by**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#43)
+Defined in: [src/lib/memory/store/remotePersistence.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#42)
 
 ***
 
@@ -210,7 +210,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:43](https://github.com/an
 
 > `optional` **topics**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#38)
+Defined in: [src/lib/memory/store/remotePersistence.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#37)
 
 ***
 
@@ -218,7 +218,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:38](https://github.com/an
 
 > `optional` **topics\_extracted\_at**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#41)
+Defined in: [src/lib/memory/store/remotePersistence.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#40)
 
 ***
 
@@ -226,7 +226,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:41](https://github.com/an
 
 > `optional` **topics\_extracted\_version**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#42)
+Defined in: [src/lib/memory/store/remotePersistence.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#41)
 
 ***
 
@@ -234,7 +234,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:42](https://github.com/an
 
 > `optional` **topics\_updated\_at**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#39)
+Defined in: [src/lib/memory/store/remotePersistence.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#38)
 
 ***
 
@@ -242,7 +242,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:39](https://github.com/an
 
 > `optional` **topics\_user\_managed**: `boolean`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#37)
+Defined in: [src/lib/memory/store/remotePersistence.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#36)
 
 ***
 
@@ -250,7 +250,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:37](https://github.com/an
 
 > `optional` **trust\_tier**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#48)
+Defined in: [src/lib/memory/store/remotePersistence.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#47)
 
 ***
 
@@ -258,7 +258,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:48](https://github.com/an
 
 > `optional` **twin\_opt\_in**: `boolean`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#50)
+Defined in: [src/lib/memory/store/remotePersistence.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#49)
 
 ***
 
@@ -266,7 +266,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:50](https://github.com/an
 
 > **updated\_at**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#23)
+Defined in: [src/lib/memory/store/remotePersistence.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#22)
 
 ***
 
@@ -274,4 +274,4 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:23](https://github.com/an
 
 > `optional` **visibility**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#49)
+Defined in: [src/lib/memory/store/remotePersistence.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#48)

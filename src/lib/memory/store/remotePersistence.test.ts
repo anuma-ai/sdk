@@ -1086,13 +1086,24 @@ describe("encrypted topic names", () => {
     ]);
   });
 
-  it("upgrades legacy catalog entries before connecting and retires the live ones", async () => {
+  it("upgrades legacy catalog entries in the background and retires the live ones", async () => {
     const h = setup();
     h.catalog.push(
       { name: "coffee", kind: "drink", version: 3, is_deleted: false, server_updated_at: "x" },
       { name: "tea", version: 1, is_deleted: true, server_updated_at: "x" }
     );
+    const serve = h.fetch.getMockImplementation()!;
+    let release!: () => void;
+    const listed = new Promise<void>((resolve) => (release = resolve));
+    h.fetch.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname.endsWith("/topics") && init?.method !== "PUT")
+        await listed;
+      return serve(input, init);
+    });
     const store = await createRemoteMemoryPersistence(h.options);
+    expect(h.catalog).toHaveLength(2);
+    release();
+    await vi.waitFor(() => expect(h.catalog[0]).toMatchObject({ is_deleted: true }));
     const sealed = h.catalog.slice(2);
     expect(sealed).toEqual([
       expect.objectContaining({ kind: "drink", name_hash: await h.hashTopic("coffee") }),
@@ -1187,6 +1198,86 @@ describe("encrypted topic names", () => {
       { name: expect.stringMatching(/^enc:v3:/), name_hash: await h.hashTopic("porto") },
     ]);
     expect((await store.query({ topics: ["Lisbon"] })).next_cursor).toBe("legacy-topics:");
+  });
+
+  it("skips a row nearby rejects and writes the rest of its batch row by row", async () => {
+    const h = setup();
+    await seed(h, "a", { topics: '[{"name":"Lisbon"}]' });
+    await seed(h, "bad", { topics: '[{"name":"Faro"}]' });
+    await seed(h, "c", { topics: '[{"name":"Porto"}]' });
+    h.account.legacy_topic_memories = 3;
+    const serve = h.fetch.getMockImplementation()!;
+    h.fetch.mockImplementation(async (input, init) => {
+      const writes = (
+        init?.body ? (JSON.parse(String(init.body)) as { writes?: unknown }).writes : undefined
+      ) as { memory: RemoteMemoryRow }[] | undefined;
+      if (writes?.some((w) => w.memory.memory_id === "bad"))
+        return Response.json(
+          { detail: "validation_failed", code: "validation_failed" },
+          { status: 400 }
+        );
+      return serve(input, init);
+    });
+    const warn = vi.spyOn(getLogger(), "warn").mockImplementation(() => {});
+    const store = await createRemoteMemoryPersistence(h.options);
+    await vi.waitFor(() =>
+      expect(h.requests.filter((r) => r.url.pathname.endsWith("/work/release"))).toHaveLength(1)
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain("rejected 1 rows");
+    warn.mockRestore();
+    expect(h.rows.get("bad")).toMatchObject({
+      version: 1,
+      memory: { topics: '[{"name":"Faro"}]' },
+    });
+    for (const id of ["a", "c"]) expect(h.rows.get(id)!.version).toBe(2);
+    const batches = h.fetch.mock.calls
+      .filter(([input]) => String(input).endsWith("/memories/batch"))
+      .map(([, init]) => (JSON.parse(String(init?.body)) as { writes: unknown[] }).writes.length);
+    expect(batches).toEqual([3, 1, 1, 1]);
+    expect((await store.query({ topics: ["Faro"] })).next_cursor).toBe("legacy-topics:");
+  });
+
+  it("checks the account again and stops reading legacy rows once another device drains them", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const h = setup();
+      await seed(h, "a", { topics: '[{"name":"Lisbon"}]' });
+      h.account.legacy_topic_memories = 1;
+      h.holdLease("other-device");
+      const store = await createRemoteMemoryPersistence(h.options);
+      const accountChecks = () =>
+        h.requests.filter((r) => r.url.pathname.endsWith("/account")).length;
+      expect((await store.query({ topics: ["Lisbon"] })).next_cursor).toBe("legacy-topics:");
+      expect(accountChecks()).toBe(1);
+
+      h.account.legacy_topic_memories = 0;
+      vi.setSystemTime(Date.now() + 59_000);
+      expect((await store.query({ topics: ["Lisbon"] })).next_cursor).toBe("legacy-topics:");
+      expect(accountChecks()).toBe(1);
+      vi.setSystemTime(Date.now() + 1_000);
+      expect((await store.query({ topics: ["Lisbon"] })).next_cursor).toBe("legacy-topics:");
+      await vi.waitFor(() => expect(accountChecks()).toBe(2));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect((await store.query({ topics: ["Lisbon"] })).next_cursor).toBeUndefined();
+      expect(accountChecks()).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("matches a row whose legacy topic name is ciphertext written back by an older client", async () => {
+    const h = setup();
+    await seed(h, "a", {
+      topics: JSON.stringify([{ name: await h.encrypt("Lisbon"), source: "user" }]),
+    });
+    h.account.legacy_topic_memories = 1;
+    h.holdLease("other-device");
+    const store = await createRemoteMemoryPersistence(h.options);
+    expect((await store.get("a"))!.memory.topics).toBe('[{"name":"Lisbon","source":"user"}]');
+    const first = await store.query({ topics: ["lisbon"] });
+    const second = await store.query({ topics: ["lisbon"], cursor: first.next_cursor });
+    expect(second.items.map((item) => item.memory.memory_id)).toEqual(["a"]);
   });
 
   it("stops reading legacy rows for topic queries once the upgrade completes", async () => {

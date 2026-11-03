@@ -1,4 +1,3 @@
-import { normalizeEntityName } from "../../db/entities/types.js";
 import { getLogger } from "../../logger.js";
 import { parseRetryAfterMs } from "../portalLlm.js";
 import {
@@ -11,7 +10,7 @@ import {
   type RemoteMemoryWorkPersistence,
   withRemoteWorkLease,
 } from "./remoteWork.js";
-import { ciphertextPattern, createTopicCodec } from "./topicCodec.js";
+import { ciphertextPattern, createTopicCodec, normalizeTopicName } from "./topicCodec.js";
 import type { MemoryCounts } from "./types.js";
 
 /** The nearby private-memory row. Content, kind_value and topic names are plaintext ONLY on the device. */
@@ -218,6 +217,7 @@ export interface RemoteMemoryPersistence
 const TOPIC_UPGRADE_PROCESSOR = "topic-hash-v1";
 const TOPIC_UPGRADE_PAGE = 50;
 const LEGACY_TOPIC_CURSOR = "legacy-topics:";
+const LEGACY_TOPIC_RECHECK_MS = 60_000;
 // Mirror nearby's additionalProperties:false row schema. Reject extra fields
 // rather than accidentally forwarding credentials or dropping future metadata.
 const memoryFields = {
@@ -308,6 +308,10 @@ type WireQueryOptions = Omit<RemoteMemoryQueryOptions, "topics" | "signal"> & {
 
 function isVersionConflict(error: unknown): boolean {
   return error instanceof RemoteMemoryError && error.code === "version_conflict";
+}
+
+function isRejectedRow(error: unknown): boolean {
+  return error instanceof RemoteMemoryError && error.status === 400;
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -503,14 +507,31 @@ export async function createRemoteMemoryPersistence(
   const codec = createTopicCodec(options);
   let legacyTopicRows =
     typeof account.legacy_topic_memories === "number" && account.legacy_topic_memories > 0;
-  if (typeof account.legacy_topic_catalog === "number" && account.legacy_topic_catalog > 0) {
-    try {
-      await upgradeLegacyTopicCatalog(request, codec, options.signal);
-    } catch (error) {
-      if (options.signal?.aborted) throw error;
-      getLogger().warn("[memory/remote] Topic catalog upgrade failed:", error);
-    }
-  }
+  // Reads are correct before the catalog upgrade finishes: topics() hides a
+  // legacy entry behind its hashed copy and putTopic creates the hashed entry
+  // for a legacy-only name. So connect does not wait for it.
+  if (typeof account.legacy_topic_catalog === "number" && account.legacy_topic_catalog > 0)
+    void upgradeLegacyTopicCatalog(request, codec, options.signal).catch((error: unknown) => {
+      if (!options.signal?.aborted)
+        getLogger().warn("[memory/remote] Topic catalog upgrade failed:", error);
+    });
+  // While rows with legacy topics remain, topic queries also walk them. Another
+  // device may be the one upgrading them, so /account is checked again now and
+  // then, and the walk stops once it reports none.
+  let legacyCheckedAt = Date.now();
+  let legacyCheck: Promise<void> | undefined;
+  const recheckLegacyTopicRows = () => {
+    if (legacyCheck || Date.now() - legacyCheckedAt < LEGACY_TOPIC_RECHECK_MS) return;
+    legacyCheckedAt = Date.now();
+    legacyCheck = request("/account", {}, options.signal)
+      .then((current) => {
+        if (record(current) && current.legacy_topic_memories === 0) legacyTopicRows = false;
+      })
+      .catch(() => {})
+      .finally(() => {
+        legacyCheck = undefined;
+      });
+  };
 
   // Per-returned-snapshot ciphertext, not a replica: weak entries cannot be
   // enumerated or serve reads and disappear when callers release snapshots.
@@ -789,25 +810,28 @@ export async function createRemoteMemoryPersistence(
         },
         signal
       );
-      const wanted = new Set(names.map(normalizeEntityName));
+      const wanted = new Set(names.map(normalizeTopicName));
       const hashed = new Set(hashes);
-      return {
-        ...page,
-        items: page.items.filter((item) =>
+      const matches = await Promise.all(
+        page.items.map((item) =>
           codec.matchesLegacy(
             record(item) && record(item.memory) ? item.memory.topics : undefined,
             wanted,
             hashed
           )
-        ),
+        )
+      );
+      return {
+        ...page,
+        items: page.items.filter((_, i) => matches[i]),
         next_cursor:
           page.next_cursor === undefined ? undefined : LEGACY_TOPIC_CURSOR + page.next_cursor,
       };
     }
     const page = await postQuery({ ...body, topic_hashes: hashes }, signal);
-    return hashes.length > 0 && legacyTopicRows && page.next_cursor === undefined
-      ? { ...page, next_cursor: LEGACY_TOPIC_CURSOR }
-      : page;
+    if (hashes.length === 0 || page.next_cursor !== undefined || !legacyTopicRows) return page;
+    recheckLegacyTopicRows();
+    return { ...page, next_cursor: LEGACY_TOPIC_CURSOR };
   };
   const postQuery = async (
     body: WireQueryOptions,
@@ -1024,6 +1048,7 @@ export async function createRemoteMemoryPersistence(
       decodeAll((await fetchCandidates(embedding, candidateOptions, false)).items),
   };
 
+  let rejectedRows = 0;
   const rewriteLegacyTopics = async (records: RemoteMemoryRecord[], token: string) => {
     const write = (batch: RemoteMemoryRecord[]) =>
       persistence.putMany(
@@ -1031,16 +1056,23 @@ export async function createRemoteMemoryPersistence(
         options.signal,
         token
       );
+    // A row that changed since it was read (409) or that nearby rejects (400,
+    // e.g. a sealed topic name over the limit) is skipped and stays legacy; the
+    // rest of the batch is written row by row.
     try {
       await write(records);
       return true;
     } catch (error) {
-      if (!isVersionConflict(error)) throw error;
-      if (records.length === 1) return false;
+      if (!isVersionConflict(error) && !isRejectedRow(error)) throw error;
+      if (records.length === 1) {
+        if (isRejectedRow(error)) rejectedRows++;
+        return false;
+      }
       let complete = true;
       for (const item of records)
         await write([item]).catch((rowError: unknown) => {
-          if (!isVersionConflict(rowError)) throw rowError;
+          if (isRejectedRow(rowError)) rejectedRows++;
+          else if (!isVersionConflict(rowError)) throw rowError;
           complete = false;
         });
       return complete;
@@ -1067,6 +1099,10 @@ export async function createRemoteMemoryPersistence(
         if (legacy.length && !(await rewriteLegacyTopics(legacy, token))) complete = false;
         cursor = page.next_cursor;
       } while (cursor);
+      if (rejectedRows)
+        getLogger().warn(
+          `[memory/remote] Nearby rejected ${rejectedRows} rows during the topic upgrade; they keep legacy topics`
+        );
       return complete;
     });
   if (legacyTopicRows)

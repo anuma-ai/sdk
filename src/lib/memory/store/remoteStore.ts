@@ -2,7 +2,6 @@ import { v5 as uuidv5, v7 as uuidv7 } from "uuid";
 
 import type { EntityInput } from "../../db/entities/operations.js";
 import {
-  normalizeEntityName,
   parseTopics,
   parseTopicWeight,
   serializeTopics,
@@ -61,6 +60,7 @@ import {
 import { createRemoteMemoryPipeline, stored, storedVector } from "./remotePipeline.js";
 import { createRemoteTopic } from "./remoteTopics.js";
 import { isRemoteWorkLeaseExpired, withRemoteWorkLease } from "./remoteWork.js";
+import { normalizeTopicName } from "./topicCodec.js";
 import type {
   EmbeddingRepairOptions,
   EmbeddingRepairResult,
@@ -272,7 +272,7 @@ function topicInputs(topics: readonly EntityInput[], source: StoredTopic["source
 function mergeTopics(existing: readonly StoredTopic[], added: readonly StoredTopic[]) {
   const byName = new Map<string, StoredTopic>();
   for (const topic of [...existing, ...added]) {
-    const key = normalizeEntityName(topic.name);
+    const key = normalizeTopicName(topic.name);
     const kept = byName.get(key);
     if (!kept) byName.set(key, topic);
     else if (kept.weight !== undefined && topic.weight !== undefined && topic.weight > kept.weight)
@@ -290,7 +290,7 @@ function sameTopics(stored: readonly StoredTopic[] | null, next: readonly Stored
 }
 
 function canonicalTopics(row: Pick<RemoteMemoryRow, "topics">): Set<string> {
-  return new Set((parseTopics(row.topics) ?? []).map((topic) => normalizeEntityName(topic.name)));
+  return new Set((parseTopics(row.topics) ?? []).map((topic) => normalizeTopicName(topic.name)));
 }
 
 /**
@@ -412,7 +412,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const enumerate = (filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit">, max = Infinity) =>
     pages(decrypted, filters, max);
   const memoriesByTopics = async (names: readonly string[]) => {
-    const wanted = new Set(names.map(normalizeEntityName).filter(Boolean));
+    const wanted = new Set(names.map(normalizeTopicName).filter(Boolean));
     const out = new Map<string, Set<string>>();
     const pages = await Promise.all(
       chunks([...wanted], MAX_QUERY_TOPICS).map((topics) => enumerate({ topics }))
@@ -427,7 +427,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     query: string,
     recallOptions: RecallOptions = {}
   ): Promise<string[]> => {
-    const wanted = new Set(extractQueryEntities(query).map(normalizeEntityName).filter(Boolean));
+    const wanted = new Set(extractQueryEntities(query).map(normalizeTopicName).filter(Boolean));
     if (wanted.size === 0 || recallOptions.memoryIds?.length === 0) return [];
     const rows = await pages(
       metadata,
@@ -723,7 +723,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const asStored = (record: RemoteMemoryRecord | null) => (record ? stored(record.memory) : null);
   const knownKinds = async (topics: readonly StoredTopic[], signal?: AbortSignal) => {
     const unkinded = [
-      ...new Set(topics.filter((t) => !t.kind).map((t) => normalizeEntityName(t.name))),
+      ...new Set(topics.filter((t) => !t.kind).map((t) => normalizeTopicName(t.name))),
     ];
     const kinds = new Map<string, string>();
     for (const names of chunks(unkinded, MAX_QUERY_TOPICS)) {
@@ -735,13 +735,13 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         ...(signal && { signal }),
       })) {
         for (const topic of parseTopics(memory.topics) ?? []) {
-          const name = normalizeEntityName(topic.name);
+          const name = normalizeTopicName(topic.name);
           if (topic.kind && !kinds.has(name)) kinds.set(name, topic.kind);
         }
       }
     }
     return (topic: StoredTopic): StoredTopic => {
-      const kind = topic.kind ?? kinds.get(normalizeEntityName(topic.name));
+      const kind = topic.kind ?? kinds.get(normalizeTopicName(topic.name));
       return kind ? { ...topic, kind } : topic;
     };
   };
@@ -1358,7 +1358,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       if (!topics.length) return;
       const existing = new Set((await readTopics()).map((topic) => topic.name));
       const missing = topics.flatMap((topic) => {
-        const name = normalizeEntityName(topic.name);
+        const name = normalizeTopicName(topic.name);
         if (existing.has(name)) return [];
         existing.add(name);
         return [{ ...topic, name }];
@@ -1391,7 +1391,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           include_superseded: true,
         })) {
           for (const topic of parseTopics(memory.topics) ?? []) {
-            const name = normalizeEntityName(topic.name);
+            const name = normalizeTopicName(topic.name);
             if (!name) continue;
             const entry = topics.get(name) ?? {
               name,
@@ -1582,8 +1582,8 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       const now = new Date();
       return mergeTopics([], added).map(
         (topic): StoredEntity => ({
-          uniqueId: normalizeEntityName(topic.name),
-          canonicalName: normalizeEntityName(topic.name),
+          uniqueId: normalizeTopicName(topic.name),
+          canonicalName: normalizeTopicName(topic.name),
           kind: topic.kind ?? null,
           createdAt: now,
           updatedAt: now,

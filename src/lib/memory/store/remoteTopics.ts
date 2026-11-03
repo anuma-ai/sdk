@@ -1,7 +1,8 @@
-import { normalizeEntityName } from "../../db/entities/types.js";
 import { getLogger } from "../../logger.js";
 import { type NearbyRequest, RemoteMemoryError } from "./remotePersistence.js";
-import type { TopicCodec } from "./topicCodec.js";
+import { MAX_SEALED_TOPIC_NAME_BYTES, normalizeTopicName, type TopicCodec } from "./topicCodec.js";
+
+const RETIRE_CONCURRENCY = 8;
 
 /** @public */
 export interface RemoteMemoryTopic {
@@ -76,11 +77,17 @@ async function sealedImport(
   topics: readonly { name: string; kind?: string; is_deleted?: boolean }[],
   signal?: AbortSignal
 ): Promise<void> {
+  let oversized = 0;
   for (let i = 0; i < topics.length; i += 50) {
     signal?.throwIfAborted();
     const sealed = (
       await Promise.all(topics.slice(i, i + 50).map((t) => codec.encodeCatalog(t)))
-    ).filter((t) => t !== null);
+    ).filter((t) => {
+      if (t === null) return false;
+      if (t.name.length <= MAX_SEALED_TOPIC_NAME_BYTES) return true;
+      oversized++;
+      return false;
+    });
     if (sealed.length)
       await request(
         "/topics/import",
@@ -89,6 +96,10 @@ async function sealedImport(
       );
   }
   signal?.throwIfAborted();
+  if (oversized)
+    getLogger().warn(
+      `[memory/remote] Skipped ${oversized} topic catalog entries whose sealed name exceeds ${MAX_SEALED_TOPIC_NAME_BYTES} bytes`
+    );
 }
 
 export function createRemoteTopicPersistence(
@@ -103,13 +114,14 @@ export function createRemoteTopicPersistence(
       const legacy = new Set<string>();
       const decoded = await Promise.all(
         items.map(async (item) => {
-          if (item.name_hash === undefined) {
-            const hash = await codec.hash(item.name);
-            if (hash !== null && hashed.has(hash)) return null;
-            legacy.add(normalizeEntityName(item.name));
-          }
           const plain = await codec.decodeCatalog(item);
-          return { ...plain, name: normalizeEntityName(plain.name) };
+          const name = normalizeTopicName(plain.name);
+          if (item.name_hash === undefined) {
+            const hash = await codec.hash(name);
+            if (hash !== null && hashed.has(hash)) return null;
+            legacy.add(name);
+          }
+          return { ...plain, name };
         })
       );
       legacyOnly = legacy;
@@ -125,7 +137,7 @@ export function createRemoteTopicPersistence(
           method: "PUT",
           body: JSON.stringify({
             topic: sealed,
-            expected_version: legacyOnly.has(normalizeEntityName(value.name)) ? 0 : expectedVersion,
+            expected_version: legacyOnly.has(normalizeTopicName(value.name)) ? 0 : expectedVersion,
           }),
         })
       );
@@ -172,29 +184,40 @@ async function retireLegacyTopics(
       item.version
     );
   const changed: WireTopic[] = [];
-  for (const item of topics) {
-    signal?.throwIfAborted();
-    if ((await retire(item)) === "conflict") changed.push(item);
-  }
+  let next = 0;
+  const worker = async () => {
+    while (next < topics.length) {
+      signal?.throwIfAborted();
+      const item = topics[next++];
+      if ((await retire(item)) === "conflict") changed.push(item);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(RETIRE_CONCURRENCY, topics.length) }, () => worker())
+  );
   if (changed.length) {
     const current = await wireTopics(request, signal);
     for (const stale of changed) {
-      const hash = await codec.hash(stale.name);
       const legacy = current.find((t) => t.name_hash === undefined && t.name === stale.name);
+      // A legacy entry deleted since it was listed was retired by another
+      // device upgrading at the same time: the SDK deletes a topic only through
+      // its hashed entry, so the deletion is not carried onto the copy.
+      if (!legacy || legacy.is_deleted) continue;
+      const hash = await codec.hash(await codec.open(legacy));
       const copy = current.find((t) => t.name_hash !== undefined && t.name_hash === hash);
-      if (!legacy || !copy || hash === null) continue;
+      if (!copy || hash === null) continue;
       const newer =
         imported.has(hash) ||
         Date.parse(legacy.server_updated_at) > Date.parse(copy.server_updated_at);
-      if (newer && (legacy.is_deleted !== copy.is_deleted || legacy.kind !== copy.kind)) {
+      if (newer && (copy.is_deleted || legacy.kind !== copy.kind)) {
         const sealed = await codec.encodeCatalog({
           name: legacy.name,
           ...(legacy.kind !== undefined && { kind: legacy.kind }),
-          is_deleted: legacy.is_deleted,
+          is_deleted: false,
         });
         if (!sealed || (await put(sealed, copy.version)) !== "saved") continue;
       }
-      if (!legacy.is_deleted) await retire(legacy);
+      await retire(legacy);
     }
   }
   if (failures.length)
@@ -212,7 +235,9 @@ export async function upgradeLegacyTopicCatalog(
   const items = await wireTopics(request, signal);
   const hashed = hashesOf(items);
   const hashes = await Promise.all(
-    items.map(async (item) => (item.name_hash === undefined ? codec.hash(item.name) : null))
+    items.map(async (item) =>
+      item.name_hash === undefined ? codec.hash(await codec.open(item)) : null
+    )
   );
   const sources = new Map<string, WireTopic>();
   const live: WireTopic[] = [];
@@ -238,7 +263,7 @@ export async function createRemoteTopic(
   persistence: RemoteTopicPersistence,
   name: string
 ): Promise<string | null> {
-  const canonical = normalizeEntityName(name);
+  const canonical = normalizeTopicName(name);
   if (!canonical) return null;
   const existing = (await persistence.topics()).find((t) => t.name === canonical);
   if (existing && !existing.is_deleted) return canonical;
