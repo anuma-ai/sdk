@@ -26,6 +26,7 @@ import {
   CONFIRMED_ACTION_TOOL_SETS,
   TOOL_SEARCH_TOOL_NAME,
 } from "../tools/serverTools";
+import { detachedToolClasses } from "./detachedTools";
 import { validateEndpointOverride } from "./endpointOverride";
 import { isAttachedFilesText } from "./fileContext";
 import type { PromptPreProcessor } from "./preProcessor";
@@ -1125,6 +1126,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     let sseError: Error | null = null;
 
     let apiTools = toolsToApiFormat(tools, resolved);
+    const clientToolClasses = detachedToolClasses(tools);
     let toolChoice = toolChoiceArg;
     let stepIndex = 0;
 
@@ -1140,6 +1142,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       thinking,
       imageModel,
       conversationId,
+      clientToolClasses,
     });
 
     let accumulator!: ReturnType<typeof createStreamAccumulator>;
@@ -1822,6 +1825,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         thinking,
         imageModel,
         conversationId,
+        clientToolClasses,
       });
 
       let contContentSmoother!: StreamSmoother;

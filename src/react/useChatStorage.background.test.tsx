@@ -317,7 +317,11 @@ describe("useChatStorage background turns", () => {
       return database;
     }
 
-    function renderWithInbox(inbox: VaultInbox, database: Database) {
+    function renderWithInbox(
+      inbox: VaultInbox,
+      database: Database,
+      extra: Partial<Parameters<typeof useChatStorage>[0]> = {}
+    ) {
       return renderHook(() =>
         useChatStorage({
           database,
@@ -328,9 +332,51 @@ describe("useChatStorage background turns", () => {
           resumable: true,
           background: true,
           inbox,
+          ...extra,
         })
       );
     }
+
+    it("draws the card a detached turn ended on, from the device's own display tool", async () => {
+      const draw = vi.fn(async (args: Record<string, unknown>) => ({ chart: args.title }));
+      const response = answer("Here is the chart.");
+      (response.output as unknown[]).push({
+        type: "function_call",
+        call_id: "call_chart",
+        name: "display_chart",
+        arguments: '{"title":"Rain"}',
+      });
+      const { inbox } = fakeInbox([
+        {
+          id: "0xchart",
+          plaintext: {
+            ...sealedAnswer("0xchart", "msg_parent"),
+            assistant_message_id: "msg_chart_turn",
+            response,
+          },
+        },
+      ]);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn("msg_parent"), {
+        detachedTools: [
+          {
+            type: "function",
+            function: { name: "display_chart", arguments: {} },
+            executor: draw,
+            detachedClass: "render",
+          },
+        ],
+      });
+
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+
+      expect(draw).toHaveBeenCalledWith({ title: "Rain" }, undefined, { detached: true });
+      const rows = await result.current.getMessages("conv_bg");
+      const toolRow = rows.find((row) => row.parentMessageId === "msg_chart_turn");
+      expect(toolRow).toMatchObject({ role: "user", origin: "tool_result" });
+      expect(toolRow?.content).toContain('Tool "display_chart" returned: {"chart":"Rain"}');
+    });
 
     it("stores a sealed answer once under the sender's reply id and registers the key once", async () => {
       const { inbox, removed, registered } = fakeInbox([

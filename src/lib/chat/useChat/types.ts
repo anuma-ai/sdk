@@ -86,9 +86,23 @@ export type StreamingChunk = {
 /* eslint-disable @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values from tool executors */
 export type ToolExecutor = (
   args: Record<string, unknown>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  context?: ToolExecutionContext
 ) => Promise<unknown> | unknown;
 /* eslint-enable @typescript-eslint/no-redundant-type-constituents */
+
+/**
+ * How the portal treats a call to a device-side tool while the device is away: `render` ends the
+ * turn as completed and the device draws the card when the answer arrives, `deferred` is answered on
+ * the portal and the device runs the call when the answer arrives.
+ */
+export type DetachedToolClass = "render" | "deferred";
+
+/**
+ * Context for one executor run. `detached` is true when the call comes from an answer the portal
+ * finished while the device was away, so no user is waiting on a prompt.
+ */
+export type ToolExecutionContext = { detached?: boolean };
 
 /**
  * Tool configuration with optional executor
@@ -159,6 +173,11 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    * files from IndexedDB that `create_file` writes.
    */
   dependsOn?: string[];
+  /**
+   * How the portal handles this tool when the model calls it while the device is away. Unset tools
+   * pause the turn until the device returns. Never sent to the model provider.
+   */
+  detachedClass?: DetachedToolClass;
 };
 
 /**

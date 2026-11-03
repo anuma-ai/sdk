@@ -256,5 +256,6 @@ export function createDisplayTool<TArgs = Record<string, unknown>, TResult = unk
       return result;
     },
     skipContinuation: true,
+    detachedClass: "render",
   };
 }

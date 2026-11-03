@@ -6,6 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import type { LlmapiMessage } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
+import { storeDetachedToolResults } from "../lib/chat/detachedTools";
 import { isSendableImageURL } from "../lib/chat/imageParts";
 import {
   clearTurnErrors,
@@ -383,6 +384,11 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
   /** The vault inbox that receives answers finished while no client was attached. */
   inbox?: VaultInbox;
   /**
+   * Device tools that can finish a turn the portal completed while the device was away: their
+   * executors run when that answer is stored. Pass the display tools and the memory save tool.
+   */
+  detachedTools?: ToolConfig[];
+  /**
    * Observability hook fired once per send with the tools actually selected for
    * the turn (after server + client filtering). Never throws into the send path.
    * Mirrors react's onToolSelection.
@@ -685,6 +691,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onCancelResult,
     onStreamMeta,
     inbox,
+    detachedTools,
     onToolSelection,
     piiRedaction,
     onPiiRedacted,
@@ -1530,6 +1537,29 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   activeToolSetsRef.current = activeToolSets;
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
+
+  const detachedToolsRef = useRef(detachedTools);
+  detachedToolsRef.current = detachedTools;
+  const runDetachedTools = useCallback(
+    async (
+      answer: StoredMessage,
+      response: ApiResponse,
+      deAnonymize?: (text: string) => string
+    ) => {
+      try {
+        await storeDetachedToolResults({
+          backend,
+          answer,
+          response,
+          tools: detachedToolsRef.current,
+          deAnonymize,
+        });
+      } catch (err) {
+        getLogger().warn("[useChatStorage] Failed to run a detached answer's tool calls:", err);
+      }
+    },
+    [backend]
+  );
 
   const finalizeResumedRow = useCallback(
     async (
@@ -2798,6 +2828,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           if ("error" in written) {
             return { data: result.data, error: written.error, assistantMessage: null };
           }
+          await runDetachedTools(written.message, result.data, rctx.restoreText);
           clearOwnCtx();
           void embedMessageAsync(written.message, rctx.embeddingMask);
           return { data: result.data, error: null, assistantMessage: written.message };
@@ -2854,7 +2885,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         markSettled();
       }
     },
-    [baseResumeStream, currentConversationId, finalizeResumedRow, embedMessageAsync]
+    [
+      baseResumeStream,
+      currentConversationId,
+      finalizeResumedRow,
+      embedMessageAsync,
+      runDetachedTools,
+    ]
   );
 
   const stop = useCallback(() => {
@@ -2940,6 +2977,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           opened.status === "tool_request",
           0
         );
+        await runDetachedTools(
+          stored,
+          opened.response,
+          redactor ? (text) => redactor.deAnonymize(text) : undefined
+        );
         void embedMessageAsync(stored, (text) => (redactor ? redactor.maskText(text) : text));
         return stored;
       },
@@ -2962,6 +3004,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getConversationRedactor,
     finalizeResumedRow,
     embedMessageAsync,
+    runDetachedTools,
   ]);
 
   const detachWithReplyId = useCallback((): StreamResumeHandle | null => {

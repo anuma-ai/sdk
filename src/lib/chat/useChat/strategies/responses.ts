@@ -108,6 +108,7 @@ export class ResponsesStrategy implements ApiStrategy {
       thinking,
       imageModel,
       conversationId,
+      clientToolClasses,
     } = args;
 
     return {
@@ -122,6 +123,7 @@ export class ResponsesStrategy implements ApiStrategy {
       ...(thinking && { thinking }),
       ...(imageModel && { image_model: imageModel }),
       ...(conversationId && { conversation_id: conversationId }),
+      ...(clientToolClasses && { client_tool_classes: clientToolClasses }),
     };
   }
 

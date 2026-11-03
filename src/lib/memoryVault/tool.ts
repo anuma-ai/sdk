@@ -1,4 +1,4 @@
-import type { ToolConfig } from "../chat/useChat/types";
+import type { ToolConfig, ToolExecutionContext } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import {
   createVaultMemoryOp,
@@ -244,7 +244,11 @@ export function createMemoryVaultTool(
       },
     },
     executor: hasOnSave
-      ? async (args: Record<string, unknown>): Promise<string> => {
+      ? async (
+          args: Record<string, unknown>,
+          _signal?: AbortSignal,
+          context?: ToolExecutionContext
+        ): Promise<string> => {
           const content = args.content as string;
           const id = args.id as string | undefined;
           const folderName = args.folderName as string | undefined;
@@ -278,7 +282,7 @@ export function createMemoryVaultTool(
               ...(isUpdate && { id, previousContent }),
             };
 
-            if (options?.onSave) {
+            if (options?.onSave && !context?.detached) {
               const confirmed = await options.onSave(operation);
               if (!confirmed) {
                 return isUpdate
@@ -374,5 +378,6 @@ export function createMemoryVaultTool(
       : undefined,
     removeAfterExecution: hasOnSave,
     deAnonymizeArgs: true,
+    ...(hasOnSave && { detachedClass: "deferred" as const }),
   };
 }
