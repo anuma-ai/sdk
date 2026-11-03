@@ -2,7 +2,7 @@
 
 > **ChartCardProps** = `object`
 
-Defined in: [src/react/chart.tsx:312](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#312)
+Defined in: [src/react/chart.tsx:325](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#325)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/react/chart.tsx:312](https://github.com/anuma-ai/sdk/blob/main/
 
 > **data**: `DisplayChartResult`
 
-Defined in: [src/react/chart.tsx:313](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#313)
+Defined in: [src/react/chart.tsx:326](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#326)

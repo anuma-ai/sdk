@@ -25,6 +25,17 @@ function cx(...classes: (string | false | undefined | null)[]) {
 
 const THEMES = { light: "", dark: ".dark" } as const;
 
+const SAFE_CSS_KEY = /^[\w-]+$/;
+const SAFE_CSS_COLOR =
+  /^(?:#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|[a-z]+|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\([\w\s.,%/+-]*\)|var\(--[\w-]+\))$/i;
+
+function isSafeCssColor(value: unknown): value is string {
+  if (typeof value !== "string" || !SAFE_CSS_COLOR.test(value)) return false;
+  return (
+    typeof CSS === "undefined" || typeof CSS.supports !== "function" || CSS.supports("color", value)
+  );
+}
+
 export type ChartConfig = {
   [k in string]: {
     label?: React.ReactNode;
@@ -48,7 +59,9 @@ function useChart() {
 }
 
 export function ChartStyle({ id, config }: { id: string; config: ChartConfig }) {
-  const colorConfig = Object.entries(config).filter(([, cfg]) => cfg.theme || cfg.color);
+  const colorConfig = Object.entries(config).filter(
+    ([key, cfg]) => SAFE_CSS_KEY.test(key) && (cfg.theme || cfg.color)
+  );
 
   if (!colorConfig.length) return null;
 
@@ -62,7 +75,7 @@ ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    return isSafeCssColor(color) ? `  --color-${key}: ${color};` : null;
   })
   .join("\n")}
 }
@@ -321,12 +334,46 @@ const DEFAULT_COLORS = [
   "var(--chart-5)",
 ];
 
+function paletteColor(index: number): string {
+  return index < DEFAULT_COLORS.length
+    ? DEFAULT_COLORS[index]
+    : `hsl(${Math.round((index * 137.508) % 360)} 65% 55%)`;
+}
+
+const compactNumber = new Intl.NumberFormat(undefined, {
+  notation: "compact",
+  maximumSignificantDigits: 3,
+});
+
+function cellText(value: unknown): string {
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+    ? String(value)
+    : "";
+}
+
+function formatTick(value: unknown): string {
+  return typeof value === "number" ? compactNumber.format(value) : String(value);
+}
+
+const VISUALLY_HIDDEN: React.CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: "hidden",
+  clip: "rect(0, 0, 0, 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+};
+
 function buildChartConfig(dataKeys: string[], colors?: Record<string, string>): ChartConfig {
   const config: ChartConfig = {};
   dataKeys.forEach((key, i) => {
+    const custom = colors?.[key];
     config[key] = {
       label: key.charAt(0).toUpperCase() + key.slice(1),
-      color: colors?.[key] || DEFAULT_COLORS[i % DEFAULT_COLORS.length],
+      color: isSafeCssColor(custom) ? custom : paletteColor(i),
     };
   });
   return config;
@@ -344,7 +391,7 @@ export function ChartCard({ data }: ChartCardProps) {
     return (
       <div className="my-4 max-w-lg">
         <div className="rounded-xl bg-sidebar dark:bg-card px-4 py-3">
-          <p className="text-sm text-muted-foreground">{data.error}</p>
+          <p className="text-sm text-muted-foreground">Couldn&apos;t display this chart.</p>
         </div>
       </div>
     );
@@ -352,24 +399,71 @@ export function ChartCard({ data }: ChartCardProps) {
 
   const { chartType, title, data: chartData, dataKeys, xAxisKey, colors } = data;
   const chartConfig = buildChartConfig(dataKeys, colors);
+  const seriesColor = (key: string) => chartConfig[key]?.color;
+  const longestTick = chartData.reduce(
+    (longest, point) =>
+      dataKeys.reduce((max, key) => {
+        const value = point[key];
+        return typeof value === "number" ? Math.max(max, formatTick(value).length) : max;
+      }, longest),
+    0
+  );
+  const yAxisProps = {
+    tickLine: false,
+    axisLine: false,
+    tickFormatter: formatTick,
+    width: Math.min(120, Math.max(40, longestTick * 7 + 16)),
+  };
+  const labelKey = chartType === "pie" ? xAxisKey || "name" : xAxisKey;
+  const valueKeys = chartType === "pie" ? dataKeys.slice(0, 1) : dataKeys;
+  const tableColumns = labelKey ? [labelKey, ...valueKeys] : valueKeys;
 
   return (
-    <div className="my-4 max-w-lg" ref={containerRef}>
+    <div
+      className="my-4 max-w-lg"
+      ref={containerRef}
+      role="figure"
+      aria-label={[title, `${chartType} chart`].filter(Boolean).join(", ")}
+    >
       <div className="rounded-xl bg-sidebar dark:bg-card px-5 py-4">
         {title && <p className="text-sm font-medium mb-3">{title}</p>}
+        <table style={VISUALLY_HIDDEN}>
+          <thead>
+            <tr>
+              {tableColumns.map((column) => (
+                <th key={column} scope="col">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {chartData.map((point, row) => (
+              <tr key={row}>
+                {tableColumns.map((column) => (
+                  <td key={column}>{cellText(point[column])}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
         {ready ? (
-          <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-[250px] w-full"
+            aria-hidden="true"
+          >
             {chartType === "bar" ? (
               <BarChart data={chartData}>
                 <CartesianGrid vertical={false} />
                 {xAxisKey && (
                   <XAxis dataKey={xAxisKey} tickLine={false} axisLine={false} tickMargin={8} />
                 )}
-                <YAxis tickLine={false} axisLine={false} />
+                <YAxis {...yAxisProps} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 {dataKeys.length > 1 && <ChartLegend content={<ChartLegendContent />} />}
                 {dataKeys.map((key) => (
-                  <Bar key={key} dataKey={key} fill={`var(--color-${key})`} radius={4} />
+                  <Bar key={key} dataKey={key} fill={seriesColor(key)} radius={4} />
                 ))}
               </BarChart>
             ) : chartType === "line" ? (
@@ -378,14 +472,14 @@ export function ChartCard({ data }: ChartCardProps) {
                 {xAxisKey && (
                   <XAxis dataKey={xAxisKey} tickLine={false} axisLine={false} tickMargin={8} />
                 )}
-                <YAxis tickLine={false} axisLine={false} />
+                <YAxis {...yAxisProps} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 {dataKeys.length > 1 && <ChartLegend content={<ChartLegendContent />} />}
                 {dataKeys.map((key) => (
                   <Line
                     key={key}
                     dataKey={key}
-                    stroke={`var(--color-${key})`}
+                    stroke={seriesColor(key)}
                     strokeWidth={2}
                     dot={false}
                   />
@@ -397,15 +491,15 @@ export function ChartCard({ data }: ChartCardProps) {
                 {xAxisKey && (
                   <XAxis dataKey={xAxisKey} tickLine={false} axisLine={false} tickMargin={8} />
                 )}
-                <YAxis tickLine={false} axisLine={false} />
+                <YAxis {...yAxisProps} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 {dataKeys.length > 1 && <ChartLegend content={<ChartLegendContent />} />}
                 {dataKeys.map((key) => (
                   <Area
                     key={key}
                     dataKey={key}
-                    fill={`var(--color-${key})`}
-                    stroke={`var(--color-${key})`}
+                    fill={seriesColor(key)}
+                    stroke={seriesColor(key)}
                     fillOpacity={0.3}
                   />
                 ))}
@@ -422,7 +516,7 @@ export function ChartCard({ data }: ChartCardProps) {
                   outerRadius={80}
                 >
                   {chartData.map((_, index) => (
-                    <Cell key={index} fill={DEFAULT_COLORS[index % DEFAULT_COLORS.length]} />
+                    <Cell key={index} fill={paletteColor(index)} />
                   ))}
                 </Pie>
                 <ChartLegend content={<ChartLegendContent nameKey={xAxisKey || "name"} />} />

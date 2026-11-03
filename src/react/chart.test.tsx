@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import React from "react";
 import { ChartCard } from "./chart";
-import type { DisplayChartResult } from "../tools/chart";
+import type { ChartDataPoint, DisplayChartResult } from "../tools/chart";
 
 vi.mock("recharts", () => {
   function safeAttrs(props: Record<string, unknown>) {
@@ -37,7 +37,8 @@ vi.mock("recharts", () => {
     Pie: createMock("Pie"),
     Cell: createMock("Cell"),
     XAxis: createMock("XAxis"),
-    YAxis: createMock("YAxis"),
+    YAxis: ({ tickFormatter, ...props }: any) =>
+      createMock("YAxis")({ ...props, "tick-sample": tickFormatter?.(2150000000000) }),
     CartesianGrid: createMock("CartesianGrid"),
     Tooltip: createMock("Tooltip"),
     Legend: createMock("Legend"),
@@ -99,10 +100,6 @@ const AREA_DATA: DisplayChartResult = {
   xAxisKey: "x",
 };
 
-const ERROR_DATA: DisplayChartResult = {
-  error: "Something went wrong",
-};
-
 describe("ChartCard", () => {
   it("renders a bar chart with title", async () => {
     await renderChart(BAR_DATA);
@@ -150,9 +147,120 @@ describe("ChartCard", () => {
     expect(areas[0].getAttribute("data-datakey")).toBe("y");
   });
 
-  it("renders an error message when data has error", () => {
-    render(<ChartCard data={ERROR_DATA} />);
-    expect(screen.getByText("Something went wrong")).toBeDefined();
+  it("shows generic copy instead of the tool's developer error", () => {
+    render(
+      <ChartCard
+        data={{
+          error:
+            'The "data" array is required and must contain at least one data point object. You provided: []',
+        }}
+      />
+    );
+    expect(screen.getByText("Couldn't display this chart.")).toBeDefined();
+    expect(screen.queryByText(/You provided/)).toBeNull();
+  });
+
+  it("drops colors that are not plain CSS colors", async () => {
+    const { container } = await renderChart({
+      ...BAR_DATA,
+      colors: { revenue: "red} body{visibility:hidden", expenses: "url(javascript:alert(1))" },
+    });
+
+    const style = container.querySelector("style")!;
+    expect(style.innerHTML).not.toContain("body");
+    expect(style.innerHTML).not.toContain("url(");
+    const bars = screen.getAllByTestId("Bar");
+    expect(bars[0].getAttribute("data-fill")).toBe("var(--chart-1)");
+    expect(bars[1].getAttribute("data-fill")).toBe("var(--chart-2)");
+  });
+
+  it("colors series whose keys contain spaces or symbols", async () => {
+    const { container } = await renderChart({
+      chartType: "line",
+      data: [
+        { day: "Mon", "BTC Price": 65000, "Close ($)": 64000 },
+        { day: "Tue", "BTC Price": 66000, "Close ($)": 65500 },
+      ],
+      dataKeys: ["BTC Price", "Close ($)"],
+      xAxisKey: "day",
+      colors: { "Close ($)": "#2563eb" },
+    });
+
+    const lines = screen.getAllByTestId("Line");
+    expect(lines[0].getAttribute("data-datakey")).toBe("BTC Price");
+    expect(lines[0].getAttribute("data-stroke")).toBe("var(--chart-1)");
+    expect(lines[1].getAttribute("data-stroke")).toBe("#2563eb");
+    expect(container.querySelector("style")?.innerHTML ?? "").not.toContain("BTC Price");
+  });
+
+  it("formats Y axis ticks compactly and sizes the axis to fit", async () => {
+    await renderChart({
+      chartType: "bar",
+      data: [{ coin: "BTC", cap: 2150000000000 }],
+      dataKeys: ["cap"],
+      xAxisKey: "coin",
+    });
+
+    const yAxis = screen.getByTestId("YAxis");
+    expect(yAxis.getAttribute("data-tick-sample")).toBe("2.15T");
+    expect(Number(yAxis.getAttribute("data-width"))).toBeGreaterThanOrEqual(40);
+  });
+
+  it("widens the Y axis for long tick labels", async () => {
+    await renderChart({
+      chartType: "line",
+      data: [{ t: "1", pepe: 0.0000123 }],
+      dataKeys: ["pepe"],
+      xAxisKey: "t",
+    });
+
+    expect(Number(screen.getByTestId("YAxis").getAttribute("data-width"))).toBeGreaterThan(60);
+  });
+
+  it("exposes an accessible name and a data table", async () => {
+    const { container } = await renderChart(BAR_DATA);
+
+    expect(screen.getByRole("figure", { name: "Quarterly Revenue, bar chart" })).toBeDefined();
+    const table = screen.getByRole("table");
+    expect(Array.from(table.querySelectorAll("th")).map((th) => th.textContent)).toEqual([
+      "quarter",
+      "revenue",
+      "expenses",
+    ]);
+    expect(
+      Array.from(table.querySelectorAll("tbody tr")[1].querySelectorAll("td")).map(
+        (td) => td.textContent
+      )
+    ).toEqual(["Q2", "150", "90"]);
+    expect(container.querySelector('[data-slot="chart"]')?.getAttribute("aria-hidden")).toBe(
+      "true"
+    );
+  });
+
+  it("renders non-primitive labels as empty table cells instead of crashing", async () => {
+    await renderChart({
+      chartType: "bar",
+      data: [{ label: { text: "Mon" }, value: 10 }] as unknown as ChartDataPoint[],
+      dataKeys: ["value"],
+      xAxisKey: "label",
+    });
+
+    const cells = Array.from(screen.getByRole("table").querySelectorAll("tbody td")).map(
+      (td) => td.textContent
+    );
+    expect(cells).toEqual(["", "10"]);
+  });
+
+  it("gives every pie slice a distinct color", async () => {
+    await renderChart({
+      chartType: "pie",
+      data: Array.from({ length: 8 }, (_, i) => ({ name: `Slice ${i}`, share: i + 1 })),
+      dataKeys: ["share"],
+      xAxisKey: "name",
+    });
+
+    const fills = screen.getAllByTestId("Cell").map((cell) => cell.getAttribute("data-fill"));
+    expect(new Set(fills).size).toBe(8);
   });
 
   it("applies custom colors via CSS variables", async () => {
