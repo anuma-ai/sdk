@@ -35,6 +35,60 @@ export function streamCancelPath(inferenceId: string): string {
 }
 
 /**
+ * A generation still running on the portal for the caller.
+ * @public
+ */
+export type ActiveStream = {
+  inferenceId: string;
+  assistantMessageId: string | null;
+  conversationId: string | null;
+  parentMessageId: string | null;
+  apiType: "responses" | "completions";
+  model?: string;
+  startedAt: string;
+};
+
+const ACTIVE_STREAMS_PATH = "/api/v1/chat/streams/active";
+
+function toActiveStream(value: unknown): ActiveStream | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const text = (key: string) => (typeof v[key] === "string" && v[key] ? v[key] : null);
+  const inferenceId = text("inference_id");
+  if (!inferenceId || (v.api_type !== "responses" && v.api_type !== "completions")) return null;
+  return {
+    inferenceId,
+    assistantMessageId: text("assistant_message_id"),
+    conversationId: text("conversation_id"),
+    parentMessageId: text("parent_message_id"),
+    apiType: v.api_type,
+    model: text("model") ?? undefined,
+    startedAt: text("started_at") ?? "",
+  };
+}
+
+/** List the caller's generations still running on the portal. */
+export async function listActiveStreams(options: {
+  token: string;
+  baseUrl?: string;
+  conversationId?: string;
+  fetch?: typeof globalThis.fetch;
+}): Promise<ActiveStream[]> {
+  const query = options.conversationId
+    ? `?conversation_id=${encodeURIComponent(options.conversationId)}`
+    : "";
+  const response = await (options.fetch ?? globalThis.fetch)(
+    `${options.baseUrl ?? BASE_URL}${ACTIVE_STREAMS_PATH}${query}`,
+    { headers: { Authorization: `Bearer ${options.token}` } }
+  );
+  if (!response.ok) throw new Error(`Active streams request failed (${response.status})`);
+  const body = (await response.json()) as { streams?: unknown };
+  return Array.isArray(body.streams)
+    ? body.streams.map(toActiveStream).filter((s): s is ActiveStream => s !== null)
+    : [];
+}
+
+/**
  * Thrown when the portal answers `410 Gone` to a replay GET: the buffered
  * stream is gone — expired (10-min sliding TTL), absent, not owned by the
  * caller, or already cancelled. There is nothing to replay; the answer is

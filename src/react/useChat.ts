@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
 import {
+  type ActiveStream,
+  listActiveStreams,
   resumeStream as runResumeStream,
   type ResumeStreamOptions,
   type ResumeStreamResult,
@@ -117,14 +119,18 @@ interface UseChatOptions extends BaseUseChatOptions {
  * A resumable stream handle plus the tool-loop round that issued it.
  * @inline
  */
-type StreamMeta = StreamResumeHandle & { round: number };
+export type StreamMeta = StreamResumeHandle & { round: number };
 
 type UseChatResult = BaseUseChatResult & {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
+  /** The caller's generations still running on the portal, optionally for one conversation. */
+  getActiveStreams: (conversationId?: string) => Promise<ActiveStream[]>;
   /** Replay a resumable stream from the portal buffer, from its first frame. */
   resumeStream: (
     handle: StreamResumeHandle,
-    opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing"> & { headless?: boolean }
+    opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing" | "piiRedactor"> & {
+      headless?: boolean;
+    }
   ) => Promise<ResumeStreamResult>;
 };
 
@@ -267,7 +273,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   const resumeStream = useCallback(
     async (
       handle: StreamResumeHandle,
-      opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing"> & { headless?: boolean }
+      opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing" | "piiRedactor"> & {
+        headless?: boolean;
+      }
     ): Promise<ResumeStreamResult> => {
       const getterValidation = validateTokenGetter(getToken);
       if (!getterValidation.valid) {
@@ -521,8 +529,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         const pending = pendingInferenceRef.current;
         const handle = pending && !pending.settled ? pending.handle : null;
+        const detachedByLoop = result.error !== null && result.detached === true;
         const detach =
-          result.error !== null && keepAlive && handle && result.error !== "Request aborted";
+          result.error !== null &&
+          keepAlive &&
+          (detachedByLoop || (handle !== null && result.connectionLost === true));
         if (!detach) deferredErrors.forEach((error) => onError?.(error));
         if (result.error === null) {
           keepServerStream = true;
@@ -537,10 +548,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             resume: handle,
             toolsChecksum: result.toolsChecksum,
           };
-        }
-        if ("detached" in result && result.detached) {
-          keepServerStream = true;
-          return { ...result, resume: null };
         }
         return result;
       } catch (err) {
@@ -583,10 +590,23 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     ]
   );
 
+  const getActiveStreams = useCallback(
+    async (conversationId?: string): Promise<ActiveStream[]> => {
+      const getterValidation = validateTokenGetter(getToken);
+      if (!getterValidation.valid) throw new Error(getterValidation.message);
+      const token = await getToken!();
+      const tokenValidation = validateToken(token);
+      if (!tokenValidation.valid) throw new Error(tokenValidation.message);
+      return listActiveStreams({ token: token!, baseUrl, conversationId });
+    },
+    [getToken, baseUrl]
+  );
+
   return {
     isLoading,
     sendMessage,
     stop,
     resumeStream,
+    getActiveStreams,
   };
 }

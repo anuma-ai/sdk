@@ -2,7 +2,7 @@
 
 > **resumeStream**(`options`: [`ResumeStreamOptions`](../interfaces/ResumeStreamOptions.md)): `Promise`<[`ResumeStreamResult`](../type-aliases/ResumeStreamResult.md)>
 
-Defined in: [src/lib/chat/resumeStream.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#158)
+Defined in: [src/lib/chat/resumeStream.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#212)
 
 Replay a detached stream from the portal's buffer.
 

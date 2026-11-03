@@ -269,6 +269,47 @@ describe("useChat multi-turn tool loop", () => {
       }
     });
 
+    it("reports a provider error after the stream started instead of detaching", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(new Response(null, { headers: { "X-Inference-ID": "bg-provider" } }))
+        .mockResolvedValue(new Response(null, { status: 200 }));
+      mockCreateSseClient.mockImplementation(
+        (options) =>
+          ({
+            stream: (async function* () {
+              await options.fetch!("https://portal.example/responses");
+              yield { type: "response.output_text.delta", delta: "partial" };
+              yield { error: { code: "rate_limited", message: "Provider rate limited" } };
+            })(),
+          }) as ReturnType<typeof sseModule.createSseClient>
+      );
+      try {
+        const onError = vi.fn();
+        const { result } = renderHook(() =>
+          useChat({
+            getToken: async () => "token",
+            baseUrl: "https://portal.example",
+            resumable: true,
+            background: true,
+            onError,
+          })
+        );
+        let response: SendMessageResult | undefined;
+        await act(async () => {
+          response = await result.current.sendMessage({
+            messages: [{ role: "user", content: [{ type: "text", text: "hello" }] }],
+            model: "auto",
+          });
+        });
+        expect(response?.error).toBe("Provider rate limited");
+        expect(response).not.toHaveProperty("detached");
+        expect(onError).toHaveBeenCalledOnce();
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
     it("still reports a background failure that happens before any stream starts", async () => {
       mockCreateSseClient.mockImplementation(
         () =>
