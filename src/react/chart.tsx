@@ -18,7 +18,13 @@ import {
   YAxis,
 } from "recharts";
 
-import type { ChartDataPoint, ChartValueFormat, DisplayChartResult } from "../tools/chart";
+import type { DisplayChartResult } from "../tools/chart";
+import {
+  buildChartModel,
+  chartCellText,
+  type ChartTrend,
+  type ChartTrendDirection,
+} from "../tools/chartModel";
 
 function cx(...classes: (string | false | undefined | null)[]) {
   return classes.filter(Boolean).join(" ");
@@ -296,7 +302,7 @@ export function ChartLegendContent({
                   style={{ backgroundColor: item.color }}
                 />
               )}
-              {itemConfig?.label ?? cellText(item.value)}
+              {itemConfig?.label ?? chartCellText(item.value)}
             </div>
           );
         })}
@@ -340,20 +346,11 @@ const DEFAULT_COLORS = [
 ];
 
 const SURFACE = "var(--chart-surface)";
-const DOT_LIMIT = 12;
-const MAX_TICKS = 8;
-const MINUS = "\u2212";
 
 function paletteColor(index: number): string {
   return index < DEFAULT_COLORS.length
     ? DEFAULT_COLORS[index]
     : `hsl(${Math.round((index * 137.508) % 360)} 65% 55%)`;
-}
-
-function cellText(value: unknown): string {
-  return typeof value === "string" || typeof value === "number" || typeof value === "boolean"
-    ? String(value)
-    : "";
 }
 
 const VISUALLY_HIDDEN: React.CSSProperties = {
@@ -368,127 +365,16 @@ const VISUALLY_HIDDEN: React.CSSProperties = {
   border: 0,
 };
 
-type Formatters = {
-  tick: (value: number) => string;
-  value: (value: number) => string;
-  change: (difference: number) => string;
-};
-
-function tickDigits(ticks: number[] | undefined): number {
-  if (!ticks || ticks.length < 2) return 3;
-  const step = ticks[1] - ticks[0];
-  const magnitude = Math.max(...ticks.map(Math.abs));
-  if (step <= 0 || magnitude === 0) return 3;
-  const needed = Math.floor(Math.log10(magnitude)) - Math.floor(Math.log10(step)) + 1;
-  return Math.min(21, Math.max(3, needed));
-}
-
-function keepSmall(
-  options: Intl.NumberFormatOptions
-): (n: number, format: (formatter: Intl.NumberFormat, n: number) => string) => string {
-  const small = new Intl.NumberFormat(undefined, { ...options, maximumSignificantDigits: 3 });
-  const regular = new Intl.NumberFormat(undefined, { ...options, maximumFractionDigits: 2 });
-  return (n, format) => format(n !== 0 && Math.abs(n) < 1 ? small : regular, n);
-}
-
-function buildFormatters(
-  format: ChartValueFormat | undefined,
-  currency: string | undefined,
-  ticks: number[] | undefined
-): Formatters {
-  const digits = tickDigits(ticks);
-  if (format === "currency") {
-    const money = (options: Intl.NumberFormatOptions) =>
-      new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: currency ?? "USD",
-        ...options,
-      });
-    const compact = money({ notation: "compact", maximumSignificantDigits: 3 });
-    const tick = money({ notation: "compact", maximumSignificantDigits: digits });
-    const small = money({ maximumSignificantDigits: 4 });
-    const cents = money({ minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const value = (n: number) =>
-      Math.abs(n) >= 1e6
-        ? compact.format(n)
-        : n !== 0 && Math.abs(n) < 1
-          ? small.format(n)
-          : cents.format(n);
-    return { tick: (n) => tick.format(n), value, change: (d) => value(Math.abs(d)) };
-  }
-  if (format === "percent") {
-    const percent = keepSmall({ style: "percent" });
-    const points = keepSmall({});
-    const tick = new Intl.NumberFormat(undefined, {
-      style: "percent",
-      maximumSignificantDigits: digits,
-    });
-    return {
-      tick: (n) => tick.format(n / 100),
-      value: (n) => percent(n, (formatter) => formatter.format(n / 100)),
-      change: (d) => `${points(Math.abs(d), (formatter, n) => formatter.format(n))} pts`,
-    };
-  }
-  const tick = new Intl.NumberFormat(undefined, {
-    notation: "compact",
-    maximumSignificantDigits: digits,
-  });
-  const compact = new Intl.NumberFormat(undefined, {
-    notation: "compact",
-    maximumSignificantDigits: 3,
-  });
-  const small = new Intl.NumberFormat(undefined, { maximumSignificantDigits: 4 });
-  const plain = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
-  const value = (n: number) =>
-    Math.abs(n) >= 1e6
-      ? compact.format(n)
-      : n !== 0 && Math.abs(n) < 1
-        ? small.format(n)
-        : plain.format(n);
-  return { tick: (n) => tick.format(n), value, change: (d) => value(Math.abs(d)) };
-}
-
-function seriesValues(points: ChartDataPoint[], keys: string[]): number[] {
-  return points.flatMap((point) =>
-    keys.map((key) => point[key]).filter((v): v is number => typeof v === "number")
-  );
-}
-
-function niceStep(rough: number): number {
-  const exponent = Math.floor(Math.log10(rough));
-  const base = 10 ** exponent;
-  const fraction = rough / base;
-  const nice =
-    fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 2.5 ? 2.5 : fraction <= 5 ? 5 : 10;
-  return nice * base;
-}
-
-function niceTicks(values: number[]): number[] | undefined {
-  if (values.length === 0) return undefined;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || Math.abs(max) * 0.02 || 1;
-  const low = min - span * 0.1;
-  const high = max + span * 0.1;
-  const step = niceStep((high - low) / 3);
-  const start =
-    min >= 0 ? Math.max(0, Math.floor(low / step) * step) : Math.floor(low / step) * step;
-  const ticks: number[] = [];
-  for (let index = 0; index <= MAX_TICKS; index++) {
-    const tick = Number((start + index * step).toPrecision(15));
-    if (ticks.length > 0 && tick <= ticks[ticks.length - 1]) break;
-    ticks.push(tick);
-    if (tick >= high) break;
-  }
-  return ticks.length >= 2 ? ticks : undefined;
-}
-
-function buildChartConfig(dataKeys: string[], colors?: Record<string, string>): ChartConfig {
+function buildChartConfig(
+  dataKeys: string[],
+  labels: Record<string, string>,
+  colors?: Record<string, string>
+): ChartConfig {
   const config: ChartConfig = {};
   dataKeys.forEach((key, i) => {
     const custom = colors?.[key];
     config[key] = {
-      label: key.charAt(0).toUpperCase() + key.slice(1),
+      label: labels[key],
       color: isSafeCssColor(custom) ? custom : paletteColor(i),
     };
   });
@@ -508,49 +394,15 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-type Trend = { value: string; change: string; direction: "up" | "down" | "flat" };
-
-function buildTrend(
-  values: number[],
-  format: ChartValueFormat | undefined,
-  formatters: Formatters
-): Trend | undefined {
-  if (values.length < 2) return undefined;
-  const first = values[0];
-  const last = values[values.length - 1];
-  const difference = last - first;
-  const direction = difference > 0 ? "up" : difference < 0 ? "down" : "flat";
-  const sign = direction === "up" ? "+" : direction === "down" ? MINUS : "";
-  const percent =
-    format !== "percent" && first !== 0
-      ? ` (${sign}${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(
-          Math.abs((difference / Math.abs(first)) * 100)
-        )}%)`
-      : "";
-  return {
-    value: formatters.value(last),
-    change: `${sign}${formatters.change(difference)}${percent}`,
-    direction,
-  };
-}
-
-const TREND_CLASS: Record<Trend["direction"], string> = {
+const TREND_CLASS: Record<ChartTrendDirection, string> = {
   up: "text-emerald-600 dark:text-emerald-400",
   down: "text-red-600 dark:text-red-400",
   flat: "text-muted-foreground",
 };
 
-const TREND_ARROW: Record<Trend["direction"], string> = { up: "\u25B2", down: "\u25BC", flat: "" };
+const TREND_ARROW: Record<ChartTrendDirection, string> = { up: "\u25B2", down: "\u25BC", flat: "" };
 
-function ChartHeader({
-  title,
-  trend,
-  range,
-}: {
-  title?: React.ReactNode;
-  trend?: Trend;
-  range?: string;
-}) {
+function ChartHeader({ title, trend }: { title?: React.ReactNode; trend?: ChartTrend }) {
   if (!trend) {
     return title ? <p className="mb-3 text-sm font-medium">{title}</p> : null;
   }
@@ -567,7 +419,7 @@ function ChartHeader({
           )}
           {trend.change}
         </span>
-        {range && <span className="text-muted-foreground">{range}</span>}
+        {trend.range && <span className="text-muted-foreground">{trend.range}</span>}
       </p>
     </div>
   );
@@ -593,46 +445,14 @@ export function ChartCard({ data }: ChartCardProps) {
     );
   }
 
-  const {
-    chartType,
-    title,
-    data: chartData,
-    dataKeys,
-    xAxisKey,
-    colors,
-    valueFormat,
-    currency,
-  } = data;
-  const chartConfig = buildChartConfig(dataKeys, colors);
+  const { chartType, title, data: chartData, dataKeys, xAxisKey, colors } = data;
+  const model = buildChartModel(data);
+  const { plottedKeys, yTicks, yDomain, formatters, trend, isTrendChart } = model;
+  const chartConfig = buildChartConfig(dataKeys, model.seriesLabels, colors);
   const seriesColor = (key: string) => chartConfig[key]?.color;
-  const isTrendChart = chartType === "line" || chartType === "area";
-  const plottedKeys = chartType === "pie" ? dataKeys.slice(0, 1) : dataKeys;
-  const values = seriesValues(chartData, plottedKeys);
-  const yTicks = isTrendChart ? niceTicks(values) : undefined;
-  const yDomain: [number, number] | undefined = yTicks
-    ? [yTicks[0], yTicks[yTicks.length - 1]]
-    : undefined;
-  const formatters = buildFormatters(valueFormat, currency, yTicks);
-  const trend =
-    isTrendChart && dataKeys.length === 1 ? buildTrend(values, valueFormat, formatters) : undefined;
-  const trendRows = trend
-    ? chartData.filter((point) => typeof point[dataKeys[0]] === "number")
-    : [];
-  const range =
-    trend && xAxisKey
-      ? [trendRows[0], trendRows[trendRows.length - 1]]
-          .map((point) => cellText(point[xAxisKey]))
-          .filter(Boolean)
-          .join(" \u2013 ")
-      : undefined;
-  const headerTitle = title ?? (trend ? chartConfig[dataKeys[0]]?.label : undefined);
-  const tickSamples = [...(yDomain ?? []), ...values].map((value) => formatters.tick(value));
-  const longestTick = tickSamples.reduce((max, label) => Math.max(max, label.length), 0);
   const animate = !reducedMotion;
   const lastIndex = chartData.length - 1;
-  const showDots = chartData.length <= DOT_LIMIT;
-  const curve = showDots ? "linear" : "monotone";
-  const hasNegative = values.some((value) => value < 0);
+  const { showDots, curve, hasNegative } = model;
   const margin = { top: 8, right: 8, bottom: 0, left: 0 };
 
   const xAxis = xAxisKey && (
@@ -656,7 +476,7 @@ export function ChartCard({ data }: ChartCardProps) {
       tickFormatter={formatters.tick}
       domain={yDomain}
       allowDataOverflow={false}
-      width={Math.min(120, Math.max(36, longestTick * 7 + 12))}
+      width={Math.min(120, Math.max(36, model.longestTickLength * 7 + 12))}
     />
   );
   const tooltip = (
@@ -690,8 +510,7 @@ export function ChartCard({ data }: ChartCardProps) {
           ) : (
             <g key={`dot-${key}-${props.index}`} />
           );
-  const labelKey = chartType === "pie" ? xAxisKey || "name" : xAxisKey;
-  const tableColumns = labelKey ? [labelKey, ...plottedKeys] : plottedKeys;
+  const tableColumns = model.labelKey ? [model.labelKey, ...plottedKeys] : plottedKeys;
 
   return (
     <div
@@ -701,7 +520,7 @@ export function ChartCard({ data }: ChartCardProps) {
       aria-label={[title, `${chartType} chart`].filter(Boolean).join(", ")}
     >
       <div className="rounded-xl bg-sidebar dark:bg-card px-5 py-4 [--chart-surface:var(--sidebar)] dark:[--chart-surface:var(--card)]">
-        <ChartHeader title={headerTitle} trend={trend} range={range} />
+        <ChartHeader title={model.title} trend={trend} />
         <table style={VISUALLY_HIDDEN}>
           <thead>
             <tr>
@@ -716,7 +535,7 @@ export function ChartCard({ data }: ChartCardProps) {
             {chartData.map((point, row) => (
               <tr key={row}>
                 {tableColumns.map((column) => (
-                  <td key={column}>{cellText(point[column])}</td>
+                  <td key={column}>{chartCellText(point[column])}</td>
                 ))}
               </tr>
             ))}
@@ -838,7 +657,7 @@ export function ChartCard({ data }: ChartCardProps) {
                             y={box.cy - 6}
                             className="fill-foreground text-lg font-semibold"
                           >
-                            {formatters.value(values.reduce((sum, value) => sum + value, 0))}
+                            {formatters.value(model.total)}
                           </tspan>
                           <tspan x={box.cx} y={box.cy + 14} className="fill-muted-foreground">
                             Total
