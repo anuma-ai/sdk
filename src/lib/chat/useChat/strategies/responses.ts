@@ -1,7 +1,7 @@
 import type { LlmapiResponseResponse } from "../../../../client";
 import type { AccumulatedToolCall, StreamAccumulator, StreamingChunk } from "../types";
 import type { ProcessChunkResult } from "../utils";
-import { getInStreamErrorMessage, parseReasoningTags } from "../utils";
+import { getInStreamErrorMessage, parseReasoningTags, ProviderStreamError } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
 import { mergeXaiInlineParameterTags } from "./xaiToolFormat";
 
@@ -130,7 +130,7 @@ export class ResponsesStrategy implements ApiStrategy {
     const typedChunk = chunk as StreamingChunk;
 
     const inStreamErr = getInStreamErrorMessage(chunk);
-    if (inStreamErr) throw new Error(inStreamErr);
+    if (inStreamErr) throw new ProviderStreamError(inStreamErr);
 
     if (typedChunk.type === "response.failed") {
       const resp = (typedChunk as { response?: { error?: { code?: unknown; message?: unknown } } })
@@ -150,9 +150,12 @@ export class ResponsesStrategy implements ApiStrategy {
           }
         }
         const label = code ? `[${code}] ` : "";
-        throw new Error(`${label}${message || "Upstream request failed"}`);
+        throw new ProviderStreamError(
+          `${label}${message || "Upstream request failed"}`,
+          code || undefined
+        );
       }
-      throw new Error("Upstream request failed (response.failed)");
+      throw new ProviderStreamError("Upstream request failed (response.failed)");
     }
 
     if (typedChunk.type === "response" && typedChunk.response) {

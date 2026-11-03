@@ -641,10 +641,11 @@ describe("expo useChatStorage background turns", () => {
     });
 
     async function droppedTurn(inbox: VaultInbox) {
-      vi.mocked(runToolLoop).mockImplementationOnce(async (options) => {
-        options.onStreamMeta?.({ inferenceId: "0xturn", round: 0 });
-        return { data: null, error: "network error", connectionLost: true } as never;
-      });
+      vi.mocked(runToolLoop).mockResolvedValueOnce({
+        data: null,
+        error: "network error",
+        connectionLost: true,
+      } as never);
       const rendered = renderStorage({ inbox, withWallet: true });
       let sent: Awaited<ReturnType<typeof rendered.result.current.sendMessage>> | undefined;
       await act(async () => {
@@ -740,6 +741,55 @@ describe("expo useChatStorage background turns", () => {
         ["user", "hello", false, false],
         ["assistant", "Half an", false, true],
       ]);
+    });
+
+    it("detaches a turn whose connection drops after portal's id arrived", async () => {
+      vi.mocked(runToolLoop).mockImplementationOnce(async (options) => {
+        options.onStreamMeta?.({ inferenceId: "0xturn", round: 0 });
+        return { data: null, error: "network error", connectionLost: true } as never;
+      });
+      const { result } = renderStorage({ withWallet: true });
+
+      let sent: Awaited<ReturnType<typeof result.current.sendMessage>> | undefined;
+      await act(async () => {
+        sent = await result.current.sendMessage(userTurn);
+      });
+
+      const replyId = vi.mocked(runToolLoop).mock.calls[0][0].headers?.["X-Assistant-Message-ID"];
+      expect(sent).toMatchObject({
+        detached: true,
+        resume: { inferenceId: "0xturn", assistantMessageId: replyId },
+      });
+      const rows = await result.current.getMessages("conv_bg");
+      expect(rows.map((m) => [m.role, m.error ?? null])).toEqual([["user", null]]);
+    });
+
+    it("keeps the text that streamed before the drop when the user stops the turn", async () => {
+      vi.mocked(runToolLoop).mockImplementationOnce(async (options) => {
+        options.onStreamMeta?.({ inferenceId: "0xturn", round: 0 });
+        return { data: answer("Half an"), error: "network error", connectionLost: true } as never;
+      });
+      const { result } = renderStorage({ withWallet: true });
+      await act(async () => {
+        await result.current.sendMessage(userTurn);
+      });
+
+      await act(async () => {
+        result.current.stop();
+      });
+
+      await vi.waitFor(async () =>
+        expect(
+          (await result.current.getMessages("conv_bg")).map((m) => [
+            m.role,
+            m.content,
+            !!m.wasStopped,
+          ])
+        ).toEqual([
+          ["user", "hello", false],
+          ["assistant", "Half an", true],
+        ])
+      );
     });
 
     it("leaves an answer for the device that has the turn", async () => {

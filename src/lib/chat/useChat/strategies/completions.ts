@@ -1,7 +1,7 @@
 import type { LlmapiChatCompletionResponse } from "../../../../client";
 import type { StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
-import { getInStreamErrorMessage, parseReasoningTags } from "../utils";
+import { getInStreamErrorMessage, parseReasoningTags, ProviderStreamError } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
 import { mergeXaiInlineParameterTags } from "./xaiToolFormat";
 
@@ -217,7 +217,7 @@ export class CompletionsStrategy implements ApiStrategy {
     const result: ProcessChunkResult = { content: null, thinking: null };
 
     const inStreamErr = getInStreamErrorMessage(chunk);
-    if (inStreamErr) throw new Error(inStreamErr);
+    if (inStreamErr) throw new ProviderStreamError(inStreamErr);
 
     const rawChunk = chunk as { response?: CompletionsStreamingChunk; type?: string };
     const typedChunk =
