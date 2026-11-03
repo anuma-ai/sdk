@@ -94,6 +94,12 @@ function ChatScreen() {
 
 ## Other
 
+### ActiveStream
+
+Re-exports [ActiveStream](../react/Internal/type-aliases/ActiveStream.md)
+
+***
+
 ### addConversationMemoriesOp
 
 Re-exports [addConversationMemoriesOp](../react/Internal/functions/addConversationMemoriesOp.md)
@@ -760,6 +766,12 @@ Re-exports [CreateVaultFolderOptions](../react/Internal/interfaces/CreateVaultFo
 
 ***
 
+### createVaultInbox
+
+Re-exports [createVaultInbox](../react/Internal/functions/createVaultInbox.md)
+
+***
+
 ### createVaultMemoriesBatchOp
 
 Re-exports [createVaultMemoriesBatchOp](../react/Internal/functions/createVaultMemoriesBatchOp.md)
@@ -1078,6 +1090,12 @@ Re-exports [ENTITY\_FANOUT](../react/Internal/variables/ENTITY_FANOUT.md)
 
 ***
 
+### exportInboxPublicKey
+
+Re-exports [exportInboxPublicKey](../react/Internal/functions/exportInboxPublicKey.md)
+
+***
+
 ### extractAndLinkEntitiesForMemoriesOp
 
 Re-exports [extractAndLinkEntitiesForMemoriesOp](../react/Internal/functions/extractAndLinkEntitiesForMemoriesOp.md)
@@ -1360,6 +1378,24 @@ Re-exports [hasEncryptionKey](../react/Internal/functions/hasEncryptionKey.md)
 
 ***
 
+### InboxDeliveryResult
+
+Re-exports [InboxDeliveryResult](../react/Internal/type-aliases/InboxDeliveryResult.md)
+
+***
+
+### InboxItem
+
+Re-exports [InboxItem](../react/Internal/type-aliases/InboxItem.md)
+
+***
+
+### InboxPlaintext
+
+Re-exports [InboxPlaintext](../react/Internal/type-aliases/InboxPlaintext.md)
+
+***
+
 ### INFERENCE\_ID\_HEADER
 
 Re-exports [INFERENCE\_ID\_HEADER](../react/Internal/variables/INFERENCE_ID_HEADER.md)
@@ -1417,6 +1453,12 @@ Re-exports [isRerankerAvailable](../react/Internal/functions/isRerankerAvailable
 ### LazyStoredConversation
 
 Re-exports [LazyStoredConversation](../react/Internal/interfaces/LazyStoredConversation.md)
+
+***
+
+### listActiveStreams
+
+Re-exports [listActiveStreams](../react/Internal/functions/listActiveStreams.md)
 
 ***
 
@@ -1831,6 +1873,12 @@ Re-exports [ObservationTrendInput](../react/Internal/interfaces/ObservationTrend
 ### onKeyAvailable
 
 Re-exports [onKeyAvailable](../react/Internal/functions/onKeyAvailable.md)
+
+***
+
+### openInboxItem
+
+Re-exports [openInboxItem](../react/Internal/functions/openInboxItem.md)
 
 ***
 
@@ -2965,6 +3013,12 @@ Re-exports [VaultEmbeddingExpectation](../react/Internal/interfaces/VaultEmbeddi
 ### VaultFolderOperationsContext
 
 Re-exports [VaultFolderOperationsContext](../react/Internal/interfaces/VaultFolderOperationsContext.md)
+
+***
+
+### VaultInbox
+
+Re-exports [VaultInbox](../react/Internal/interfaces/VaultInbox.md)
 
 ***
 

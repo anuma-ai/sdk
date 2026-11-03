@@ -119,12 +119,19 @@ export {
   buildAttachedFilesText,
   isAttachedFilesText,
 } from "../lib/chat/fileContext";
+export type { InboxDeliveryResult, InboxItem, InboxPlaintext, VaultInbox } from "../lib/chat/inbox";
+export { createVaultInbox, exportInboxPublicKey, openInboxItem } from "../lib/chat/inbox";
 export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
 export type { ReservationReceipt } from "../lib/chat/reservationReceipts";
 export { extractReservationReceipts } from "../lib/chat/reservationReceipts";
-export type { ResumeStreamOptions, ResumeStreamResult } from "../lib/chat/resumeStream";
+export type {
+  ActiveStream,
+  ResumeStreamOptions,
+  ResumeStreamResult,
+} from "../lib/chat/resumeStream";
 export {
   INFERENCE_ID_HEADER,
+  listActiveStreams,
   resumeStream,
   STREAM_RESUMABLE_HEADER,
   streamCancelPath,

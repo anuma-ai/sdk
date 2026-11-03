@@ -1277,6 +1277,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     startTime: number;
     partialData: ApiResponse | null;
     knownToolCallEventIds?: Set<string>;
+    restoreText?: (text: string) => string;
+    parentless?: boolean;
   } | null>(null);
   const isResumingRef = useRef(false);
   const activeResumeRef = useRef<{
@@ -1536,11 +1538,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       responseDuration: number,
       viaQueue = false
     ): Promise<StoredMessage> => {
-      const { content, thinking } = extractAssistantText(data);
+      const extracted = extractAssistantText(data);
+      const restore = ctx.restoreText ?? ((text: string) => text);
+      const content = restore(extracted.content);
+      const thinking = extracted.thinking ? restore(extracted.thinking) : extracted.thinking;
 
-      let parentMessageId = ctx.userMessageUniqueId;
+      let parentMessageId: string | undefined = ctx.parentless
+        ? undefined
+        : ctx.userMessageUniqueId;
       let knownIds = ctx.knownToolCallEventIds;
-      if (ctx.convId && (!knownIds || !parentMessageId)) {
+      if (ctx.convId && (!knownIds || (!parentMessageId && !ctx.parentless))) {
         let storedMessages: StoredMessage[] | null = null;
         try {
           storedMessages = await getMessages(ctx.convId);
@@ -1560,7 +1567,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               }
             }
           }
-          if (!parentMessageId) {
+          if (!parentMessageId && !ctx.parentless) {
             for (let i = storedMessages.length - 1; i >= 0; i--) {
               if (storedMessages[i].uniqueId !== ctx.assistantUniqueId) {
                 parentMessageId = storedMessages[i].uniqueId;
@@ -2371,7 +2378,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               }
             : headers,
       });
-      activeReplyIdRef.current = undefined;
+      if (activeReplyIdRef.current === effectiveAssistantUniqueId) {
+        activeReplyIdRef.current = undefined;
+      }
 
       const responseDuration = (Date.now() - startTime) / 1000;
 
@@ -2896,11 +2905,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       keyPair,
       backend,
       store: async (opened, messageId) => {
+        const { redactor } = resolveCallPii(undefined, piiRedaction, () =>
+          getConversationRedactor(opened.conversation_id, nerDetectorRef.current)
+        );
         const stored = await finalizeResumedRow(
           {
             handle: null,
             convId: opened.conversation_id,
             userMessageUniqueId: opened.parent_message_id ?? "",
+            parentless: opened.parent_message_id === null,
+            restoreText: redactor ? (text) => redactor.deAnonymize(text) : undefined,
             assistantUniqueId: messageId,
             model: opened.model,
             imageModel: undefined,
@@ -2913,7 +2927,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           opened.status === "tool_request",
           0
         );
-        void embedMessageAsync(stored);
+        void embedMessageAsync(stored, (text) => (redactor ? redactor.maskText(text) : text));
         return stored;
       },
     });
@@ -2923,15 +2937,23 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     signMessage,
     embeddedWalletSigner,
     backend,
+    piiRedaction,
+    getConversationRedactor,
     finalizeResumedRow,
     embedMessageAsync,
   ]);
+
+  const detachWithReplyId = useCallback((): StreamResumeHandle | null => {
+    const handle = detach();
+    const replyId = activeReplyIdRef.current;
+    return handle && replyId ? { ...handle, assistantMessageId: replyId } : handle;
+  }, [detach]);
 
   return {
     isLoading,
     sendMessage,
     stop,
-    detach,
+    detach: detachWithReplyId,
     resumeStream,
     getActiveStreams,
     watchStream,

@@ -15,6 +15,18 @@ vi.mock("../lib/chat/resumeStream", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/chat/resumeStream")>();
   return { ...orig, resumeStream: vi.fn(), listActiveStreams: vi.fn() };
 });
+const conversationRedactors = vi.hoisted(() => new Map<string | null, unknown>());
+vi.mock("../lib/pii/useConversationRedactors", async () => {
+  const { PiiRedactor: Redactor } = await import("../lib/pii/redactor");
+  return {
+    useConversationRedactors: () => (conversationId: string | null) => {
+      if (!conversationRedactors.has(conversationId)) {
+        conversationRedactors.set(conversationId, new Redactor());
+      }
+      return conversationRedactors.get(conversationId);
+    },
+  };
+});
 vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/memoryEngine/generate")>();
   return {
@@ -28,6 +40,7 @@ import { sealInboxItem } from "../lib/chat/fixtures/sealInboxItem";
 import type { InboxItem, VaultInbox } from "../lib/chat/inbox";
 import { listActiveStreams, resumeStream } from "../lib/chat/resumeStream";
 import { runToolLoop } from "../lib/chat/toolLoop";
+import { PiiRedactor } from "../lib/pii/redactor";
 import { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
 import { useChatStorage } from "./useChatStorage";
 
@@ -72,6 +85,7 @@ function renderStorage(options: {
   inbox?: VaultInbox;
   onStreamMeta?: (meta: unknown) => void;
   withWallet?: boolean;
+  piiRedaction?: boolean;
 }) {
   const database = options.database ?? makeDatabase();
   return renderHook(() =>
@@ -83,6 +97,7 @@ function renderStorage(options: {
       resumable: true,
       onStreamMeta: options.onStreamMeta,
       inbox: options.inbox,
+      piiRedaction: options.piiRedaction,
       ...(options.withWallet ? { walletAddress: wallet, signMessage: walletSigner } : {}),
     })
   );
@@ -137,6 +152,69 @@ describe("expo useChatStorage background turns", () => {
       assistantUniqueId: replyId,
       resume: { inferenceId: "0xdetach", assistantMessageId: replyId },
     });
+  });
+
+  it("exports the inbox and active-stream API from the expo entry", async () => {
+    const expo = await import("./index");
+    expect(typeof expo.createVaultInbox).toBe("function");
+    expect(typeof expo.listActiveStreams).toBe("function");
+    expect(typeof expo.openInboxItem).toBe("function");
+  });
+
+  it("keeps the newer send's reply id when a superseded send finishes", async () => {
+    const onStreamMeta = vi.fn();
+    let first: Promise<unknown> | undefined;
+    let call = 0;
+    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+      if (call++ === 0) {
+        options.onStreamMeta?.({ inferenceId: "0xold", round: 0 });
+        await new Promise<void>((resolve) =>
+          options.signal?.addEventListener("abort", () => resolve(), { once: true })
+        );
+        return { data: null, error: "Request aborted" } as never;
+      }
+      await first;
+      options.onStreamMeta?.({ inferenceId: "0xnew", round: 0 });
+      return { data: answer("New."), error: null } as never;
+    });
+    const { result } = renderStorage({ onStreamMeta });
+
+    await act(async () => {
+      first = result.current.sendMessage(userTurn);
+      await vi.waitFor(() => expect(onStreamMeta).toHaveBeenCalledOnce());
+      await result.current.sendMessage(userTurn);
+    });
+
+    const newReplyId = vi.mocked(runToolLoop).mock.calls[1][0].headers?.["X-Assistant-Message-ID"];
+    expect(onStreamMeta).toHaveBeenLastCalledWith(
+      expect.objectContaining({ inferenceId: "0xnew", assistantMessageId: newReplyId })
+    );
+  });
+
+  it("returns the reply id on the handle from detach()", async () => {
+    let release: () => void = () => {};
+    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+      options.onStreamMeta?.({ inferenceId: "0xdetached", round: 0 });
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return { data: answer("Done."), error: null } as never;
+    });
+    const { result } = renderStorage({ onStreamMeta: () => {} });
+
+    let sending: Promise<unknown> | undefined;
+    act(() => {
+      sending = result.current.sendMessage(userTurn);
+    });
+    await vi.waitFor(() => expect(runToolLoop).toHaveBeenCalled());
+    const replyId = vi.mocked(runToolLoop).mock.calls[0][0].headers?.["X-Assistant-Message-ID"];
+    const handle = result.current.detach();
+    await act(async () => {
+      release();
+      await sending;
+    });
+
+    expect(handle).toMatchObject({ inferenceId: "0xdetached", assistantMessageId: replyId });
   });
 
   it("stores a cold-launch replay under the reply id carried by the handle", async () => {
@@ -283,6 +361,54 @@ describe("expo useChatStorage background turns", () => {
         },
       ]);
       expect(removed).toEqual(["0xin"]);
+    });
+
+    it("restores PII placeholders with the turn's conversation redactor", async () => {
+      const turnRedactor = new PiiRedactor();
+      turnRedactor.redactText("mail john@example.com");
+      conversationRedactors.set("conv_bg", turnRedactor);
+      const withPlaceholder = {
+        ...sealed("0xpii", "msg_pii"),
+        response: answer("Sent to [EMAIL_1]."),
+      };
+      const { inbox } = fakeInbox([{ id: "0xpii", plaintext: withPlaceholder }]);
+      const { result } = renderStorage({
+        inbox,
+        withWallet: true,
+        piiRedaction: true,
+        database: await deviceWithParent("msg_pii"),
+      });
+      await act(async () => {
+        result.current.setConversationId("conv_other");
+      });
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([
+        { status: "stored", assistantMessage: { content: "Sent to john@example.com." } },
+      ]);
+    });
+
+    it("stores an answer without a parent id without adopting the latest row as parent", async () => {
+      const { inbox } = fakeInbox([
+        { id: "0xorphan", plaintext: { ...sealed("0xorphan", "unused"), parent_message_id: null } },
+      ]);
+      const { result } = renderStorage({
+        inbox,
+        withWallet: true,
+        database: await deviceWithParent("msg_latest"),
+      });
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([{ status: "stored" }]);
+      expect(delivered?.[0].assistantMessage?.parentMessageId ?? null).toBeNull();
     });
 
     it("leaves an answer for the device that has the turn", async () => {
