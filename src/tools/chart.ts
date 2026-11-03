@@ -17,6 +17,15 @@ export type DisplayChartResult =
       error: string;
     };
 
+const NUMERIC_STRING = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?$/i;
+
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== "string") return undefined;
+  const cleaned = value.replace(/[\s,$€£¥%]/g, "");
+  return NUMERIC_STRING.test(cleaned) ? Number(cleaned) : undefined;
+}
+
 /**
  * Create a display_chart tool that renders charts inline in the chat.
  *
@@ -34,7 +43,7 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
   return createDisplayTool(options, {
     name: "display_chart",
     description:
-      'Render a bar, line, area, or pie chart inline — visualize data, plot a trend over time, or graph a comparison. Use whenever the user asks to chart, plot, graph, or visualize numbers (sales, prices, temperatures, metrics). You MUST pass the actual numeric values in the "data" array — they are never inferred.',
+      'Render a bar, line, area, or pie chart inline — visualize data, plot a trend over time, or graph a comparison. Use whenever the user asks to chart, plot, graph, or visualize numbers (sales, prices, temperatures, metrics). You MUST pass the actual numeric values in the "data" array — they are never inferred. Do not chart price or market history (crypto, stocks, market caps) unless those values came from a tool result or a cited source earlier in this conversation; never fill a price series from memory.',
     parameters: {
       type: "object",
       properties: {
@@ -101,10 +110,32 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
         };
       }
 
+      const points = data.map((point) => ({ ...point }));
+      for (const key of dataKeys) {
+        let numericCount = 0;
+        for (const [index, point] of points.entries()) {
+          const raw = point[key];
+          if (raw === undefined || raw === null) continue;
+          const value = toNumber(raw);
+          if (value === undefined) {
+            return {
+              error: `Series "${key}" has a non-numeric value at data[${index}]: ${JSON.stringify(raw)}. Values for dataKeys must be plain numbers, e.g. 65000 rather than "$65,000 USD".`,
+            };
+          }
+          point[key] = value;
+          numericCount++;
+        }
+        if (numericCount === 0) {
+          return {
+            error: `Series "${key}" has no numeric values. Every entry in "dataKeys" must name a numeric key present in the "data" objects.`,
+          };
+        }
+      }
+
       return {
         chartType: chartType as "bar" | "line" | "area" | "pie",
         title: args.title as string | undefined,
-        data,
+        data: points,
         dataKeys,
         xAxisKey: args.xAxisKey as string | undefined,
         colors: args.colors as Record<string, string> | undefined,
