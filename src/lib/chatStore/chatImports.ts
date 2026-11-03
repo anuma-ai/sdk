@@ -2,6 +2,7 @@ import type { CreateMessageOptions, StoredConversation, StoredMessage } from "..
 import type { ChatImport } from "./types";
 import {
   acceptedVector,
+  contextFields,
   conversationSortKey,
   fitChunks,
   fitRecord,
@@ -28,6 +29,7 @@ export function conversationRecord(
 ): ChatImport {
   const createdAt = ms(conversation.createdAt);
   const data = plain({
+    ...contextFields(conversation.context),
     title: conversation.title,
     projectId: conversation.projectId || undefined,
     pinnedAt: conversation.pinnedAt ? ms(conversation.pinnedAt) : undefined,

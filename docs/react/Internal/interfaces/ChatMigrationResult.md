@@ -38,7 +38,7 @@ Defined in: [src/lib/chatStore/migrateChats.ts:63](https://github.com/anuma-ai/s
 
 ### state
 
-> **state**: `"active"` | `"migrating"`
+> **state**: `"migrating"` | `"active"`
 
 Defined in: [src/lib/chatStore/migrateChats.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#59)
 

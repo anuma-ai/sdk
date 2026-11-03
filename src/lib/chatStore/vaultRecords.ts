@@ -42,9 +42,29 @@ export function conversationSortKey(data: ChatData, createdAt: number): number {
   return number(data.lastActivityAt) ?? createdAt;
 }
 
+const CONTEXT_FIELD_PREFIX = "context.";
+
+function contextField(key: string): string {
+  return `${CONTEXT_FIELD_PREFIX}${key}`;
+}
+
+export function contextFields(context: { [key: string]: ChatJson | null } | undefined): ChatData {
+  return plain(
+    Object.fromEntries(Object.entries(context ?? {}).map(([k, value]) => [contextField(k), value]))
+  );
+}
+
+function conversationContext(data: ChatData): { [key: string]: ChatJson } | undefined {
+  const entries = Object.entries(data)
+    .filter(([field]) => field.startsWith(CONTEXT_FIELD_PREFIX))
+    .map(([field, value]) => [field.slice(CONTEXT_FIELD_PREFIX.length), value] as const);
+  return entries.length > 0 ? plain(Object.fromEntries(entries)) : undefined;
+}
+
 export function toConversation(record: ChatRecord): StoredConversation {
   const pinnedAt = number(record.data.pinnedAt);
   const projectId = text(record.data.projectId);
+  const context = conversationContext(record.data);
   return {
     uniqueId: record.id,
     conversationId: record.id,
@@ -54,6 +74,7 @@ export function toConversation(record: ChatRecord): StoredConversation {
     updatedAt: new Date(record.updatedAt),
     isDeleted: record.isDeleted,
     pinnedAt: pinnedAt ? new Date(pinnedAt) : null,
+    ...(context ? { context } : {}),
   };
 }
 
