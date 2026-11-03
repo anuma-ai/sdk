@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
 import {
+  type ActiveStream,
+  listActiveStreams,
   resumeStream as runResumeStream,
   type ResumeStreamOptions,
   type ResumeStreamResult,
@@ -103,11 +105,7 @@ interface UseChatOptions extends BaseUseChatOptions {
    */
   apiType?: ApiType;
   /**
-   * Opt into resumable streaming. When `true`, every `sendMessage` request
-   * sends `X-Stream-Resumable: 1` so the portal keeps generating into its
-   * buffer after a client disconnect, and `detach()` can hand back a
-   * {@link StreamResumeHandle} for {@link resumeStream}. Off by default — no
-   * header is sent and `detach()` always resolves to `null`.
+   * Keep each generation running on the portal after a disconnect, so `detach()` or a dropped connection resolves the send as detached with a {@link StreamResumeHandle} for {@link resumeStream}.
    * @default false
    */
   resumable?: boolean;
@@ -143,6 +141,8 @@ interface UseChatOptions extends BaseUseChatOptions {
 
 type UseChatResult = BaseUseChatResult & {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
+  /** The caller's generations still running on the portal, optionally for one conversation. */
+  getActiveStreams: (conversationId?: string) => Promise<ActiveStream[]>;
   /**
    * Tear down the in-flight request as a DETACH rather than a stop: the portal
    * keeps generating server-side and `sendMessage` resolves with the detached
@@ -401,6 +401,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       const requestId = ++requestIdRef.current;
       const superseded = () => requestIdRef.current !== requestId;
       pendingResumeRef.current = null;
+      let liveRound: StreamResumeHandle | null = null;
+      const deferredErrors: Error[] = [];
 
       setIsLoading(true);
 
@@ -465,7 +467,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           messagesWithContext = [toolGuidanceMessage, ...messagesWithContext];
         }
 
-        const result: RunToolLoopResult = await runToolLoop({
+        const loopResult: RunToolLoopResult = await runToolLoop({
           messages: messagesWithContext,
           model: model!,
           token: token!,
@@ -489,12 +491,13 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           transport: xhrTransport,
           onStreamMeta: (meta) => {
             const resolvedApiType = resolveApiType(requestApiType ?? defaultApiType, model);
-            pendingResumeRef.current = {
+            liveRound = {
               inferenceId: meta.inferenceId,
               apiType: resolvedApiType,
               model,
               conversationId,
             };
+            pendingResumeRef.current = liveRound;
             if (onStreamMetaConsumer) {
               try {
                 onStreamMetaConsumer({
@@ -517,16 +520,32 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             if (globalOnThinking) globalOnThinking(chunk);
           },
           onFinish,
-          onError,
+          onError: resumable ? (error) => deferredErrors.push(error) : onError,
           onToolCall,
           onServerToolCall,
           onToolCallArgumentsDelta,
-          onStepFinish,
+          onStepFinish: (event) => {
+            liveRound = null;
+            onStepFinish?.(event);
+          },
           preProcessors,
           hooks,
           piiRedaction: requestPiiRedaction ?? resolvedPiiRedaction,
           onPiiRedacted,
         });
+
+        const result: RunToolLoopResult =
+          resumable && loopResult.error !== null && loopResult.connectionLost && liveRound
+            ? {
+                data: loopResult.data,
+                error: "Request detached",
+                detached: true,
+                resume: liveRound,
+              }
+            : loopResult;
+        if (!("detached" in result && result.detached)) {
+          deferredErrors.forEach((error) => onError?.(error));
+        }
 
         if (superseded()) {
           // A newer request owns the resume handle; leave it alone.
@@ -574,6 +593,18 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     ]
   );
 
+  const getActiveStreams = useCallback(
+    async (conversationId?: string): Promise<ActiveStream[]> => {
+      const getterValidation = validateTokenGetter(getToken);
+      if (!getterValidation.valid) throw new Error(getterValidation.message);
+      const token = await getToken!();
+      const tokenValidation = validateToken(token);
+      if (!tokenValidation.valid) throw new Error(tokenValidation.message);
+      return listActiveStreams({ token: token!, baseUrl, conversationId });
+    },
+    [getToken, baseUrl]
+  );
+
   return {
     isLoading,
     sendMessage,
@@ -581,5 +612,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     cancel,
     detach,
     resumeStream,
+    getActiveStreams,
   };
 }

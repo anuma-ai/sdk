@@ -1352,7 +1352,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:194](https://github
 
 ### updateMessageError()
 
-> **updateMessageError**(`uniqueId`: `string`, `error`: `string`): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
+> **updateMessageError**(`uniqueId`: `string`, `error`: `string` | `null`): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
 Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:210](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/WatermelonChatStorageAdapter.ts#210)
 
@@ -1386,7 +1386,7 @@ Defined in: [src/lib/storage/WatermelonChatStorageAdapter.ts:210](https://github
 </td>
 <td>
 
-`string`
+`string` | `null`
 
 </td>
 </tr>

@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:633](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#633)
+Defined in: [src/expo/useChatStorage.ts:654](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#654)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -505,6 +505,23 @@ Async function to poll for wallet address during Privy initialization.
 <td>
 
 Run lifecycle hooks for telemetry and tracing, for example from `createMetricsHooks`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.inbox?`
+
+</td>
+<td>
+
+[`VaultInbox`](../../react/Internal/interfaces/VaultInbox.md)
+
+</td>
+<td>
+
+The vault inbox that receives answers finished while no client was attached.
 
 </td>
 </tr>

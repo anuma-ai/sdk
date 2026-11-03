@@ -152,6 +152,8 @@ export function runChatBackendContract(
       expect(stored).toMatchObject({ error: "boom", feedback: "like" });
       if (b.updateMessageFileIds) expect(stored?.fileIds).toEqual(["media_1"]);
       expect([...(await b.getToolCallEventIds("conv_f"))].sort()).toEqual(["call_1", "call_2"]);
+      expect((await b.updateMessageError("msg_f", null))?.error).toBeFalsy();
+      expect((await b.getMessagesByIds(["msg_f"]))[0].error).toBeFalsy();
     });
 
     it("finds embedded messages by chunk search and honours the conversation filters", async () => {

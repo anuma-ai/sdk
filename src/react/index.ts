@@ -88,7 +88,7 @@ export {
   buildAttachedFilesText,
   isAttachedFilesText,
 } from "../lib/chat/fileContext";
-export type { InboxItem, InboxPlaintext, VaultInbox } from "../lib/chat/inbox";
+export type { InboxDeliveryResult, InboxItem, InboxPlaintext, VaultInbox } from "../lib/chat/inbox";
 export { createVaultInbox, exportInboxPublicKey, openInboxItem } from "../lib/chat/inbox";
 export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
 export type { ReservationReceipt } from "../lib/chat/reservationReceipts";
@@ -925,7 +925,6 @@ export { BackupAuthProvider, useBackupAuth } from "./useBackupAuth";
 export type { StreamMeta } from "./useChat";
 export { useChat } from "./useChat";
 export type {
-  InboxDeliveryResult,
   SearchMessagesOptions,
   SendMessageWithStorageArgs,
   SendMessageWithStorageResult,

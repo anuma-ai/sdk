@@ -24,6 +24,7 @@ vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
   };
 });
 
+import { sealInboxItem } from "../lib/chat/fixtures/sealInboxItem";
 import type { InboxItem, VaultInbox } from "../lib/chat/inbox";
 import { listActiveStreams, resumeStream } from "../lib/chat/resumeStream";
 import { runToolLoop } from "../lib/chat/toolLoop";
@@ -248,64 +249,12 @@ describe("useChatStorage background turns", () => {
   });
 
   describe("inbox", () => {
-    const encoder = new TextEncoder();
-    const b64url = (bytes: Uint8Array) =>
-      btoa(String.fromCharCode(...bytes))
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/, "");
     const fromB64url = (value: string) => {
       const padded = value.replace(/-/g, "+").replace(/_/g, "/");
       return Uint8Array.from(atob(padded + "=".repeat((4 - (padded.length % 4)) % 4)), (c) =>
         c.charCodeAt(0)
       );
     };
-
-    async function seal(recipientB64: string, id: string, plaintext: unknown): Promise<string> {
-      const recipientRaw = fromB64url(recipientB64);
-      const recipient = await crypto.subtle.importKey(
-        "raw",
-        recipientRaw,
-        { name: "ECDH", namedCurve: "P-256" },
-        false,
-        []
-      );
-      const ephemeral = (await crypto.subtle.generateKey(
-        { name: "ECDH", namedCurve: "P-256" },
-        true,
-        ["deriveBits"]
-      )) as CryptoKeyPair;
-      const epk = new Uint8Array(await crypto.subtle.exportKey("raw", ephemeral.publicKey));
-      const shared = await crypto.subtle.deriveBits(
-        { name: "ECDH", public: recipient },
-        ephemeral.privateKey,
-        256
-      );
-      const salt = new Uint8Array([...epk, ...recipientRaw]);
-      const ikm = await crypto.subtle.importKey("raw", shared, "HKDF", false, ["deriveKey"]);
-      const key = await crypto.subtle.deriveKey(
-        { name: "HKDF", hash: "SHA-256", salt, info: encoder.encode("anuma-inbox-v1:" + id) },
-        ikm,
-        { name: "AES-GCM", length: 256 },
-        false,
-        ["encrypt"]
-      );
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const ct = new Uint8Array(
-        await crypto.subtle.encrypt(
-          { name: "AES-GCM", iv, additionalData: encoder.encode(id) },
-          key,
-          encoder.encode(JSON.stringify(plaintext))
-        )
-      );
-      return JSON.stringify({
-        v: 1,
-        alg: "ECDH-ES+HKDF-SHA256+A256GCM",
-        epk: b64url(epk),
-        iv: b64url(iv),
-        ct: b64url(ct),
-      });
-    }
 
     function sealedAnswer(id: string, parent: string | null, status = "completed") {
       return {
@@ -337,7 +286,7 @@ describe("useChatStorage background turns", () => {
             if (removed.includes(entry.id)) continue;
             items.push({
               id: entry.id,
-              sealed: entry.sealed ?? (await seal(publicKey!, entry.id, entry.plaintext)),
+              sealed: entry.sealed ?? (await sealInboxItem(publicKey!, entry.id, entry.plaintext)),
               created_at: "t",
             });
           }
@@ -495,6 +444,82 @@ describe("useChatStorage background turns", () => {
         (m) => m.role === "assistant"
       );
       expect(assistants.map((m) => m.content)).toEqual(["Live answer."]);
+    });
+
+    it("replaces a stopped partial under the reply id with the finished answer", async () => {
+      const database = await deviceWithTurn("msg_parent");
+      await localChatBackend(database)({}).createMessage({
+        conversationId: "conv_bg",
+        role: "assistant",
+        content: "Half an",
+        model: "m",
+        wasStopped: true,
+        parentMessageId: "msg_parent",
+        uniqueId: "msg_bg_cut",
+      });
+      const { inbox, removed } = fakeInbox([
+        {
+          id: "0xcut",
+          plaintext: { ...sealedAnswer("0xcut", "msg_parent"), assistant_message_id: "msg_bg_cut" },
+        },
+      ]);
+      const { result } = renderWithInbox(inbox, database);
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([{ status: "stored" }]);
+      expect(removed).toEqual(["0xcut"]);
+      const assistants = (await result.current.getMessages("conv_bg")).filter(
+        (m) => m.role === "assistant"
+      );
+      expect(assistants.map((m) => [m.uniqueId, m.content, !!m.wasStopped])).toEqual([
+        ["msg_bg_cut", "Answer from the inbox.", false],
+      ]);
+    });
+
+    it("replaces the error row of a turn that dropped before portal's id arrived", async () => {
+      vi.mocked(runToolLoop).mockResolvedValueOnce({
+        data: null,
+        error: "network error",
+        connectionLost: true,
+      } as never);
+      const entries: Array<{ id: string; plaintext: unknown }> = [];
+      const { inbox, removed } = fakeInbox(entries);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn());
+
+      let sent: Awaited<ReturnType<typeof result.current.sendMessage>> | undefined;
+      await act(async () => {
+        sent = await result.current.sendMessage(userTurn);
+      });
+      const replyId = vi.mocked(runToolLoop).mock.calls[0][0].headers?.["X-Assistant-Message-ID"];
+      const rows = () => result.current.getMessages("conv_bg");
+      expect((await rows()).map((m) => [m.role, m.uniqueId === replyId, m.error ?? null])).toEqual([
+        ["user", false, "network error"],
+        ["assistant", true, "network error"],
+      ]);
+      entries.push({
+        id: "0xdrop",
+        plaintext: {
+          ...sealedAnswer("0xdrop", sent!.userMessage!.uniqueId),
+          assistant_message_id: replyId,
+        },
+      });
+
+      let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        delivered = await result.current.deliverInbox();
+      });
+
+      expect(delivered).toMatchObject([{ status: "stored" }]);
+      expect(delivered?.[0].assistantMessage?.error).toBeFalsy();
+      expect((await rows()).map((m) => [m.role, m.content, !!m.error, !!m.wasStopped])).toEqual([
+        ["user", "hello", false, false],
+        ["assistant", "Answer from the inbox.", false, false],
+      ]);
+      expect(removed).toEqual(["0xdrop"]);
     });
 
     it("leaves an answer for the device that has the turn", async () => {

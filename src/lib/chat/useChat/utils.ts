@@ -419,6 +419,21 @@ export function isAbortError(err: unknown): boolean {
 }
 
 /**
+ * Error thrown when an upstream provider emits an in-stream error event.
+ * Carries the provider's code (e.g. `"timeout"`) so callers can match
+ * programmatically via `err instanceof ProviderStreamError && err.code === "timeout"`
+ * instead of string-matching the message.
+ */
+export class ProviderStreamError extends Error {
+  readonly code: string | undefined;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "ProviderStreamError";
+    this.code = code;
+  }
+}
+
+/**
  * Checks if an SSE chunk is an in-stream error event from Bifrost.
  *
  * Some providers (OpenRouter Qwen, MiniMax) keep the HTTP connection open on

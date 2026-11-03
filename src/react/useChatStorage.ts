@@ -8,7 +8,13 @@ import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import { attachFileContextToLastUserMessage } from "../lib/chat/fileContext";
 import { isSendableImageURL } from "../lib/chat/imageParts";
-import { exportInboxPublicKey, openInboxItem, type VaultInbox } from "../lib/chat/inbox";
+import {
+  clearTurnErrors,
+  deliverInboxAnswers,
+  exportInboxPublicKey,
+  type InboxDeliveryResult,
+  type VaultInbox,
+} from "../lib/chat/inbox";
 import type {
   ActiveStream,
   ResumeStreamResult,
@@ -761,18 +767,6 @@ export type SendMessageWithStorageResult =
       userMessage: StoredMessage;
       assistantMessage?: undefined;
     };
-
-/**
- * Outcome of delivering one vault inbox item with `deliverInbox`.
- * @public
- */
-export type InboxDeliveryResult = {
-  id: string;
-  conversationId: string | null;
-  status: "stored" | "delivered" | "elsewhere" | "unreadable" | "retry";
-  assistantMessage: StoredMessage | null;
-  error?: string;
-};
 
 /**
  * Options for searching messages
@@ -3263,83 +3257,44 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       registeredInboxKeyRef.current = { inbox, publicKey };
     }
 
-    const results: InboxDeliveryResult[] = [];
-    for (const item of await inbox.list()) {
-      let opened: Awaited<ReturnType<typeof openInboxItem>>;
-      try {
-        opened = await openInboxItem(item, keyPair);
-      } catch (err) {
-        results.push({
-          id: item.id,
-          conversationId: null,
-          status: "unreadable",
-          assistantMessage: null,
-          error: err instanceof Error ? err.message : String(err),
+    return deliverInboxAnswers({
+      inbox,
+      keyPair,
+      backend,
+      store: async (opened, messageId) => {
+        const { redactor } = resolveCallPii(undefined, piiRedaction, () =>
+          getConversationRedactor(opened.conversation_id, nerDetectorRef.current)
+        );
+        const knownToolCallEventIds = await backend.getToolCallEventIds(opened.conversation_id);
+        const { fields, fileIds } = await toAssistantMessageFields(
+          opened.response,
+          opened.conversation_id,
+          knownToolCallEventIds
+        );
+        const upserted = await backend.upsertMessage({
+          ...fields,
+          content: redactor ? redactor.deAnonymize(fields.content) : fields.content,
+          thinking:
+            redactor && fields.thinking ? redactor.deAnonymize(fields.thinking) : fields.thinking,
+          conversationId: opened.conversation_id,
+          role: "assistant",
+          model: opened.model,
+          parentMessageId: opened.parent_message_id ?? undefined,
+          wasStopped: opened.status === "tool_request",
+          uniqueId: messageId,
         });
-        continue;
-      }
-      const base = { id: item.id, conversationId: opened.conversation_id };
-      try {
-        const messageId = opened.assistant_message_id ?? `msg_bg_${opened.inference_id}`;
-        const [existing] = await backend.getMessagesByIds([messageId]);
-        if (!existing) {
-          const parent = opened.parent_message_id;
-          const ownsTurn = parent
-            ? (await backend.getMessagesByIds([parent])).length > 0
-            : (await backend.getConversation(opened.conversation_id)) !== null;
-          if (!ownsTurn) {
-            results.push({ ...base, status: "elsewhere", assistantMessage: null });
-            continue;
+        const stored = await clearTurnErrors(backend, upserted);
+        if (fileIds.length > 0) {
+          try {
+            await updateMediaMessageIdBatchOp(mediaCtx, fileIds, stored.uniqueId);
+          } catch (err) {
+            getLogger().warn("[useChatStorage] Failed to link inbox media:", err);
           }
         }
-        let stored = existing;
-        if (!stored) {
-          const { redactor } = resolveCallPii(undefined, piiRedaction, () =>
-            getConversationRedactor(opened.conversation_id, nerDetectorRef.current)
-          );
-          const knownToolCallEventIds = await backend.getToolCallEventIds(opened.conversation_id);
-          const { fields, fileIds } = await toAssistantMessageFields(
-            opened.response,
-            opened.conversation_id,
-            knownToolCallEventIds
-          );
-          stored = await backend.createMessage({
-            ...fields,
-            content: redactor ? redactor.deAnonymize(fields.content) : fields.content,
-            thinking:
-              redactor && fields.thinking ? redactor.deAnonymize(fields.thinking) : fields.thinking,
-            conversationId: opened.conversation_id,
-            role: "assistant",
-            model: opened.model,
-            parentMessageId: opened.parent_message_id ?? undefined,
-            wasStopped: opened.status === "tool_request" ? true : undefined,
-            uniqueId: messageId,
-          });
-          if (fileIds.length > 0) {
-            try {
-              await updateMediaMessageIdBatchOp(mediaCtx, fileIds, stored.uniqueId);
-            } catch (err) {
-              getLogger().warn("[useChatStorage] Failed to link inbox media:", err);
-            }
-          }
-          void embedMessageAsync(stored, (text) => (redactor ? redactor.maskText(text) : text));
-        }
-        await inbox.remove(item.id);
-        results.push({
-          ...base,
-          status: existing ? "delivered" : "stored",
-          assistantMessage: stored,
-        });
-      } catch (err) {
-        results.push({
-          ...base,
-          status: "retry",
-          assistantMessage: null,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
-    return results;
+        void embedMessageAsync(stored, (text) => (redactor ? redactor.maskText(text) : text));
+        return stored;
+      },
+    });
   }, [
     inbox,
     walletAddress,

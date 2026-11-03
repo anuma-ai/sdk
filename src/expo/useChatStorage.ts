@@ -7,7 +7,18 @@ import type { LlmapiMessage } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import { isSendableImageURL } from "../lib/chat/imageParts";
-import type { StreamResumeHandle } from "../lib/chat/resumeStream";
+import {
+  clearTurnErrors,
+  deliverInboxAnswers,
+  exportInboxPublicKey,
+  type InboxDeliveryResult,
+  type VaultInbox,
+} from "../lib/chat/inbox";
+import type {
+  ActiveStream,
+  ResumeStreamResult,
+  StreamResumeHandle,
+} from "../lib/chat/resumeStream";
 import { StreamExpiredError } from "../lib/chat/resumeStream";
 import { extractSourcesFromToolCallEvents } from "../lib/chat/sources";
 import {
@@ -134,6 +145,7 @@ import { mergeActiveToolSets } from "../lib/tools/selection/activeToolSets";
 import { carriedToolSets, recordToolSetTurn } from "../lib/tools/selection/recentToolSets";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import {
+  getKeyPair,
   hasEncryptionKey,
   onClearAllEncryptionState,
   onKeyAvailable,
@@ -366,7 +378,10 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
     apiType: "responses" | "completions";
     model?: string;
     round?: number;
+    assistantMessageId?: string;
   }) => void;
+  /** The vault inbox that receives answers finished while no client was attached. */
+  inbox?: VaultInbox;
   /**
    * Observability hook fired once per send with the tools actually selected for
    * the turn (after server + client filtering). Never throws into the send path.
@@ -516,6 +531,12 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     handleOverride?: StreamResumeHandle,
     opts?: { headless?: boolean }
   ) => Promise<ResumeStreamWithStorageResult>;
+  /** The caller's generations still running on the portal, optionally for one conversation. */
+  getActiveStreams: (conversationId?: string) => Promise<ActiveStream[]>;
+  /** Show a running generation from its first frame; nothing is stored. */
+  watchStream: (stream: ActiveStream) => Promise<ResumeStreamResult>;
+  /** Register the inbox public key, then store and remove every answer portal sealed into the inbox. */
+  deliverInbox: () => Promise<InboxDeliveryResult[]>;
   /**
    * Create a memory engine tool for LLM to search past conversations.
    * The tool is pre-configured with the hook's storage context and auth.
@@ -663,6 +684,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     resumable = false,
     onCancelResult,
     onStreamMeta,
+    inbox,
     onToolSelection,
     piiRedaction,
     onPiiRedacted,
@@ -1207,6 +1229,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [vaultCtx, memoryStore]
   );
 
+  const activeReplyIdRef = useRef<string | undefined>(undefined);
+  const handleStreamMeta = useCallback(
+    (meta: Parameters<NonNullable<UseChatStorageOptions["onStreamMeta"]>>[0]) =>
+      onStreamMeta?.({ ...meta, assistantMessageId: activeReplyIdRef.current }),
+    [onStreamMeta]
+  );
+
   const {
     isLoading,
     sendMessage: baseSendMessage,
@@ -1214,6 +1243,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     cancel: baseCancel,
     detach,
     resumeStream: baseResumeStream,
+    getActiveStreams,
   } = useChat({
     getToken,
     baseUrl,
@@ -1227,7 +1257,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     smoothing,
     resumable,
     onCancelResult,
-    onStreamMeta,
+    onStreamMeta: onStreamMeta ? handleStreamMeta : undefined,
     piiRedaction: resolvedPiiRedaction,
     onPiiRedacted,
     onServerToolCall,
@@ -1248,6 +1278,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     startTime: number;
     partialData: ApiResponse | null;
     knownToolCallEventIds?: Set<string>;
+    restoreText?: (text: string) => string;
+    parentless?: boolean;
   } | null>(null);
   const isResumingRef = useRef(false);
   const activeResumeRef = useRef<{
@@ -1507,11 +1539,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       responseDuration: number,
       viaQueue = false
     ): Promise<StoredMessage> => {
-      const { content, thinking } = extractAssistantText(data);
+      const extracted = extractAssistantText(data);
+      const restore = ctx.restoreText ?? ((text: string) => text);
+      const content = restore(extracted.content);
+      const thinking = extracted.thinking ? restore(extracted.thinking) : extracted.thinking;
 
-      let parentMessageId = ctx.userMessageUniqueId;
+      let parentMessageId: string | undefined = ctx.parentless
+        ? undefined
+        : ctx.userMessageUniqueId;
       let knownIds = ctx.knownToolCallEventIds;
-      if (ctx.convId && (!knownIds || !parentMessageId)) {
+      if (ctx.convId && (!knownIds || (!parentMessageId && !ctx.parentless))) {
         let storedMessages: StoredMessage[] | null = null;
         try {
           storedMessages = await getMessages(ctx.convId);
@@ -1531,7 +1568,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               }
             }
           }
-          if (!parentMessageId) {
+          if (!parentMessageId && !ctx.parentless) {
             for (let i = storedMessages.length - 1; i >= 0; i--) {
               if (storedMessages[i].uniqueId !== ctx.assistantUniqueId) {
                 parentMessageId = storedMessages[i].uniqueId;
@@ -1577,7 +1614,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             : undefined,
         uniqueId: ctx.assistantUniqueId!,
       };
-      if (!viaQueue) return backend.upsertMessage(rowOpts);
+      if (wasStopped) {
+        try {
+          const [current] = await backend.getMessagesByIds([rowOpts.uniqueId]);
+          if (current && !current.wasStopped && !current.error) return current;
+        } catch (err) {
+          getLogger().warn("[useChatStorage] Could not check for a stored answer:", err);
+        }
+      }
+      if (!viaQueue) return clearTurnErrors(backend, await backend.upsertMessage(rowOpts));
       const { result } = await writeOrQueue(
         "createMessage",
         rowOpts,
@@ -2307,6 +2352,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
+      activeReplyIdRef.current = resumable ? effectiveAssistantUniqueId : undefined;
       const result = await baseSendMessage({
         messages: messagesToSend,
         model,
@@ -2332,8 +2378,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         imageModel,
         conversationId: convId,
         piiRedaction: callPiiRedaction,
-        headers,
+        headers:
+          resumable && effectiveAssistantUniqueId
+            ? {
+                ...headers,
+                "X-Parent-Message-ID": storedUserMessage.uniqueId,
+                "X-Assistant-Message-ID": effectiveAssistantUniqueId,
+              }
+            : headers,
       });
+      if (activeReplyIdRef.current === effectiveAssistantUniqueId) {
+        activeReplyIdRef.current = undefined;
+      }
 
       const responseDuration = (Date.now() - startTime) / 1000;
 
@@ -2344,8 +2400,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (detachedResult.detached) {
         recordToolSetTurn(database, convId, matchedToolSets);
         const rowId = effectiveAssistantUniqueId ?? `msg_${uuidv7()}`;
+        const resume = detachedResult.resume
+          ? { ...detachedResult.resume, assistantMessageId: rowId }
+          : null;
         pendingResumeRef.current = {
-          handle: detachedResult.resume ?? null,
+          handle: resume,
           convId,
           userMessageUniqueId: storedUserMessage.uniqueId,
           userMessageQueueId: userMsgQueueId,
@@ -2363,7 +2422,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           data: detachedResult.data ?? null,
           error: "Request detached",
           detached: true,
-          resume: detachedResult.resume ?? null,
+          resume,
           assistantUniqueId: rowId,
           userMessage: storedUserMessage,
         };
@@ -2660,7 +2719,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 handle: handleOverride,
                 convId: handleOverride.conversationId ?? currentConversationId ?? "",
                 userMessageUniqueId: "",
-                assistantUniqueId: `msg_resume_${handleOverride.inferenceId}`,
+                assistantUniqueId:
+                  handleOverride.assistantMessageId ?? `msg_resume_${handleOverride.inferenceId}`,
                 model: handleOverride.model,
                 imageModel: undefined,
                 sources: undefined,
@@ -2802,6 +2862,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       retirementStopRequestedRef.current = true;
       return;
     }
+    const replaying = activeResumeRef.current;
+    if (replaying && !replaying.headless && replaying.context.handle) {
+      baseCancel(replaying.context.handle);
+    }
     const pending = pendingResumeRef.current;
     if (pending && pending.assistantUniqueId && !isResumingRef.current) {
       const finalize = pending;
@@ -2826,14 +2890,95 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       })();
     }
     baseStop();
-  }, [baseStop, finalizeResumedRow]);
+  }, [baseStop, baseCancel, finalizeResumedRow]);
+
+  const watchStream = useCallback(
+    (stream: ActiveStream) =>
+      baseResumeStream({
+        inferenceId: stream.inferenceId,
+        apiType: stream.apiType,
+        model: stream.model,
+        conversationId: stream.conversationId ?? undefined,
+      }),
+    [baseResumeStream]
+  );
+
+  const registeredInboxKeyRef = useRef<{ inbox: VaultInbox; publicKey: string } | null>(null);
+  const deliverInbox = useCallback(async (): Promise<InboxDeliveryResult[]> => {
+    if (!inbox || !walletAddress || !signMessage) return [];
+    const keyPair = await getKeyPair(walletAddress, signMessage, embeddedWalletSigner);
+    const publicKey = await exportInboxPublicKey(keyPair.publicKey);
+    const registered = registeredInboxKeyRef.current;
+    if (registered?.inbox !== inbox || registered.publicKey !== publicKey) {
+      await inbox.putPublicKey(publicKey);
+      registeredInboxKeyRef.current = { inbox, publicKey };
+    }
+    const results = await deliverInboxAnswers({
+      inbox,
+      keyPair,
+      backend,
+      store: async (opened, messageId) => {
+        const { redactor } = resolveCallPii(undefined, piiRedaction, () =>
+          getConversationRedactor(opened.conversation_id, nerDetectorRef.current)
+        );
+        const stored = await finalizeResumedRow(
+          {
+            handle: null,
+            convId: opened.conversation_id,
+            userMessageUniqueId: opened.parent_message_id ?? "",
+            parentless: opened.parent_message_id === null,
+            restoreText: redactor ? (text) => redactor.deAnonymize(text) : undefined,
+            assistantUniqueId: messageId,
+            model: opened.model,
+            imageModel: undefined,
+            sources: undefined,
+            thoughtProcess: undefined,
+            startTime: Date.now(),
+            partialData: null,
+          },
+          opened.response,
+          opened.status === "tool_request",
+          0
+        );
+        void embedMessageAsync(stored, (text) => (redactor ? redactor.maskText(text) : text));
+        return stored;
+      },
+    });
+    const pending = pendingResumeRef.current;
+    const answered = results.some(
+      (r) =>
+        (r.status === "stored" || r.status === "delivered") &&
+        r.assistantMessage?.uniqueId === pending?.assistantUniqueId
+    );
+    if (pending && answered) pendingResumeRef.current = null;
+    return results;
+  }, [
+    inbox,
+    walletAddress,
+    signMessage,
+    embeddedWalletSigner,
+    backend,
+    piiRedaction,
+    getConversationRedactor,
+    finalizeResumedRow,
+    embedMessageAsync,
+  ]);
+
+  const detachWithReplyId = useCallback((): StreamResumeHandle | null => {
+    const handle = detach();
+    const replyId = activeReplyIdRef.current;
+    return handle && replyId ? { ...handle, assistantMessageId: replyId } : handle;
+  }, [detach]);
 
   return {
     isLoading,
     sendMessage,
     stop,
-    detach,
+    detach: detachWithReplyId,
     resumeStream,
+    getActiveStreams,
+    watchStream,
+    deliverInbox,
     conversationId: currentConversationId,
     setConversationId: setCurrentConversationId,
     createConversation,

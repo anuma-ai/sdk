@@ -207,7 +207,7 @@ export class WatermelonChatStorageAdapter implements ChatBackend {
     return updateMessageChunksOp(this.ctx, uniqueId, chunks, embeddingModel);
   }
 
-  updateMessageError(uniqueId: string, error: string): Promise<StoredMessage | null> {
+  updateMessageError(uniqueId: string, error: string | null): Promise<StoredMessage | null> {
     return updateMessageErrorOp(this.ctx, uniqueId, error);
   }
 

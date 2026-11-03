@@ -156,21 +156,6 @@ function isRetriableStreamError(err: unknown): boolean {
   return false;
 }
 
-/**
- * Error thrown when an upstream provider emits an in-stream error event.
- * Carries the provider's code (e.g. `"timeout"`) so callers can match
- * programmatically via `err instanceof ProviderStreamError && err.code === "timeout"`
- * instead of string-matching the message.
- */
-export class ProviderStreamError extends Error {
-  readonly code: string | undefined;
-  constructor(message: string, code?: string) {
-    super(message);
-    this.name = "ProviderStreamError";
-    this.code = code;
-  }
-}
-
 function extractProviderStreamError(chunk: unknown): ProviderStreamError | null {
   if (!chunk || typeof chunk !== "object") return null;
   const errField = (chunk as { error?: unknown }).error;
@@ -207,11 +192,14 @@ import {
   executeToolCall,
   isAbortError,
   isDoneMarker,
+  ProviderStreamError,
   safeJsonStringify,
   toolsToApiFormat,
   validateMessages,
   validateModel,
 } from "./useChat/utils";
+
+export { ProviderStreamError };
 
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
 
@@ -727,6 +715,8 @@ const CONVERSATION_ID_HEADER = "X-Conversation-ID";
  */
 export type StreamResumeHandle = {
   inferenceId: string;
+  /** The reply id the storage hook writes this turn's answer under, when it chose one. */
+  assistantMessageId?: string;
   /** The RESOLVED api type (never "auto") — resolveApiType() already ran inside runToolLoop. */
   apiType: Exclude<ApiType, "auto">;
   model?: string;
@@ -1129,6 +1119,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       : strategy.buildFinalResponse(acc);
   const finalContentText = (acc: Accumulator): string =>
     redactor ? redactor.deAnonymize(acc.content) : acc.content;
+  let streamingAccumulator: Accumulator | null = null;
 
   try {
     let sseError: Error | null = null;
@@ -1304,6 +1295,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       });
 
       accumulator = createStreamAccumulator(model || undefined);
+      streamingAccumulator = accumulator;
       contentSmoother = new StreamSmoother((text) => {
         if (emitData) emitData(text);
       }, smoothing);
@@ -1899,6 +1891,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         });
 
         currentAccumulator = createStreamAccumulator(model || undefined);
+        streamingAccumulator = currentAccumulator;
         contContentSmoother = new StreamSmoother((text) => {
           if (emitData) emitData(text);
         }, smoothing);
@@ -2125,7 +2118,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         : undefined;
     const connectionLost = !(err instanceof ProviderStreamError) && !(err instanceof SseError);
     return {
-      data: null,
+      data:
+        connectionLost && streamingAccumulator ? buildResponseFinal(streamingAccumulator) : null,
       error: errorMsg,
       statusCode,
       ...(connectionLost ? { connectionLost: true as const } : {}),
