@@ -1,14 +1,28 @@
 # StoredConversation
 
-Defined in: [src/lib/db/chat/types.ts:309](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#309)
+Defined in: [src/lib/db/chat/types.ts:310](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#310)
 
 ## Properties
+
+### context?
+
+> `optional` **context**: `object`
+
+Defined in: [src/lib/db/chat/types.ts:323](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#323)
+
+Per-conversation app state kept with the conversation in vault, keyed by the app; absent on local storage.
+
+**Index Signature**
+
+\[`key`: `string`]: [`ChatJson`](../type-aliases/ChatJson.md)
+
+***
 
 ### conversationId
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#311)
+Defined in: [src/lib/db/chat/types.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#312)
 
 ***
 
@@ -16,7 +30,7 @@ Defined in: [src/lib/db/chat/types.ts:311](https://github.com/anuma-ai/sdk/blob/
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:315](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#315)
+Defined in: [src/lib/db/chat/types.ts:316](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#316)
 
 ***
 
@@ -24,7 +38,7 @@ Defined in: [src/lib/db/chat/types.ts:315](https://github.com/anuma-ai/sdk/blob/
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:317](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#317)
+Defined in: [src/lib/db/chat/types.ts:318](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#318)
 
 ***
 
@@ -32,7 +46,7 @@ Defined in: [src/lib/db/chat/types.ts:317](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **pinnedAt**: `Date` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:320](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#320)
+Defined in: [src/lib/db/chat/types.ts:321](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#321)
 
 When the conversation was pinned to the top of the list; null/unset = not pinned.
 `null` (not `undefined`) at runtime for unpinned rows — mirrors the model field.
@@ -43,7 +57,7 @@ When the conversation was pinned to the top of the list; null/unset = not pinned
 
 > `optional` **projectId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:314](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#314)
+Defined in: [src/lib/db/chat/types.ts:315](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#315)
 
 Optional project ID this conversation belongs to
 
@@ -53,7 +67,7 @@ Optional project ID this conversation belongs to
 
 > **title**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#312)
+Defined in: [src/lib/db/chat/types.ts:313](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#313)
 
 ***
 
@@ -61,7 +75,7 @@ Defined in: [src/lib/db/chat/types.ts:312](https://github.com/anuma-ai/sdk/blob/
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:310](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#310)
+Defined in: [src/lib/db/chat/types.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#311)
 
 ***
 
@@ -69,4 +83,4 @@ Defined in: [src/lib/db/chat/types.ts:310](https://github.com/anuma-ai/sdk/blob/
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:316](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#316)
+Defined in: [src/lib/db/chat/types.ts:317](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#317)

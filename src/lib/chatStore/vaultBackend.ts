@@ -53,6 +53,7 @@ import {
   anumaTurnData,
   type ChatData,
   chunkOffsets,
+  contextFields,
   fitChunks,
   messageData,
   plain,
@@ -123,6 +124,11 @@ export interface VaultChatBackend extends ChatBackend {
   importChats(
     chats: readonly { conversation: StoredConversation; messages: readonly StoredMessage[] }[]
   ): Promise<{ conversations: number; messages: number }>;
+  /** Sets keys of a conversation's app context, each saved on its own so devices editing different keys keep both; `null` clears a key. */
+  updateConversationContext(
+    conversationId: string,
+    context: { [key: string]: ChatJson | null }
+  ): Promise<boolean>;
   status(): { pending: number; stopped?: string };
   /** Deletes this account's cached chats and stops caching; call it on logout or a wallet switch. */
   clearCache(): Promise<void>;
@@ -976,6 +982,12 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     },
     async updateConversationPinned(conversationId, pinned) {
       return updateConversation(conversationId, { pinnedAt: pinned ? now() : null });
+    },
+    async updateConversationContext(conversationId, context) {
+      const set = contextFields(context);
+      if (Object.keys(set).length > 0) return updateConversation(conversationId, set);
+      const record = await conversation(conversationId);
+      return !!record && !record.isDeleted;
     },
     async deleteConversation(conversationId) {
       if (conversationId === ANUMA_CONVERSATION_ID) return false;
