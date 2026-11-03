@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import React from "react";
-import { ChartCard } from "./chart";
+import { ChartCard, ChartContainer, ChartLegendContent, ChartTooltipContent } from "./chart";
 import type { ChartDataPoint, DisplayChartResult } from "../tools/chart";
 
 vi.mock("recharts", () => {
@@ -32,18 +32,44 @@ vi.mock("recharts", () => {
     AreaChart: createMock("AreaChart"),
     PieChart: createMock("PieChart"),
     Bar: createMock("Bar"),
-    Line: createMock("Line"),
-    Area: createMock("Area"),
+    Line: ({ dot, ...props }: any) => createMock("Line")({ ...props, "dot-kind": typeof dot }),
+    Area: ({ dot, ...props }: any) => createMock("Area")({ ...props, "dot-kind": typeof dot }),
     Pie: createMock("Pie"),
     Cell: createMock("Cell"),
-    XAxis: createMock("XAxis"),
-    YAxis: ({ tickFormatter, ...props }: any) =>
-      createMock("YAxis")({ ...props, "tick-sample": tickFormatter?.(2150000000000) }),
+    Label: createMock("Label"),
+    XAxis: ({ padding, ...props }: any) =>
+      createMock("XAxis")({ ...props, "padding-left": padding?.left }),
+    YAxis: ({ tickFormatter, domain, ...props }: any) =>
+      createMock("YAxis")({
+        ...props,
+        "tick-sample": tickFormatter?.(2150000000000),
+        "domain-low": domain?.[0],
+        "domain-high": domain?.[1],
+      }),
     CartesianGrid: createMock("CartesianGrid"),
     Tooltip: createMock("Tooltip"),
     Legend: createMock("Legend"),
   };
 });
+
+const EN_DASH = String.fromCharCode(0x2013);
+const MINUS = String.fromCharCode(0x2212);
+
+const SOL_DATA: DisplayChartResult = {
+  chartType: "line",
+  title: "SOL daily closes (USD)",
+  data: [
+    { day: "Mon", close: 139.2 },
+    { day: "Tue", close: 141.5 },
+    { day: "Wed", close: 140.8 },
+    { day: "Thu", close: 144.1 },
+    { day: "Fri", close: 143.6 },
+  ],
+  dataKeys: ["close"],
+  xAxisKey: "day",
+  valueFormat: "currency",
+  currency: "USD",
+};
 
 async function renderChart(data: DisplayChartResult) {
   const result = render(<ChartCard data={data} />);
@@ -249,6 +275,103 @@ describe("ChartCard", () => {
       (td) => td.textContent
     );
     expect(cells).toEqual(["", "10"]);
+  });
+
+  it("fits the Y axis to a line's data instead of starting at zero", async () => {
+    await renderChart(SOL_DATA);
+
+    const yAxis = screen.getByTestId("YAxis");
+    expect(Number(yAxis.getAttribute("data-domain-low"))).toBeGreaterThan(130);
+    expect(Number(yAxis.getAttribute("data-domain-high"))).toBeLessThan(150);
+    expect(screen.getByTestId("XAxis").getAttribute("data-padding-left")).toBe("12");
+  });
+
+  it("keeps a zero baseline for bars", async () => {
+    await renderChart(BAR_DATA);
+
+    expect(screen.getByTestId("YAxis").hasAttribute("data-domain-low")).toBe(false);
+  });
+
+  it("formats currency values and leads a single series with its latest value and change", async () => {
+    await renderChart(SOL_DATA);
+
+    expect(screen.getByTestId("YAxis").getAttribute("data-tick-sample")).toBe("$2.15T");
+    const header = screen.getByTestId("chart-header");
+    expect(header.textContent).toContain("SOL daily closes (USD)");
+    expect(header.textContent).toContain("$143.60");
+    expect(header.textContent).toContain("+$4.40 (+3.16%)");
+    expect(header.textContent).toContain(`Mon ${EN_DASH} Fri`);
+    expect(header.querySelector(".text-emerald-600")).not.toBeNull();
+  });
+
+  it("shows a falling series with a minus sign and the down color", async () => {
+    await renderChart({
+      ...SOL_DATA,
+      data: [
+        { day: "Mon", close: 150 },
+        { day: "Tue", close: 135 },
+      ],
+    });
+
+    const header = screen.getByTestId("chart-header");
+    expect(header.textContent).toContain(`${MINUS}$15.00 (${MINUS}10%)`);
+    expect(header.querySelector(".text-red-600")).not.toBeNull();
+  });
+
+  it("formats percent series as percentages and their change in points", async () => {
+    await renderChart({
+      chartType: "line",
+      title: "Funding rate",
+      data: [
+        { day: "Mon", rate: 1.5 },
+        { day: "Tue", rate: 3.2 },
+      ],
+      dataKeys: ["rate"],
+      xAxisKey: "day",
+      valueFormat: "percent",
+    });
+
+    const header = screen.getByTestId("chart-header");
+    expect(header.textContent).toContain("3.2%");
+    expect(header.textContent).toContain("+1.7 pts");
+  });
+
+  it("marks every point on short series and only the end on long ones", async () => {
+    await renderChart(SOL_DATA);
+    expect(screen.getByTestId("Line").getAttribute("data-dot-kind")).toBe("object");
+
+    await renderChart({
+      ...SOL_DATA,
+      data: Array.from({ length: 30 }, (_, i) => ({ day: `D${i}`, close: 100 + i })),
+    });
+    expect(screen.getAllByTestId("Line")[1].getAttribute("data-dot-kind")).toBe("function");
+  });
+
+  it("shows zero values in the tooltip with the chart's formatter", () => {
+    render(
+      <ChartContainer config={{ close: { label: "Close", color: "red" } }}>
+        <ChartTooltipContent
+          active
+          payload={[{ value: 0, dataKey: "close", name: "close", color: "red" } as any]}
+          valueFormatter={(value) => `$${value.toFixed(2)}`}
+        />
+      </ChartContainer>
+    );
+
+    expect(screen.getByText("$0.00")).toBeDefined();
+  });
+
+  it("names legend entries that have no series config, like pie slices", () => {
+    render(
+      <ChartContainer config={{ value: { label: "Value", color: "red" } }}>
+        <ChartLegendContent
+          nameKey="asset"
+          payload={[{ value: "BTC", color: "red", dataKey: "value" } as any]}
+        />
+      </ChartContainer>
+    );
+
+    expect(screen.getByText("BTC")).toBeDefined();
   });
 
   it("gives every pie slice a distinct color", async () => {

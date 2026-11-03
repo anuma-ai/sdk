@@ -149,7 +149,7 @@ export {
   truncateContent,
   VERIFY_APP_SCHEMA,
 } from "./appGeneration";
-export type { ChartDataPoint, DisplayChartResult } from "./chart";
+export type { ChartDataPoint, ChartValueFormat, DisplayChartResult } from "./chart";
 export { createChartTool } from "./chart";
 export type { ChoiceOption } from "./choice";
 export { CHOICE_TOOL_NAME, createChoiceTool } from "./choice";
