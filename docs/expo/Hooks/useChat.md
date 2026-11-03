@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/expo/useChat.ts:228](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#228)
+Defined in: [src/expo/useChat.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#230)
 
 A React hook for managing chat completions with authentication.
 
@@ -390,8 +390,10 @@ conversation. See `createWebSearchPreProcessor`,
 Opt into resumable streaming. When `true`, every `sendMessage` request
 sends `X-Stream-Resumable: 1` so the portal keeps generating into its
 buffer after a client disconnect, and `detach()` can hand back a
-[StreamResumeHandle](../../react/Internal/type-aliases/StreamResumeHandle.md) for [resumeStream](../../react/Internal/functions/resumeStream.md). Off by default — no
-header is sent and `detach()` always resolves to `null`.
+[StreamResumeHandle](../../react/Internal/type-aliases/StreamResumeHandle.md) for [resumeStream](../../react/Internal/functions/resumeStream.md). A send whose connection
+drops after the portal issued its inference id resolves as detached too, and
+`onError` fires only for sends that do not. Off by default — no header is
+sent and `detach()` always resolves to `null`.
 
 **Default**
 
