@@ -43,6 +43,7 @@ import {
   RemoteMemoryPartialCreateError,
   type RemoteMemoryStoreOptions,
 } from "./remoteStore";
+import { createTopicCodec } from "./topicCodec";
 
 type Row = Record<string, unknown> & { memory_id: string; content: string };
 interface Stored {
@@ -61,20 +62,41 @@ function parseBody<T = Record<string, unknown>>(body: RequestInit["body"]): T {
   return JSON.parse(body) as T;
 }
 
-const orderColumns = { created: "created_at", updated: "updated_at", archived: "archived_at" };
-const norm = (name: string) => name.trim().toLowerCase();
+const topicCodec = (keys: MemoryKeyRing) => createTopicCodec(memoryCipher(keys));
 
-function topicNames(memory: Row): string[] {
+async function catalogEntry(
+  keys: MemoryKeyRing,
+  name: string,
+  fields: { version: number; is_deleted: boolean; server_updated_at: string }
+) {
+  return { ...fields, ...(await topicCodec(keys).encodeCatalog({ name }))! };
+}
+
+const orderColumns = { created: "created_at", updated: "updated_at", archived: "archived_at" };
+
+function topicEntries(memory: Row): { name?: unknown; name_hash?: unknown }[] {
   try {
     const parsed: unknown = JSON.parse(String(memory.topics));
-    return Array.isArray(parsed)
-      ? parsed
-          .filter((t): t is { name: string } => typeof (t as { name?: unknown })?.name === "string")
-          .map((t) => norm(t.name))
-      : [];
+    return Array.isArray(parsed) ? (parsed as { name?: unknown; name_hash?: unknown }[]) : [];
   } catch {
     return [];
   }
+}
+
+function assertSealed(topics: { name?: unknown; name_hash?: unknown }[]): void {
+  for (const topic of topics)
+    if (
+      typeof topic?.name_hash !== "string" ||
+      !/^[0-9a-f]{64}$/.test(topic.name_hash) ||
+      !/^enc:v3:[0-9a-f]+$/.test(String(topic.name))
+    )
+      throw new Error("A request carried a plaintext topic name");
+}
+
+function topicHashes(memory: Row): string[] {
+  return topicEntries(memory).flatMap((t) =>
+    typeof t?.name_hash === "string" ? [t.name_hash] : []
+  );
 }
 
 const DIM = 1536;
@@ -103,7 +125,14 @@ function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
   const rows = new Map<string, Stored>();
   const catalog = new Map<
     string,
-    { name: string; kind?: string; version: number; is_deleted: boolean; server_updated_at: string }
+    {
+      name: string;
+      name_hash: string;
+      kind?: string;
+      version: number;
+      is_deleted: boolean;
+      server_updated_at: string;
+    }
   >();
   let writes = 0;
   const leases = new Map<
@@ -130,6 +159,7 @@ function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
   const conflicting = (writes: { expected_version: number; memory: Row }[]) =>
     writes.some((w) => (rows.get(w.memory.memory_id)?.version ?? 0) !== w.expected_version);
   const apply = ({ memory }: { expected_version: number; memory: Row }): Stored => {
+    assertSealed(topicEntries(memory));
     const current = rows.get(memory.memory_id);
     const next: Row = Object.fromEntries(
       Object.entries(memory).filter(([, v]) => v !== undefined && v !== null)
@@ -203,10 +233,16 @@ function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
     if (path === "/topics") {
       if (method === "GET")
         return json(200, {
-          items: [...catalog.values()].sort((a, b) => a.name.localeCompare(b.name)),
+          items: [...catalog.values()].sort((a, b) => a.name_hash.localeCompare(b.name_hash)),
         });
-      const value = body.topic as { name: string; kind?: string; is_deleted: boolean };
-      const current = catalog.get(value.name);
+      const value = body.topic as {
+        name: string;
+        name_hash: string;
+        kind?: string;
+        is_deleted: boolean;
+      };
+      assertSealed([value]);
+      const current = catalog.get(value.name_hash);
       if ((current?.version ?? 0) !== body.expected_version)
         return problem(409, "version_conflict");
       const saved = {
@@ -214,13 +250,14 @@ function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
         version: (current?.version ?? 0) + 1,
         server_updated_at: new Date().toISOString(),
       };
-      catalog.set(value.name, saved);
+      catalog.set(value.name_hash, saved);
       return json(200, saved);
     }
     if (path === "/topics/import") {
-      for (const value of body.topics as { name: string; kind?: string }[])
-        if (!catalog.has(value.name))
-          catalog.set(value.name, {
+      assertSealed(body.topics as { name: string; name_hash: string }[]);
+      for (const value of body.topics as { name: string; name_hash: string; kind?: string }[])
+        if (!catalog.has(value.name_hash))
+          catalog.set(value.name_hash, {
             ...value,
             version: 1,
             is_deleted: false,
@@ -280,7 +317,8 @@ function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
       const order = (body.order as keyof typeof orderColumns | "changed" | undefined) ?? "created";
       const limit = (body.limit as number | undefined) ?? 100;
       const list = (key: string) => body[key] as string[] | undefined;
-      const wantedTopics = list("topics")?.map(norm);
+      if ("topics" in body) throw new Error("A query carried plaintext topic names");
+      const wantedTopics = list("topic_hashes");
       const archivedOnly = !!body.archived_only;
       const key = (s: Stored) =>
         order === "changed" ? (s.seq ?? 0) : Number(s.memory[orderColumns[order]]);
@@ -303,7 +341,11 @@ function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
             (!list("visibility")?.length ||
               list("visibility")!.includes((m.visibility as string | undefined) ?? "private")) &&
             (!list("memory_ids") || list("memory_ids")!.includes(m.memory_id)) &&
-            (!wantedTopics?.length || topicNames(m).some((t) => wantedTopics.includes(t))) &&
+            (!wantedTopics?.length || topicHashes(m).some((t) => wantedTopics.includes(t))) &&
+            (body.topics_legacy !== true ||
+              topicEntries(m).some(
+                (t) => typeof t?.name === "string" && t.name_hash === undefined
+              )) &&
             (body.updated_after === undefined ||
               (m.updated_at as number) > (body.updated_after as number)) &&
             (body.topics_due === undefined ||
@@ -1029,7 +1071,7 @@ describe("remote MemoryStore", () => {
   });
 
   it("filters list, archive and topic reads on nearby instead of reading the vault", async () => {
-    const { store, server } = await remoteStore();
+    const { store, server, keys } = await remoteStore();
     const work = await store.create({
       content: "Ships the release",
       scope: "work",
@@ -1056,7 +1098,7 @@ describe("remote MemoryStore", () => {
     expect(queries).toEqual([
       expect.objectContaining({ scopes: ["work"], order: "created" }),
       expect.objectContaining({ limit: 2 }),
-      expect.objectContaining({ topics: ["mt hood"] }),
+      expect.objectContaining({ topic_hashes: [await memoryCipher(keys).hashTopic("mt hood")] }),
       expect.objectContaining({ archived_only: true, order: "archived" }),
     ]);
     expect(server.fetch.mock.calls.some(([input]) => /\/memories\?/.test(requestUrl(input)))).toBe(
@@ -1176,7 +1218,7 @@ describe("remote MemoryStore", () => {
   };
 
   it("writes a chunk's extracted topics and stamps with one read and one batch", async () => {
-    const { store, server } = await remoteStore();
+    const { store, server, keys } = await remoteStore();
     const ids: string[] = [];
     for (const content of Object.keys(hikes))
       ids.push((await store.create({ content, embedding: axis(0) })).uniqueId);
@@ -1187,7 +1229,9 @@ describe("remote MemoryStore", () => {
       fetchFn: fakeTopicLlm(hikes),
     });
     expect(result.stampedIds).toEqual(ids);
-    expect(parseTopics(server.rows.get(ids[2])!.memory.topics as string)).toEqual([
+    const wire = server.rows.get(ids[2])!.memory.topics as string;
+    expect(wire).not.toContain("Chess");
+    expect(parseTopics(await topicCodec(keys).decodeTopics(wire))).toEqual([
       expect.objectContaining({ name: "Chess", source: "auto" }),
     ]);
     expect(nearbyCalls(server)).toEqual([
@@ -1797,6 +1841,7 @@ describe("remote MemoryStore", () => {
       keyId: ring.keyId,
       encrypt: cipher.encrypt,
       decrypt: async (value) => (unreadable ? value : cipher.decrypt(value)),
+      hashTopic: cipher.hashTopic,
       fetch: shared.fetch as unknown as typeof globalThis.fetch,
     });
     const phone = createRemoteMemoryStore({
@@ -2010,12 +2055,12 @@ describe("remote MemoryStore", () => {
       await vi.waitFor(() => expect(polls().some((p) => p.cursor !== undefined)).toBe(true));
       failCatalog = true;
       await laptop.update(seeded.uniqueId, { content: "Lives in Lisbon", embedding: axis(1) });
-      shared.catalog.set("gardening", {
-        name: "gardening",
+      const gardening = await catalogEntry(ring, "gardening", {
         version: 1,
         is_deleted: false,
         server_updated_at: new Date().toISOString(),
       });
+      shared.catalog.set(gardening.name_hash, gardening);
       await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
       expect(onTopics).toHaveBeenCalledTimes(1);
       const updated = shared.rows.get(seeded.uniqueId)!;
@@ -2167,13 +2212,14 @@ describe("default recall lanes", () => {
       keyId: keys.keyId,
       encrypt: cipher.encrypt,
       decrypt,
+      hashTopic: cipher.hashTopic,
       fetch: fetch as unknown as typeof globalThis.fetch,
     });
     const store = createRemoteMemoryStore({
       persistence,
       embeddingOptions: { apiKey: "test-key" },
     });
-    return { store, server, decrypt, queried };
+    return { store, server, decrypt, queried, keys };
   }
   async function laneStore() {
     return (await lanes()).store;
@@ -2192,7 +2238,10 @@ describe("default recall lanes", () => {
   });
 
   it("reads a bounded number of rows for a common topic", async () => {
-    const { store, server, queried } = await lanes();
+    const { store, server, queried, keys } = await lanes();
+    const topics = await topicCodec(keys).encodeTopics(
+      JSON.stringify([{ name: "Acme", source: "auto" }])
+    );
     for (let i = 0; i < 300; i++)
       server.rows.set(`acme-${i}`, {
         memory: {
@@ -2202,7 +2251,7 @@ describe("default recall lanes", () => {
           created_at: 1000 + i,
           updated_at: 1000 + i,
           is_deleted: false,
-          topics: JSON.stringify([{ name: "Acme", source: "auto" }]),
+          topics,
         },
         version: 1,
         server_updated_at: "2026-01-01T00:00:00Z",
@@ -2341,6 +2390,7 @@ describe("repairEmbeddings", () => {
       keyId: keys.keyId,
       encrypt: cipher.encrypt,
       decrypt,
+      hashTopic: cipher.hashTopic,
       fetch: server.fetch as unknown as typeof globalThis.fetch,
     });
     const store = createRemoteMemoryStore({
@@ -2944,6 +2994,7 @@ describe("remote decay", () => {
       keyId: keys.keyId,
       encrypt: cipher.encrypt,
       decrypt,
+      hashTopic: cipher.hashTopic,
       fetch: fetch as unknown as typeof globalThis.fetch,
     });
     const store = createRemoteMemoryStore({
@@ -3209,13 +3260,13 @@ describe("account topic catalog", () => {
   });
 
   it("notifies topic imports without polling and makes repeated reads idempotent", async () => {
-    const { store, server } = await remoteStore(undefined, undefined, 0);
-    server.catalog.set("coffee", {
-      name: "coffee",
+    const { store, server, keys } = await remoteStore(undefined, undefined, 0);
+    const coffee = await catalogEntry(keys, "coffee", {
       version: 2,
       is_deleted: true,
       server_updated_at: new Date().toISOString(),
     });
+    server.catalog.set(coffee.name_hash, coffee);
     const topics = [
       { name: " Gardening ", kind: "hobby" },
       { name: "gardening" },
@@ -3234,13 +3285,18 @@ describe("account topic catalog", () => {
       expect(await store.listTopics()).toEqual([
         { name: "gardening", kind: "hobby", memoryCount: 0 },
       ]);
-      expect(server.catalog.get("coffee")!.is_deleted).toBe(true);
+      expect(server.catalog.get(coffee.name_hash)!.is_deleted).toBe(true);
       const imports = server.fetch.mock.calls.filter(([input]) =>
         requestUrl(input).endsWith("/topics/import")
       );
       expect(imports).toHaveLength(1);
-      expect(parseBody(imports[0][1]!.body)).toEqual({
-        topics: [{ name: "gardening", kind: "hobby" }],
+      const sent = parseBody<{ topics: Record<string, unknown>[] }>(imports[0][1]!.body).topics;
+      expect(sent).toHaveLength(1);
+      const [{ name, ...fields }] = sent;
+      expect(name).toMatch(/^enc:v3:/);
+      expect(fields).toEqual({
+        kind: "hobby",
+        name_hash: await memoryCipher(keys).hashTopic("gardening"),
       });
     } finally {
       stop();

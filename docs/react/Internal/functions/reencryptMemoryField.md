@@ -2,7 +2,7 @@
 
 > **reencryptMemoryField**(`value`: `string`, `canonical`: [`MemoryKeyRing`](../interfaces/MemoryKeyRing.md), `fallbacks`: readonly [`MemoryKeyRing`](../interfaces/MemoryKeyRing.md)\[]): `Promise`<`string`>
 
-Defined in: [src/lib/memory/store/memoryKeys.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#98)
+Defined in: [src/lib/memory/store/memoryKeys.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#128)
 
 Re-encrypt a local field under the canonical key.
 

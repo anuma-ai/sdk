@@ -26,6 +26,23 @@ describe("memory keys", () => {
     expect(a.keyId).toMatch(/^v3:[0-9a-f]{64}$/);
   });
 
+  it("derives a non-extractable topic HMAC key with a pinned hash per signature", async () => {
+    const a = await deriveMemoryKeyRing(signatureA);
+    const b = await deriveMemoryKeyRing(signatureB);
+    expect(a.topicHash.extractable).toBe(false);
+    expect(a.topicHash.usages).toEqual(["sign"]);
+    await expect(crypto.subtle.exportKey("raw", a.topicHash)).rejects.toThrow();
+    expect(await memoryCipher(a).hashTopic("green tea")).toBe(
+      "f9dda3840a72cee5cbde3caa3c0a423666575283030f3a9b67a16990b14a056f"
+    );
+    expect(await memoryCipher(b).hashTopic("green tea")).not.toBe(
+      await memoryCipher(a).hashTopic("green tea")
+    );
+    expect(await memoryCipher(a).hashTopic("green tea")).not.toBe(
+      await memoryCipher(a).hashTopic("Green tea")
+    );
+  });
+
   it("re-encrypts the vault's own enc:v3 field under the canonical key", async () => {
     const address = "0x1234567890123456789012345678901234567890";
     const signMessage = vi.fn(async () => signatureA) as unknown as SignMessageFn;

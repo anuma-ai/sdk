@@ -2,9 +2,9 @@
 
 > **memoryCipher**(`canonical`: [`MemoryKeyRing`](../interfaces/MemoryKeyRing.md)): `object`
 
-Defined in: [src/lib/memory/store/memoryKeys.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#79)
+Defined in: [src/lib/memory/store/memoryKeys.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/memoryKeys.ts#104)
 
-Encrypt and decrypt callbacks for `createRemoteMemoryPersistence` under the canonical key.
+Encrypt, decrypt and topic-hash callbacks for `createRemoteMemoryPersistence` under the canonical key.
 
 ## Parameters
 
@@ -86,6 +86,39 @@ Encrypt and decrypt callbacks for `createRemoteMemoryPersistence` under the cano
 <td>
 
 `plaintext`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`string`>
+
+### hashTopic()
+
+> **hashTopic**: (`normalized`: `string`) => `Promise`<`string`>
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`normalized`
 
 </td>
 <td>
