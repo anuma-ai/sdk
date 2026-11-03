@@ -42,7 +42,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:150](https://github.com/anu
 
 ### state
 
-> **state**: `"active"` | `"migrating"`
+> **state**: `"migrating"` | `"active"`
 
 Defined in: [src/lib/memory/store/remoteMigration.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#147)
 

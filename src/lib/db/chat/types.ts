@@ -20,6 +20,7 @@ import {
 } from "../../chat/useChat/strategies/types";
 import type { StreamSmoothingConfig } from "../../chat/useChat/StreamSmoother";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
+import type { ChatJson } from "../../chatStore/types";
 import type { MemoryStore } from "../../memory/store/types";
 import type { NerDetector } from "../../pii/ner";
 import type { PiiMatch, PiiRedactor } from "../../pii/redactor";
@@ -306,6 +307,8 @@ export interface StoredConversation {
   /** When the conversation was pinned to the top of the list; null/unset = not pinned.
    * `null` (not `undefined`) at runtime for unpinned rows — mirrors the model field. */
   pinnedAt?: Date | null;
+  /** Per-conversation app state kept with the conversation in vault, keyed by the app; absent on local storage. */
+  context?: { [key: string]: ChatJson };
 }
 
 /**

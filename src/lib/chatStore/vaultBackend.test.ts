@@ -159,6 +159,82 @@ describe("vault chat backend", () => {
     expect(stored.record.sortKey).toBeGreaterThan(2 ** 51);
   });
 
+  it("keeps app context with the conversation for another device to read", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1", title: "Trip" });
+    expect((await b.getConversation("conv_1"))?.context).toBeUndefined();
+
+    expect(
+      await b.updateConversationContext("conv_1", {
+        memorySource: { kind: "folder", id: "f1" },
+        branches: { __root__: 1 },
+      })
+    ).toBe(true);
+    await b.flush();
+
+    const other = backend(fake).b;
+    expect((await other.getConversation("conv_1"))?.context).toEqual({
+      memorySource: { kind: "folder", id: "f1" },
+      branches: { __root__: 1 },
+    });
+    expect((await other.getConversation("conv_1"))?.title).toBe("Trip");
+
+    await other.updateConversationContext("conv_1", { memorySource: null });
+    await other.flush();
+    expect((await backend(fake).b.getConversation("conv_1"))?.context).toEqual({
+      branches: { __root__: 1 },
+    });
+  });
+
+  it("keeps both devices' context when they change different keys at once", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1" });
+    await b.flush();
+    const current = (await fake.row("conversation", "conv_1"))!;
+    await fake.write([
+      {
+        record: {
+          ...current.record,
+          data: { ...current.record.data, "context.branches": { __root__: 2 } },
+        },
+        expectedVersion: current.version,
+      },
+    ]);
+
+    await b.updateConversationContext("conv_1", { mode: "trade" });
+    await b.flush();
+
+    const fresh = backend(fake).b;
+    expect((await fresh.getConversation("conv_1"))?.context).toEqual({
+      branches: { __root__: 2 },
+      mode: "trade",
+    });
+  });
+
+  it("refuses context for a conversation that does not exist or was deleted", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    expect(await b.updateConversationContext("missing", { mode: "trade" })).toBe(false);
+    expect(await b.updateConversationContext("missing", {})).toBe(false);
+    await b.createConversation({ conversationId: "conv_1" });
+    await b.flush();
+    await b.deleteConversation("conv_1");
+    await b.flush();
+    expect(await b.updateConversationContext("conv_1", { mode: "trade" })).toBe(false);
+    expect(await b.updateConversationContext("conv_1", {})).toBe(false);
+  });
+
+  it("announces a context change like any other conversation edit", async () => {
+    const fake = await createChatStoreHarness();
+    const { b, events } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1" });
+    events.length = 0;
+    await b.updateConversationContext("conv_1", { mode: "trade" });
+    expect(events).toContainEqual({ type: "conversations", origin: "local" });
+  });
+
   it("does not repeat a write the server applied before the response was lost", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake);
