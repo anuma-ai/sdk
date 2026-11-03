@@ -341,6 +341,7 @@ const DEFAULT_COLORS = [
 
 const SURFACE = "var(--chart-surface)";
 const DOT_LIMIT = 12;
+const MAX_TICKS = 8;
 const MINUS = "\u2212";
 
 function paletteColor(index: number): string {
@@ -373,21 +374,29 @@ type Formatters = {
   change: (difference: number) => string;
 };
 
-function tickDigits(domain: [number, number] | undefined): number {
-  if (!domain) return 3;
-  const [low, high] = domain;
-  const span = high - low;
-  const magnitude = Math.max(Math.abs(low), Math.abs(high));
-  if (span <= 0 || magnitude === 0) return 3;
-  return Math.min(6, Math.max(3, Math.ceil(Math.log10(magnitude / span)) + 2));
+function tickDigits(ticks: number[] | undefined): number {
+  if (!ticks || ticks.length < 2) return 3;
+  const step = ticks[1] - ticks[0];
+  const magnitude = Math.max(...ticks.map(Math.abs));
+  if (step <= 0 || magnitude === 0) return 3;
+  const needed = Math.floor(Math.log10(magnitude)) - Math.floor(Math.log10(step)) + 1;
+  return Math.min(21, Math.max(3, needed));
+}
+
+function keepSmall(
+  options: Intl.NumberFormatOptions
+): (n: number, format: (formatter: Intl.NumberFormat, n: number) => string) => string {
+  const small = new Intl.NumberFormat(undefined, { ...options, maximumSignificantDigits: 3 });
+  const regular = new Intl.NumberFormat(undefined, { ...options, maximumFractionDigits: 2 });
+  return (n, format) => format(n !== 0 && Math.abs(n) < 1 ? small : regular, n);
 }
 
 function buildFormatters(
   format: ChartValueFormat | undefined,
   currency: string | undefined,
-  domain: [number, number] | undefined
+  ticks: number[] | undefined
 ): Formatters {
-  const digits = tickDigits(domain);
+  const digits = tickDigits(ticks);
   if (format === "currency") {
     const money = (options: Intl.NumberFormatOptions) =>
       new Intl.NumberFormat(undefined, {
@@ -408,16 +417,16 @@ function buildFormatters(
     return { tick: (n) => tick.format(n), value, change: (d) => value(Math.abs(d)) };
   }
   if (format === "percent") {
-    const value = new Intl.NumberFormat(undefined, { style: "percent", maximumFractionDigits: 2 });
+    const percent = keepSmall({ style: "percent" });
+    const points = keepSmall({});
     const tick = new Intl.NumberFormat(undefined, {
       style: "percent",
       maximumSignificantDigits: digits,
     });
-    const points = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
     return {
       tick: (n) => tick.format(n / 100),
-      value: (n) => value.format(n / 100),
-      change: (d) => `${points.format(Math.abs(d))} pts`,
+      value: (n) => percent(n, (formatter) => formatter.format(n / 100)),
+      change: (d) => `${points(Math.abs(d), (formatter, n) => formatter.format(n))} pts`,
     };
   }
   const tick = new Intl.NumberFormat(undefined, {
@@ -465,11 +474,13 @@ function niceTicks(values: number[]): number[] | undefined {
   const start =
     min >= 0 ? Math.max(0, Math.floor(low / step) * step) : Math.floor(low / step) * step;
   const ticks: number[] = [];
-  for (let tick = start; tick < high + step; tick += step) {
-    ticks.push(Number(tick.toPrecision(12)));
+  for (let index = 0; index <= MAX_TICKS; index++) {
+    const tick = Number((start + index * step).toPrecision(15));
+    if (ticks.length > 0 && tick <= ticks[ticks.length - 1]) break;
+    ticks.push(tick);
     if (tick >= high) break;
   }
-  return ticks;
+  return ticks.length >= 2 ? ticks : undefined;
 }
 
 function buildChartConfig(dataKeys: string[], colors?: Record<string, string>): ChartConfig {
@@ -601,12 +612,15 @@ export function ChartCard({ data }: ChartCardProps) {
   const yDomain: [number, number] | undefined = yTicks
     ? [yTicks[0], yTicks[yTicks.length - 1]]
     : undefined;
-  const formatters = buildFormatters(valueFormat, currency, yDomain);
+  const formatters = buildFormatters(valueFormat, currency, yTicks);
   const trend =
     isTrendChart && dataKeys.length === 1 ? buildTrend(values, valueFormat, formatters) : undefined;
+  const trendRows = trend
+    ? chartData.filter((point) => typeof point[dataKeys[0]] === "number")
+    : [];
   const range =
     trend && xAxisKey
-      ? [chartData[0], chartData[chartData.length - 1]]
+      ? [trendRows[0], trendRows[trendRows.length - 1]]
           .map((point) => cellText(point[xAxisKey]))
           .filter(Boolean)
           .join(" \u2013 ")

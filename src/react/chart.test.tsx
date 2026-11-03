@@ -43,6 +43,7 @@ vi.mock("recharts", () => {
       createMock("YAxis")({
         ...props,
         "tick-sample": tickFormatter?.(2150000000000),
+        "tick-labels": props.ticks?.map((tick: number) => tickFormatter?.(tick)).join("|"),
         "domain-low": domain?.[0],
         "domain-high": domain?.[1],
       }),
@@ -372,6 +373,70 @@ describe("ChartCard", () => {
     );
 
     expect(screen.getByText("BTC")).toBeDefined();
+  });
+
+  it("renders values too large to step through without hanging", async () => {
+    await renderChart({
+      chartType: "line",
+      data: [
+        { t: "a", v: 10000000000000000 },
+        { t: "b", v: 10000000000000002 },
+      ],
+      dataKeys: ["v"],
+      xAxisKey: "t",
+    });
+
+    expect(screen.getByTestId("YAxis")).toBeDefined();
+  });
+
+  it("keeps adjacent tick labels distinct on tight ranges at high magnitudes", async () => {
+    await renderChart({
+      chartType: "line",
+      data: [
+        { t: "a", v: 1000000900 },
+        { t: "b", v: 1000001100 },
+      ],
+      dataKeys: ["v"],
+      xAxisKey: "t",
+    });
+
+    const labels = screen.getByTestId("YAxis").getAttribute("data-tick-labels")!.split("|");
+    expect(labels.length).toBeGreaterThan(2);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it("keeps meaningful digits for small percentages and point changes", async () => {
+    await renderChart({
+      chartType: "line",
+      data: [
+        { t: "a", rate: 0.001 },
+        { t: "b", rate: 0.002 },
+        { t: "c", rate: 0.003 },
+      ],
+      dataKeys: ["rate"],
+      xAxisKey: "t",
+      valueFormat: "percent",
+    });
+
+    const header = screen.getByTestId("chart-header");
+    expect(header.textContent).toContain("0.003%");
+    expect(header.textContent).toContain("+0.002 pts");
+  });
+
+  it("labels the headline range with the rows the change compares", async () => {
+    await renderChart({
+      ...SOL_DATA,
+      data: [
+        { day: "Mon" },
+        { day: "Tue", close: 100 },
+        { day: "Wed", close: 110 },
+        { day: "Thu" },
+      ],
+    });
+
+    const header = screen.getByTestId("chart-header");
+    expect(header.textContent).toContain(`Tue ${EN_DASH} Wed`);
+    expect(header.textContent).toContain("+$10.00 (+10%)");
   });
 
   it("gives every pie slice a distinct color", async () => {
