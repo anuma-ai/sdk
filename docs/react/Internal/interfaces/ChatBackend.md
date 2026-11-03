@@ -1283,7 +1283,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:96](https://github.com/anuma-
 
 ### updateMessageError()
 
-> **updateMessageError**(`uniqueId`: `string`, `error`: `string`): `Promise`<[`StoredMessage`](StoredMessage.md) | `null`>
+> **updateMessageError**(`uniqueId`: `string`, `error`: `string` | `null`): `Promise`<[`StoredMessage`](StoredMessage.md) | `null`>
 
 Defined in: [src/lib/storage/ChatStorageAdapter.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#108)
 
@@ -1317,7 +1317,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:108](https://github.com/anuma
 </td>
 <td>
 
-`string`
+`string` | `null`
 
 </td>
 </tr>
