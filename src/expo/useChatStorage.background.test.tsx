@@ -764,6 +764,34 @@ describe("expo useChatStorage background turns", () => {
       expect(rows.map((m) => [m.role, m.error ?? null])).toEqual([["user", null]]);
     });
 
+    it("keeps the text that streamed before the drop when the user stops the turn", async () => {
+      vi.mocked(runToolLoop).mockImplementationOnce(async (options) => {
+        options.onStreamMeta?.({ inferenceId: "0xturn", round: 0 });
+        return { data: answer("Half an"), error: "network error", connectionLost: true } as never;
+      });
+      const { result } = renderStorage({ withWallet: true });
+      await act(async () => {
+        await result.current.sendMessage(userTurn);
+      });
+
+      await act(async () => {
+        result.current.stop();
+      });
+
+      await vi.waitFor(async () =>
+        expect(
+          (await result.current.getMessages("conv_bg")).map((m) => [
+            m.role,
+            m.content,
+            !!m.wasStopped,
+          ])
+        ).toEqual([
+          ["user", "hello", false],
+          ["assistant", "Half an", true],
+        ])
+      );
+    });
+
     it("leaves an answer for the device that has the turn", async () => {
       const { inbox, removed } = fakeInbox([
         { id: "0xaway", plaintext: sealed("0xaway", "msg_x") },

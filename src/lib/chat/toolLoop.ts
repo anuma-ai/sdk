@@ -1131,6 +1131,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       : strategy.buildFinalResponse(acc);
   const finalContentText = (acc: Accumulator): string =>
     redactor ? redactor.deAnonymize(acc.content) : acc.content;
+  let streamingAccumulator: Accumulator | null = null;
 
   try {
     let sseError: Error | null = null;
@@ -1306,6 +1307,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       });
 
       accumulator = createStreamAccumulator(model || undefined);
+      streamingAccumulator = accumulator;
       contentSmoother = new StreamSmoother((text) => {
         if (emitData) emitData(text);
       }, smoothing);
@@ -1901,6 +1903,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         });
 
         currentAccumulator = createStreamAccumulator(model || undefined);
+        streamingAccumulator = currentAccumulator;
         contContentSmoother = new StreamSmoother((text) => {
           if (emitData) emitData(text);
         }, smoothing);
@@ -2127,7 +2130,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         : undefined;
     const connectionLost = !(err instanceof ProviderStreamError) && !(err instanceof SseError);
     return {
-      data: null,
+      data:
+        connectionLost && streamingAccumulator ? buildResponseFinal(streamingAccumulator) : null,
       error: errorMsg,
       statusCode,
       ...(connectionLost ? { connectionLost: true as const } : {}),

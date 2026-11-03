@@ -4,6 +4,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { STREAM_RESUMABLE_HEADER } from "../lib/chat/toolLoop";
+import { extractAssistantText } from "../lib/chat/useChat/strategies";
 import type { StreamingTransport, StreamingTransportOptions } from "../lib/chat/toolLoop";
 
 let transportImpl: StreamingTransport = () => ({ stream: (async function* () {})() });
@@ -717,6 +718,7 @@ describe("useChat resumable surface", () => {
       });
       expect(onError).not.toHaveBeenCalled();
       expect(result.current.detach()).toMatchObject({ inferenceId: "inf-drop" });
+      expect(extractAssistantText(sent!.data!).content).toBe("Half");
     });
 
     it("fails a send whose connection drops before the inference id arrived", async () => {

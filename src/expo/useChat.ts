@@ -105,13 +105,7 @@ interface UseChatOptions extends BaseUseChatOptions {
    */
   apiType?: ApiType;
   /**
-   * Opt into resumable streaming. When `true`, every `sendMessage` request
-   * sends `X-Stream-Resumable: 1` so the portal keeps generating into its
-   * buffer after a client disconnect, and `detach()` can hand back a
-   * {@link StreamResumeHandle} for {@link resumeStream}. A send whose connection
-   * drops after the portal issued its inference id resolves as detached too, and
-   * `onError` fires only for sends that do not. Off by default — no header is
-   * sent and `detach()` always resolves to `null`.
+   * Keep each generation running on the portal after a disconnect, so `detach()` or a dropped connection resolves the send as detached with a {@link StreamResumeHandle} for {@link resumeStream}.
    * @default false
    */
   resumable?: boolean;
