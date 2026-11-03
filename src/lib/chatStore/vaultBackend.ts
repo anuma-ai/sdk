@@ -24,6 +24,7 @@ import type {
   ChatStorageObservable,
   ConversationQueryOptions,
 } from "../storage/ChatStorageAdapter";
+import { ANUMA_CONVERSATION_ID } from "./anuma";
 import { batches, conversationRecord, messageRecord } from "./chatImports";
 import { validChatId } from "./remote";
 import {
@@ -49,6 +50,7 @@ import {
 } from "./vaultOutbox";
 import {
   acceptedVector,
+  anumaTurnData,
   type ChatData,
   chunkOffsets,
   contextFields,
@@ -160,12 +162,15 @@ const resumableFields = [
   "thoughtProcess",
   "thinking",
   "toolCallEvents",
+  "anuma",
 ] as const;
 
 function resumedFields(options: CreateMessageOptions): { [field: string]: ChatJson } {
   return plain(
     Object.fromEntries(
-      resumableFields.filter((f) => options[f] !== undefined).map((f) => [f, options[f]])
+      resumableFields
+        .filter((f) => options[f] !== undefined)
+        .map((f) => [f, f === "anuma" ? anumaTurnData(options.anuma) : options[f]])
     )
   );
 }
@@ -934,6 +939,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     async getConversations(query?: ConversationQueryOptions) {
       await available();
       return all("conversation")
+        .filter((record) => record.id !== ANUMA_CONVERSATION_ID)
         .map(toConversation)
         .filter(
           (c) =>
@@ -984,6 +990,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       return !!record && !record.isDeleted;
     },
     async deleteConversation(conversationId) {
+      if (conversationId === ANUMA_CONVERSATION_ID) return false;
       const record = await conversation(conversationId);
       if (!record || record.isDeleted) return false;
       for (const [k, patch] of pending)

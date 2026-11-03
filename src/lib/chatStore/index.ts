@@ -1,5 +1,16 @@
 export type { VaultAttachmentRef } from "../db/chat/types.js";
 export {
+  ANUMA_CONVERSATION_ID,
+  anumaLastReadSortKey,
+  type AnumaTurn,
+  anumaTurnContent,
+  type AnumaTurnOrigin,
+  countUnreadAnumaTurns,
+  ensureAnumaConversation,
+  markAnumaRead,
+  readAnumaTurn,
+} from "./anuma.js";
+export {
   type ChatMigrationOptions,
   type ChatMigrationProgress,
   type ChatMigrationResult,

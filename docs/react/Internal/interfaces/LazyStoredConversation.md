@@ -1,6 +1,6 @@
 # LazyStoredConversation
 
-Defined in: [src/lib/db/chat/types.ts:329](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#329)
+Defined in: [src/lib/db/chat/types.ts:341](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#341)
 
 Lazy variant of [StoredConversation](StoredConversation.md).
 
@@ -26,7 +26,7 @@ conversations); `decryptConversationTitle` handles both transparently.
 
 > `optional` **context**: `object`
 
-Defined in: [src/lib/db/chat/types.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#311)
+Defined in: [src/lib/db/chat/types.ts:323](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#323)
 
 Per-conversation app state kept with the conversation in vault, keyed by the app; absent on local storage.
 
@@ -44,7 +44,7 @@ Per-conversation app state kept with the conversation in vault, keyed by the app
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:300](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#300)
+Defined in: [src/lib/db/chat/types.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#312)
 
 **Inherited from**
 
@@ -56,7 +56,7 @@ Defined in: [src/lib/db/chat/types.ts:300](https://github.com/anuma-ai/sdk/blob/
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:304](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#304)
+Defined in: [src/lib/db/chat/types.ts:316](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#316)
 
 **Inherited from**
 
@@ -68,7 +68,7 @@ Defined in: [src/lib/db/chat/types.ts:304](https://github.com/anuma-ai/sdk/blob/
 
 > **encryptedTitle**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#335)
+Defined in: [src/lib/db/chat/types.ts:347](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#347)
 
 Raw stored title — either ciphertext (`enc:v3:...`) or plaintext for
 legacy rows. Pass to `decryptConversationTitle(encryptedTitle, address)`
@@ -80,7 +80,7 @@ when the row needs to be rendered.
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:306](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#306)
+Defined in: [src/lib/db/chat/types.ts:318](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#318)
 
 **Inherited from**
 
@@ -92,7 +92,7 @@ Defined in: [src/lib/db/chat/types.ts:306](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **pinnedAt**: `Date` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:309](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#309)
+Defined in: [src/lib/db/chat/types.ts:321](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#321)
 
 When the conversation was pinned to the top of the list; null/unset = not pinned.
 `null` (not `undefined`) at runtime for unpinned rows — mirrors the model field.
@@ -107,7 +107,7 @@ When the conversation was pinned to the top of the list; null/unset = not pinned
 
 > `optional` **projectId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:303](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#303)
+Defined in: [src/lib/db/chat/types.ts:315](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#315)
 
 Optional project ID this conversation belongs to
 
@@ -121,7 +121,7 @@ Optional project ID this conversation belongs to
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:299](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#299)
+Defined in: [src/lib/db/chat/types.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#311)
 
 **Inherited from**
 
@@ -133,7 +133,7 @@ Defined in: [src/lib/db/chat/types.ts:299](https://github.com/anuma-ai/sdk/blob/
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:305](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#305)
+Defined in: [src/lib/db/chat/types.ts:317](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#317)
 
 **Inherited from**
 

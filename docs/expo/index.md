@@ -100,6 +100,36 @@ Re-exports [addConversationMemoriesOp](../react/Internal/functions/addConversati
 
 ***
 
+### ANUMA\_CONVERSATION\_ID
+
+Re-exports [ANUMA\_CONVERSATION\_ID](../react/Internal/variables/ANUMA_CONVERSATION_ID.md)
+
+***
+
+### anumaLastReadSortKey
+
+Re-exports [anumaLastReadSortKey](../react/Internal/functions/anumaLastReadSortKey.md)
+
+***
+
+### AnumaTurn
+
+Re-exports [AnumaTurn](../react/Internal/interfaces/AnumaTurn.md)
+
+***
+
+### anumaTurnContent
+
+Re-exports [anumaTurnContent](../react/Internal/functions/anumaTurnContent.md)
+
+***
+
+### AnumaTurnOrigin
+
+Re-exports [AnumaTurnOrigin](../react/Internal/type-aliases/AnumaTurnOrigin.md)
+
+***
+
 ### archiveVaultMemoryOp
 
 Re-exports [archiveVaultMemoryOp](../react/Internal/functions/archiveVaultMemoryOp.md)
@@ -577,6 +607,12 @@ Re-exports [conversationMemoryToStored](../react/Internal/functions/conversation
 ### cosineInt8
 
 Re-exports [cosineInt8](../react/Internal/functions/cosineInt8.md)
+
+***
+
+### countUnreadAnumaTurns
+
+Re-exports [countUnreadAnumaTurns](../react/Internal/functions/countUnreadAnumaTurns.md)
 
 ***
 
@@ -1066,6 +1102,12 @@ Re-exports [encryptToolCallEventsOp](../react/Internal/functions/encryptToolCall
 
 ***
 
+### ensureAnumaConversation
+
+Re-exports [ensureAnumaConversation](../react/Internal/functions/ensureAnumaConversation.md)
+
+***
+
 ### ensureDefaultFoldersOp
 
 Re-exports [ensureDefaultFoldersOp](../react/Internal/functions/ensureDefaultFoldersOp.md)
@@ -1477,6 +1519,12 @@ Re-exports [LoggerProviderProps](../react/Internal/interfaces/LoggerProviderProp
 ### ManualFactType
 
 Re-exports [ManualFactType](../react/Internal/type-aliases/ManualFactType.md)
+
+***
+
+### markAnumaRead
+
+Re-exports [markAnumaRead](../react/Internal/functions/markAnumaRead.md)
 
 ***
 
@@ -2017,6 +2065,12 @@ Re-exports [RankedProfileCandidate](../react/Internal/interfaces/RankedProfileCa
 ### rankProfileCandidates
 
 Re-exports [rankProfileCandidates](../react/Internal/functions/rankProfileCandidates.md)
+
+***
+
+### readAnumaTurn
+
+Re-exports [readAnumaTurn](../react/Internal/functions/readAnumaTurn.md)
 
 ***
 

@@ -129,7 +129,7 @@
     "spec": "openapi-ts && node scripts/patch-generated-client.mjs",
     "test": "vitest run",
     "test:browser": "vitest run --config vitest.browser.config.mts",
-    "test:vault-conformance": "vitest run src/lib/chatStore/migrateChats.test.ts src/lib/chatStore/vaultBackend.contract.test.ts src/lib/chatStore/vaultBackend.test.ts src/lib/chatStore/vaultParity.test.ts src/react/useChatStorage.vaultParity.test.tsx",
+    "test:vault-conformance": "vitest run src/lib/chatStore/anuma.test.ts src/lib/chatStore/migrateChats.test.ts src/lib/chatStore/vaultBackend.contract.test.ts src/lib/chatStore/vaultBackend.test.ts src/lib/chatStore/vaultParity.test.ts src/react/useChatStorage.vaultParity.test.tsx",
     "build": "tsup",
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
