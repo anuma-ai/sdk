@@ -183,8 +183,9 @@ export async function deliverInboxAnswers(options: {
   keyPair: CryptoKeyPair;
   backend: Pick<ChatBackend, "getMessagesByIds" | "getConversation">;
   store: (opened: InboxPlaintext, messageId: string) => Promise<StoredMessage>;
+  complete?: (opened: InboxPlaintext, answer: StoredMessage) => Promise<void>;
 }): Promise<InboxDeliveryResult[]> {
-  const { inbox, keyPair, backend, store } = options;
+  const { inbox, keyPair, backend, store, complete } = options;
   const results: InboxDeliveryResult[] = [];
   for (const item of await inbox.list()) {
     let opened: InboxPlaintext;
@@ -216,6 +217,7 @@ export async function deliverInboxAnswers(options: {
         }
       }
       const stored = existing ?? (await store(opened, messageId));
+      if (complete) await complete(opened, stored);
       await inbox.remove(item.id);
       results.push({
         ...base,

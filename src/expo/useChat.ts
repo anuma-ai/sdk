@@ -160,7 +160,7 @@ type UseChatResult = BaseUseChatResult & {
    */
   resumeStream: (
     handle: StreamResumeHandle,
-    opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing"> & {
+    opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing" | "finishedToolNames"> & {
       /**
        * Replay + reconcile + persist exactly as normal, but emit NOTHING to any
        * consumer callback — `onData` / `onThinking` / `onFinish` / `onError` are
@@ -318,7 +318,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   const resumeStream = useCallback(
     async (
       handle: StreamResumeHandle,
-      opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing"> & { headless?: boolean }
+      opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing" | "finishedToolNames"> & {
+        headless?: boolean;
+      }
     ): Promise<ResumeStreamResult> => {
       const getterValidation = validateTokenGetter(getToken);
       if (!getterValidation.valid) {

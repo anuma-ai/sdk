@@ -22,6 +22,16 @@ the SDK's configured BASE_URL.
 
 ***
 
+### finishedToolNames?
+
+> `optional` **finishedToolNames**: `string`\[]
+
+Defined in: [src/lib/chat/resumeStream.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#158)
+
+Tools a finished replay may end on because the device runs them when the answer is stored.
+
+***
+
 ### handle
 
 > **handle**: [`StreamResumeHandle`](../type-aliases/StreamResumeHandle.md)

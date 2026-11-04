@@ -335,6 +335,54 @@ describe("resumeStream", () => {
     expect(JSON.stringify(result.data)).not.toContain("get_weather");
   });
 
+  function cardTurn(name: string) {
+    return (async function* () {
+      yield { type: "response.created", response: { id: "r", model: "m" } };
+      yield { type: "response.output_text.delta", delta: { OfString: "Here is the chart." } };
+      yield {
+        type: "response.output_item.added",
+        item: { type: "function_call", id: "fc1", call_id: "call_1", name },
+      };
+      yield {
+        type: "response.function_call_arguments.delta",
+        item_id: "fc1",
+        delta: '{"title":"Rain"}',
+      };
+      yield { type: "response.completed", response: { usage: {} } };
+    })();
+  }
+
+  it("finishes a replay that ended on a card the device draws, keeping the call", async () => {
+    const { transport } = captureTransport(cardTurn("display_chart"));
+
+    const result = await resumeStream({
+      handle,
+      token: "tok",
+      transport,
+      smoothing: false,
+      finishedToolNames: ["display_chart"],
+    });
+
+    expect(result.interrupted).toBe(false);
+    expect(result.error).toBeNull();
+    expect(JSON.stringify(result.data)).toContain("display_chart");
+  });
+
+  it("still treats a replay paused on another tool as interrupted", async () => {
+    const { transport } = captureTransport(cardTurn("get_weather"));
+
+    const result = await resumeStream({
+      handle,
+      token: "tok",
+      transport,
+      smoothing: false,
+      finishedToolNames: ["display_chart"],
+    });
+
+    expect(result.interrupted).toBe(true);
+    expect(JSON.stringify(result.data)).not.toContain("get_weather");
+  });
+
   it("returns interrupted 'Resume aborted' with the partial when the caller signal fires", async () => {
     const controller = new AbortController();
     const stream = (async function* () {

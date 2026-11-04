@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:1082](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1082)
+Defined in: [src/react/useChatStorage.ts:1088](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#1088)
 
 A React hook that wraps useChat and persists messages and conversations to WatermelonDB as they are sent and received.
 
@@ -247,6 +247,24 @@ WatermelonDB database instance for storing conversations and messages
 <td>
 
 Title for auto-created conversations (default: "New conversation")
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.detachedTools?`
+
+</td>
+<td>
+
+`ToolConfig`\[]
+
+</td>
+<td>
+
+Device tools that can finish a turn the portal completed while the device was away: their
+executors run when that answer is stored. Pass the display tools and the memory save tool.
 
 </td>
 </tr>

@@ -191,13 +191,15 @@ export class CompletionsStrategy implements ApiStrategy {
       toolChoice,
       imageModel,
       conversationId,
+      clientToolClasses,
     } = args;
 
     const portal =
-      imageModel || conversationId
+      imageModel || conversationId || clientToolClasses
         ? {
             ...(imageModel && { image_model: imageModel }),
             ...(conversationId && { conversation_id: conversationId }),
+            ...(clientToolClasses && { client_tool_classes: clientToolClasses }),
           }
         : undefined;
 

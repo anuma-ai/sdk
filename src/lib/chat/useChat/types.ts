@@ -86,9 +86,16 @@ export type StreamingChunk = {
 /* eslint-disable @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values from tool executors */
 export type ToolExecutor = (
   args: Record<string, unknown>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  context?: ToolExecutionContext
 ) => Promise<unknown> | unknown;
 /* eslint-enable @typescript-eslint/no-redundant-type-constituents */
+
+/** How the portal treats a call to this device tool while the device is away. */
+export type DetachedToolClass = "render" | "deferred";
+
+/** Context for one executor run; `detached` marks a call from an answer finished while the device was away. */
+export type ToolExecutionContext = { detached?: boolean };
 
 /**
  * Tool configuration with optional executor
@@ -159,6 +166,8 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    * files from IndexedDB that `create_file` writes.
    */
   dependsOn?: string[];
+  /** How the portal handles a call to this tool while the device is away; unset tools pause the turn. */
+  detachedClass?: DetachedToolClass;
 };
 
 /**

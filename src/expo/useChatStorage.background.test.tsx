@@ -38,6 +38,7 @@ vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
 
 import { sealInboxItem } from "../lib/chat/fixtures/sealInboxItem";
 import type { InboxItem, VaultInbox } from "../lib/chat/inbox";
+import type { ToolConfig } from "../lib/chat/useChat/types";
 import { listActiveStreams, resumeStream, StreamExpiredError } from "../lib/chat/resumeStream";
 import { runToolLoop } from "../lib/chat/toolLoop";
 import { PiiRedactor } from "../lib/pii/redactor";
@@ -80,12 +81,33 @@ const userTurn = {
 const wallet = "0x1111111111111111111111111111111111111111";
 const walletSigner = vi.fn(async () => "0x" + "ab".repeat(65));
 
+function chartTool(executor: ToolConfig["executor"]): ToolConfig {
+  return {
+    type: "function",
+    function: { name: "display_chart", arguments: {} },
+    executor,
+    detachedClass: "render",
+  };
+}
+
+function answerEndingOnChart(text: string) {
+  const response = answer(text);
+  (response.output as unknown[]).push({
+    type: "function_call",
+    call_id: "call_chart",
+    name: "display_chart",
+    arguments: '{"title":"Rain"}',
+  });
+  return response;
+}
+
 function renderStorage(options: {
   database?: Database;
   inbox?: VaultInbox;
   onStreamMeta?: (meta: unknown) => void;
   withWallet?: boolean;
   piiRedaction?: boolean;
+  detachedTools?: ToolConfig[];
 }) {
   const database = options.database ?? makeDatabase();
   return renderHook(() =>
@@ -98,6 +120,7 @@ function renderStorage(options: {
       onStreamMeta: options.onStreamMeta,
       inbox: options.inbox,
       piiRedaction: options.piiRedaction,
+      detachedTools: options.detachedTools,
       ...(options.withWallet ? { walletAddress: wallet, signMessage: walletSigner } : {}),
     })
   );
@@ -239,6 +262,73 @@ describe("expo useChatStorage background turns", () => {
     });
 
     expect(resumed?.assistantMessage?.uniqueId).toBe("msg_turn_reply");
+  });
+
+  it("draws the card a replayed detached turn ended on", async () => {
+    const draw = vi.fn(async () => ({ chart: "Rain" }));
+    vi.mocked(resumeStream).mockResolvedValue({
+      data: answerEndingOnChart("Here is the chart.") as never,
+      error: null,
+      interrupted: false,
+    });
+    const { result } = renderStorage({ detachedTools: [chartTool(draw)] });
+
+    await act(async () => {
+      await result.current.resumeStream(
+        {
+          inferenceId: "0xchart",
+          apiType: "responses",
+          conversationId: "conv_bg",
+          assistantMessageId: "msg_chart_reply",
+        },
+        { headless: true }
+      );
+    });
+
+    expect(draw).toHaveBeenCalledWith({ title: "Rain" }, undefined, { detached: true });
+    const rows = await result.current.getMessages("conv_bg");
+    expect(rows.find((row) => row.parentMessageId === "msg_chart_reply")).toMatchObject({
+      origin: "tool_result",
+    });
+  });
+
+  it("tells the replay reader which tools the device finishes on arrival", async () => {
+    vi.mocked(resumeStream).mockResolvedValue({
+      data: answer("Recovered.") as never,
+      error: null,
+      interrupted: false,
+    });
+    const { result } = renderStorage({ detachedTools: [chartTool(vi.fn())] });
+
+    await act(async () => {
+      await result.current.resumeStream(
+        { inferenceId: "0xnames", apiType: "responses", conversationId: "conv_bg" },
+        { headless: true }
+      );
+    });
+
+    expect(vi.mocked(resumeStream).mock.calls.at(-1)?.[0]).toMatchObject({
+      finishedToolNames: ["display_chart"],
+    });
+  });
+
+  it("runs nothing for a replay that was interrupted", async () => {
+    const draw = vi.fn();
+    vi.mocked(resumeStream).mockResolvedValue({
+      data: answerEndingOnChart("Here is") as never,
+      error: "stream_interrupted",
+      interrupted: true,
+    });
+    const { result } = renderStorage({ detachedTools: [chartTool(draw)] });
+
+    await act(async () => {
+      await result.current.resumeStream(
+        { inferenceId: "0xcut", apiType: "responses", conversationId: "conv_bg" },
+        { headless: true }
+      );
+    });
+
+    expect(draw).not.toHaveBeenCalled();
   });
 
   it("lists running generations and watches one without storing anything", async () => {
@@ -407,6 +497,70 @@ describe("expo useChatStorage background turns", () => {
       });
       return database;
     }
+
+    it("draws the card a detached turn ended on when its answer arrives", async () => {
+      const draw = vi.fn(async () => ({ chart: "Rain" }));
+      const { inbox } = fakeInbox([
+        {
+          id: "0xc",
+          plaintext: { ...sealed("0xc", "msg_p"), response: answerEndingOnChart("Chart:") },
+        },
+      ]);
+      const { result } = renderStorage({
+        inbox,
+        withWallet: true,
+        database: await deviceWithParent("msg_p"),
+        detachedTools: [chartTool(draw)],
+      });
+
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+
+      expect(draw).toHaveBeenCalledWith({ title: "Rain" }, undefined, { detached: true });
+      const rows = await result.current.getMessages("conv_bg");
+      expect(rows.find((row) => row.parentMessageId === "msg_reply_0xc")).toMatchObject({
+        origin: "tool_result",
+      });
+    });
+
+    it("draws the card once when the inbox and a replay both deliver the turn", async () => {
+      const draw = vi.fn(async () => ({ chart: "Rain" }));
+      const { inbox } = fakeInbox([
+        {
+          id: "0xtwice",
+          plaintext: { ...sealed("0xtwice", "msg_p"), response: answerEndingOnChart("Chart:") },
+        },
+      ]);
+      vi.mocked(resumeStream).mockResolvedValue({
+        data: answerEndingOnChart("Chart:") as never,
+        error: null,
+        interrupted: false,
+      });
+      const { result } = renderStorage({
+        inbox,
+        withWallet: true,
+        database: await deviceWithParent("msg_p"),
+        detachedTools: [chartTool(draw)],
+      });
+
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+      await act(async () => {
+        await result.current.resumeStream(
+          {
+            inferenceId: "0xtwice",
+            apiType: "responses",
+            conversationId: "conv_bg",
+            assistantMessageId: "msg_reply_0xtwice",
+          },
+          { headless: true }
+        );
+      });
+
+      expect(draw).toHaveBeenCalledTimes(1);
+    });
 
     it("stores a sealed answer under the sender's reply id on the device that owns the turn", async () => {
       const { inbox, removed } = fakeInbox([{ id: "0xin", plaintext: sealed("0xin", "msg_p") }]);

@@ -6,6 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import type { LlmapiChatCompletionTool, LlmapiMessage } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
+import { storeDetachedToolResults } from "../lib/chat/detachedTools";
 import { attachFileContextToLastUserMessage } from "../lib/chat/fileContext";
 import { isSendableImageURL } from "../lib/chat/imageParts";
 import {
@@ -571,6 +572,11 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
   background?: boolean;
   /** The vault inbox that receives answers finished while no client was attached. */
   inbox?: VaultInbox;
+  /**
+   * Device tools that can finish a turn the portal completed while the device was away: their
+   * executors run when that answer is stored. Pass the display tools and the memory save tool.
+   */
+  detachedTools?: ToolConfig[];
   /** Stream handle for each HTTP round, including client-tool continuations. */
   onStreamMeta?: (meta: StreamMeta) => void;
   /**
@@ -1096,6 +1102,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     resumable,
     background = false,
     inbox,
+    detachedTools,
     onStreamMeta,
     apiType,
     walletAddress,
@@ -3246,6 +3253,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [baseResumeStream]
   );
 
+  const detachedToolsRef = useRef(detachedTools);
+  detachedToolsRef.current = detachedTools;
   const registeredInboxKeyRef = useRef<{ inbox: VaultInbox; publicKey: string } | null>(null);
   const deliverInbox = useCallback(async (): Promise<InboxDeliveryResult[]> => {
     if (!inbox || !walletAddress || !signMessage) return [];
@@ -3293,6 +3302,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
         void embedMessageAsync(stored, (text) => (redactor ? redactor.maskText(text) : text));
         return stored;
+      },
+      complete: async (opened, answer) => {
+        const { redactor } = resolveCallPii(undefined, piiRedaction, () =>
+          getConversationRedactor(opened.conversation_id, nerDetectorRef.current)
+        );
+        await storeDetachedToolResults({
+          backend,
+          answer,
+          response: opened.response,
+          tools: detachedToolsRef.current,
+          deAnonymize: redactor ? (text) => redactor.deAnonymize(text) : undefined,
+        });
       },
     });
   }, [

@@ -317,7 +317,11 @@ describe("useChatStorage background turns", () => {
       return database;
     }
 
-    function renderWithInbox(inbox: VaultInbox, database: Database) {
+    function renderWithInbox(
+      inbox: VaultInbox,
+      database: Database,
+      extra: Partial<Parameters<typeof useChatStorage>[0]> = {}
+    ) {
       return renderHook(() =>
         useChatStorage({
           database,
@@ -328,9 +332,136 @@ describe("useChatStorage background turns", () => {
           resumable: true,
           background: true,
           inbox,
+          ...extra,
         })
       );
     }
+
+    it("draws the card a detached turn ended on, from the device's own display tool", async () => {
+      const draw = vi.fn(async (args: Record<string, unknown>) => ({ chart: args.title }));
+      const response = answer("Here is the chart.");
+      (response.output as unknown[]).push({
+        type: "function_call",
+        call_id: "call_chart",
+        name: "display_chart",
+        arguments: '{"title":"Rain"}',
+      });
+      const { inbox } = fakeInbox([
+        {
+          id: "0xchart",
+          plaintext: {
+            ...sealedAnswer("0xchart", "msg_parent"),
+            assistant_message_id: "msg_chart_turn",
+            response,
+          },
+        },
+      ]);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn("msg_parent"), {
+        detachedTools: [
+          {
+            type: "function",
+            function: { name: "display_chart", arguments: {} },
+            executor: draw,
+            detachedClass: "render",
+          },
+        ],
+      });
+
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+
+      expect(draw).toHaveBeenCalledWith({ title: "Rain" }, undefined, { detached: true });
+      const rows = await result.current.getMessages("conv_bg");
+      const toolRow = rows.find((row) => row.parentMessageId === "msg_chart_turn");
+      expect(toolRow).toMatchObject({ role: "user", origin: "tool_result" });
+      expect(toolRow?.content).toContain('Tool "display_chart" returned: {"chart":"Rain"}');
+    });
+
+    it("never saves a memory the portal left unanswered when the turn paused", async () => {
+      const save = vi.fn(async () => "Memory saved.");
+      const response = answer("Let me save that.");
+      (response.output as unknown[]).push({
+        type: "function_call",
+        call_id: "call_save",
+        name: "memory_vault_save",
+        arguments: '{"content":"likes tea"}',
+      });
+      const { inbox } = fakeInbox([
+        {
+          id: "0xpaused",
+          plaintext: {
+            ...sealedAnswer("0xpaused", "msg_parent", "tool_request"),
+            assistant_message_id: "msg_paused_turn",
+            response,
+          },
+        },
+      ]);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn("msg_parent"), {
+        detachedTools: [
+          {
+            type: "function",
+            function: { name: "memory_vault_save", arguments: {} },
+            executor: save,
+            detachedClass: "deferred",
+          },
+        ],
+      });
+
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it("keeps the item when the card's result cannot be saved, and saves it on the next delivery", async () => {
+      let attempt = 0;
+      const draw = vi.fn(async () => (++attempt === 1 ? { size: BigInt(1) } : { chart: "Rain" }));
+      const response = answer("Here is the chart.");
+      (response.output as unknown[]).push({
+        type: "function_call",
+        call_id: "call_chart",
+        name: "display_chart",
+        arguments: '{"title":"Rain"}',
+      });
+      const { inbox, removed } = fakeInbox([
+        {
+          id: "0xretry",
+          plaintext: {
+            ...sealedAnswer("0xretry", "msg_parent"),
+            assistant_message_id: "msg_retry_turn",
+            response,
+          },
+        },
+      ]);
+      const { result } = renderWithInbox(inbox, await deviceWithTurn("msg_parent"), {
+        detachedTools: [
+          {
+            type: "function",
+            function: { name: "display_chart", arguments: {} },
+            executor: draw,
+            detachedClass: "render",
+          },
+        ],
+      });
+
+      let first: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+      await act(async () => {
+        first = await result.current.deliverInbox();
+      });
+      expect(first?.[0]?.status).toBe("retry");
+      expect(removed).toEqual([]);
+
+      await act(async () => {
+        await result.current.deliverInbox();
+      });
+      expect(removed).toEqual(["0xretry"]);
+      const rows = await result.current.getMessages("conv_bg");
+      expect(rows.find((row) => row.uniqueId === "msg_retry_turn_tool_results")?.content).toContain(
+        '"chart":"Rain"'
+      );
+    });
 
     it("stores a sealed answer once under the sender's reply id and registers the key once", async () => {
       const { inbox, removed, registered } = fakeInbox([

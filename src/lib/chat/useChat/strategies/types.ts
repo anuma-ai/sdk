@@ -7,7 +7,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCallEvent,
 } from "../../../../client";
-import type { StreamAccumulator } from "../types";
+import type { DetachedToolClass, StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
 
 /**
@@ -41,6 +41,8 @@ export interface BuildRequestBodyArgs {
   imageModel?: string;
   /** Groups requests belonging to the same conversation for observability. Pass-through only — not forwarded to the LLM provider. */
   conversationId?: string;
+  /** Detached-turn class per device tool name. Portal-only, never forwarded to the provider. */
+  clientToolClasses?: Record<string, DetachedToolClass>;
 }
 
 function isChatCompletionResponse(r: ApiResponse): r is LlmapiChatCompletionResponse {

@@ -2,7 +2,13 @@ import { jsonrepair } from "jsonrepair";
 
 import type { LlmapiChatCompletionTool, LlmapiMessage } from "../../../client";
 import { getLogger } from "../../logger";
-import type { AccumulatedToolCall, StreamAccumulator, ToolConfig, ToolExecutor } from "./types";
+import type {
+  AccumulatedToolCall,
+  StreamAccumulator,
+  ToolConfig,
+  ToolExecutionContext,
+  ToolExecutor,
+} from "./types";
 
 function parseToolArguments(raw: string): { args: Record<string, unknown> } | { error: string } {
   try {
@@ -588,7 +594,8 @@ export async function executeToolCall(
   toolCall: AccumulatedToolCall,
   executor: ToolExecutor,
   timeoutMs: number = TOOL_EXECUTOR_TIMEOUT_MS,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  context?: ToolExecutionContext
 ): Promise<ToolExecutionResult> {
   let args: Record<string, unknown> = {};
   if (toolCall.arguments) {
@@ -615,7 +622,11 @@ export async function executeToolCall(
         })
       );
     }
-    racers.push(Promise.resolve(signal ? executor(args, signal) : executor(args)));
+    racers.push(
+      Promise.resolve(
+        context ? executor(args, signal, context) : signal ? executor(args, signal) : executor(args)
+      )
+    );
     if (isFinite(timeoutMs)) {
       racers.push(
         new Promise<never>((_, reject) => {
@@ -660,6 +671,7 @@ export function toolsToApiFormat(
       executorTimeout: _executorTimeout,
       dependsOn: _dependsOn,
       deAnonymizeArgs: _deAnonymizeArgs,
+      detachedClass: _detachedClass,
       ...apiTool
     } = tool as ToolConfig & Record<string, unknown>;
 
