@@ -246,40 +246,70 @@ export async function authenticateICloud(): Promise<CloudKitUserIdentity | null>
   return container.setUpAuth();
 }
 
-/**
- * Request user to sign in to iCloud
- * Opens Apple sign-in popup and waits for authentication
- */
-export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
-  const container = await getContainer();
-
-  const { signIn } = ensureAuthElements();
-
-  const existingUser = await container.setUpAuth();
-  if (existingUser) {
-    return existingUser;
+/** Request iCloud sign-in with a 60-second timeout and an optional abort signal. */
+export async function requestICloudSignIn({
+  signal,
+}: { signal?: AbortSignal } = {}): Promise<CloudKitUserIdentity> {
+  if (signal?.aborted) {
+    throw new Error("Sign-in was cancelled");
   }
 
-  getLogger().debug("[CloudKit] Sign-in container innerHTML:", signIn.innerHTML);
-  getLogger().debug("[CloudKit] Sign-in container children:", signIn.children.length);
+  let cancellationError: Error | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let onAbort: (() => void) | undefined;
+  const cancellation = new Promise<never>((_resolve, reject) => {
+    const cancel = (error: Error) => {
+      cancellationError = error;
+      reject(error);
+    };
+    onAbort = () => cancel(new Error("Sign-in was cancelled"));
+    signal?.addEventListener("abort", onAbort, { once: true });
+    timer = setTimeout(() => cancel(new Error("iCloud sign-in timed out")), 60_000);
+  });
+  const throwIfCancelled = () => {
+    if (cancellationError) throw cancellationError;
+  };
 
-  const appleButton = signIn.querySelector<HTMLElement>(
-    "a, button, [role='button'], div[id*='apple']"
-  );
-  getLogger().debug("[CloudKit] Found button element:", appleButton);
+  const signInRequest = async () => {
+    const container = await getContainer();
+    throwIfCancelled();
 
-  if (appleButton) {
-    getLogger().debug("[CloudKit] Clicking button...");
-    appleButton.click();
-  } else {
-    const anyClickable = signIn.firstElementChild as HTMLElement | null;
-    if (anyClickable) {
-      getLogger().debug("[CloudKit] Clicking first child element:", anyClickable);
-      anyClickable.click();
+    const { signIn } = ensureAuthElements();
+
+    const existingUser = await container.setUpAuth();
+    throwIfCancelled();
+    if (existingUser) {
+      return existingUser;
     }
-  }
 
-  return container.whenUserSignsIn();
+    getLogger().debug("[CloudKit] Sign-in container innerHTML:", signIn.innerHTML);
+    getLogger().debug("[CloudKit] Sign-in container children:", signIn.children.length);
+
+    const appleButton = signIn.querySelector<HTMLElement>(
+      "a, button, [role='button'], div[id*='apple']"
+    );
+    getLogger().debug("[CloudKit] Found button element:", appleButton);
+
+    if (appleButton) {
+      getLogger().debug("[CloudKit] Clicking button...");
+      appleButton.click();
+    } else {
+      const anyClickable = signIn.firstElementChild as HTMLElement | null;
+      if (anyClickable) {
+        getLogger().debug("[CloudKit] Clicking first child element:", anyClickable);
+        anyClickable.click();
+      }
+    }
+
+    return container.whenUserSignsIn();
+  };
+
+  try {
+    return await Promise.race([signInRequest(), cancellation]);
+  } finally {
+    clearTimeout(timer);
+    if (onAbort) signal?.removeEventListener("abort", onAbort);
+  }
 }
 
 /**
