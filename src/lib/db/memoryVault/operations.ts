@@ -817,6 +817,7 @@ export type VaultProfileMetadata = Pick<
   | "supersededBy"
   | "isDeleted"
   | "proofCount"
+  | "factType"
 >;
 
 export async function getVaultProfileMetadataOp(
@@ -833,6 +834,7 @@ export async function getVaultProfileMetadataOp(
     supersededBy: (raw.superseded_by as string | null) ?? null,
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
     proofCount: (raw.proof_count as number | null) ?? null,
+    factType: (raw.fact_type as string | null) ?? null,
   });
   const listOptions = { ...options, includeDeleted: true, includeSuperseded: true };
   let rows: Record<string, unknown>[];
@@ -846,7 +848,7 @@ export async function getVaultProfileMetadataOp(
     }
     const sql =
       `select "id", "scope", "created_at", "updated_at", "last_observed_at", ` +
-      `"superseded_at", "superseded_by", "is_deleted", "proof_count" ` +
+      `"superseded_at", "superseded_by", "is_deleted", "proof_count", "fact_type" ` +
       `from "memory_vault" where ${clauses.join(" and ")}`;
     rows = (await ctx.vaultMemoryCollection
       .query(Q.unsafeSqlQuery(sql, args))
