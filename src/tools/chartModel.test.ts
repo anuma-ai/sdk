@@ -1,6 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { buildChartModel, chartCellText, type ChartSpec } from "./chartModel";
+
+const NativeNumberFormat = Intl.NumberFormat;
+
+beforeAll(() => {
+  vi.spyOn(Intl, "NumberFormat").mockImplementation(function (
+    locales?: Intl.LocalesArgument,
+    options?: Intl.NumberFormatOptions
+  ) {
+    return new NativeNumberFormat(locales ?? "en-US", options);
+  } as unknown as typeof Intl.NumberFormat);
+});
+
+afterAll(() => {
+  vi.mocked(Intl.NumberFormat).mockRestore();
+});
 
 const MINUS = String.fromCharCode(0x2212);
 const EN_DASH = String.fromCharCode(0x2013);

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterAll, beforeAll, describe, it, expect, vi } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import React from "react";
 import { ChartCard, ChartContainer, ChartLegendContent, ChartTooltipContent } from "./chart";
@@ -76,6 +76,21 @@ const SOL_DATA: DisplayChartResult = {
   valueFormat: "currency",
   currency: "USD",
 };
+
+const NativeNumberFormat = Intl.NumberFormat;
+
+beforeAll(() => {
+  vi.spyOn(Intl, "NumberFormat").mockImplementation(function (
+    locales?: Intl.LocalesArgument,
+    options?: Intl.NumberFormatOptions
+  ) {
+    return new NativeNumberFormat(locales ?? "en-US", options);
+  } as unknown as typeof Intl.NumberFormat);
+});
+
+afterAll(() => {
+  vi.mocked(Intl.NumberFormat).mockRestore();
+});
 
 async function renderChart(data: DisplayChartResult) {
   const result = render(<ChartCard data={data} />);
