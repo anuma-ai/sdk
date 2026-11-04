@@ -444,6 +444,10 @@ export async function synthesizeProfile(
     }
   }
 
+  const reviewedIds = options.reviewedMemoryIds && new Set(options.reviewedMemoryIds);
+  const eligibleMemoryIds = memories
+    .filter((m) => m.factType !== "instruction" && (!reviewedIds || reviewedIds.has(m.uniqueId)))
+    .map((m) => m.uniqueId);
   const vaultPreparation = createVaultPreparation();
   const settled = await Promise.allSettled(
     facets.map(async (facet) => {
@@ -456,7 +460,8 @@ export async function synthesizeProfile(
         recallCtx,
         options,
         fallbackPriors.get(facet.key),
-        vaultPreparation
+        vaultPreparation,
+        eligibleMemoryIds
       );
     })
   );
@@ -703,7 +708,8 @@ async function synthesizeFacet(
   ctx: RecallContext,
   options: SynthesizeProfileOptions,
   prior: ProfileSection | undefined,
-  vaultPreparation: VaultPreparation
+  vaultPreparation: VaultPreparation,
+  eligibleMemoryIds: string[]
 ): Promise<ProfileSection> {
   const scopes = options.scopes ?? DEFAULT_SCOPES;
   const limit = options.limit ?? DEFAULT_FACET_RECALL_LIMIT;
@@ -726,7 +732,7 @@ async function synthesizeFacet(
     vaultPreparation,
     scopes,
     limit: hasReviewGate ? RECALL_MAX_LIMIT : limit,
-    ...(hasReviewGate && { memoryIds: [...reviewed] }),
+    memoryIds: eligibleMemoryIds,
     types: ["fact"],
     factTypeWeights,
     proofCountAlpha,
