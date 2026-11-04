@@ -125,6 +125,21 @@ describe("buildChartModel", () => {
     expect(long).toMatchObject({ showDots: false, curve: "monotone" });
   });
 
+  it("points each series' end marker at its last row that has a value", () => {
+    const model = buildChartModel({
+      chartType: "line",
+      data: Array.from({ length: 30 }, (_, i) => ({
+        day: `D${i}`,
+        eth: 100 + i,
+        ...(i < 29 ? { sol: 50 + i } : {}),
+      })),
+      dataKeys: ["eth", "sol"],
+      xAxisKey: "day",
+    });
+
+    expect(model.endIndexes).toEqual({ eth: 29, sol: 28 });
+  });
+
   it("totals the first series for pie charts and keys its labels by name", () => {
     const model = buildChartModel({
       chartType: "pie",

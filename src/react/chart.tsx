@@ -451,8 +451,7 @@ export function ChartCard({ data }: ChartCardProps) {
   const chartConfig = buildChartConfig(dataKeys, model.seriesLabels, colors);
   const seriesColor = (key: string) => chartConfig[key]?.color;
   const animate = !reducedMotion;
-  const lastIndex = chartData.length - 1;
-  const { showDots, curve, hasNegative } = model;
+  const { showDots, curve, hasNegative, endIndexes } = model;
   const margin = { top: 8, right: 8, bottom: 0, left: 0 };
 
   const xAxis = xAxisKey && (
@@ -504,8 +503,10 @@ export function ChartCard({ data }: ChartCardProps) {
   const lineDot = (key: string) =>
     showDots
       ? marker(key, 4)
-      : (props: { cx?: number; cy?: number; index?: number }) =>
-          props.index === lastIndex && props.cx !== undefined && props.cy !== undefined ? (
+      : (props: { cx?: number | null; cy?: number | null; index?: number }) =>
+          props.index === endIndexes[key] &&
+          typeof props.cx === "number" &&
+          typeof props.cy === "number" ? (
             <circle key={`end-${key}`} cx={props.cx} cy={props.cy} {...marker(key, 4)} />
           ) : (
             <g key={`dot-${key}-${props.index}`} />

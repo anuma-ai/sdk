@@ -29,6 +29,7 @@ export type ChartModel = {
   trend?: ChartTrend;
   title?: string;
   showDots: boolean;
+  endIndexes: Record<string, number>;
   curve: "linear" | "monotone";
   hasNegative: boolean;
   longestTickLength: number;
@@ -179,6 +180,13 @@ function buildTrend(
   };
 }
 
+function lastValueIndex(points: ChartDataPoint[], key: string): number {
+  for (let index = points.length - 1; index >= 0; index--) {
+    if (typeof points[index][key] === "number") return index;
+  }
+  return -1;
+}
+
 /** Returns the display label for a series key. */
 export function chartSeriesLabel(key: string): string {
   return key.charAt(0).toUpperCase() + key.slice(1);
@@ -223,6 +231,7 @@ export function buildChartModel(spec: ChartSpec): ChartModel {
     trend,
     title: title ?? (trend ? seriesLabels[dataKeys[0]] : undefined),
     showDots,
+    endIndexes: Object.fromEntries(plottedKeys.map((key) => [key, lastValueIndex(data, key)])),
     curve: showDots ? "linear" : "monotone",
     hasNegative: values.some((value) => value < 0),
     longestTickLength: tickSamples.reduce((max, label) => Math.max(max, label.length), 0),

@@ -4,6 +4,8 @@ import React from "react";
 import { ChartCard, ChartContainer, ChartLegendContent, ChartTooltipContent } from "./chart";
 import type { ChartDataPoint, DisplayChartResult } from "../tools/chart";
 
+const lineDots: Record<string, any> = vi.hoisted(() => ({}));
+
 vi.mock("recharts", () => {
   function safeAttrs(props: Record<string, unknown>) {
     const out: Record<string, string> = {};
@@ -32,7 +34,10 @@ vi.mock("recharts", () => {
     AreaChart: createMock("AreaChart"),
     PieChart: createMock("PieChart"),
     Bar: createMock("Bar"),
-    Line: ({ dot, ...props }: any) => createMock("Line")({ ...props, "dot-kind": typeof dot }),
+    Line: ({ dot, ...props }: any) => {
+      lineDots[props.dataKey] = dot;
+      return createMock("Line")({ ...props, "dot-kind": typeof dot });
+    },
     Area: ({ dot, ...props }: any) => createMock("Area")({ ...props, "dot-kind": typeof dot }),
     Pie: createMock("Pie"),
     Cell: createMock("Cell"),
@@ -346,6 +351,27 @@ describe("ChartCard", () => {
       data: Array.from({ length: 30 }, (_, i) => ({ day: `D${i}`, close: 100 + i })),
     });
     expect(screen.getAllByTestId("Line")[1].getAttribute("data-dot-kind")).toBe("function");
+  });
+
+  it("puts a long series' end dot on its last value, never at a missing point", async () => {
+    await renderChart({
+      chartType: "line",
+      data: Array.from({ length: 30 }, (_, i) => ({
+        day: `D${i}`,
+        eth: 100 + i,
+        ...(i < 29 ? { sol: 50 + i } : {}),
+      })),
+      dataKeys: ["eth", "sol"],
+      xAxisKey: "day",
+    });
+
+    const drawn = (key: string, props: Record<string, unknown>) =>
+      render(<svg>{lineDots[key](props)}</svg>).container.querySelectorAll("circle").length;
+
+    expect(drawn("sol", { cx: 10, cy: null, index: 29 })).toBe(0);
+    expect(drawn("sol", { cx: 10, cy: 20, index: 28 })).toBe(1);
+    expect(drawn("eth", { cx: 10, cy: 20, index: 29 })).toBe(1);
+    expect(drawn("eth", { cx: 10, cy: 20, index: 28 })).toBe(0);
   });
 
   it("shows zero values in the tooltip with the chart's formatter", () => {
