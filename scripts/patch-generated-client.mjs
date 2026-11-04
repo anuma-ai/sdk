@@ -120,6 +120,19 @@ import { normalizeHeaders } from '../clientHeaders';`,
   },
   {
     file: "src/client/core/serverSentEvents.gen.ts",
+    find: "            reader.cancel();",
+    replace: "            void reader.cancel().catch(() => {});",
+  },
+  {
+    file: "src/client/core/serverSentEvents.gen.ts",
+    find: `          signal.removeEventListener('abort', abortHandler);
+          reader.releaseLock();`,
+    replace: `          signal.removeEventListener('abort', abortHandler);
+          await reader.cancel().catch(() => {});
+          reader.releaseLock();`,
+  },
+  {
+    file: "src/client/core/serverSentEvents.gen.ts",
     find: `              if (dataLines.length) {
                 yield data as any;
               }`,

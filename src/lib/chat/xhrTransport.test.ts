@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resumeStream } from "./resumeStream";
 import type { StreamingTransportOptions } from "./toolLoop";
 import { xhrTransport } from "./xhrTransport";
 
@@ -228,10 +229,70 @@ describe("xhrTransport", () => {
     await expect(iterator.next()).rejects.toMatchObject({ name: "AbortError" });
   });
 
+  it("aborts an unfinished request and removes listeners when the consumer stops", async () => {
+    const controller = new AbortController();
+    const addListener = vi.spyOn(controller.signal, "addEventListener");
+    const removeListener = vi.spyOn(controller.signal, "removeEventListener");
+    const result = xhrTransport({ ...baseOptions, signal: controller.signal });
+    const xhr = lastXhr();
+    const abort = vi.spyOn(xhr, "abort");
+    xhr.receiveHeaders(200);
+    xhr.receiveChunk('data: {"x":1}\n');
+
+    for await (const chunk of result.stream) {
+      expect(chunk).toEqual({ x: 1 });
+      break;
+    }
+
+    expect(abort).toHaveBeenCalledOnce();
+    for (const [event, listener] of addListener.mock.calls) {
+      expect(removeListener).toHaveBeenCalledWith(event, listener);
+    }
+    expect(xhr.onprogress).toBeNull();
+    expect(xhr.onload).toBeNull();
+    expect(xhr.onerror).toBeNull();
+    expect(xhr.onabort).toBeNull();
+    expect(xhr.onreadystatechange).toBeNull();
+    controller.abort();
+    expect(abort).toHaveBeenCalledOnce();
+  });
+
+  it("aborts an open replay after an in-stream error and preserves the partial result", async () => {
+    const onError = vi.fn();
+    const onFinish = vi.fn();
+    const replay = resumeStream({
+      handle: { inferenceId: "inf-1", apiType: "responses" },
+      token: "tok",
+      transport: xhrTransport,
+      smoothing: false,
+      onError,
+      onFinish,
+    });
+    const xhr = lastXhr();
+    const abort = vi.spyOn(xhr, "abort");
+    xhr.receiveHeaders(200);
+    xhr.receiveChunk(
+      'data: {"type":"response.output_text.delta","delta":{"OfString":"partial"}}\n\n' +
+        'data: {"error":{"code":"stream_interrupted","message":"deadline exceeded"}}\n\n'
+    );
+
+    const result = await replay;
+
+    expect(result).toMatchObject({
+      interrupted: true,
+      error: "[stream_interrupted] deadline exceeded",
+    });
+    expect(JSON.stringify(result.data)).toContain("partial");
+    expect(onError).not.toHaveBeenCalled();
+    expect(onFinish).not.toHaveBeenCalled();
+    expect(abort).toHaveBeenCalledOnce();
+  });
+
   it("yields only data payloads — SSE id: lines carry no state", async () => {
     const result = xhrTransport(baseOptions);
 
     const xhr = lastXhr();
+    const abort = vi.spyOn(xhr, "abort");
     xhr.receiveHeaders(200);
     xhr.receiveChunk('id: 5\ndata: {"x":1}\n');
     xhr.finish();
@@ -240,5 +301,6 @@ describe("xhrTransport", () => {
     for await (const chunk of result.stream) received.push(chunk);
 
     expect(received).toEqual([{ x: 1 }]);
+    expect(abort).not.toHaveBeenCalled();
   });
 });

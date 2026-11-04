@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { runToolLoop } from "./toolLoop";
-import type { StreamingTransport, StreamingTransportOptions, StreamResumeHandle } from "./toolLoop";
-import { sseFailureMessage } from "./xhrTransport";
 import {
   resumeStream,
-  StreamExpiredError,
   streamCancelPath,
+  StreamExpiredError,
   streamReplayPath,
 } from "./resumeStream";
+import type { StreamingTransport, StreamingTransportOptions, StreamResumeHandle } from "./toolLoop";
+import { runToolLoop } from "./toolLoop";
+import { sseFailureMessage } from "./xhrTransport";
 
 function makeAbortError() {
   const err = new Error("The operation was aborted");
@@ -18,7 +18,7 @@ function makeAbortError() {
 
 function makeTextStream(...parts: string[]) {
   return (async function* () {
-    yield { type: "response.created", response: { id: "r", model: "m" } };
+    yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
     for (const part of parts) {
       yield { type: "response.output_text.delta", delta: { OfString: part } };
     }
@@ -31,12 +31,12 @@ function makeTextStream(...parts: string[]) {
 
 function makeCompletionsThinkStream() {
   return (async function* () {
-    yield {
+    yield Promise.resolve({
       id: "c",
       object: "chat.completion.chunk",
       model: "m",
       choices: [{ index: 0, delta: { content: "<think>reasoning</think>" } }],
-    };
+    });
     yield {
       id: "c",
       object: "chat.completion.chunk",
@@ -114,7 +114,7 @@ describe("resumeStream", () => {
 
   it("flags a [DONE]-only replay (zero content frames) as empty, with no onData and no onFinish", async () => {
     const doneOnly = (async function* () {
-      yield "[DONE]";
+      yield Promise.resolve("[DONE]");
     })();
     const { transport } = captureTransport(doneOnly);
     const onData = vi.fn();
@@ -138,7 +138,7 @@ describe("resumeStream", () => {
 
   it("does not flag a tool-events-only replay as empty (citation-only completions are real output)", async () => {
     const eventsOnly = (async function* () {
-      yield { type: "response.created", response: { id: "r", model: "m" } };
+      yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
       yield {
         type: "response.completed",
         response: {
@@ -271,7 +271,7 @@ describe("resumeStream", () => {
 
   it("returns interrupted with the replayed content on an in-stream error event", async () => {
     const stream = (async function* () {
-      yield { type: "response.created", response: { id: "r", model: "m" } };
+      yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
       yield { type: "response.output_text.delta", delta: { OfString: "replayed text" } };
       yield { error: { code: "stream_interrupted", message: "deadline exceeded" } };
       yield "[DONE]";
@@ -300,9 +300,62 @@ describe("resumeStream", () => {
     expect(onFinish).not.toHaveBeenCalled();
   });
 
+  it.each([false, true])(
+    "cancels an unfinished fetch replay and preserves its error when cancellation rejects: %s",
+    async (cancelRejects) => {
+      vi.useFakeTimers();
+      const cancel = vi.fn(() =>
+        cancelRejects ? Promise.reject(new Error("Cancellation failed")) : Promise.resolve()
+      );
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              'data: {"type":"response.output_text.delta","delta":{"OfString":"partial"}}\n\n' +
+                'data: {"error":{"code":"stream_interrupted","message":"deadline exceeded"}}\n\n' +
+                'data: {"type":"response.output_text.delta","delta":{"OfString":"after error"}}\n\n'
+            )
+          );
+        },
+        cancel,
+      });
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
+      const onData = vi.fn();
+      const onError = vi.fn();
+      const onFinish = vi.fn();
+
+      try {
+        const result = await resumeStream({
+          handle,
+          token: "tok",
+          smoothing: false,
+          onData,
+          onError,
+          onFinish,
+        });
+
+        expect(result).toMatchObject({
+          interrupted: true,
+          error: "[stream_interrupted] deadline exceeded",
+        });
+        expect(JSON.stringify(result.data)).toContain("partial");
+        expect(JSON.stringify(result.data)).not.toContain("after error");
+        expect(onData).toHaveBeenCalledExactlyOnceWith("partial");
+        expect(onError).not.toHaveBeenCalled();
+        expect(onFinish).not.toHaveBeenCalled();
+        expect(cancel).toHaveBeenCalledOnce();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(body.locked).toBe(false);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    }
+  );
+
   it("returns interrupted on a tool-request terminal and leaks no tool payload to onData", async () => {
     const stream = (async function* () {
-      yield { type: "response.created", response: { id: "r", model: "m" } };
+      yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
       yield {
         type: "response.output_item.added",
         item: { type: "function_call", id: "fc1", call_id: "call_1", name: "get_weather" },
@@ -337,7 +390,7 @@ describe("resumeStream", () => {
 
   function cardTurn(name: string) {
     return (async function* () {
-      yield { type: "response.created", response: { id: "r", model: "m" } };
+      yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
       yield { type: "response.output_text.delta", delta: { OfString: "Here is the chart." } };
       yield {
         type: "response.output_item.added",
@@ -386,7 +439,7 @@ describe("resumeStream", () => {
   it("returns interrupted 'Resume aborted' with the partial when the caller signal fires", async () => {
     const controller = new AbortController();
     const stream = (async function* () {
-      yield { type: "response.created", response: { id: "r", model: "m" } };
+      yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
       yield { type: "response.output_text.delta", delta: { OfString: "half" } };
       controller.abort();
       throw makeAbortError();
@@ -416,7 +469,7 @@ describe("resumeStream", () => {
           options.signal?.addEventListener("abort", () => resolve(), { once: true });
         });
         await new Promise((r) => setTimeout(r, 50));
-        throw makeAbortError();
+        yield Promise.reject(makeAbortError());
       })(),
     });
 
@@ -462,7 +515,7 @@ describe("resumeStream", () => {
           if (options.signal?.aborted) return resolve();
           options.signal?.addEventListener("abort", () => resolve(), { once: true });
         });
-        throw makeAbortError();
+        yield Promise.reject(makeAbortError());
       })(),
     });
 
@@ -538,7 +591,7 @@ describe("resumeStream", () => {
       fireKeepAlive = () => options.onActivity?.();
       return {
         stream: (async function* () {
-          yield { type: "response.created", response: { id: "r", model: "m" } };
+          yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
           yield { type: "response.output_text.delta", delta: { OfString: "done" } };
           yield { type: "response.completed", response: { usage: {} } };
         })(),
@@ -598,7 +651,7 @@ describe("resumeStream", () => {
   it("stops consuming on a mid-stream 5xx and returns transient with the partial captured", async () => {
     const transport: StreamingTransport = (options) => ({
       stream: (async function* () {
-        yield { type: "response.created", response: { id: "r", model: "m" } };
+        yield Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
         yield {
           type: "response.output_text.delta",
           delta: { OfString: "partial before the drop" },
@@ -690,26 +743,25 @@ describe("resumeStream PII restoration", () => {
 describe("listActiveStreams", () => {
   it("maps the portal's running generations and drops malformed entries", async () => {
     const { listActiveStreams } = await import("./resumeStream");
-    const fetch = vi.fn(
-      async () =>
-        new Response(
-          JSON.stringify({
-            streams: [
-              {
-                inference_id: "0xlive",
-                assistant_message_id: "msg_bg_live",
-                conversation_id: "conv 1",
-                parent_message_id: null,
-                api_type: "responses",
-                model: "m",
-                started_at: "2026-11-02T12:00:00Z",
-              },
-              { inference_id: "0xbad", api_type: "other" },
-              { api_type: "responses" },
-            ],
-          }),
-          { status: 200 }
-        )
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          streams: [
+            {
+              inference_id: "0xlive",
+              assistant_message_id: "msg_bg_live",
+              conversation_id: "conv 1",
+              parent_message_id: null,
+              api_type: "responses",
+              model: "m",
+              started_at: "2026-11-02T12:00:00Z",
+            },
+            { inference_id: "0xbad", api_type: "other" },
+            { api_type: "responses" },
+          ],
+        }),
+        { status: 200 }
+      )
     );
 
     const streams = await listActiveStreams({
@@ -738,7 +790,7 @@ describe("listActiveStreams", () => {
 
   it("rejects when the portal refuses", async () => {
     const { listActiveStreams } = await import("./resumeStream");
-    const fetch = vi.fn(async () => new Response(null, { status: 401 }));
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 401 }));
     await expect(listActiveStreams({ token: "tok", fetch })).rejects.toThrow("401");
   });
 });
