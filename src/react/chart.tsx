@@ -495,6 +495,13 @@ function buildChartConfig(dataKeys: string[], colors?: Record<string, string>): 
   return config;
 }
 
+function lastValueIndex(points: ChartDataPoint[], key: string): number {
+  for (let index = points.length - 1; index >= 0; index--) {
+    if (typeof points[index][key] === "number") return index;
+  }
+  return -1;
+}
+
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = React.useState(false);
   React.useEffect(() => {
@@ -629,7 +636,6 @@ export function ChartCard({ data }: ChartCardProps) {
   const tickSamples = [...(yDomain ?? []), ...values].map((value) => formatters.tick(value));
   const longestTick = tickSamples.reduce((max, label) => Math.max(max, label.length), 0);
   const animate = !reducedMotion;
-  const lastIndex = chartData.length - 1;
   const showDots = chartData.length <= DOT_LIMIT;
   const curve = showDots ? "linear" : "monotone";
   const hasNegative = values.some((value) => value < 0);
@@ -684,8 +690,10 @@ export function ChartCard({ data }: ChartCardProps) {
   const lineDot = (key: string) =>
     showDots
       ? marker(key, 4)
-      : (props: { cx?: number; cy?: number; index?: number }) =>
-          props.index === lastIndex && props.cx !== undefined && props.cy !== undefined ? (
+      : (props: { cx?: number | null; cy?: number | null; index?: number }) =>
+          props.index === lastValueIndex(chartData, key) &&
+          typeof props.cx === "number" &&
+          typeof props.cy === "number" ? (
             <circle key={`end-${key}`} cx={props.cx} cy={props.cy} {...marker(key, 4)} />
           ) : (
             <g key={`dot-${key}-${props.index}`} />
