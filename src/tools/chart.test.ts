@@ -60,6 +60,32 @@ describe("display_chart tool", () => {
     expect((result as { error: string }).error).toContain('"1,5"');
   });
 
+  it("passes through a known value format and currency code", async () => {
+    const result = await run({
+      chartType: "line",
+      data: [{ day: "Mon", close: 140 }],
+      dataKeys: ["close"],
+      xAxisKey: "day",
+      valueFormat: "currency",
+      currency: " eur ",
+    });
+
+    expect(result).toMatchObject({ valueFormat: "currency", currency: "EUR" });
+  });
+
+  it("drops an unknown value format or malformed currency", async () => {
+    const result = await run({
+      chartType: "line",
+      data: [{ day: "Mon", close: 140 }],
+      dataKeys: ["close"],
+      xAxisKey: "day",
+      valueFormat: "dollars",
+      currency: "US Dollar",
+    });
+
+    expect(result).toMatchObject({ valueFormat: undefined, currency: undefined });
+  });
+
   it("rejects a series with a non-numeric value", async () => {
     const result = await run({
       chartType: "bar",

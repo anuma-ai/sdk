@@ -2,7 +2,7 @@
 
 > **ChartTooltipContent**(`__namedParameters`: `Props`<`ValueType`, `NameType`> & `object` & `ClassAttributes`<`HTMLDivElement`> & `HTMLAttributes`<`HTMLDivElement`> & `object`): `Element` | `null`
 
-Defined in: [src/react/chart.tsx:123](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#123)
+Defined in: [src/react/chart.tsx:124](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#124)
 
 ## Parameters
 

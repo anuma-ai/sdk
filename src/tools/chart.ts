@@ -4,6 +4,8 @@ import { createDisplayTool } from "./uiInteraction";
 
 export type ChartDataPoint = Record<string, string | number>;
 
+export type ChartValueFormat = "number" | "currency" | "percent";
+
 export type DisplayChartResult =
   | {
       chartType: "bar" | "line" | "area" | "pie";
@@ -12,10 +14,25 @@ export type DisplayChartResult =
       dataKeys: string[];
       xAxisKey?: string;
       colors?: Record<string, string>;
+      valueFormat?: ChartValueFormat;
+      currency?: string;
     }
   | {
       error: string;
     };
+
+const VALUE_FORMATS: readonly ChartValueFormat[] = ["number", "currency", "percent"];
+const CURRENCY_CODE = /^[A-Z]{3}$/;
+
+function toValueFormat(value: unknown): ChartValueFormat | undefined {
+  return VALUE_FORMATS.find((format) => format === value);
+}
+
+function toCurrencyCode(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const code = value.trim().toUpperCase();
+  return CURRENCY_CODE.test(code) ? code : undefined;
+}
 
 const NUMERIC_STRING = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?$/i;
 const THOUSANDS_GROUPED = /^[-+]?\d{1,3}(?:,\d{3})+(?:\.\d*)?$/;
@@ -49,7 +66,7 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
   return createDisplayTool(options, {
     name: "display_chart",
     description:
-      'Render a bar, line, area, or pie chart inline — visualize data, plot a trend over time, or graph a comparison. Use whenever the user asks to chart, plot, graph, or visualize numbers (sales, prices, temperatures, metrics). You MUST pass the actual numeric values in the "data" array — they are never inferred. Do not chart price or market history (crypto, stocks, market caps) unless those values came from a tool result or a cited source earlier in this conversation; never fill a price series from memory.',
+      'Render a bar, line, area, or pie chart inline — visualize data, plot a trend over time, or graph a comparison. Use whenever the user asks to chart, plot, graph, or visualize numbers (sales, prices, temperatures, metrics). You MUST pass the actual numeric values in the "data" array — they are never inferred. Do not chart price or market history (crypto, stocks, market caps) unless those values came from a tool result or a cited source earlier in this conversation; never fill a price series from memory. Set valueFormat to "currency" for prices and money, or "percent" for percentage values.',
     parameters: {
       type: "object",
       properties: {
@@ -87,6 +104,17 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
           additionalProperties: { type: "string" },
           description:
             "Optional color overrides. Map of dataKey to CSS color value (e.g. { 'revenue': '#2563eb' }). If omitted, uses theme chart colors.",
+        },
+        valueFormat: {
+          type: "string",
+          enum: ["number", "currency", "percent"],
+          description:
+            'How to display the values on the axis, tooltip and headline. "currency" for prices and money (set currency too), "percent" when values are already percentages (3.2 means 3.2%). Defaults to "number".',
+        },
+        currency: {
+          type: "string",
+          description:
+            'ISO 4217 currency code used when valueFormat is "currency", e.g. "USD" or "EUR". Defaults to USD.',
         },
       },
       required: ["chartType", "data", "dataKeys"],
@@ -145,6 +173,8 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
         dataKeys,
         xAxisKey: args.xAxisKey as string | undefined,
         colors: args.colors as Record<string, string> | undefined,
+        valueFormat: toValueFormat(args.valueFormat),
+        currency: toCurrencyCode(args.currency),
       };
     },
   });
