@@ -446,7 +446,13 @@ export async function synthesizeProfile(
 
   const reviewedIds = options.reviewedMemoryIds && new Set(options.reviewedMemoryIds);
   const eligibleMemoryIds = memories
-    .filter((m) => m.factType !== "instruction" && (!reviewedIds || reviewedIds.has(m.uniqueId)))
+    .filter(
+      (m) =>
+        !m.isDeleted &&
+        !m.supersededBy &&
+        m.factType !== "instruction" &&
+        (!reviewedIds || reviewedIds.has(m.uniqueId))
+    )
     .map((m) => m.uniqueId);
   const vaultPreparation = createVaultPreparation();
   const settled = await Promise.allSettled(

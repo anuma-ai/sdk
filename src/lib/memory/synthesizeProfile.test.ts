@@ -540,6 +540,26 @@ describe("synthesizeProfile", () => {
     expect(mockReflect.mock.calls[0][2]?.memories?.map((m) => m.id)).toEqual(["a"]);
   });
 
+  it("keeps deleted and superseded ids out of the facet recall allow-list", async () => {
+    setMemories([
+      mem("a"),
+      mem("deleted", { isDeleted: true, updatedAt: new Date(9000) }),
+      mem("superseded", { supersededBy: "a", supersededAt: 9000 }),
+      mem("instruction", { factType: "instruction" }),
+    ]);
+    mockRecall.mockResolvedValueOnce({
+      memories: [ranked("a")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 1,
+    });
+    mockReflect.mockResolvedValueOnce(reflectResult("A bio", ["a"]));
+
+    await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]] });
+
+    expect(mockRecall.mock.calls[0][2]?.memoryIds).toEqual(["a"]);
+  });
+
   it.each([
     ["local", 1, false],
     ["local", undefined, false],
