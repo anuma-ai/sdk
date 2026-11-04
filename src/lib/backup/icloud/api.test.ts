@@ -55,15 +55,23 @@ describe("requestICloudSignIn", () => {
   });
 
   it("rejects after 60 seconds when the popup does not complete sign-in", async () => {
+    const controller = new AbortController();
+    const removeListener = vi.spyOn(controller.signal, "removeEventListener");
+    const resolved = vi.fn();
     const rejected = vi.fn();
-    void requestICloudSignIn().catch(rejected);
+    void requestICloudSignIn({ signal: controller.signal }).then(resolved, rejected);
     await vi.advanceTimersByTimeAsync(0);
     expect(click).toHaveBeenCalledOnce();
     await vi.advanceTimersByTimeAsync(59_999);
     expect(rejected).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     expect(rejected).toHaveBeenCalledExactlyOnceWith(new Error("iCloud sign-in timed out"));
+    expect(removeListener).toHaveBeenCalledWith("abort", expect.any(Function));
     expect(vi.getTimerCount()).toBe(0);
+    signIn.resolve(user);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(resolved).not.toHaveBeenCalled();
+    expect(rejected).toHaveBeenCalledOnce();
   });
 
   it("rejects when the caller aborts and removes the abort listener", async () => {

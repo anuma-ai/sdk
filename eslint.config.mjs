@@ -38,6 +38,7 @@ const checkedTestFiles = [
   "src/lib/memory/reliability.integration.test.ts",
   "src/lib/memory/retain.test.ts",
   "src/lib/memory/synthesizeProfile.test.ts",
+  "src/lib/backup/icloud/api.test.ts",
   "src/lib/backup/icloud/backup.test.ts",
   "src/lib/chat/toolLoop.detach.test.ts",
   "src/lib/chat/toolLoop.gmailConfirmation.test.ts",
