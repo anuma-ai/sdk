@@ -300,6 +300,54 @@ describe("resumeStream", () => {
     expect(onFinish).not.toHaveBeenCalled();
   });
 
+  it.each([false, true])(
+    "cancels an unfinished fetch replay and preserves its error when cancellation rejects: %s",
+    async (cancelRejects) => {
+      vi.useFakeTimers();
+      const cancel = vi.fn(() =>
+        cancelRejects ? Promise.reject(new Error("Cancellation failed")) : Promise.resolve()
+      );
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              'data: {"type":"response.output_text.delta","delta":{"OfString":"partial"}}\n\n' +
+                'data: {"error":{"code":"stream_interrupted","message":"deadline exceeded"}}\n\n'
+            )
+          );
+        },
+        cancel,
+      });
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
+      const onError = vi.fn();
+      const onFinish = vi.fn();
+
+      try {
+        const result = await resumeStream({
+          handle,
+          token: "tok",
+          smoothing: false,
+          onError,
+          onFinish,
+        });
+
+        expect(result).toMatchObject({
+          interrupted: true,
+          error: "[stream_interrupted] deadline exceeded",
+        });
+        expect(JSON.stringify(result.data)).toContain("partial");
+        expect(onError).not.toHaveBeenCalled();
+        expect(onFinish).not.toHaveBeenCalled();
+        expect(cancel).toHaveBeenCalledOnce();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(body.locked).toBe(false);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    }
+  );
+
   it("returns interrupted on a tool-request terminal and leaks no tool payload to onData", async () => {
     const stream = (async function* () {
       yield { type: "response.created", response: { id: "r", model: "m" } };

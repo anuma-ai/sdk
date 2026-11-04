@@ -176,14 +176,27 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
   }
 
   async function* createStream() {
-    if (options.signal?.aborted) throw makeAbortError();
-    while (true) {
-      await waitForItem();
-      while (queue.length > 0) {
-        const item = queue.shift()!;
-        if (item.type === "done") return;
-        if (item.type === "error") throw item.error;
-        yield item.value;
+    try {
+      if (options.signal?.aborted) throw makeAbortError();
+      while (true) {
+        await waitForItem();
+        while (queue.length > 0) {
+          const item = queue.shift()!;
+          if (item.type === "done") return;
+          if (item.type === "error") throw item.error;
+          yield item.value;
+        }
+      }
+    } finally {
+      options.signal?.removeEventListener("abort", abortHandler);
+      xhr.onprogress = null;
+      xhr.onload = null;
+      xhr.onerror = null;
+      xhr.onabort = null;
+      xhr.onreadystatechange = null;
+      if (!finished) {
+        finished = true;
+        xhr.abort();
       }
     }
   }

@@ -142,7 +142,7 @@ export function createSseClient<TData = unknown>({
 
         const abortHandler = () => {
           try {
-            reader.cancel();
+            void reader.cancel().catch(() => {});
           } catch {
             // noop
           }
@@ -223,6 +223,7 @@ export function createSseClient<TData = unknown>({
           }
         } finally {
           signal.removeEventListener('abort', abortHandler);
+          await reader.cancel().catch(() => {});
           reader.releaseLock();
         }
 
