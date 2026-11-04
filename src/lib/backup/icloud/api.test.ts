@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getLogger } from "../../logger";
-import { requestICloudSignIn } from "./api";
+import { listICloudFiles, requestICloudSignIn } from "./api";
 
 type Container = ReturnType<NonNullable<Window["CloudKit"]>["getDefaultContainer"]>;
 const user = { userRecordName: "icloud-user" };
@@ -164,5 +164,87 @@ describe("requestICloudSignIn", () => {
     await expect(retry).resolves.toEqual(user);
     expect(rejected).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+function createRecord(recordName: string, timestamp: number) {
+  return {
+    recordName,
+    recordType: "ConversationBackup",
+    fields: {
+      filename: { value: `${recordName}.json` },
+      data: { value: { downloadURL: `https://example.com/${recordName}`, size: 100 } },
+      backupRevision: { value: `revision-${recordName}` },
+    },
+    modified: { timestamp },
+  };
+}
+
+describe("listICloudFiles", () => {
+  const performQuery = vi.fn();
+
+  beforeEach(() => {
+    performQuery.mockReset();
+    vi.stubGlobal("CloudKit", {
+      getDefaultContainer: () => ({
+        privateCloudDatabase: { performQuery },
+      }),
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    { state: "empty", records: [] },
+    { state: "missing", records: undefined },
+  ])("collects every page when an intermediate page has $state records", async ({ records }) => {
+    const oldest = createRecord("oldest", 1_000);
+    const newest = createRecord("newest", 3_000);
+    const middle = createRecord("middle", 2_000);
+    performQuery
+      .mockResolvedValueOnce({ records: [oldest], continuationMarker: "page-2" })
+      .mockResolvedValueOnce({ records: [newest], continuationMarker: "page-3" })
+      .mockResolvedValueOnce({ records, continuationMarker: "page-4" })
+      .mockResolvedValueOnce({ records: [middle], continuationMarker: null });
+
+    expect(await listICloudFiles()).toEqual(
+      [newest, middle, oldest].map((record) => ({
+        recordName: record.recordName,
+        filename: record.fields.filename.value,
+        modifiedAt: new Date(record.modified.timestamp),
+        backupRevision: record.fields.backupRevision.value,
+        size: 100,
+      }))
+    );
+    expect(performQuery.mock.calls).toEqual([
+      [{ recordType: "ConversationBackup" }],
+      [{ recordType: "ConversationBackup" }, { continuationMarker: "page-2" }],
+      [{ recordType: "ConversationBackup" }, { continuationMarker: "page-3" }],
+      [{ recordType: "ConversationBackup" }, { continuationMarker: "page-4" }],
+    ]);
+  });
+
+  it("stops after an empty page without a continuation marker", async () => {
+    performQuery.mockResolvedValueOnce({ records: [] });
+
+    expect(await listICloudFiles()).toEqual([]);
+    expect(performQuery).toHaveBeenCalledExactlyOnceWith({
+      recordType: "ConversationBackup",
+    });
+  });
+
+  it("rejects when a later page fails", async () => {
+    const error = new Error("The next page request failed");
+    performQuery
+      .mockResolvedValueOnce({
+        records: [createRecord("first", 1_000)],
+        continuationMarker: "page-2",
+      })
+      .mockRejectedValueOnce(error);
+
+    await expect(listICloudFiles()).rejects.toBe(error);
+    expect(performQuery).toHaveBeenCalledTimes(2);
   });
 });
