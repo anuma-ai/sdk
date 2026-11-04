@@ -95,7 +95,10 @@ interface CloudKitDatabase {
     recordNames: { recordName: string }[],
     options?: { zoneName?: string }
   ) => Promise<CloudKitResponse>;
-  performQuery: (query: CloudKitQuery) => Promise<CloudKitResponse>;
+  performQuery: (
+    query: CloudKitQuery,
+    options?: { continuationMarker?: string }
+  ) => Promise<CloudKitResponse>;
   fetchRecords: (
     recordNames: Array<{ recordName: string }>,
     options?: { desiredKeys?: string[] }
@@ -369,14 +372,19 @@ export async function listICloudFiles(): Promise<ICloudFile[]> {
   };
 
   const allRecords: CloudKitRecord[] = [];
-  const response = await database.performQuery(query);
+  let response = await database.performQuery(query);
 
   if (response.records) {
     allRecords.push(...response.records);
   }
 
   while (response.continuationMarker) {
-    break;
+    response = await database.performQuery(query, {
+      continuationMarker: response.continuationMarker,
+    });
+    if (response.records) {
+      allRecords.push(...response.records);
+    }
   }
 
   const files = allRecords.map((record) => ({
