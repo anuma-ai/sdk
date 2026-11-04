@@ -2,7 +2,7 @@
 
 > **ChartStyle**(`__namedParameters`: `object`): `Element` | `null`
 
-Defined in: [src/react/chart.tsx:62](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#62)
+Defined in: [src/react/chart.tsx:68](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#68)
 
 ## Parameters
 

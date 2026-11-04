@@ -151,6 +151,14 @@ export {
 } from "./appGeneration";
 export type { ChartDataPoint, ChartValueFormat, DisplayChartResult } from "./chart";
 export { createChartTool } from "./chart";
+export type {
+  ChartFormatters,
+  ChartModel,
+  ChartSpec,
+  ChartTrend,
+  ChartTrendDirection,
+} from "./chartModel";
+export { buildChartModel, chartCellText, chartSeriesLabel } from "./chartModel";
 export type { ChoiceOption } from "./choice";
 export { CHOICE_TOOL_NAME, createChoiceTool } from "./choice";
 export type { ConfirmParameter, ConfirmToolResult } from "./confirm";
