@@ -1248,16 +1248,19 @@ describe("synthesizeProfile", () => {
     expect(mockReflect.mock.calls[1][2]?.memories?.map((m: RankedMemory) => m.id)).toEqual(["a"]);
   });
 
-  it("recalls with RECALL_MAX_LIMIT when reviewedMemoryIds gate is on", async () => {
-    setMemories([mem("a")]);
+  it("recalls only live reviewed facts at the facet limit under the review gate", async () => {
+    setMemories([
+      ...Array.from({ length: 30 }, (_, i) => mem(`m${i}`)),
+      mem("deleted", { isDeleted: true }),
+      mem("superseded", { supersededBy: "m0", supersededAt: 5000 }),
+    ]);
     mockRecall.mockImplementation((_q, _ctx, options) => {
-      const all = Array.from({ length: 30 }, (_, i) => ranked(`m${i}`));
-      const limit = options?.limit ?? 8;
+      const memories = (options?.memoryIds ?? []).map((id) => ranked(id));
       return Promise.resolve({
-        memories: all.slice(0, limit),
+        memories,
         usedBudget: "low" as const,
         reranked: false,
-        candidateCount: all.length,
+        candidateCount: memories.length,
       });
     });
     mockReflect.mockResolvedValueOnce(reflectResult("Bio", ["m0"]));
@@ -1265,14 +1268,42 @@ describe("synthesizeProfile", () => {
     await synthesizeProfile(ctx, {
       apiKey: "k",
       facets: [FACETS[0]],
-      reviewedMemoryIds: ["m0", "m25"],
+      reviewedMemoryIds: ["m0", "m25", "deleted", "superseded"],
     });
 
-    expect(mockRecall.mock.calls[0][2]?.limit).toBe(RECALL_MAX_LIMIT);
+    expect(mockRecall.mock.calls[0][2]?.limit).toBe(20);
+    expect(mockRecall.mock.calls[0][2]?.memoryIds).toEqual(["m0", "m25"]);
     expect(mockReflect.mock.calls[0][2]?.memories?.map((m: RankedMemory) => m.id)).toEqual([
       "m0",
       "m25",
     ]);
+  });
+
+  it("recalls without an id filter when no review gate or live instruction applies", async () => {
+    setMemories([
+      mem("a"),
+      mem("retired-instruction", { factType: "instruction", isDeleted: true }),
+    ]);
+    mockRecall.mockResolvedValue({
+      memories: [ranked("a")],
+      usedBudget: "low",
+      reranked: false,
+      candidateCount: 1,
+    });
+    mockReflect.mockResolvedValueOnce(reflectResult("Bio", ["a"]));
+
+    await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]] });
+
+    expect(mockRecall.mock.calls[0][2]).not.toHaveProperty("memoryIds");
+  });
+
+  it("skips recall when every live fact is an instruction", async () => {
+    setMemories([mem("i", { factType: "instruction" })]);
+
+    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [FACETS[0]] });
+
+    expect(doc.sections[0].text).toBe("");
+    expect(mockRecall).not.toHaveBeenCalled();
   });
 
   it.each([undefined, 2])(
