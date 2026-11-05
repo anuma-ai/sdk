@@ -102,7 +102,7 @@ export async function seedAppFilesToVault(
     try {
       const target = {
         kind: "app_file" as const,
-        id: await appFileId(file.conversation_id, file.path),
+        id: await appFileId(store, file.conversation_id, file.path),
         conversationId: file.conversation_id,
       };
       const data = { path: normalizePath(file.path), content: file.content };

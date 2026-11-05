@@ -100,6 +100,7 @@ function withFaults(store: ChatStore, calls: string[], faults: FakeChatStoreFaul
     deleteAll: wrap("deleteAll", (...a: Parameters<ChatStore["deleteAll"]>) =>
       store.deleteAll(...a)
     ),
+    ...(store.sealedId ? { sealedId: (value: string) => store.sealedId!(value) } : {}),
     attachments: store.attachments,
   };
 }

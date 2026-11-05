@@ -1,10 +1,10 @@
 # appFileId
 
-> **appFileId**(`conversationId`: `string`, `path`: `string`): `Promise`<`string`>
+> **appFileId**(`store`: `Pick`<[`ChatStore`](../interfaces/ChatStore.md), `"sealedId"`>, `conversationId`: `string`, `path`: `string`): `Promise`<`string`>
 
-Defined in: [src/lib/chatStore/appFiles.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#43)
+Defined in: [src/lib/chatStore/appFiles.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#38)
 
-The vault record id of a conversation's file: a hash, so the path itself stays sealed.
+The vault record id of a conversation's file: a keyed hash, so vault cannot tell the path.
 
 ## Parameters
 
@@ -16,6 +16,18 @@ The vault record id of a conversation's file: a hash, so the path itself stays s
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+
+`store`
+
+</td>
+<td>
+
+`Pick`<[`ChatStore`](../interfaces/ChatStore.md), `"sealedId"`>
+
+</td>
+</tr>
 <tr>
 <td>
 

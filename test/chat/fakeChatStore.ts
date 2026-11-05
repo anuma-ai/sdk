@@ -413,6 +413,13 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
           }
         return deleted;
       }),
+    sealedId: async (value: string) => {
+      const digest = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(`fake-wallet-key\u0000${value}`)
+      );
+      return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+    },
     attachments: {
       create: () => Promise.reject(new Error("attachments are not faked")),
       commit: () => Promise.reject(new Error("attachments are not faked")),

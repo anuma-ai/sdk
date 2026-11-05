@@ -13,6 +13,8 @@ export {
 export {
   type AppFile,
   appFileId,
+  type AppFileIndex,
+  createAppFileIndex,
   deleteAppFile,
   deleteSavedTool,
   getAppFile,

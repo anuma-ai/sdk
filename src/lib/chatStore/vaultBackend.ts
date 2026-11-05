@@ -545,13 +545,17 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     if (
       error.code === "private_chat_storage_limit_reached" ||
       error.code === "invalid_record" ||
+      error.code === "record_too_large" ||
       error.status === 400
     ) {
       if (batch.length > 1) {
         isolate = batch.length;
         return "retry";
       }
-      drop(batch[0], error.status === 413 ? "storage_quota" : "invalid");
+      drop(
+        batch[0],
+        error.code === "private_chat_storage_limit_reached" ? "storage_quota" : "invalid"
+      );
       return "retry";
     }
     if (error.status === 429) return backoff(error.retryAfterMs, true);

@@ -2,7 +2,7 @@
 
 > **getAppFile**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `conversationId`: `string`, `path`: `string`, `signal?`: `AbortSignal`): `Promise`<[`AppFile`](../interfaces/AppFile.md) | `null`>
 
-Defined in: [src/lib/chatStore/appFiles.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#166)
+Defined in: [src/lib/chatStore/appFiles.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#187)
 
 One conversation file, or null when vault holds none at that path.
 

@@ -10,7 +10,7 @@ Explicit versions protect edits; ambiguous writes are never replayed automatical
 
 > **attachments**: [`ChatAttachments`](ChatAttachments.md)
 
-Defined in: [src/lib/chatStore/types.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#157)
+Defined in: [src/lib/chatStore/types.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#159)
 
 ## Methods
 
@@ -454,6 +454,45 @@ readonly [`ChatWrite`](ChatWrite.md)\[]
 **Returns**
 
 `Promise`<[`ChatSnapshot`](ChatSnapshot.md)\[]>
+
+***
+
+### sealedId()?
+
+> `optional` **sealedId**(`value`: `string`): `Promise`<`string`>
+
+Defined in: [src/lib/chatStore/types.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#158)
+
+A keyed hash vault cannot reproduce, for record ids derived from private names.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`value`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`string`>
 
 ***
 

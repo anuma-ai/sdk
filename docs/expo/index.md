@@ -148,6 +148,12 @@ Re-exports [appFileId](../react/Internal/functions/appFileId.md)
 
 ***
 
+### AppFileIndex
+
+Re-exports [AppFileIndex](../react/Internal/interfaces/AppFileIndex.md)
+
+***
+
 ### AppFileSeedResult
 
 Re-exports [AppFileSeedResult](../react/Internal/interfaces/AppFileSeedResult.md)
@@ -637,6 +643,12 @@ Re-exports [cosineInt8](../react/Internal/functions/cosineInt8.md)
 ### countUnreadAnumaTurns
 
 Re-exports [countUnreadAnumaTurns](../react/Internal/functions/countUnreadAnumaTurns.md)
+
+***
+
+### createAppFileIndex
+
+Re-exports [createAppFileIndex](../react/Internal/functions/createAppFileIndex.md)
 
 ***
 

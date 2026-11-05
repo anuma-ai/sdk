@@ -2,7 +2,7 @@
 
 > **listEveryAppFile**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `signal?`: `AbortSignal`): `Promise`<[`AppFile`](../interfaces/AppFile.md)\[]>
 
-Defined in: [src/lib/chatStore/appFiles.ts:151](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#151)
+Defined in: [src/lib/chatStore/appFiles.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#182)
 
 Every live file of every conversation, read from the changes feed.
 

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createChatStoreHarness } from "../../../test/chat/vaultHarness";
 import {
   appFileId,
+  createAppFileIndex,
   deleteAppFile,
   deleteSavedTool,
   getAppFile,
@@ -69,11 +70,13 @@ describe("app files in vault", () => {
       "index.html",
       "slides.jsx",
     ]);
-    expect(await appFileId("conv_1", "slides.jsx")).toBe(await appFileId("conv_1", "/slides.jsx"));
+    expect(await appFileId(store, "conv_1", "slides.jsx")).toBe(
+      await appFileId(store, "conv_1", "/slides.jsx")
+    );
     expect((await getAppFile(store, "conv_1", "slides.jsx"))?.content).toBe("v2");
-    const id = await appFileId("conv_1", "/slides.jsx");
+    const id = await appFileId(store, "conv_1", "/slides.jsx");
     expect(id).toMatch(/^[0-9a-f]{64}$/);
-    expect(id).not.toBe(await appFileId("conv_2", "/slides.jsx"));
+    expect(id).not.toBe(await appFileId(store, "conv_2", "/slides.jsx"));
     expect((await harness.row("app_file", id))?.record.conversationId).toBe("conv_1");
   });
 
@@ -132,6 +135,31 @@ describe("app files in vault", () => {
       ["conv_1", "slides.jsx", "v2"],
       ["conv_2", "slides.jsx", "two"],
     ]);
+  });
+
+  it("keeps an index current by fetching only what changed since its last read", async () => {
+    const harness = await withConversation();
+    const { store } = harness;
+    await saveAppFile(store, { conversationId: "conv_1", path: "a.html", content: "a1" });
+    await saveAppFile(store, { conversationId: "conv_1", path: "b.html", content: "b" });
+    await saveAppFile(store, { conversationId: "conv_1", path: "c.html", content: "c" });
+    const index = createAppFileIndex(store);
+    const changes = vi.spyOn(store, "changes");
+
+    expect((await index.list()).map((f) => f.path).sort()).toEqual(["a.html", "b.html", "c.html"]);
+    const firstRead = (await changes.mock.results[0]!.value).items.length;
+    await saveAppFile(store, { conversationId: "conv_1", path: "a.html", content: "a2" });
+    await deleteAppFile(store, "conv_1", "b.html");
+
+    const after = await index.list();
+    const secondRead = (await changes.mock.results.at(-1)!.value).items.length;
+    expect(after.map((f) => [f.path, f.content]).sort()).toEqual([
+      ["a.html", "a2"],
+      ["c.html", "c"],
+    ]);
+    expect(firstRead).toBe(3);
+    expect(secondRead).toBe(2);
+    expect(changes.mock.calls.at(-1)![0]).not.toBeUndefined();
   });
 
   it("keeps a file's latest copy when the feed returns it again on a later page", async () => {

@@ -181,7 +181,7 @@ describe("seedAppFilesToVault", () => {
       { conversationId: "conv_1", path: "huge.html", content: "x", updatedAt: 5 },
       { conversationId: "conv_1", path: "small.html", content: "fits", updatedAt: 5 },
     ]);
-    const huge = await appFileId("conv_1", "huge.html");
+    const huge = await appFileId(harness.store, "conv_1", "huge.html");
     const putMany = harness.store.putMany.bind(harness.store);
     harness.store.putMany = (writes: readonly ChatWrite[], signal?: AbortSignal) =>
       writes.some((w) => w.record.id === huge)

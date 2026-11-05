@@ -266,6 +266,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
   const keyId = options.keyId;
   const encrypt = options.encrypt;
   const decrypt = options.decrypt;
+  const hashTopic = options.hashTopic;
   const nearby = createNearbyRequest({ ...options }, "/api/private-chats");
   const request: typeof nearby = async (...args) => {
     try {
@@ -714,6 +715,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       if (!object(value) || !integer(value.deleted)) invalid();
       return value.deleted;
     },
+    ...(hashTopic ? { sealedId: (value: string) => hashTopic(`record-id\u0000${value}`) } : {}),
     attachments: {
       async create(sizeBytes, signal) {
         if (!integer(sizeBytes, 1) || sizeBytes > maxAttachmentBytes) invalid();

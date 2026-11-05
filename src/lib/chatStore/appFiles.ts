@@ -34,14 +34,14 @@ export interface SavedTool extends SavedToolData {
 
 const maxSaveAttempts = 3;
 
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/** The vault record id of a conversation's file: a hash, so the path itself stays sealed. */
-export function appFileId(conversationId: string, path: string): Promise<string> {
-  return sha256Hex(`${conversationId}\u0000${normalizePath(path)}`);
+/** The vault record id of a conversation's file: a keyed hash, so vault cannot tell the path. */
+export async function appFileId(
+  store: Pick<ChatStore, "sealedId">,
+  conversationId: string,
+  path: string
+): Promise<string> {
+  if (!store.sealedId) throw new Error("App file ids need a chat store that seals ids");
+  return store.sealedId(`app_file\u0000${conversationId}\u0000${normalizePath(path)}`);
 }
 
 async function putLatest(
@@ -147,19 +147,40 @@ export async function listAppFiles(
   return items.map(toAppFile).filter((file): file is AppFile => file !== null);
 }
 
-/** Every live file of every conversation, read from the changes feed. */
-export async function listEveryAppFile(store: ChatStore, signal?: AbortSignal): Promise<AppFile[]> {
+export interface AppFileIndex {
+  /** Every live file of every conversation, fetching only what changed since the last call. */
+  list(signal?: AbortSignal): Promise<AppFile[]>;
+}
+
+/** Keeps every app file of the account current from the changes feed. */
+export function createAppFileIndex(store: ChatStore): AppFileIndex {
   const latest = new Map<string, ChatSnapshot>();
   let cursor: string | undefined;
-  do {
-    const page = await store.changes(cursor, { kinds: ["app_file"], limit: 200, signal });
-    for (const item of page.items) latest.set(item.record.id, item);
-    cursor = page.nextCursor;
-  } while (cursor);
-  return [...latest.values()]
-    .filter((item) => !item.record.isDeleted)
-    .map(toAppFile)
-    .filter((file): file is AppFile => file !== null);
+  let queue: Promise<unknown> = Promise.resolve();
+  const catchUp = async (signal?: AbortSignal) => {
+    for (;;) {
+      const page = await store.changes(cursor, { kinds: ["app_file"], limit: 200, signal });
+      for (const item of page.items) latest.set(item.record.id, item);
+      cursor = page.nextCursor ?? page.changesCursor;
+      if (!page.nextCursor) break;
+    }
+    return [...latest.values()]
+      .filter((item) => !item.record.isDeleted)
+      .map(toAppFile)
+      .filter((file): file is AppFile => file !== null);
+  };
+  return {
+    list(signal) {
+      const next = queue.then(() => catchUp(signal));
+      queue = next.catch(() => undefined);
+      return next;
+    },
+  };
+}
+
+/** Every live file of every conversation, read from the changes feed. */
+export function listEveryAppFile(store: ChatStore, signal?: AbortSignal): Promise<AppFile[]> {
+  return createAppFileIndex(store).list(signal);
 }
 
 /** One conversation file, or null when vault holds none at that path. */
@@ -169,7 +190,11 @@ export async function getAppFile(
   path: string,
   signal?: AbortSignal
 ): Promise<AppFile | null> {
-  const snapshot = await store.get("app_file", await appFileId(conversationId, path), signal);
+  const snapshot = await store.get(
+    "app_file",
+    await appFileId(store, conversationId, path),
+    signal
+  );
   return snapshot && !snapshot.record.isDeleted ? toAppFile(snapshot) : null;
 }
 
@@ -183,7 +208,7 @@ export async function saveAppFile(
     store,
     {
       kind: "app_file",
-      id: await appFileId(file.conversationId, file.path),
+      id: await appFileId(store, file.conversationId, file.path),
       conversationId: file.conversationId,
     },
     { data: { path: normalizePath(file.path), content: file.content }, isDeleted: false },
@@ -200,7 +225,7 @@ export async function deleteAppFile(
 ): Promise<void> {
   await putLatest(
     store,
-    { kind: "app_file", id: await appFileId(conversationId, path), conversationId },
+    { kind: "app_file", id: await appFileId(store, conversationId, path), conversationId },
     { data: {}, isDeleted: true },
     signal
   );
