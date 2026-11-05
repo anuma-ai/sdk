@@ -2277,6 +2277,50 @@ describe("default recall lanes", () => {
     ).toEqual([mine.uniqueId]);
   });
 
+  it("ranks topic matches across large memory-id filters without duplicate ids", async () => {
+    const { store, queried, decrypt } = await lanes();
+    const first = await store.create({ content: "Acme standup", factType: "preference" });
+    const last = await store.create({ content: "Acme and Priya", factType: "preference" });
+    const shared = await store.create({
+      content: "Shared Acme fact",
+      scope: "shared",
+      factType: "preference",
+    });
+    const otherType = await store.create({ content: "Other Acme fact", factType: "identity" });
+    const unreviewed = await store.create({ content: "Unreviewed Acme fact" });
+    for (const memory of [first, shared, otherType, unreviewed])
+      await store.addTopics(memory.uniqueId, ["Acme"]);
+    await store.addTopics(last.uniqueId, ["Acme", "Priya"]);
+    const ids = Array.from({ length: 2001 }, (_, i) => `memory-${i}`);
+    ids[0] = first.uniqueId;
+    ids[1000] = shared.uniqueId;
+    ids[1001] = otherType.uniqueId;
+    ids[2000] = last.uniqueId;
+    queried.length = 0;
+    decrypt.mockClear();
+
+    expect(
+      await store.factSource.graphRanking("What did Priya say about Acme?", false, {
+        memoryIds: [...ids, first.uniqueId],
+        scopes: ["private"],
+        factTypes: ["preference"],
+      })
+    ).toEqual([last.uniqueId, first.uniqueId]);
+
+    expect(queried).toHaveLength(3);
+    expect(queried.flatMap((body) => body.memory_ids as string[])).toEqual(ids);
+    for (const body of queried) {
+      expect((body.memory_ids as string[]).length).toBeLessThanOrEqual(1000);
+      expect(body).toMatchObject({ scopes: ["private"], fact_types: ["preference"] });
+    }
+    expect(decrypt).not.toHaveBeenCalled();
+    queried.length = 0;
+    expect(
+      await store.factSource.graphRanking("How is Acme going?", false, { memoryIds: [] })
+    ).toEqual([]);
+    expect(queried).toHaveLength(0);
+  });
+
   it("ranks memories by how many query entities their topics name", async () => {
     const store = await laneStore();
     const both = await store.create({ content: "Ships the Acme app with Priya" });
