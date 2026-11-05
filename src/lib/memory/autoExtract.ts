@@ -4,7 +4,7 @@ import { type EntityOperationsContext, linkMemoryEntitiesOp } from "../db/entiti
 import { ENTITY_KINDS, type EntityKind, TOPIC_SALIENCE_WEIGHTS } from "../db/entities/types.js";
 import { VaultMemory } from "../db/memoryVault/models.js";
 import { findQuarantinedDuplicateOp } from "../db/memoryVault/operations.js";
-import { MemorySourceIneligibleError } from "../db/memoryVault/types.js";
+import { MemorySourceIneligibleError, type StoredVaultMemory } from "../db/memoryVault/types.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
 import {
@@ -714,7 +714,9 @@ export async function extractAndRetain(
   const quarantinedInfo: QuarantinedMemoryInfo[] = [];
   let failedWrites = 0;
   let writeFailureReason: WriteFailureReason | undefined;
-  let auditRows: ReturnType<MemoryStore["list"]> | undefined;
+  let auditRows:
+    | Pick<StoredVaultMemory, "uniqueId" | "content" | "sourceChunkIds" | "scope" | "trustTier">[]
+    | undefined;
   const tRetain = Date.now();
   for (const { candidate, isQuarantined, reason, signature } of toRetain) {
     const scope = candidate.type === "instruction" ? "private" : options.scope;
@@ -723,17 +725,18 @@ export async function extractAndRetain(
       if (isQuarantined) {
         let existingId: string | null;
         if (memoryStore) {
-          auditRows ??= memoryStore.list({
+          auditRows ??= await memoryStore.list({
             scopes: [...new Set([options.scope ?? "private", "private"])],
             includeArchived: true,
             includeQuarantined: true,
             includeSuperseded: true,
+            withEmbeddings: false,
           });
           const sourceKey = [...new Set(candidate.sourceMessageIds)].sort().join("\u0000");
           const normalize = (value: string) =>
             value.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
           existingId =
-            (await auditRows).find(
+            auditRows.find(
               (row) =>
                 row.trustTier === "quarantined" &&
                 row.scope === (scope ?? "private") &&
@@ -780,7 +783,15 @@ export async function extractAndRetain(
           });
 
       if (isQuarantined) {
-        auditRows = undefined;
+        if (result.action === "create") {
+          auditRows?.push({
+            uniqueId: result.memoryId,
+            content: candidate.content,
+            sourceChunkIds: candidate.sourceMessageIds,
+            scope: scope ?? "private",
+            trustTier: "quarantined",
+          });
+        }
         const info: QuarantinedMemoryInfo = {
           candidate,
           memoryId: result.memoryId,
