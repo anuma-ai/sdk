@@ -19,7 +19,6 @@ import {
   DEFAULT_PROFILE_PROOF_ALPHA,
 } from "./profileSalience.js";
 import { recall } from "./recall.js";
-import { RECALL_MAX_LIMIT } from "./recallConstants.js";
 import { reflect } from "./reflect.js";
 import type { MemoryStore } from "./store/types.js";
 import type { RankedMemory, RecallContext } from "./types.js";
@@ -444,6 +443,17 @@ export async function synthesizeProfile(
     }
   }
 
+  const reviewedIds = options.reviewedMemoryIds && new Set(options.reviewedMemoryIds);
+  const liveMemories = memories.filter((m) => !m.isDeleted && m.supersededBy === null);
+  const hasLiveInstruction = liveMemories.some((m) => m.factType === "instruction");
+  const eligibleMemoryIds =
+    reviewedIds || hasLiveInstruction
+      ? liveMemories
+          .filter(
+            (m) => m.factType !== "instruction" && (!reviewedIds || reviewedIds.has(m.uniqueId))
+          )
+          .map((m) => m.uniqueId)
+      : undefined;
   const vaultPreparation = createVaultPreparation();
   const settled = await Promise.allSettled(
     facets.map(async (facet) => {
@@ -456,7 +466,8 @@ export async function synthesizeProfile(
         recallCtx,
         options,
         fallbackPriors.get(facet.key),
-        vaultPreparation
+        vaultPreparation,
+        eligibleMemoryIds
       );
     })
   );
@@ -703,16 +714,15 @@ async function synthesizeFacet(
   ctx: RecallContext,
   options: SynthesizeProfileOptions,
   prior: ProfileSection | undefined,
-  vaultPreparation: VaultPreparation
+  vaultPreparation: VaultPreparation,
+  eligibleMemoryIds: string[] | undefined
 ): Promise<ProfileSection> {
   const scopes = options.scopes ?? DEFAULT_SCOPES;
   const limit = options.limit ?? DEFAULT_FACET_RECALL_LIMIT;
   const factTypeWeights = { ...DEFAULT_PROFILE_FACT_TYPE_WEIGHTS, ...options.factTypeWeights };
   const proofCountAlpha = options.proofCountAlpha ?? DEFAULT_PROFILE_PROOF_ALPHA;
 
-  const reviewed = options.reviewedMemoryIds;
-  const hasReviewGate = reviewed !== undefined;
-  if (hasReviewGate && reviewed.length === 0) {
+  if (eligibleMemoryIds?.length === 0) {
     return {
       key: facet.key,
       label: facet.label,
@@ -725,18 +735,17 @@ async function synthesizeFacet(
   const recalled = await recall(facet.query, ctx, {
     vaultPreparation,
     scopes,
-    limit: hasReviewGate ? RECALL_MAX_LIMIT : limit,
-    ...(hasReviewGate && { memoryIds: [...reviewed] }),
+    limit,
+    ...(eligibleMemoryIds && { memoryIds: eligibleMemoryIds }),
     types: ["fact"],
     factTypeWeights,
     proofCountAlpha,
   });
 
-  let memories: RankedMemory[] = recalled.memories.filter((m) => m.factType !== "instruction");
-  if (hasReviewGate) {
-    const allowed = new Set(reviewed);
-    memories = memories.filter((m) => allowed.has(m.id)).slice(0, limit);
-  }
+  const reviewed = options.reviewedMemoryIds && new Set(options.reviewedMemoryIds);
+  const memories: RankedMemory[] = recalled.memories.filter(
+    (m) => m.factType !== "instruction" && (!reviewed || reviewed.has(m.id))
+  );
 
   if (memories.length === 0) {
     return {
