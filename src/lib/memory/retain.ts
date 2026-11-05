@@ -418,6 +418,7 @@ function pickFactTypeUpdate(
   incoming: RetainOptions["factType"]
 ): RetainOptions["factType"] | undefined {
   if (incoming === undefined) return undefined;
+  if (incoming === "instruction") return existing.factType === "instruction" ? undefined : incoming;
   if (existing.factType !== null) return undefined;
   return incoming;
 }
