@@ -156,7 +156,10 @@ export async function listEveryAppFile(store: ChatStore, signal?: AbortSignal): 
     for (const item of page.items) latest.set(item.record.id, item);
     cursor = page.nextCursor;
   } while (cursor);
-  return [...latest.values()].map(toAppFile).filter((file): file is AppFile => file !== null);
+  return [...latest.values()]
+    .filter((item) => !item.record.isDeleted)
+    .map(toAppFile)
+    .filter((file): file is AppFile => file !== null);
 }
 
 /** One conversation file, or null when vault holds none at that path. */

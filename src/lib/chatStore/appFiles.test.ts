@@ -152,7 +152,16 @@ describe("app files in vault", () => {
     const changes = vi
       .fn()
       .mockResolvedValueOnce({ items: [snapshot("old")], nextCursor: "1", changesCursor: "1" })
-      .mockResolvedValueOnce({ items: [snapshot("new")], changesCursor: "2" });
+      .mockResolvedValueOnce({
+        items: [
+          snapshot("new"),
+          {
+            ...snapshot("left on a tombstone"),
+            record: { ...snapshot("x").record, id: "f2", isDeleted: true },
+          },
+        ],
+        changesCursor: "2",
+      });
 
     const every = await listEveryAppFile({ changes } as unknown as ChatStore);
 

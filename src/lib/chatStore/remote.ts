@@ -331,7 +331,9 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       JSON.stringify({ schema: 1, account_id: accountId, key_id: keyId, record })
     );
     signal?.throwIfAborted();
-    if (!cipherPattern.test(payload) || payload.length > maxPayload) invalid();
+    if (!cipherPattern.test(payload)) invalid();
+    if (payload.length > maxPayload)
+      throw new ChatStoreError("Encrypted chat record is too large", 413, "record_too_large");
     return payload;
   };
 

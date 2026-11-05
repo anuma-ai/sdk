@@ -553,6 +553,22 @@ describe("app files and saved tools through the encrypted remote ChatStore", () 
     ]);
   });
 
+  it("refuses a file too large for one record before sending it", async () => {
+    const { store, fetch } = await setup();
+    const calls = fetch.mock.calls.length;
+
+    await expect(
+      saveAppFile(store, {
+        conversationId: "chat",
+        path: "big.html",
+        content: "x".repeat(1_100_000),
+      })
+    ).rejects.toMatchObject({ status: 413, code: "record_too_large" });
+    expect(
+      fetch.mock.calls.slice(calls).some(([url]) => String(url).includes("/records/batch"))
+    ).toBe(false);
+  });
+
   it("seals a saved tool as a record of no conversation", async () => {
     const { store, rows } = await setup();
     await saveSavedTool(store, "tool_1", {
