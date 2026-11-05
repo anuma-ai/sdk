@@ -382,6 +382,57 @@ describe("migrateMemoriesToRemote", () => {
     expect(nearby.rows.has(m.uniqueId)).toBe(true);
   });
 
+  it("splits an import batch that times out until each piece fits", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const saved = await Promise.all(
+      ["Likes green tea", "Lives in Nairobi", "Plays chess"].map((content) =>
+        createVaultMemoryOp(ctx, { content })
+      )
+    );
+    const nearby = fakeNearby();
+    const sizes: number[] = [];
+    const fetch = nearby.fetch;
+    const slow = (async (url: string | URL, init?: RequestInit) => {
+      if (String(url).endsWith("/import") && typeof init?.body === "string") {
+        const count = (JSON.parse(init.body) as { memories: unknown[] }).memories.length;
+        sizes.push(count);
+        if (count > 1)
+          return new Response(JSON.stringify({ detail: "request body read timeout" }), {
+            status: 408,
+          });
+      }
+      return fetch(url, init);
+    }) as typeof globalThis.fetch;
+
+    const result = await migrate({ ...nearby, fetch: slow }, ctx);
+
+    expect(result.state).toBe("active");
+    expect(sizes).toEqual([3, 2, 1, 1, 1]);
+    for (const m of saved) expect(nearby.rows.has(m.uniqueId)).toBe(true);
+  });
+
+  it("does not split an import batch that failed for another reason", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    await createVaultMemoryOp(ctx, { content: "Plays chess" });
+    const nearby = fakeNearby();
+    const sizes: number[] = [];
+    const broken = (async (url: string | URL, init?: RequestInit) => {
+      if (String(url).endsWith("/import") && typeof init?.body === "string") {
+        sizes.push((JSON.parse(init.body) as { memories: unknown[] }).memories.length);
+        return new Response(JSON.stringify({ detail: "cannot read request body" }), {
+          status: 500,
+        });
+      }
+      return nearby.fetch(url, init);
+    }) as typeof globalThis.fetch;
+
+    await expect(migrate({ ...nearby, fetch: broken }, ctx)).rejects.toThrow(
+      "cannot read request body"
+    );
+    expect(sizes).toEqual([2]);
+  });
+
   it("uploads a row edited while the first pass was importing", async () => {
     const ctx = vault(makeDatabase(), signatureA);
     const m = await createVaultMemoryOp(ctx, { content: "Likes green tea" });
