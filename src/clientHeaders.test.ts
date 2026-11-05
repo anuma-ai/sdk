@@ -277,7 +277,9 @@ it.each(endpoints)(
   }
 );
 
-it.each(["fresh", "partial"])("patches %s generated header spreads", (state) => {
+const spawnsNode = { timeout: 30_000 };
+
+it.each(["fresh", "partial"])("patches %s generated header spreads", spawnsNode, (state) => {
   const root = mkdtempSync(join(tmpdir(), "sdk-header-patch-"));
   const sdkPath = join(root, "src/client/sdk.gen.ts");
   const utilsPath = join(root, "src/client/client/utils.gen.ts");
