@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createChatStoreHarness } from "../../../test/chat/vaultHarness";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../db/schema";
-import { appFileId, getAppFile, loadSavedTools, saveAppFile } from "./appFiles";
+import { appFileId, deleteAppFile, getAppFile, loadSavedTools, saveAppFile } from "./appFiles";
 import { seedAppFilesToVault } from "./seedAppFiles";
 import { ChatStoreError, type ChatWrite } from "./types";
 
@@ -200,7 +200,6 @@ describe("seedAppFilesToVault", () => {
   it("leaves a file vault deleted deleted", async () => {
     const harness = await vaultWithConversation();
     await saveAppFile(harness.store, { conversationId: "conv_1", path: "a.html", content: "a" });
-    const { deleteAppFile } = await import("./appFiles");
     await deleteAppFile(harness.store, "conv_1", "a.html");
     const database = makeDatabase();
     await seedDevice(database, [
