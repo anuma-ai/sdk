@@ -172,6 +172,25 @@ describe("app files in vault", () => {
     ]);
   });
 
+  it("saves a file again after it was deleted, and a tool again under the same id", async () => {
+    const { store } = await withConversation();
+    await saveAppFile(store, { conversationId: "conv_1", path: "slides.jsx", content: "v1" });
+    await deleteAppFile(store, "conv_1", "slides.jsx");
+    await saveSavedTool(store, "tool_1", tool);
+    await deleteSavedTool(store, "tool_1");
+
+    const again = await saveAppFile(store, {
+      conversationId: "conv_1",
+      path: "slides.jsx",
+      content: "v2",
+    });
+    await saveSavedTool(store, "tool_1", { ...tool, displayName: "Back" });
+
+    expect(again).toMatchObject({ content: "v2", version: 3 });
+    expect((await getAppFile(store, "conv_1", "slides.jsx"))?.content).toBe("v2");
+    expect((await loadSavedTools(store)).map((t) => t.displayName)).toEqual(["Back"]);
+  });
+
   it("saves over a write another device made meanwhile", async () => {
     const harness = await withConversation();
     harness.fail({

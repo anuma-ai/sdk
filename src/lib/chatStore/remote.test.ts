@@ -3,8 +3,8 @@ import { webcrypto } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
-import { createRemoteChatStore } from "./remote";
 import { listAppFiles, loadSavedTools, saveAppFile, saveSavedTool } from "./appFiles";
+import { createRemoteChatStore } from "./remote";
 import { loadSettings, saveSetting } from "./settings";
 import { type ChatRecord, ChatStoreError, type RemoteChatStoreOptions } from "./types";
 import { messageData, toMessage } from "./vaultRecords";
@@ -554,8 +554,8 @@ describe("app files and saved tools through the encrypted remote ChatStore", () 
   });
 
   it("refuses a file too large for one record before sending it", async () => {
-    const { store, fetch } = await setup();
-    const calls = fetch.mock.calls.length;
+    const { store, urls } = await setup();
+    const before = urls.length;
 
     await expect(
       saveAppFile(store, {
@@ -564,9 +564,7 @@ describe("app files and saved tools through the encrypted remote ChatStore", () 
         content: "x".repeat(1_100_000),
       })
     ).rejects.toMatchObject({ status: 413, code: "record_too_large" });
-    expect(
-      fetch.mock.calls.slice(calls).some(([url]) => String(url).includes("/records/batch"))
-    ).toBe(false);
+    expect(urls.slice(before).some((url) => url.includes("/records/batch"))).toBe(false);
   });
 
   it("seals a saved tool as a record of no conversation", async () => {

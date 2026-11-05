@@ -56,6 +56,10 @@ function keyOf(kind: string, id: string): string {
   return `${kind}/${id}`;
 }
 
+function revivable(kind: ChatRecordKind): boolean {
+  return kind === "app_file" || kind === "saved_tool";
+}
+
 function root(kind: ChatRecordKind): boolean {
   return (
     kind === "conversation" || kind === "project" || kind === "setting" || kind === "saved_tool"
@@ -181,7 +185,7 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
       current.record.conversationId !== record.conversationId ||
       current.record.createdAt !== record.createdAt ||
       (!root(record.kind) && current.record.sortKey !== record.sortKey) ||
-      (current.record.isDeleted && !record.isDeleted)
+      (current.record.isDeleted && !record.isDeleted && !revivable(record.kind))
     )
       throw conflict("version_conflict");
     current.record = record.isDeleted ? { ...record, data: {} } : record;
