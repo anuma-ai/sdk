@@ -815,6 +815,32 @@ describe("vault chat backend", () => {
     expect(b.status().pending).toBe(0);
   });
 
+  it("drops a record too large for vault instead of retrying it forever", async () => {
+    const fake = await createChatStoreHarness();
+    const { b, events } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1" });
+    await b.flush();
+    fake.fail({
+      op: "putMany",
+      error: new ChatStoreError("too large", 413, "record_too_large"),
+      sticky: true,
+      when: (writes) => writes.some((w) => w.record.id === "msg_huge"),
+    });
+    for (const id of ["msg_ok_1", "msg_huge", "msg_ok_2"])
+      await b.createMessage({ conversationId: "conv_1", role: "user", content: id, uniqueId: id });
+    await b.flush();
+
+    expect(await fake.row("message", "msg_huge")).toBeUndefined();
+    expect(await fake.row("message", "msg_ok_2")).toBeDefined();
+    expect(events).toContainEqual({
+      type: "dropped",
+      kind: "message",
+      id: "msg_huge",
+      reason: "invalid",
+    });
+    expect(b.status().pending).toBe(0);
+  });
+
   it("recovers from a failed poll on the next one", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake);

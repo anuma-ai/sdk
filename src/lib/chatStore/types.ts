@@ -4,7 +4,9 @@ export type ChatRecordKind =
   | "summary"
   | "project"
   | "memory_links"
-  | "setting";
+  | "setting"
+  | "app_file"
+  | "saved_tool";
 
 export type ChatJson = null | boolean | number | string | ChatJson[] | { [key: string]: ChatJson };
 
@@ -152,6 +154,8 @@ export interface ChatStore {
   ): Promise<ChatChanges>;
   search(embedding: readonly number[], options?: ChatSearchOptions): Promise<ChatSearchHit[]>;
   deleteAll(signal?: AbortSignal): Promise<number>;
+  /** A keyed hash vault cannot reproduce, for record ids derived from private names. */
+  sealedId?(value: string): Promise<string>;
   attachments: ChatAttachments;
 }
 
@@ -161,6 +165,7 @@ export interface RemoteChatStoreOptions {
   keyId: string;
   encrypt: (plaintext: string) => Promise<string>;
   decrypt: (ciphertext: string) => Promise<string>;
+  hashTopic?: (normalized: string) => Promise<string>;
   fetch?: typeof globalThis.fetch;
   timeoutMs?: number;
   signal?: AbortSignal;

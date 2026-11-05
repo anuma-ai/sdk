@@ -11,6 +11,22 @@ export {
   readAnumaTurn,
 } from "./anuma.js";
 export {
+  type AppFile,
+  appFileId,
+  type AppFileIndex,
+  createAppFileIndex,
+  deleteAppFile,
+  deleteSavedTool,
+  getAppFile,
+  listAppFiles,
+  listEveryAppFile,
+  loadSavedTools,
+  saveAppFile,
+  type SavedTool,
+  type SavedToolData,
+  saveSavedTool,
+} from "./appFiles.js";
+export {
   type ChatMigrationOptions,
   type ChatMigrationProgress,
   type ChatMigrationResult,
@@ -18,6 +34,7 @@ export {
   migrateChatsToRemote,
 } from "./migrateChats.js";
 export { createRemoteChatStore } from "./remote.js";
+export { type AppFileSeedResult, seedAppFilesToVault } from "./seedAppFiles.js";
 export { loadSettings, saveSetting, type Setting } from "./settings.js";
 export {
   type ChatAccount,

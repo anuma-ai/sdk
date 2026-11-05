@@ -1,6 +1,6 @@
 # ChatImport
 
-Defined in: [src/lib/chatStore/types.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#54)
+Defined in: [src/lib/chatStore/types.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#56)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:54](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#58)
+Defined in: [src/lib/chatStore/types.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#60)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/types.ts:58](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **embeddings**: `number`\[]\[]
 
-Defined in: [src/lib/chatStore/types.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#57)
+Defined in: [src/lib/chatStore/types.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#59)
 
 Sent and stored unencrypted so vault can run vector search.
 
@@ -26,4 +26,4 @@ Sent and stored unencrypted so vault can run vector search.
 
 > **record**: [`ChatRecord`](ChatRecord.md)
 
-Defined in: [src/lib/chatStore/types.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#55)
+Defined in: [src/lib/chatStore/types.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#57)

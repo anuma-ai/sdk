@@ -136,6 +136,30 @@ Re-exports [AnumaTurnOrigin](../react/Internal/type-aliases/AnumaTurnOrigin.md)
 
 ***
 
+### AppFile
+
+Re-exports [AppFile](../react/Internal/interfaces/AppFile.md)
+
+***
+
+### appFileId
+
+Re-exports [appFileId](../react/Internal/functions/appFileId.md)
+
+***
+
+### AppFileIndex
+
+Re-exports [AppFileIndex](../react/Internal/interfaces/AppFileIndex.md)
+
+***
+
+### AppFileSeedResult
+
+Re-exports [AppFileSeedResult](../react/Internal/interfaces/AppFileSeedResult.md)
+
+***
+
 ### archiveVaultMemoryOp
 
 Re-exports [archiveVaultMemoryOp](../react/Internal/functions/archiveVaultMemoryOp.md)
@@ -622,6 +646,12 @@ Re-exports [countUnreadAnumaTurns](../react/Internal/functions/countUnreadAnumaT
 
 ***
 
+### createAppFileIndex
+
+Re-exports [createAppFileIndex](../react/Internal/functions/createAppFileIndex.md)
+
+***
+
 ### createAutoExtractor
 
 Re-exports [createAutoExtractor](../react/Internal/functions/createAutoExtractor.md)
@@ -1018,9 +1048,21 @@ Re-exports [deleteAllVaultMemoriesForUserOp](../react/Internal/functions/deleteA
 
 ***
 
+### deleteAppFile
+
+Re-exports [deleteAppFile](../react/Internal/functions/deleteAppFile.md)
+
+***
+
 ### deleteMessageOp
 
 Re-exports [deleteMessageOp](../react/Internal/functions/deleteMessageOp.md)
+
+***
+
+### deleteSavedTool
+
+Re-exports [deleteSavedTool](../react/Internal/functions/deleteSavedTool.md)
 
 ***
 
@@ -1300,6 +1342,12 @@ Re-exports [getAllVaultMemoryContentsOp](../react/Internal/functions/getAllVault
 
 ***
 
+### getAppFile
+
+Re-exports [getAppFile](../react/Internal/functions/getAppFile.md)
+
+***
+
 ### getCachedServerTools
 
 Re-exports [getCachedServerTools](../react/Internal/functions/getCachedServerTools.md)
@@ -1504,6 +1552,18 @@ Re-exports [listActiveStreams](../react/Internal/functions/listActiveStreams.md)
 
 ***
 
+### listAppFiles
+
+Re-exports [listAppFiles](../react/Internal/functions/listAppFiles.md)
+
+***
+
+### listEveryAppFile
+
+Re-exports [listEveryAppFile](../react/Internal/functions/listEveryAppFile.md)
+
+***
+
 ### LlmDecayClassifierOptions
 
 Re-exports [LlmDecayClassifierOptions](../react/Internal/interfaces/LlmDecayClassifierOptions.md)
@@ -1513,6 +1573,12 @@ Re-exports [LlmDecayClassifierOptions](../react/Internal/interfaces/LlmDecayClas
 ### LlmNeighborRefinerOptions
 
 Re-exports [LlmNeighborRefinerOptions](../react/Internal/interfaces/LlmNeighborRefinerOptions.md)
+
+***
+
+### loadSavedTools
+
+Re-exports [loadSavedTools](../react/Internal/functions/loadSavedTools.md)
 
 ***
 
@@ -2470,6 +2536,30 @@ Re-exports [RetainSource](../react/Internal/type-aliases/RetainSource.md)
 
 ***
 
+### saveAppFile
+
+Re-exports [saveAppFile](../react/Internal/functions/saveAppFile.md)
+
+***
+
+### SavedTool
+
+Re-exports [SavedTool](../react/Internal/interfaces/SavedTool.md)
+
+***
+
+### SavedToolData
+
+Re-exports [SavedToolData](../react/Internal/interfaces/SavedToolData.md)
+
+***
+
+### saveSavedTool
+
+Re-exports [saveSavedTool](../react/Internal/functions/saveSavedTool.md)
+
+***
+
 ### saveSetting
 
 Re-exports [saveSetting](../react/Internal/functions/saveSetting.md)
@@ -2551,6 +2641,12 @@ Re-exports [SearchSource](../react/Internal/interfaces/SearchSource.md)
 ### searchVaultMemories
 
 Re-exports [searchVaultMemories](../react/Internal/functions/searchVaultMemories.md)
+
+***
+
+### seedAppFilesToVault
+
+Re-exports [seedAppFilesToVault](../react/Internal/functions/seedAppFilesToVault.md)
 
 ***
 

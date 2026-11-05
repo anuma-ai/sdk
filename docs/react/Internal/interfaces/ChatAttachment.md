@@ -1,6 +1,6 @@
 # ChatAttachment
 
-Defined in: [src/lib/chatStore/types.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#89)
+Defined in: [src/lib/chatStore/types.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#91)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:89](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **committedAt**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#96)
+Defined in: [src/lib/chatStore/types.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#98)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/types.ts:96](https://github.com/anuma-ai/sdk/blob
 
 > **createdAt**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#95)
+Defined in: [src/lib/chatStore/types.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#97)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/chatStore/types.ts:95](https://github.com/anuma-ai/sdk/blob
 
 > **id**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#90)
+Defined in: [src/lib/chatStore/types.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#92)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/chatStore/types.ts:90](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **ownerId**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#94)
+Defined in: [src/lib/chatStore/types.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#96)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/chatStore/types.ts:94](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **ownerKind**: `"message"` | `"summary"`
 
-Defined in: [src/lib/chatStore/types.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#93)
+Defined in: [src/lib/chatStore/types.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#95)
 
 ***
 
@@ -48,7 +48,7 @@ Defined in: [src/lib/chatStore/types.ts:93](https://github.com/anuma-ai/sdk/blob
 
 > **sizeBytes**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#91)
+Defined in: [src/lib/chatStore/types.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#93)
 
 ***
 
@@ -56,4 +56,4 @@ Defined in: [src/lib/chatStore/types.ts:91](https://github.com/anuma-ai/sdk/blob
 
 > **state**: `"pending"` | `"committed"`
 
-Defined in: [src/lib/chatStore/types.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#92)
+Defined in: [src/lib/chatStore/types.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#94)

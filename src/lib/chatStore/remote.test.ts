@@ -3,6 +3,7 @@ import { webcrypto } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
+import { appFileId, listAppFiles, loadSavedTools, saveAppFile, saveSavedTool } from "./appFiles";
 import { createRemoteChatStore } from "./remote";
 import { loadSettings, saveSetting } from "./settings";
 import { type ChatRecord, ChatStoreError, type RemoteChatStoreOptions } from "./types";
@@ -530,5 +531,89 @@ describe("settings through the encrypted remote ChatStore", () => {
         code: "invalid_record",
       });
     expect(fetch.mock.calls.length).toBe(calls);
+  });
+});
+
+describe("app files and saved tools through the encrypted remote ChatStore", () => {
+  it("seals a conversation file, path and all, under its conversation", async () => {
+    const { store, rows } = await setup();
+    await saveAppFile(store, {
+      conversationId: "chat",
+      path: "/my-diary.html",
+      content: "secret entry",
+    });
+
+    const [key, wire] = [...rows.entries()].find(([k]) => k.startsWith("app_file/"))!;
+    expect(wire.record.conversation_id).toBe("chat");
+    expect(key).not.toContain("diary");
+    expect(wire.record.payload).not.toContain("secret entry");
+    expect(wire.record.payload).not.toContain("diary");
+    expect(await listAppFiles(store, "chat")).toMatchObject([
+      { path: "my-diary.html", content: "secret entry" },
+    ]);
+  });
+
+  it("refuses a file too large for one record before sending it", async () => {
+    const { store, urls } = await setup();
+    const before = urls.length;
+
+    await expect(
+      saveAppFile(store, {
+        conversationId: "chat",
+        path: "big.html",
+        content: "x".repeat(1_100_000),
+      })
+    ).rejects.toMatchObject({ status: 413, code: "record_too_large" });
+    expect(urls.slice(before).some((url) => url.includes("/records/batch"))).toBe(false);
+  });
+
+  it("names a file by a keyed hash vault cannot recompute from a guessed path", async () => {
+    const { store, rows } = await setup();
+    await saveAppFile(store, { conversationId: "chat", path: "resume.md", content: "cv" });
+
+    const id = [...rows.keys()].find((k) => k.startsWith("app_file/"))!.slice("app_file/".length);
+    const guess = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode("chat\u0000resume.md")
+    );
+    const guessHex = Array.from(new Uint8Array(guess), (b) => b.toString(16).padStart(2, "0")).join(
+      ""
+    );
+    expect(id).toMatch(/^[0-9a-f]{64}$/);
+    expect(id).not.toBe(guessHex);
+    expect(id).toBe(await appFileId(store, "chat", "/resume.md"));
+  });
+
+  it("refuses to name a file without the wallet key", async () => {
+    const ring = await deriveMemoryKeyRing("0x" + "12".repeat(65));
+    const { encrypt, decrypt } = memoryCipher(ring);
+    const keyless = await createRemoteChatStore({
+      baseUrl: "https://vault.test",
+      getToken: () => Promise.resolve("token"),
+      keyId: ring.keyId,
+      encrypt,
+      decrypt,
+      fetch: (() =>
+        Promise.resolve(Response.json({ account_id: 8801, key_id: "" }))) as typeof fetch,
+    });
+
+    await expect(appFileId(keyless, "chat", "resume.md")).rejects.toThrow("seals ids");
+  });
+
+  it("seals a saved tool as a record of no conversation", async () => {
+    const { store, rows } = await setup();
+    await saveSavedTool(store, "tool_1", {
+      name: "tip_calculator",
+      displayName: "Tip calculator",
+      description: "Splits a bill",
+      parameters: "{}",
+      html: "<main>secret</main>",
+      conversationId: "chat",
+    });
+
+    const wire = rows.get("saved_tool/tool_1");
+    expect(wire?.record.conversation_id).toBe("");
+    expect(wire?.record.payload).not.toContain("secret");
+    expect((await loadSavedTools(store)).map((t) => t.html)).toEqual(["<main>secret</main>"]);
   });
 });

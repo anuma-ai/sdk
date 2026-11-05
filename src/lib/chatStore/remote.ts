@@ -17,7 +17,16 @@ import {
   type RemoteChatStoreOptions,
 } from "./types.js";
 
-const kinds = new Set(["conversation", "message", "summary", "project", "memory_links", "setting"]);
+const kinds = new Set([
+  "conversation",
+  "message",
+  "summary",
+  "project",
+  "memory_links",
+  "setting",
+  "app_file",
+  "saved_tool",
+]);
 const cipherPattern = /^enc:v\d+:(?:[0-9a-f]{2}){28,}$/i;
 const maxPayload = 2 * 1024 * 1024;
 const storedDims = 1536;
@@ -123,7 +132,9 @@ function validRecord(value: unknown): value is ChatRecord {
 }
 
 function rootKind(kind: string): boolean {
-  return kind === "conversation" || kind === "project" || kind === "setting";
+  return (
+    kind === "conversation" || kind === "project" || kind === "setting" || kind === "saved_tool"
+  );
 }
 
 function embeddings(write: {
@@ -255,6 +266,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
   const keyId = options.keyId;
   const encrypt = options.encrypt;
   const decrypt = options.decrypt;
+  const hashTopic = options.hashTopic;
   const nearby = createNearbyRequest({ ...options }, "/api/private-chats");
   const request: typeof nearby = async (...args) => {
     try {
@@ -320,7 +332,9 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       JSON.stringify({ schema: 1, account_id: accountId, key_id: keyId, record })
     );
     signal?.throwIfAborted();
-    if (!cipherPattern.test(payload) || payload.length > maxPayload) invalid();
+    if (!cipherPattern.test(payload)) invalid();
+    if (payload.length > maxPayload)
+      throw new ChatStoreError("Encrypted chat record is too large", 413, "record_too_large");
     return payload;
   };
 
@@ -701,6 +715,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       if (!object(value) || !integer(value.deleted)) invalid();
       return value.deleted;
     },
+    ...(hashTopic ? { sealedId: (value: string) => hashTopic(`record-id\u0000${value}`) } : {}),
     attachments: {
       async create(sizeBytes, signal) {
         if (!integer(sizeBytes, 1) || sizeBytes > maxAttachmentBytes) invalid();

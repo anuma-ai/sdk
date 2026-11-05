@@ -1,6 +1,6 @@
 # RemoteChatStoreOptions
 
-Defined in: [src/lib/chatStore/types.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#158)
+Defined in: [src/lib/chatStore/types.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#162)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:158](https://github.com/anuma-ai/sdk/blo
 
 > **baseUrl**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#159)
+Defined in: [src/lib/chatStore/types.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#163)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/types.ts:159](https://github.com/anuma-ai/sdk/blo
 
 > **decrypt**: (`ciphertext`: `string`) => `Promise`<`string`>
 
-Defined in: [src/lib/chatStore/types.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#163)
+Defined in: [src/lib/chatStore/types.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#167)
 
 **Parameters**
 
@@ -53,7 +53,7 @@ Defined in: [src/lib/chatStore/types.ts:163](https://github.com/anuma-ai/sdk/blo
 
 > **encrypt**: (`plaintext`: `string`) => `Promise`<`string`>
 
-Defined in: [src/lib/chatStore/types.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#162)
+Defined in: [src/lib/chatStore/types.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#166)
 
 **Parameters**
 
@@ -90,7 +90,7 @@ Defined in: [src/lib/chatStore/types.ts:162](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **fetch**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/chatStore/types.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#164)
+Defined in: [src/lib/chatStore/types.ts:169](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#169)
 
 **Call Signature**
 
@@ -192,7 +192,7 @@ Defined in: [src/lib/chatStore/types.ts:164](https://github.com/anuma-ai/sdk/blo
 
 > **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/chatStore/types.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#160)
+Defined in: [src/lib/chatStore/types.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#164)
 
 **Returns**
 
@@ -200,11 +200,48 @@ Defined in: [src/lib/chatStore/types.ts:160](https://github.com/anuma-ai/sdk/blo
 
 ***
 
+### hashTopic()?
+
+> `optional` **hashTopic**: (`normalized`: `string`) => `Promise`<`string`>
+
+Defined in: [src/lib/chatStore/types.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#168)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`normalized`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`string`>
+
+***
+
 ### keyId
 
 > **keyId**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#161)
+Defined in: [src/lib/chatStore/types.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#165)
 
 ***
 
@@ -212,7 +249,7 @@ Defined in: [src/lib/chatStore/types.ts:161](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [src/lib/chatStore/types.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#166)
+Defined in: [src/lib/chatStore/types.ts:171](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#171)
 
 ***
 
@@ -220,4 +257,4 @@ Defined in: [src/lib/chatStore/types.ts:166](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **timeoutMs**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#165)
+Defined in: [src/lib/chatStore/types.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#170)

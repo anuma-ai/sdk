@@ -56,8 +56,14 @@ function keyOf(kind: string, id: string): string {
   return `${kind}/${id}`;
 }
 
+function revivable(kind: ChatRecordKind): boolean {
+  return kind === "app_file" || kind === "saved_tool";
+}
+
 function root(kind: ChatRecordKind): boolean {
-  return kind === "conversation" || kind === "project";
+  return (
+    kind === "conversation" || kind === "project" || kind === "setting" || kind === "saved_tool"
+  );
 }
 
 function normalize(vector: readonly number[]): number[] {
@@ -179,7 +185,7 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
       current.record.conversationId !== record.conversationId ||
       current.record.createdAt !== record.createdAt ||
       (!root(record.kind) && current.record.sortKey !== record.sortKey) ||
-      (current.record.isDeleted && !record.isDeleted)
+      (current.record.isDeleted && !record.isDeleted && !revivable(record.kind))
     )
       throw conflict("version_conflict");
     current.record = record.isDeleted ? { ...record, data: {} } : record;
@@ -360,7 +366,9 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
         const after = cursor ? Number(cursor) : 0;
         const limit = opts?.limit ?? 100;
         const ordered = [...rows.values()]
-          .filter((row) => row.seq > after)
+          .filter(
+            (row) => row.seq > after && (!opts?.kinds || opts.kinds.includes(row.record.kind))
+          )
           .sort((a, b) => a.seq - b.seq);
         const items = ordered.slice(0, limit);
         const last = items[items.length - 1];
@@ -405,6 +413,13 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
           }
         return deleted;
       }),
+    sealedId: async (value: string) => {
+      const digest = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(`fake-wallet-key\u0000${value}`)
+      );
+      return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+    },
     attachments: {
       create: () => Promise.reject(new Error("attachments are not faked")),
       commit: () => Promise.reject(new Error("attachments are not faked")),
