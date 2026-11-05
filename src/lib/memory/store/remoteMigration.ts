@@ -421,6 +421,12 @@ async function importBatch(
       );
       return;
     } catch (error) {
+      if (error instanceof RemoteMemoryError && error.status === 408 && rows.length > 1) {
+        const half = Math.ceil(rows.length / 2);
+        await importBatch(request, keyId, rows.slice(0, half), signal);
+        await importBatch(request, keyId, rows.slice(half), signal);
+        return;
+      }
       if (
         !(error instanceof RemoteMemoryError) ||
         error.status !== 429 ||

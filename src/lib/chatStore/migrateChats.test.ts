@@ -13,6 +13,7 @@ import { sdkMigrations, sdkModelClasses, sdkSchema } from "../db/schema";
 import type { ChatBackend } from "../storage/ChatBackend";
 import { localChatBackend } from "../storage/WatermelonChatStorageAdapter";
 import { type ChatMigrationOptions, migrateChatsToRemote } from "./migrateChats";
+import { ChatStoreError } from "./types";
 import { createVaultChatBackend, type VaultChatBackend } from "./vaultBackend";
 
 beforeAll(() => {
@@ -199,6 +200,41 @@ describe("migrateChatsToRemote", () => {
     expect(await observeAll(vault(harness), ids)).toEqual(
       await observeAll(localChatBackend(database)({}), ids)
     );
+  });
+
+  it("splits an upload batch that times out until each piece fits", async () => {
+    const database = makeDatabase();
+    const local = localChatBackend(database)({});
+    await seed(local);
+    const harness = await createChatStoreHarness();
+    const importRecords = harness.store.importRecords.bind(harness.store);
+    const sizes: number[] = [];
+    harness.store.importRecords = async (records, signal) => {
+      sizes.push(records.length);
+      if (records.length > 1) throw new ChatStoreError("request body read timeout", 408);
+      return importRecords(records, signal);
+    };
+
+    const result = await migrate(database, harness);
+
+    expect(result.state).toBe("active");
+    expect(sizes[0]).toBeGreaterThan(1);
+    expect(sizes.filter((n) => n === 1).length).toBe(result.imported);
+    expect(await observeAll(vault(harness), ids)).toEqual(await observeAll(local, ids));
+  });
+
+  it("does not split a batch that failed for any reason other than a timeout", async () => {
+    const database = makeDatabase();
+    await seed(localChatBackend(database)({}));
+    const harness = await createChatStoreHarness();
+    const sizes: number[] = [];
+    harness.store.importRecords = (records) => {
+      sizes.push(records.length);
+      return Promise.reject(new ChatStoreError("cannot read request body", 500));
+    };
+
+    await expect(migrate(database, harness)).rejects.toThrow("cannot read request body");
+    expect(sizes).toHaveLength(1);
   });
 
   it("deletes from vault what the device deleted after uploading it, across an interrupted run", async () => {
