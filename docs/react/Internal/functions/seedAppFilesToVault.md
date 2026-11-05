@@ -2,7 +2,7 @@
 
 > **seedAppFilesToVault**(`database`: `Database`, `store`: [`ChatStore`](../interfaces/ChatStore.md), `signal?`: `AbortSignal`): `Promise`<[`AppFileSeedResult`](../interfaces/AppFileSeedResult.md)>
 
-Defined in: src/lib/chatStore/seedAppFiles.ts:49
+Defined in: [src/lib/chatStore/seedAppFiles.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/seedAppFiles.ts#49)
 
 Uploads this device's app files and saved tools that vault lacks or holds an older copy of.
 

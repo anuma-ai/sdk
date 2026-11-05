@@ -1546,6 +1546,12 @@ Re-exports [listAppFiles](../react/Internal/functions/listAppFiles.md)
 
 ***
 
+### listEveryAppFile
+
+Re-exports [listEveryAppFile](../react/Internal/functions/listEveryAppFile.md)
+
+***
+
 ### LlmDecayClassifierOptions
 
 Re-exports [LlmDecayClassifierOptions](../react/Internal/interfaces/LlmDecayClassifierOptions.md)

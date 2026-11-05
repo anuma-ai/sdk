@@ -17,6 +17,7 @@ export {
   deleteSavedTool,
   getAppFile,
   listAppFiles,
+  listEveryAppFile,
   loadSavedTools,
   saveAppFile,
   type SavedTool,

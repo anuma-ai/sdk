@@ -9,11 +9,12 @@ import {
   deleteSavedTool,
   getAppFile,
   listAppFiles,
+  listEveryAppFile,
   loadSavedTools,
   saveAppFile,
   saveSavedTool,
 } from "./appFiles";
-import { ChatStoreError } from "./types";
+import { type ChatSnapshot, type ChatStore, ChatStoreError } from "./types";
 
 beforeAll(() => {
   vi.stubGlobal("crypto", webcrypto);
@@ -96,6 +97,68 @@ describe("app files in vault", () => {
       },
     ]);
     expect(await listAppFiles(store, "conv_1")).toEqual([]);
+  });
+
+  it("lists every live file across conversations, at its latest content", async () => {
+    const harness = await withConversation();
+    const { store } = harness;
+    await harness.write([
+      {
+        record: {
+          kind: "conversation",
+          id: "conv_2",
+          conversationId: "",
+          sortKey: 2,
+          createdAt: 1,
+          updatedAt: 1,
+          isDeleted: false,
+          data: {},
+        },
+        expectedVersion: 0,
+      },
+    ]);
+    await saveAppFile(store, { conversationId: "conv_1", path: "/slides.jsx", content: "v1" });
+    await saveAppFile(store, { conversationId: "conv_2", path: "/slides.jsx", content: "two" });
+    await saveAppFile(store, { conversationId: "conv_1", path: "/gone.html", content: "x" });
+    await saveAppFile(store, { conversationId: "conv_1", path: "/slides.jsx", content: "v2" });
+    await deleteAppFile(store, "conv_1", "/gone.html");
+    await saveSavedTool(store, "tool_1", tool);
+
+    const every = await listEveryAppFile(store);
+
+    expect(every.map((f) => [f.conversationId, f.path, f.content]).sort()).toEqual([
+      ["conv_1", "/slides.jsx", "v2"],
+      ["conv_2", "/slides.jsx", "two"],
+    ]);
+  });
+
+  it("keeps a file's latest copy when the feed returns it again on a later page", async () => {
+    const snapshot = (content: string): ChatSnapshot => ({
+      record: {
+        kind: "app_file",
+        id: "f1",
+        conversationId: "conv_1",
+        sortKey: 0,
+        createdAt: 1,
+        updatedAt: 1,
+        isDeleted: false,
+        data: { path: "/slides.jsx", content },
+      },
+      version: 1,
+      serverUpdatedAt: "",
+    });
+    const changes = vi
+      .fn()
+      .mockResolvedValueOnce({ items: [snapshot("old")], nextCursor: "1", changesCursor: "1" })
+      .mockResolvedValueOnce({ items: [snapshot("new")], changesCursor: "2" });
+
+    const every = await listEveryAppFile({ changes } as unknown as ChatStore);
+
+    expect(every.map((f) => f.content)).toEqual(["new"]);
+    expect(changes.mock.calls.map(([, options]) => options.kinds)).toEqual([
+      ["app_file"],
+      ["app_file"],
+    ]);
   });
 
   it("saves over a write another device made meanwhile", async () => {

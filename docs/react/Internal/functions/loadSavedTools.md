@@ -2,7 +2,7 @@
 
 > **loadSavedTools**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `signal?`: `AbortSignal`): `Promise`<[`SavedTool`](../interfaces/SavedTool.md)\[]>
 
-Defined in: src/lib/chatStore/appFiles.ts:193
+Defined in: [src/lib/chatStore/appFiles.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#205)
 
 ## Parameters
 

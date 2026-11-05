@@ -2,7 +2,7 @@
 
 > **listAppFiles**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `conversationId`: `string`, `signal?`: `AbortSignal`): `Promise`<[`AppFile`](../interfaces/AppFile.md)\[]>
 
-Defined in: src/lib/chatStore/appFiles.ts:140
+Defined in: [src/lib/chatStore/appFiles.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#140)
 
 Every live file of one conversation.
 

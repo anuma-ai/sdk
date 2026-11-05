@@ -2,7 +2,7 @@
 
 > **deleteSavedTool**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `id`: `string`, `signal?`: `AbortSignal`): `Promise`<`void`>
 
-Defined in: src/lib/chatStore/appFiles.ts:214
+Defined in: [src/lib/chatStore/appFiles.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#226)
 
 ## Parameters
 

@@ -146,6 +146,18 @@ export async function listAppFiles(
   return items.map(toAppFile).filter((file): file is AppFile => file !== null);
 }
 
+/** Every live file of every conversation, read from the changes feed. */
+export async function listEveryAppFile(store: ChatStore, signal?: AbortSignal): Promise<AppFile[]> {
+  const latest = new Map<string, ChatSnapshot>();
+  let cursor: string | undefined;
+  do {
+    const page = await store.changes(cursor, { kinds: ["app_file"], limit: 200, signal });
+    for (const item of page.items) latest.set(item.record.id, item);
+    cursor = page.nextCursor;
+  } while (cursor);
+  return [...latest.values()].map(toAppFile).filter((file): file is AppFile => file !== null);
+}
+
 /** One conversation file, or null when vault holds none at that path. */
 export async function getAppFile(
   store: ChatStore,

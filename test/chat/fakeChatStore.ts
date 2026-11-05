@@ -362,7 +362,9 @@ export function createFakeChatStore(options: { maxVectors?: number; maxBytes?: n
         const after = cursor ? Number(cursor) : 0;
         const limit = opts?.limit ?? 100;
         const ordered = [...rows.values()]
-          .filter((row) => row.seq > after)
+          .filter(
+            (row) => row.seq > after && (!opts?.kinds || opts.kinds.includes(row.record.kind))
+          )
           .sort((a, b) => a.seq - b.seq);
         const items = ordered.slice(0, limit);
         const last = items[items.length - 1];

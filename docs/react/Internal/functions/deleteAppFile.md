@@ -2,7 +2,7 @@
 
 > **deleteAppFile**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `conversationId`: `string`, `path`: `string`, `signal?`: `AbortSignal`): `Promise`<`void`>
 
-Defined in: src/lib/chatStore/appFiles.ts:179
+Defined in: [src/lib/chatStore/appFiles.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#191)
 
 ## Parameters
 

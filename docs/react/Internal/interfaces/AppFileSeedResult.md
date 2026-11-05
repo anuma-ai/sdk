@@ -1,6 +1,6 @@
 # AppFileSeedResult
 
-Defined in: src/lib/chatStore/seedAppFiles.ts:6
+Defined in: [src/lib/chatStore/seedAppFiles.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/seedAppFiles.ts#6)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/chatStore/seedAppFiles.ts:6
 
 > **appFiles**: `number`
 
-Defined in: src/lib/chatStore/seedAppFiles.ts:7
+Defined in: [src/lib/chatStore/seedAppFiles.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/seedAppFiles.ts#7)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/chatStore/seedAppFiles.ts:7
 
 > **orphaned**: `number`
 
-Defined in: src/lib/chatStore/seedAppFiles.ts:10
+Defined in: [src/lib/chatStore/seedAppFiles.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/seedAppFiles.ts#10)
 
 Files of conversations vault does not hold, left on the device.
 
@@ -26,4 +26,4 @@ Files of conversations vault does not hold, left on the device.
 
 > **savedTools**: `number`
 
-Defined in: src/lib/chatStore/seedAppFiles.ts:8
+Defined in: [src/lib/chatStore/seedAppFiles.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/seedAppFiles.ts#8)

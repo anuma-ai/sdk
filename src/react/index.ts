@@ -184,6 +184,7 @@ export {
   ensureAnumaConversation,
   getAppFile,
   listAppFiles,
+  listEveryAppFile,
   loadSavedTools,
   loadSettings,
   type LocalMessageAttachment,
