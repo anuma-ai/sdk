@@ -4,7 +4,9 @@ export type ChatRecordKind =
   | "summary"
   | "project"
   | "memory_links"
-  | "setting";
+  | "setting"
+  | "app_file"
+  | "saved_tool";
 
 export type ChatJson = null | boolean | number | string | ChatJson[] | { [key: string]: ChatJson };
 

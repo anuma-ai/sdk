@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
 import { createRemoteChatStore } from "./remote";
+import { listAppFiles, loadSavedTools, saveAppFile, saveSavedTool } from "./appFiles";
 import { loadSettings, saveSetting } from "./settings";
 import { type ChatRecord, ChatStoreError, type RemoteChatStoreOptions } from "./types";
 import { messageData, toMessage } from "./vaultRecords";
@@ -530,5 +531,42 @@ describe("settings through the encrypted remote ChatStore", () => {
         code: "invalid_record",
       });
     expect(fetch.mock.calls.length).toBe(calls);
+  });
+});
+
+describe("app files and saved tools through the encrypted remote ChatStore", () => {
+  it("seals a conversation file, path and all, under its conversation", async () => {
+    const { store, rows } = await setup();
+    await saveAppFile(store, {
+      conversationId: "chat",
+      path: "/my-diary.html",
+      content: "secret entry",
+    });
+
+    const [key, wire] = [...rows.entries()].find(([k]) => k.startsWith("app_file/"))!;
+    expect(wire.record.conversation_id).toBe("chat");
+    expect(key).not.toContain("diary");
+    expect(wire.record.payload).not.toContain("secret entry");
+    expect(wire.record.payload).not.toContain("diary");
+    expect(await listAppFiles(store, "chat")).toMatchObject([
+      { path: "/my-diary.html", content: "secret entry" },
+    ]);
+  });
+
+  it("seals a saved tool as a record of no conversation", async () => {
+    const { store, rows } = await setup();
+    await saveSavedTool(store, "tool_1", {
+      name: "tip_calculator",
+      displayName: "Tip calculator",
+      description: "Splits a bill",
+      parameters: "{}",
+      html: "<main>secret</main>",
+      conversationId: "chat",
+    });
+
+    const wire = rows.get("saved_tool/tool_1");
+    expect(wire?.record.conversation_id).toBe("");
+    expect(wire?.record.payload).not.toContain("secret");
+    expect((await loadSavedTools(store)).map((t) => t.html)).toEqual(["<main>secret</main>"]);
   });
 });

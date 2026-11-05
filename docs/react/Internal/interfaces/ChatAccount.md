@@ -1,6 +1,6 @@
 # ChatAccount
 
-Defined in: [src/lib/chatStore/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#44)
+Defined in: [src/lib/chatStore/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#46)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:44](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **changesCursor**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#51)
+Defined in: [src/lib/chatStore/types.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#53)
 
 The newest change; read it before loading history and poll `changes` from it. Absent before the first record.
 
@@ -18,7 +18,7 @@ The newest change; read it before loading history and poll `changes` from it. Ab
 
 > **keyId**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#45)
+Defined in: [src/lib/chatStore/types.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#47)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/chatStore/types.ts:45](https://github.com/anuma-ai/sdk/blob
 
 > **recordCount**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#47)
+Defined in: [src/lib/chatStore/types.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#49)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/chatStore/types.ts:47](https://github.com/anuma-ai/sdk/blob
 
 > **state**: [`ChatAccountState`](../type-aliases/ChatAccountState.md)
 
-Defined in: [src/lib/chatStore/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#46)
+Defined in: [src/lib/chatStore/types.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#48)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/lib/chatStore/types.ts:46](https://github.com/anuma-ai/sdk/blob
 
 > **storageBytes**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#48)
+Defined in: [src/lib/chatStore/types.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#50)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/lib/chatStore/types.ts:48](https://github.com/anuma-ai/sdk/blob
 
 > **vectorCount**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#49)
+Defined in: [src/lib/chatStore/types.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#51)

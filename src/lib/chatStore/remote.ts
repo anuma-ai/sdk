@@ -17,7 +17,16 @@ import {
   type RemoteChatStoreOptions,
 } from "./types.js";
 
-const kinds = new Set(["conversation", "message", "summary", "project", "memory_links", "setting"]);
+const kinds = new Set([
+  "conversation",
+  "message",
+  "summary",
+  "project",
+  "memory_links",
+  "setting",
+  "app_file",
+  "saved_tool",
+]);
 const cipherPattern = /^enc:v\d+:(?:[0-9a-f]{2}){28,}$/i;
 const maxPayload = 2 * 1024 * 1024;
 const storedDims = 1536;
@@ -123,7 +132,9 @@ function validRecord(value: unknown): value is ChatRecord {
 }
 
 function rootKind(kind: string): boolean {
-  return kind === "conversation" || kind === "project" || kind === "setting";
+  return (
+    kind === "conversation" || kind === "project" || kind === "setting" || kind === "saved_tool"
+  );
 }
 
 function embeddings(write: {

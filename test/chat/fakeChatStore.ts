@@ -57,7 +57,9 @@ function keyOf(kind: string, id: string): string {
 }
 
 function root(kind: ChatRecordKind): boolean {
-  return kind === "conversation" || kind === "project";
+  return (
+    kind === "conversation" || kind === "project" || kind === "setting" || kind === "saved_tool"
+  );
 }
 
 function normalize(vector: readonly number[]): number[] {
