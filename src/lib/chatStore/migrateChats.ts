@@ -24,6 +24,8 @@ import {
 } from "./types";
 import { plain } from "./vaultRecords";
 
+const timedOut = (error: unknown) => error instanceof ChatStoreError && error.status === 408;
+
 export interface ChatMigrationOptions {
   /** The device's local chat database. */
   database: Database;
@@ -393,11 +395,20 @@ export async function migrateChatsToRemote(
       await journal.add(upload.map((r) => key(r.record)));
       let sent = 0;
       options.onProgress?.({ imported: sent, toImport: upload.length });
-      for (const batch of batches(upload)) {
-        await store.importRecords(batch, signal);
+      const send = async (batch: ChatImport[]): Promise<void> => {
+        try {
+          await store.importRecords(batch, signal);
+        } catch (error) {
+          if (batch.length < 2 || !timedOut(error)) throw error;
+          const half = Math.ceil(batch.length / 2);
+          await send(batch.slice(0, half));
+          await send(batch.slice(half));
+          return;
+        }
         sent += batch.length;
         options.onProgress?.({ imported: sent, toImport: upload.length });
-      }
+      };
+      for (const batch of batches(upload)) await send(batch);
       imported += sent;
     }
   };

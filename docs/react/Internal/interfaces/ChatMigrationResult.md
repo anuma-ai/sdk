@@ -1,6 +1,6 @@
 # ChatMigrationResult
 
-Defined in: [src/lib/chatStore/migrateChats.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#58)
+Defined in: [src/lib/chatStore/migrateChats.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#60)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/migrateChats.ts:58](https://github.com/anuma-ai/s
 
 > **conversations**: `number`
 
-Defined in: [src/lib/chatStore/migrateChats.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#60)
+Defined in: [src/lib/chatStore/migrateChats.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#62)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/migrateChats.ts:60](https://github.com/anuma-ai/s
 
 > **imported**: `number`
 
-Defined in: [src/lib/chatStore/migrateChats.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#62)
+Defined in: [src/lib/chatStore/migrateChats.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#64)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/chatStore/migrateChats.ts:62](https://github.com/anuma-ai/s
 
 > **messages**: `number`
 
-Defined in: [src/lib/chatStore/migrateChats.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#61)
+Defined in: [src/lib/chatStore/migrateChats.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#63)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/chatStore/migrateChats.ts:61](https://github.com/anuma-ai/s
 
 > **skipped**: [`ChatMigrationSkip`](ChatMigrationSkip.md)\[]
 
-Defined in: [src/lib/chatStore/migrateChats.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#63)
+Defined in: [src/lib/chatStore/migrateChats.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#65)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/chatStore/migrateChats.ts:63](https://github.com/anuma-ai/s
 
 > **state**: `"migrating"` | `"active"`
 
-Defined in: [src/lib/chatStore/migrateChats.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#59)
+Defined in: [src/lib/chatStore/migrateChats.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#61)
 
 ***
 
@@ -48,7 +48,7 @@ Defined in: [src/lib/chatStore/migrateChats.ts:59](https://github.com/anuma-ai/s
 
 > **truncated**: `number`
 
-Defined in: [src/lib/chatStore/migrateChats.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#69)
+Defined in: [src/lib/chatStore/migrateChats.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#71)
 
 Messages shrunk to fit vault's record limit.
 
@@ -58,7 +58,7 @@ Messages shrunk to fit vault's record limit.
 
 > **unembedded**: `number`
 
-Defined in: [src/lib/chatStore/migrateChats.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#67)
+Defined in: [src/lib/chatStore/migrateChats.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#69)
 
 Messages sent without vectors to stay inside the account's vector quota.
 
@@ -68,6 +68,6 @@ Messages sent without vectors to stay inside the account's vector quota.
 
 > **untitled**: `number`
 
-Defined in: [src/lib/chatStore/migrateChats.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#65)
+Defined in: [src/lib/chatStore/migrateChats.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/migrateChats.ts#67)
 
 Conversations whose title could not be decrypted and went up untitled.
