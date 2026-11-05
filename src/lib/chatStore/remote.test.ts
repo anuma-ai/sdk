@@ -549,7 +549,7 @@ describe("app files and saved tools through the encrypted remote ChatStore", () 
     expect(wire.record.payload).not.toContain("secret entry");
     expect(wire.record.payload).not.toContain("diary");
     expect(await listAppFiles(store, "chat")).toMatchObject([
-      { path: "/my-diary.html", content: "secret entry" },
+      { path: "my-diary.html", content: "secret entry" },
     ]);
   });
 

@@ -63,12 +63,14 @@ describe("app files in vault", () => {
       content: "v2",
     });
 
-    expect(edited).toMatchObject({ path: "/slides.jsx", content: "v2", version: 2 });
+    expect(edited).toMatchObject({ path: "slides.jsx", content: "v2", version: 2 });
     expect((await getAppFile(store, "conv_1", "/slides.jsx"))?.content).toBe("v2");
     expect((await listAppFiles(store, "conv_1")).map((f) => f.path).sort()).toEqual([
-      "/index.html",
-      "/slides.jsx",
+      "index.html",
+      "slides.jsx",
     ]);
+    expect(await appFileId("conv_1", "slides.jsx")).toBe(await appFileId("conv_1", "/slides.jsx"));
+    expect((await getAppFile(store, "conv_1", "slides.jsx"))?.content).toBe("v2");
     const id = await appFileId("conv_1", "/slides.jsx");
     expect(id).toMatch(/^[0-9a-f]{64}$/);
     expect(id).not.toBe(await appFileId("conv_2", "/slides.jsx"));
@@ -87,7 +89,7 @@ describe("app files in vault", () => {
     await deleteAppFile(store, "conv_1", "/a.html");
     expect(harness.calls.filter((c) => c === "putMany")).toHaveLength(writes);
     expect(await getAppFile(store, "conv_1", "/a.html")).toBeNull();
-    expect((await listAppFiles(store, "conv_1")).map((f) => f.path)).toEqual(["/b.html"]);
+    expect((await listAppFiles(store, "conv_1")).map((f) => f.path)).toEqual(["b.html"]);
 
     const conversation = (await harness.row("conversation", "conv_1"))!;
     await harness.write([
@@ -127,8 +129,8 @@ describe("app files in vault", () => {
     const every = await listEveryAppFile(store);
 
     expect(every.map((f) => [f.conversationId, f.path, f.content]).sort()).toEqual([
-      ["conv_1", "/slides.jsx", "v2"],
-      ["conv_2", "/slides.jsx", "two"],
+      ["conv_1", "slides.jsx", "v2"],
+      ["conv_2", "slides.jsx", "two"],
     ]);
   });
 

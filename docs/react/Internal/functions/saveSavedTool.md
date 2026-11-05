@@ -2,7 +2,7 @@
 
 > **saveSavedTool**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `id`: `string`, `tool`: [`SavedToolData`](../interfaces/SavedToolData.md), `signal?`: `AbortSignal`): `Promise`<[`SavedTool`](../interfaces/SavedTool.md)>
 
-Defined in: [src/lib/chatStore/appFiles.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#211)
+Defined in: [src/lib/chatStore/appFiles.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#212)
 
 Creates or replaces a saved tool; the last save wins across devices.
 

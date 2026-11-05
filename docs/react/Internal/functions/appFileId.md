@@ -2,7 +2,7 @@
 
 > **appFileId**(`conversationId`: `string`, `path`: `string`): `Promise`<`string`>
 
-Defined in: [src/lib/chatStore/appFiles.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#42)
+Defined in: [src/lib/chatStore/appFiles.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#43)
 
 The vault record id of a conversation's file: a hash, so the path itself stays sealed.
 

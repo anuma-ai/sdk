@@ -1,6 +1,6 @@
 # SavedToolData
 
-Defined in: [src/lib/chatStore/appFiles.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#18)
+Defined in: [src/lib/chatStore/appFiles.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#19)
 
 ## Extended by
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/chatStore/appFiles.ts:18](https://github.com/anuma-ai/sdk/b
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/chatStore/appFiles.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#24)
+Defined in: [src/lib/chatStore/appFiles.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#25)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/chatStore/appFiles.ts:24](https://github.com/anuma-ai/sdk/b
 
 > **description**: `string`
 
-Defined in: [src/lib/chatStore/appFiles.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#21)
+Defined in: [src/lib/chatStore/appFiles.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#22)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/chatStore/appFiles.ts:21](https://github.com/anuma-ai/sdk/b
 
 > **displayName**: `string`
 
-Defined in: [src/lib/chatStore/appFiles.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#20)
+Defined in: [src/lib/chatStore/appFiles.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#21)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/lib/chatStore/appFiles.ts:20](https://github.com/anuma-ai/sdk/b
 
 > **html**: `string`
 
-Defined in: [src/lib/chatStore/appFiles.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#23)
+Defined in: [src/lib/chatStore/appFiles.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#24)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/lib/chatStore/appFiles.ts:23](https://github.com/anuma-ai/sdk/b
 
 > **name**: `string`
 
-Defined in: [src/lib/chatStore/appFiles.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#19)
+Defined in: [src/lib/chatStore/appFiles.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#20)
 
 ***
 
@@ -52,4 +52,4 @@ Defined in: [src/lib/chatStore/appFiles.ts:19](https://github.com/anuma-ai/sdk/b
 
 > **parameters**: `string`
 
-Defined in: [src/lib/chatStore/appFiles.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#22)
+Defined in: [src/lib/chatStore/appFiles.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#23)

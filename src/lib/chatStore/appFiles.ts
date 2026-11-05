@@ -1,3 +1,4 @@
+import { normalizePath } from "../../utils/paths.js";
 import {
   type ChatJson,
   type ChatRecordKind,
@@ -40,7 +41,7 @@ async function sha256Hex(value: string): Promise<string> {
 
 /** The vault record id of a conversation's file: a hash, so the path itself stays sealed. */
 export function appFileId(conversationId: string, path: string): Promise<string> {
-  return sha256Hex(`${conversationId}\u0000${path}`);
+  return sha256Hex(`${conversationId}\u0000${normalizePath(path)}`);
 }
 
 async function putLatest(
@@ -182,7 +183,7 @@ export async function saveAppFile(
       id: await appFileId(file.conversationId, file.path),
       conversationId: file.conversationId,
     },
-    { data: { path: file.path, content: file.content }, isDeleted: false },
+    { data: { path: normalizePath(file.path), content: file.content }, isDeleted: false },
     signal
   );
   return toAppFile(saved as ChatSnapshot) as AppFile;

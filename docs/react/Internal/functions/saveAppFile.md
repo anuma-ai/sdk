@@ -2,7 +2,7 @@
 
 > **saveAppFile**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `file`: `object`, `signal?`: `AbortSignal`): `Promise`<[`AppFile`](../interfaces/AppFile.md)>
 
-Defined in: [src/lib/chatStore/appFiles.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#173)
+Defined in: [src/lib/chatStore/appFiles.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#174)
 
 Creates or replaces a conversation file; the last save of a path wins across devices.
 
