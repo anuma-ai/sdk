@@ -1549,6 +1549,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         if (record.memory.archived_at === undefined || record.memory.archived_at === null)
           return true;
         const { archived_at: _archivedAt, ...memory } = record.memory;
+        memory.updated_at = Math.max(Date.now(), (memory.topics_extracted_at ?? 0) + 1);
         notify("edit", [await persistence.put(memory, record)]);
         return true;
       }),
