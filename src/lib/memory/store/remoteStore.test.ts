@@ -3038,6 +3038,21 @@ describe("remote decay", () => {
     expect(decrypt.mock.calls.some(([value]) => untouched.has(value))).toBe(false);
   });
 
+  it("advances a restored memory past its topic extraction timestamp", async () => {
+    const { store, server } = await decayStore();
+    const memory = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    const extractedAt = Date.now() + 60_000;
+    aged(server, memory.uniqueId, { topics_extracted_at: extractedAt });
+    expect(await store.archive(memory.uniqueId)).toBe(true);
+
+    expect(await store.restore(memory.uniqueId)).toBe(true);
+
+    expect((await store.get(memory.uniqueId))?.updatedAt.getTime()).toBe(extractedAt + 1);
+    expect((await store.topicMaintenance.getTopicBacklog()).pending.map((m) => m.uniqueId)).toEqual(
+      [memory.uniqueId]
+    );
+  });
+
   it("keeps a memory re-observed between the scan and the write", async () => {
     const { store, server, onAfterScan } = await decayStore();
     const m = await store.create({ content: "Was into crosswords", embedding: axis(0) });

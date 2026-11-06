@@ -142,6 +142,41 @@ export function runMemoryStoreContract(
       expect(await store.listArchived()).toEqual([]);
     });
 
+    it.each([undefined, "other", "plan"] as const)(
+      "keeps a restored %s fact live after an age-based sweep",
+      async (factType) => {
+        const store = await makeStore();
+        const day = 24 * 60 * 60 * 1000;
+        const restoredAt = Date.now();
+        const clock = vi.spyOn(Date, "now").mockReturnValue(restoredAt - 181 * day);
+        try {
+          const memory = await store.retain("Plans a trip to Porto", {
+            source: "auto-extracted",
+            scope: "shared",
+            factType,
+          });
+          expect(memory.action).toBe("create");
+          clock.mockReturnValue(restoredAt);
+          expect(await store.decay!.createDecaySweeper().runSweep()).toMatchObject({
+            archived: 1,
+            deleted: 0,
+          });
+          expect(await store.list()).toEqual([]);
+
+          expect(await store.restore(memory.memoryId)).toBe(true);
+          expect(
+            await store.decay!.createDecaySweeper({ now: restoredAt + day }).runSweep()
+          ).toMatchObject({ archived: 0, deleted: 0, scanned: 1 });
+          expect(
+            (await store.list({ since: new Date(restoredAt - 1) })).map((m) => m.uniqueId)
+          ).toEqual([memory.memoryId]);
+          expect(await store.listArchived()).toEqual([]);
+        } finally {
+          clock.mockRestore();
+        }
+      }
+    );
+
     it("decays an archived memory past its window and keeps a manual one", async () => {
       const store = await makeStore();
       const old = await store.create({ content: "Planned a trip to Porto" });
