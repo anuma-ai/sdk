@@ -373,25 +373,27 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
   } catch (replayErr) {
     cleanup();
     const err = replayErr instanceof Error ? replayErr : new Error(String(replayErr));
-    const statusCode = parseSseStatusCode(err);
+    const aborted = err.name === "AbortError" || combinedSignal.aborted;
 
-    if (statusCode === 410) {
+    if (!(aborted && streamCompleted)) {
+      const statusCode = parseSseStatusCode(err);
+
+      if (statusCode === 410) {
+        flushOutput();
+        throw new StreamExpiredError(handle.inferenceId);
+      }
+
+      if (aborted) return buildInterrupted(abortMessage());
+
       flushOutput();
-      throw new StreamExpiredError(handle.inferenceId);
+      if (onError) onError(err);
+      return {
+        data: buildFinal(),
+        error: err.message,
+        interrupted: false,
+        statusCode,
+      };
     }
-
-    if (err.name === "AbortError" || combinedSignal.aborted) {
-      return buildInterrupted(abortMessage());
-    }
-
-    flushOutput();
-    if (onError) onError(err);
-    return {
-      data: buildFinal(),
-      error: err.message,
-      interrupted: false,
-      statusCode,
-    };
   }
 
   settled = true;

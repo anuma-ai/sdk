@@ -1362,7 +1362,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         if (sseError !== null) throw sseError as Error;
         break;
       } catch (streamErr) {
-        if (isAbortError(streamErr) || combinedSignal?.aborted) {
+        const aborted = isAbortError(streamErr) || combinedSignal?.aborted;
+        if (aborted && streamCompleted) break;
+        if (aborted) {
           if (isDetach()) {
             return await returnDetached(accumulator, [contentSmoother, thinkingSmoother]);
           }
@@ -1969,7 +1971,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           if (sseError !== null) throw sseError as Error;
           break;
         } catch (streamErr) {
-          if (isAbortError(streamErr) || combinedSignal?.aborted) {
+          const aborted = isAbortError(streamErr) || combinedSignal?.aborted;
+          if (aborted && streamCompleted) break;
+          if (aborted) {
             if (isDetach()) {
               return await returnDetached(currentAccumulator, [
                 contContentSmoother,

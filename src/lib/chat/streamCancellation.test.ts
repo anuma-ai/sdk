@@ -232,3 +232,65 @@ describe.each(["replay", "initial"] as const)("%s completion", (phase) => {
     expect(onFinish).toHaveBeenCalledOnce();
   });
 });
+
+describe.each(["replay", "initial", "continuation"] as const)("fetch %s completion", (phase) => {
+  it.each([{ type: "response.completed", response: {} }, "[DONE]"])(
+    "preserves a terminal response on an abort before the connection closes: %j",
+    async (terminal) => {
+      vi.useFakeTimers();
+      const caller = new AbortController();
+      const onFinish = vi.fn();
+      const onError = vi.fn();
+      const cancel = vi.fn();
+      const event = (data: unknown) =>
+        `data: ${typeof data === "string" ? data : JSON.stringify(data)}\n\n`;
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(event(textChunk) + event(terminal)));
+        },
+        cancel,
+      });
+      const fetch = vi.fn().mockResolvedValue(new Response(body));
+      if (phase === "continuation") {
+        fetch.mockResolvedValueOnce(new Response(event(toolChunk) + event("[DONE]")));
+      }
+      vi.stubGlobal("fetch", fetch);
+      const shared = {
+        token: "token",
+        signal: caller.signal,
+        smoothing: false as const,
+        idleTimeoutMs: 0,
+        onFinish,
+        onError,
+      };
+      const promise =
+        phase === "replay"
+          ? resumeStream({ ...shared, handle: { inferenceId: "inf", apiType: "responses" } })
+          : runToolLoop({
+              ...shared,
+              apiType: "responses",
+              model: "test-model",
+              messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+              tools: [
+                {
+                  type: "function",
+                  function: { name: "echo" },
+                  executor: () => Promise.resolve({ ok: true }),
+                },
+              ],
+            });
+
+      await vi.advanceTimersByTimeAsync(0);
+      caller.abort();
+      await vi.advanceTimersByTimeAsync(0);
+
+      const result = await promise;
+      expect(result.error).toBeNull();
+      expect(JSON.stringify(result.data)).toContain("partial");
+      expect(onFinish).toHaveBeenCalledOnce();
+      expect(onError).not.toHaveBeenCalled();
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(fetch).toHaveBeenCalledTimes(phase === "continuation" ? 2 : 1);
+    }
+  );
+});
