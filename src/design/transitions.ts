@@ -17,6 +17,7 @@ import {
   findRotateHandleFromEvent,
 } from "./eventHelpers";
 import { computeSnap, getStageRelativeBounds, unionBounds } from "./snap";
+import { findStageElement, getStageElements } from "./stageDom";
 import type { Gesture, SnapBounds, SnapGuide } from "./types";
 
 const RESIZE_MIN = 8;
@@ -57,7 +58,7 @@ function startRotateGesture(
   selectedId: string,
   pointer: Pointer
 ): Gesture | null {
-  const el = stage.querySelector<HTMLElement>(`[data-id="${selectedId}"]`);
+  const el = findStageElement(stage, selectedId);
   if (!el) return null;
   const er = el.getBoundingClientRect();
   const centerClient = {
@@ -85,7 +86,7 @@ function startResizeGesture(
   pointer: Pointer,
   scale: number
 ): Gesture | null {
-  const el = stage.querySelector<HTMLElement>(`[data-id="${selectedId}"]`);
+  const el = findStageElement(stage, selectedId);
   if (!el) return null;
   const node = findById(deck, selectedId);
   if (!node) return null;
@@ -137,7 +138,7 @@ export function promotePendingToDragging(
   const elementIds = canMultiDrag(deck, ids) ? ids : [elementId];
   const startBoundsList: SnapBounds[] = [];
   for (const id of elementIds) {
-    const el = stage.querySelector<HTMLElement>(`[data-id="${id}"]`);
+    const el = findStageElement(stage, id);
     if (el) startBoundsList.push(getStageRelativeBounds(el, stage, scale));
   }
   return {
@@ -218,7 +219,7 @@ export function transitionDraggingOnMove(
   if (drag.startGroupBounds) {
     const draggedSet = new Set(drag.elementIds);
     const others: SnapBounds[] = [];
-    for (const el of stage.querySelectorAll<HTMLElement>("[data-id]")) {
+    for (const el of getStageElements(stage)) {
       const id = el.dataset.id;
       if (!id || draggedSet.has(id)) continue;
       others.push(getStageRelativeBounds(el, stage, scale));

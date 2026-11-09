@@ -1,4 +1,5 @@
 import { NON_SELECTABLE_TAGS, type ResizeHandle } from "./dragLogic";
+import { getStageElements } from "./stageDom";
 
 /**
  * Walk the click path and return the first descendant of `stage` that
@@ -62,7 +63,7 @@ export function findElementsInRect(
   rect: { left: number; right: number; top: number; bottom: number }
 ): string[] {
   const ids: string[] = [];
-  const els = stage.querySelectorAll<HTMLElement>("[data-id]");
+  const els = getStageElements(stage);
   for (const el of els) {
     const tag = el.dataset.anumaTag;
     if (tag && NON_SELECTABLE_TAGS.has(tag)) continue;
