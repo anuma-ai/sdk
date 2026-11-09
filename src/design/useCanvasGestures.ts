@@ -4,6 +4,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { type AnumaNode, findById, findParentOfId } from "../tools/slides/jsx";
 import { findElementIdFromEvent } from "./eventHelpers";
+import { findStageElement } from "./stageDom";
 import {
   buildSelectionAfterClick,
   detectHandleGesture,
@@ -277,7 +278,7 @@ function useDragPreviewEffect(
     const { elementIds, delta } = gesture;
     const restorers: Array<() => void> = [];
     for (const elementId of elementIds) {
-      const el = stage.querySelector<HTMLElement>(`[data-id="${elementId}"]`);
+      const el = findStageElement(stage, elementId);
       if (!el) continue;
       const node = findById(deck, elementId);
       const rot = typeof node?.attrs.rotation === "number" ? node.attrs.rotation : 0;
@@ -287,7 +288,7 @@ function useDragPreviewEffect(
       el.style.transform = `translate(${delta.x}px, ${delta.y}px)${rotateStr}`;
       el.style.opacity = "0.7";
       restorers.push(() => {
-        const currentEl = stageRef.current?.querySelector<HTMLElement>(`[data-id="${elementId}"]`);
+        const currentEl = findStageElement(stageRef.current, elementId);
         if (!currentEl) return;
         currentEl.style.transform = prevTransform;
         currentEl.style.opacity = prevOpacity;

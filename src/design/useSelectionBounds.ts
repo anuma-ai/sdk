@@ -3,6 +3,7 @@
 import { useLayoutEffect, useState } from "react";
 
 import { type AnumaNode, findById } from "../tools/slides/jsx";
+import { findStageElement } from "./stageDom";
 import type { IdBounds, SelectionBounds } from "./types";
 
 /**
@@ -34,7 +35,7 @@ export function useSelectionBounds(
       setBounds(null);
       return;
     }
-    const el = stage.querySelector<HTMLElement>(`[data-id="${selectedId}"]`);
+    const el = findStageElement(stage, selectedId);
     const node = findById(deck, selectedId);
     if (!el || !node) {
       setBounds(null);
@@ -79,7 +80,7 @@ export function useMultiSelectionBounds(
     const sr = stage.getBoundingClientRect();
     const out: IdBounds[] = [];
     for (const id of selectedIds) {
-      const el = stage.querySelector<HTMLElement>(`[data-id="${id}"]`);
+      const el = findStageElement(stage, id);
       const node = findById(deck, id);
       if (!el || !node) continue;
       const er = el.getBoundingClientRect();

@@ -1,5 +1,6 @@
 import { type AnumaNode, findById } from "../tools/slides/jsx";
 import type { DropTarget } from "./dragLogic";
+import { containsStageElement, findStageElement, getStageElementsAtPoint } from "./stageDom";
 
 /**
  * For a flex parent, compute which insertion slot the pointer is over.
@@ -16,10 +17,10 @@ export function computeFlexDropTarget(
   pointerClient: { x: number; y: number },
   scale: number
 ): { index: number; bounds: { x: number; y: number; w: number; h: number } | null } {
-  const parentEl = stage.querySelector<HTMLElement>(`[data-id="${parentId}"]`);
+  const parentEl = findStageElement(stage, parentId);
   if (!parentEl) return { index: 0, bounds: null };
   const stageRect = stage.getBoundingClientRect();
-  const siblings = Array.from(parentEl.children).filter(
+  const siblings = Array.from((parentEl.shadowRoot ?? parentEl).children).filter(
     (el): el is HTMLElement =>
       el instanceof HTMLElement && typeof el.dataset.id === "string" && el.dataset.id !== draggedId
   );
@@ -104,12 +105,10 @@ export function findContainerAt(
   pointerClient: { x: number; y: number }
 ): HTMLElement | null {
   if (typeof document === "undefined") return null;
-  const draggedEl = stage.querySelector<HTMLElement>(`[data-id="${draggedId}"]`);
-  const candidates = document.elementsFromPoint(pointerClient.x, pointerClient.y);
+  const draggedEl = findStageElement(stage, draggedId);
+  const candidates = getStageElementsAtPoint(stage, pointerClient.x, pointerClient.y);
   for (const el of candidates) {
-    if (!(el instanceof HTMLElement)) continue;
-    if (!stage.contains(el)) continue;
-    if (draggedEl && (el === draggedEl || draggedEl.contains(el))) continue;
+    if (draggedEl && containsStageElement(draggedEl, el)) continue;
     const tag = el.dataset.anumaTag;
     if (tag === "Slide" || tag === "Screen" || tag === "Group") return el;
   }
@@ -150,7 +149,7 @@ export function resolveDropTarget(
       indicatorBounds: t.bounds,
     };
   }
-  const draggedEl = stage.querySelector<HTMLElement>(`[data-id="${draggedId}"]`);
+  const draggedEl = findStageElement(stage, draggedId);
   if (!draggedEl) return null;
   const dr = draggedEl.getBoundingClientRect();
   const cr = containerEl.getBoundingClientRect();
