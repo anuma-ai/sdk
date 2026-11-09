@@ -65,6 +65,19 @@ describe("useVoice recording lifecycle", () => {
     }
   });
 
+  it("does not request microphone access after unmount", async () => {
+    const { stream } = createStream();
+    getUserMedia.mockResolvedValueOnce(stream);
+    const { result, unmount } = renderHook(() => useVoice());
+    const { startRecording } = result.current;
+
+    unmount();
+    await act(() => startRecording());
+
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(recorderConstructor).not.toHaveBeenCalled();
+  });
+
   it("releases a stream that arrives after unmount without a recorder", async () => {
     const { stream, tracks } = createStream();
     let resolveStream!: (stream: MediaStream) => void;

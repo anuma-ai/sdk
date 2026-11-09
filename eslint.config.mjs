@@ -79,6 +79,7 @@ const checkedTestFiles = [
   "src/react/useEncryption.keyPair.test.ts",
   "src/react/useEncryption.refresh.test.ts",
   "src/react/useTools.test.tsx",
+  "src/react/useVoice.test.tsx",
   "src/server/pg-adapter.inequality.test.ts",
   "src/server/pg-adapter.integration.test.ts",
   "src/server/pg-adapter.test.ts",
