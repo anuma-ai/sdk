@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { QueueManager, topologicalSort } from "./manager";
-import type { QueuedOperation, QueueEncryptionContext, OperationExecutor } from "./types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import type { SignMessageFn } from "../../../react/useEncryption";
+import { QueueManager, topologicalSort } from "./manager";
+import type { OperationExecutor, QueuedOperation, QueueEncryptionContext } from "./types";
 
 const testAddress = "0x1234567890123456789012345678901234567890";
 
-const mockSignMessage = vi.fn(async () => "0xmocksignature") as unknown as SignMessageFn;
+const mockSignMessage = vi.fn<SignMessageFn>().mockResolvedValue("0xmocksignature");
 
 const mockEncryptionContext: QueueEncryptionContext = {
   walletAddress: testAddress,
@@ -128,9 +129,7 @@ describe("QueueManager", () => {
     it("should handle executor failures", async () => {
       manager.queueOperation(testAddress, "createMessage", { content: "will fail" });
 
-      const executor = vi.fn(async () => {
-        throw new Error("Validation error");
-      });
+      const executor = vi.fn<OperationExecutor>().mockRejectedValue(new Error("Validation error"));
 
       const result = await manager.flush(mockEncryptionContext, executor);
 
@@ -149,9 +148,7 @@ describe("QueueManager", () => {
         parentId,
       ]);
 
-      const executor = vi.fn(async () => {
-        throw new Error("Parent failed");
-      });
+      const executor = vi.fn<OperationExecutor>().mockRejectedValue(new Error("Parent failed"));
 
       const result = await manager.flush(mockEncryptionContext, executor);
 
@@ -168,12 +165,13 @@ describe("QueueManager", () => {
         })!;
         const laterId = manager.queueOperation(testAddress, "createMessage", { content: "later" })!;
         let childId: string | null = null;
-        const executor = vi.fn<OperationExecutor>(async (op) => {
+        const executor = vi.fn<OperationExecutor>((op) => {
           if (op.id === (enqueueDuring === "parent" ? parentId : laterId)) {
             childId = manager.queueOperation(testAddress, "createMedia", { name: "child" }, [
               parentId,
             ]);
           }
+          return Promise.resolve();
         });
 
         const firstResult = await manager.flush(mockEncryptionContext, executor);
@@ -253,10 +251,11 @@ describe("QueueManager", () => {
       const childId = manager.queueOperation(testAddress, "createMessage", { content: "child" }, [
         parentId,
       ])!;
-      const executor = vi.fn<OperationExecutor>(async (op) => {
+      const executor = vi.fn<OperationExecutor>((op) => {
         if (op.id === parentId) {
           manager.pause(testAddress);
         }
+        return Promise.resolve();
       });
 
       const firstResult = await manager.flush(mockEncryptionContext, executor);
@@ -278,11 +277,12 @@ describe("QueueManager", () => {
       manager.queueOperation(testAddress, "createMessage", { content: "3" });
 
       let callCount = 0;
-      const executor = vi.fn(async () => {
+      const executor = vi.fn<OperationExecutor>(() => {
         callCount++;
         if (callCount === 1) {
           manager.pause(testAddress);
         }
+        return Promise.resolve();
       });
 
       const result = await manager.flush(mockEncryptionContext, executor);
