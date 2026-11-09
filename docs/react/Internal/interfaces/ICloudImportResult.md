@@ -1,6 +1,6 @@
 # ICloudImportResult
 
-Defined in: [src/lib/backup/icloud/backup.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#41)
+Defined in: [src/lib/backup/icloud/backup.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#43)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/backup/icloud/backup.ts:41](https://github.com/anuma-ai/sdk
 
 > **failed**: `number`
 
-Defined in: [src/lib/backup/icloud/backup.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#44)
+Defined in: [src/lib/backup/icloud/backup.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#46)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/backup/icloud/backup.ts:44](https://github.com/anuma-ai/sdk
 
 > `optional` **noBackupsFound**: `boolean`
 
-Defined in: [src/lib/backup/icloud/backup.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#47)
+Defined in: [src/lib/backup/icloud/backup.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#49)
 
 True if no backups were found in iCloud
 
@@ -26,7 +26,7 @@ True if no backups were found in iCloud
 
 > **restored**: `number`
 
-Defined in: [src/lib/backup/icloud/backup.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#43)
+Defined in: [src/lib/backup/icloud/backup.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#45)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/backup/icloud/backup.ts:43](https://github.com/anuma-ai/sdk
 
 > **success**: `boolean`
 
-Defined in: [src/lib/backup/icloud/backup.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#42)
+Defined in: [src/lib/backup/icloud/backup.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#44)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/lib/backup/icloud/backup.ts:42](https://github.com/anuma-ai/sdk
 
 > **total**: `number`
 
-Defined in: [src/lib/backup/icloud/backup.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#45)
+Defined in: [src/lib/backup/icloud/backup.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#47)
