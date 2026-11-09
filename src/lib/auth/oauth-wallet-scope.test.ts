@@ -16,7 +16,7 @@ vi.mock("../../react/useEncryption", () => ({
 }));
 
 import { hasEncryptionKey } from "../../react/useEncryption";
-import { clearNotionToken, getNotionAccessToken } from "./notion";
+import { clearNotionToken, getNotionAccessToken, revokeNotionAccess } from "./notion";
 
 const WALLET_A = "0xaaaa";
 const WALLET_B = "0xbbbb";
@@ -57,6 +57,35 @@ describe("wallet-scoped OAuth token rows", () => {
     );
 
     expect(await getNotionAccessToken(WALLET_A)).toBeNull();
+  });
+
+  it.each([
+    ["clearNotionToken", clearNotionToken],
+    ["revokeNotionAccess", revokeNotionAccess],
+  ])("removes legacy tokens before an account switch after %s", async (_name, clearToken) => {
+    const token = {
+      accessToken: "tok-a",
+      refreshToken: "refresh-a",
+      expiresAt: Date.now() + 3600000,
+    };
+    const scopedKey = `${NOTION_KEY}:${WALLET_A}`;
+    const scopedRow = JSON.stringify({ wallet: WALLET_A, token });
+    const legacyRow = JSON.stringify(token);
+    localStorage.setItem(scopedKey, scopedRow);
+    localStorage.setItem(NOTION_KEY, legacyRow);
+    sessionStorage.setItem(scopedKey, scopedRow);
+    sessionStorage.setItem(NOTION_KEY, legacyRow);
+    expect(await getNotionAccessToken(WALLET_A)).toBe(token.accessToken);
+
+    clearToken(WALLET_A);
+
+    expect(localStorage.getItem(NOTION_KEY)).toBeNull();
+    expect(localStorage.getItem(scopedKey)).toBeNull();
+    expect(sessionStorage.getItem(NOTION_KEY)).toBeNull();
+    expect(sessionStorage.getItem(scopedKey)).toBeNull();
+    expect(await getNotionAccessToken(WALLET_B)).toBeNull();
+    expect(localStorage.getItem(`${NOTION_KEY}:${WALLET_B}`)).toBeNull();
+    expect(sessionStorage.getItem(`${NOTION_KEY}:${WALLET_B}`)).toBeNull();
   });
 
   it("uses the sessionStorage row when the localStorage row under the same key is not readable", async () => {
