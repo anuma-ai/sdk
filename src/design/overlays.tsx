@@ -16,6 +16,26 @@ const ROTATE_HANDLE_OFFSET = 28;
 const PRIMARY_COLOR = "#2563eb";
 const SNAP_COLOR = "#ec4899";
 
+const RESIZE_HANDLE_LABELS: Record<ResizeHandle, string> = {
+  nw: "Resize top left",
+  n: "Resize top",
+  ne: "Resize top right",
+  e: "Resize right",
+  se: "Resize bottom right",
+  s: "Resize bottom",
+  sw: "Resize bottom left",
+  w: "Resize left",
+};
+
+const HANDLE_FOCUS_PROPS = {
+  onFocus(e: React.FocusEvent<HTMLButtonElement>) {
+    e.currentTarget.style.outline = `2px solid ${PRIMARY_COLOR}`;
+  },
+  onBlur(e: React.FocusEvent<HTMLButtonElement>) {
+    e.currentTarget.style.outline = "";
+  },
+};
+
 export type CanvasOverlaysProps = {
   /** Current gesture (drives marquee/guides/drop-indicator visibility). */
   gesture: Gesture | null;
@@ -215,6 +235,9 @@ function SelectionWithHandles({
   const visibleHandles = visibleResizeHandles(deck, selectedId);
   return (
     <div
+      data-canvas-selection={selectedId}
+      data-canvas-width={bounds.w}
+      data-canvas-height={bounds.h}
       style={{
         position: "absolute",
         left: bounds.x * scale,
@@ -239,39 +262,51 @@ function SelectionWithHandles({
         const cxLocal = (bounds.w * (dir.dx + 1)) / 2;
         const cyLocal = (bounds.h * (dir.dy + 1)) / 2;
         return (
-          <div
+          <button
             key={handle}
+            type="button"
+            aria-label={RESIZE_HANDLE_LABELS[handle]}
+            aria-description="Use arrow keys to resize. Hold Shift for 10 pixels."
             data-resize-handle={handle}
+            {...HANDLE_FOCUS_PROPS}
             style={{
               position: "absolute",
               left: cxLocal * scale - HANDLE_SIZE / 2,
               top: cyLocal * scale - HANDLE_SIZE / 2,
               width: HANDLE_SIZE,
               height: HANDLE_SIZE,
+              padding: 0,
               background: "#fff",
               border: `1.5px solid ${PRIMARY_COLOR}`,
               borderRadius: "50%",
               cursor: RESIZE_HANDLE_CURSORS[handle],
               boxSizing: "border-box",
               pointerEvents: "auto",
+              outlineOffset: 2,
             }}
           />
         );
       })}
-      <div
+      <button
+        type="button"
+        aria-label="Rotate selection"
+        aria-description="Use arrow keys to rotate. Hold Shift for 15 degrees."
         data-rotate-handle="true"
+        {...HANDLE_FOCUS_PROPS}
         style={{
           position: "absolute",
           left: (bounds.w / 2) * scale - HANDLE_SIZE / 2,
           top: -ROTATE_HANDLE_OFFSET * scale - HANDLE_SIZE / 2,
           width: HANDLE_SIZE,
           height: HANDLE_SIZE,
+          padding: 0,
           background: "#fff",
           border: `1.5px solid ${PRIMARY_COLOR}`,
           borderRadius: "50%",
           cursor: "grab",
           boxSizing: "border-box",
           pointerEvents: "auto",
+          outlineOffset: 2,
         }}
       />
     </div>
