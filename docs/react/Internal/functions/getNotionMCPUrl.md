@@ -2,7 +2,7 @@
 
 > **getNotionMCPUrl**(): `string`
 
-Defined in: [src/lib/auth/notion.ts:843](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#843)
+Defined in: [src/lib/auth/notion.ts:844](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#844)
 
 Get the Notion MCP server URL for tool connections
 

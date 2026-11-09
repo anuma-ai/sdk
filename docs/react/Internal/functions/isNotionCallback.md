@@ -2,7 +2,7 @@
 
 > **isNotionCallback**(`callbackPath`: `string`): `boolean`
 
-Defined in: [src/lib/auth/notion.ts:549](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#549)
+Defined in: [src/lib/auth/notion.ts:550](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#550)
 
 Check if current URL is a Notion OAuth callback
 
