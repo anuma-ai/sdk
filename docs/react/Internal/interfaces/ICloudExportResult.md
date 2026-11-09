@@ -4,6 +4,22 @@ Defined in: [src/lib/backup/icloud/backup.ts:34](https://github.com/anuma-ai/sdk
 
 ## Properties
 
+### failed
+
+> **failed**: `number`
+
+Defined in: [src/lib/backup/icloud/backup.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#38)
+
+***
+
+### failedConversationIds
+
+> **failedConversationIds**: `string`\[]
+
+Defined in: [src/lib/backup/icloud/backup.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#39)
+
+***
+
 ### skipped
 
 > **skipped**: `number`
@@ -24,7 +40,7 @@ Defined in: [src/lib/backup/icloud/backup.ts:35](https://github.com/anuma-ai/sdk
 
 > **total**: `number`
 
-Defined in: [src/lib/backup/icloud/backup.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#38)
+Defined in: [src/lib/backup/icloud/backup.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#40)
 
 ***
 

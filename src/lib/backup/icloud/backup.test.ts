@@ -6,6 +6,7 @@ import {
   clearMessagesOp,
   createConversationOp,
   createMessageOp,
+  deleteConversationOp,
   deleteMessageOp,
   getMessagesOp,
   type StorageOperationsContext,
@@ -119,6 +120,91 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+describe("iCloud export results", () => {
+  it("reports a partial upload failure and retries the failed conversation", async () => {
+    const { ctx, records, saveRecords, backup } = await setup();
+    await createConversationOp(ctx, { conversationId: "conv_2", title: "Second" });
+    const saveRecord = saveRecords.getMockImplementation()!;
+    saveRecords.mockImplementation((record) =>
+      record.fields.filename.value === "conv_1.json"
+        ? Promise.reject(new Error("Upload failed"))
+        : saveRecord(record)
+    );
+
+    expect(await backup()).toEqual({
+      success: false,
+      uploaded: 1,
+      skipped: 0,
+      failed: 1,
+      failedConversationIds: ["conv_1"],
+      total: 2,
+    });
+    expect(records.has("backup_conv_1_json")).toBe(false);
+    expect(records.has("backup_conv_2_json")).toBe(true);
+
+    saveRecords.mockImplementation(saveRecord);
+    expect(await backup()).toEqual({
+      success: true,
+      uploaded: 1,
+      skipped: 1,
+      failed: 0,
+      failedConversationIds: [],
+      total: 2,
+    });
+    expect(records.has("backup_conv_1_json")).toBe(true);
+  });
+
+  it("reports a total upload failure", async () => {
+    const { ctx, records, saveRecords, backup } = await setup();
+    await createConversationOp(ctx, { conversationId: "conv_2", title: "Second" });
+    saveRecords.mockRejectedValue(new Error("Upload failed"));
+
+    expect(await backup()).toEqual({
+      success: false,
+      uploaded: 0,
+      skipped: 0,
+      failed: 2,
+      failedConversationIds: expect.arrayContaining(["conv_1", "conv_2"]) as string[],
+      total: 2,
+    });
+    expect(records.size).toBe(0);
+    expect(saveRecords).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["result", "exception"])("reports an export failure from the %s", async (failure) => {
+    const { deps, saveRecords, backup } = await setup();
+    if (failure === "result") {
+      deps.exportConversation.mockResolvedValueOnce({ success: false, blob: new Blob() });
+    } else {
+      deps.exportConversation.mockRejectedValueOnce(new Error("Export failed"));
+    }
+
+    expect(await backup()).toEqual({
+      success: false,
+      uploaded: 0,
+      skipped: 0,
+      failed: 1,
+      failedConversationIds: ["conv_1"],
+      total: 1,
+    });
+    expect(saveRecords).not.toHaveBeenCalled();
+  });
+
+  it("reports no failures when there are no conversations", async () => {
+    const { ctx, backup } = await setup();
+    await deleteConversationOp(ctx, "conv_1");
+
+    expect(await backup()).toEqual({
+      success: true,
+      uploaded: 0,
+      skipped: 0,
+      failed: 0,
+      failedConversationIds: [],
+      total: 0,
+    });
+  });
 });
 
 describe("iCloud backup revisions", () => {

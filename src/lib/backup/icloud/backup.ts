@@ -35,6 +35,8 @@ export interface ICloudExportResult {
   success: boolean;
   uploaded: number;
   skipped: number;
+  failed: number;
+  failedConversationIds: string[];
   total: number;
 }
 
@@ -137,12 +139,9 @@ export async function performICloudExport(
   const conversations = records.map(conversationToStoredRaw);
   const total = conversations.length;
 
-  if (total === 0) {
-    return { success: true, uploaded: 0, skipped: 0, total: 0 };
-  }
-
   let uploaded = 0;
   let skipped = 0;
+  const failedConversationIds: string[] = [];
 
   for (let i = 0; i < conversations.length; i++) {
     const conv = conversations[i];
@@ -152,9 +151,11 @@ export async function performICloudExport(
 
     if (result === "uploaded") uploaded++;
     if (result === "skipped") skipped++;
+    if (result === "failed") failedConversationIds.push(conv.conversationId);
   }
 
-  return { success: true, uploaded, skipped, total };
+  const failed = failedConversationIds.length;
+  return { success: failed === 0, uploaded, skipped, failed, failedConversationIds, total };
 }
 
 export async function performICloudImport(
