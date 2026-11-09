@@ -274,6 +274,10 @@ export class QueueManager {
         }
       }
 
+      for (const op of walletQueue.values()) {
+        op.dependencies = op.dependencies.filter((depId) => !succeededSet.has(depId));
+      }
+
       if (walletQueue.size === 0) {
         this.queues.delete(walletAddress);
       }

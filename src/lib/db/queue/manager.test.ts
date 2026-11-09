@@ -160,6 +160,58 @@ describe("QueueManager", () => {
       expect(result.failed[1].error).toBe("Dependency failed");
     });
 
+    it.each(["parent", "later operation"])(
+      "executes a child on the next flush when added during the %s",
+      async (enqueueDuring) => {
+        const parentId = manager.queueOperation(testAddress, "createConversation", {
+          title: "test",
+        })!;
+        const laterId = manager.queueOperation(testAddress, "createMessage", { content: "later" })!;
+        let childId: string | null = null;
+        const executor = vi.fn<OperationExecutor>(async (op) => {
+          if (op.id === (enqueueDuring === "parent" ? parentId : laterId)) {
+            childId = manager.queueOperation(testAddress, "createMedia", { name: "child" }, [
+              parentId,
+            ]);
+          }
+        });
+
+        const firstResult = await manager.flush(mockEncryptionContext, executor);
+
+        expect(firstResult).toEqual({ succeeded: [parentId, laterId], failed: [], total: 2 });
+        expect(childId).not.toBeNull();
+        expect(manager.getStatus(testAddress).pending).toBe(1);
+
+        const secondResult = await manager.flush(mockEncryptionContext, executor);
+
+        expect(secondResult).toEqual({ succeeded: [childId], failed: [], total: 1 });
+        expect(executor.mock.calls.map(([op]) => op.id)).toEqual([parentId, laterId, childId]);
+        expect(manager.hasPending(testAddress)).toBe(false);
+      }
+    );
+
+    it("keeps unresolved dependencies after a parent succeeds", async () => {
+      const parentId = manager.queueOperation(testAddress, "createConversation", {
+        title: "test",
+      })!;
+      const childId = manager.queueOperation(testAddress, "createMessage", { content: "child" }, [
+        parentId,
+        "missing",
+      ])!;
+      const executor = vi.fn(async () => {});
+
+      await manager.flush(mockEncryptionContext, executor);
+      const result = await manager.flush(mockEncryptionContext, executor);
+
+      expect(result).toEqual({
+        succeeded: [],
+        failed: [{ id: childId, error: "Dependencies not yet resolved" }],
+        total: 1,
+      });
+      expect(executor).toHaveBeenCalledTimes(1);
+      expect(manager.getOperations(testAddress)[0].dependencies).toEqual(["missing"]);
+    });
+
     it("should prevent concurrent flushes", async () => {
       manager.queueOperation(testAddress, "createMessage", { content: "a" });
 
@@ -194,6 +246,32 @@ describe("QueueManager", () => {
   });
 
   describe("pause/resume", () => {
+    it("executes a dependent child after pause and resume", async () => {
+      const parentId = manager.queueOperation(testAddress, "createConversation", {
+        title: "test",
+      })!;
+      const childId = manager.queueOperation(testAddress, "createMessage", { content: "child" }, [
+        parentId,
+      ])!;
+      const executor = vi.fn<OperationExecutor>(async (op) => {
+        if (op.id === parentId) {
+          manager.pause(testAddress);
+        }
+      });
+
+      const firstResult = await manager.flush(mockEncryptionContext, executor);
+
+      expect(firstResult).toEqual({ succeeded: [parentId], failed: [], total: 2 });
+      expect(manager.getStatus(testAddress)).toMatchObject({ pending: 1, isPaused: true });
+
+      manager.resume(testAddress);
+      const secondResult = await manager.flush(mockEncryptionContext, executor);
+
+      expect(secondResult).toEqual({ succeeded: [childId], failed: [], total: 1 });
+      expect(executor.mock.calls.map(([op]) => op.id)).toEqual([parentId, childId]);
+      expect(manager.hasPending(testAddress)).toBe(false);
+    });
+
     it("should stop flushing mid-way when paused", async () => {
       manager.queueOperation(testAddress, "createMessage", { content: "1" });
       manager.queueOperation(testAddress, "createMessage", { content: "2" });
