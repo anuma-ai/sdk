@@ -102,8 +102,6 @@ export function createSseClient<TData = unknown>({
     const signal = options.signal ?? new AbortController().signal;
 
     while (true) {
-      if (signal.aborted) break;
-
       attempt++;
 
       const headers =
@@ -116,6 +114,9 @@ export function createSseClient<TData = unknown>({
       }
 
       try {
+        if (signal.aborted) {
+          throw Object.assign(new Error('The signal aborted the stream'), { name: 'AbortError' });
+        }
         const requestInit: RequestInit = {
           redirect: 'follow',
           ...options,
@@ -149,10 +150,14 @@ export function createSseClient<TData = unknown>({
         };
 
         signal.addEventListener('abort', abortHandler);
+        if (signal.aborted) abortHandler();
 
         try {
           while (true) {
             const { done, value } = await reader.read();
+            if (signal.aborted) {
+              throw Object.assign(new Error('The signal aborted the stream'), { name: 'AbortError' });
+            }
             if (done) break;
             buffer += value;
             buffer = buffer.replace(/\r\n?/g, '\n'); // normalize line endings
@@ -231,6 +236,8 @@ export function createSseClient<TData = unknown>({
       } catch (error) {
         // connection failed or aborted; retry after delay
         onSseError?.(error);
+
+        if (signal.aborted) throw error;
 
         if (sseMaxRetryAttempts !== undefined && attempt >= sseMaxRetryAttempts) {
           break; // stop after firing error

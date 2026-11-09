@@ -2,7 +2,7 @@
 
 > **ActiveStream** = `object`
 
-Defined in: [src/lib/chat/resumeStream.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#41)
+Defined in: [src/lib/chat/resumeStream.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#46)
 
 A generation still running on the portal for the caller.
 
@@ -12,7 +12,7 @@ A generation still running on the portal for the caller.
 
 > **apiType**: `"responses"` | `"completions"`
 
-Defined in: [src/lib/chat/resumeStream.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#46)
+Defined in: [src/lib/chat/resumeStream.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#51)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/chat/resumeStream.ts:46](https://github.com/anuma-ai/sdk/bl
 
 > **assistantMessageId**: `string` | `null`
 
-Defined in: [src/lib/chat/resumeStream.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#43)
+Defined in: [src/lib/chat/resumeStream.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#48)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/chat/resumeStream.ts:43](https://github.com/anuma-ai/sdk/bl
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/chat/resumeStream.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#44)
+Defined in: [src/lib/chat/resumeStream.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#49)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/lib/chat/resumeStream.ts:44](https://github.com/anuma-ai/sdk/bl
 
 > **inferenceId**: `string`
 
-Defined in: [src/lib/chat/resumeStream.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#42)
+Defined in: [src/lib/chat/resumeStream.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#47)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/lib/chat/resumeStream.ts:42](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/chat/resumeStream.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#47)
+Defined in: [src/lib/chat/resumeStream.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#52)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [src/lib/chat/resumeStream.ts:47](https://github.com/anuma-ai/sdk/bl
 
 > **parentMessageId**: `string` | `null`
 
-Defined in: [src/lib/chat/resumeStream.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#45)
+Defined in: [src/lib/chat/resumeStream.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#50)
 
 ***
 
@@ -60,4 +60,4 @@ Defined in: [src/lib/chat/resumeStream.ts:45](https://github.com/anuma-ai/sdk/bl
 
 > **startedAt**: `string`
 
-Defined in: [src/lib/chat/resumeStream.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#48)
+Defined in: [src/lib/chat/resumeStream.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#53)

@@ -193,6 +193,7 @@ import {
   executeToolCall,
   isAbortError,
   isDoneMarker,
+  isTerminalChunk,
   ProviderStreamError,
   safeJsonStringify,
   toolsToApiFormat,
@@ -781,11 +782,6 @@ export type StreamingTransportResult = {
  *    delivered → iterable returns `done`, result is success.
  * 2. The caller aborted the request mid-stream → iterable throws
  *    `AbortError`, result is `{ data: <partial>, error: "Request aborted" }`.
- *
- * Transports that swallow mid-stream aborts and yield `done` instead
- * will cause a partial response to be reported as a successful
- * completion. The built-in `xhrTransport` and the default fetch-based
- * transport both honor this contract.
  */
 export type StreamingTransport = (options: StreamingTransportOptions) => StreamingTransportResult;
 
@@ -1307,6 +1303,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       }, smoothing);
 
       let chunksEmittedDownstream = false;
+      let streamCompleted = false;
       try {
         for await (const chunk of sseResult.stream) {
           if (combinedSignal?.aborted) {
@@ -1324,6 +1321,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             };
           }
 
+          streamCompleted ||= isTerminalChunk(chunk);
           if (isDoneMarker(chunk)) continue;
 
           const providerError = extractProviderStreamError(chunk);
@@ -1358,10 +1356,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             }
           }
         }
+        if (combinedSignal?.aborted && !streamCompleted) {
+          throw Object.assign(new Error("Request aborted"), { name: "AbortError" });
+        }
         if (sseError !== null) throw sseError as Error;
         break;
       } catch (streamErr) {
-        if (isAbortError(streamErr) || combinedSignal?.aborted) {
+        const aborted = isAbortError(streamErr) || combinedSignal?.aborted;
+        if (aborted && streamCompleted) break;
+        if (aborted) {
           if (isDetach()) {
             return await returnDetached(accumulator, [contentSmoother, thinkingSmoother]);
           }
@@ -1904,6 +1907,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }, smoothing);
 
         let chunksEmittedDownstream = false;
+        let streamCompleted = false;
         try {
           for await (const chunk of continuationResult.stream) {
             if (combinedSignal?.aborted) {
@@ -1926,6 +1930,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               };
             }
 
+            streamCompleted ||= isTerminalChunk(chunk);
             if (isDoneMarker(chunk)) continue;
 
             const providerError = extractProviderStreamError(chunk);
@@ -1960,10 +1965,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               }
             }
           }
+          if (combinedSignal?.aborted && !streamCompleted) {
+            throw Object.assign(new Error("Request aborted"), { name: "AbortError" });
+          }
           if (sseError !== null) throw sseError as Error;
           break;
         } catch (streamErr) {
-          if (isAbortError(streamErr) || combinedSignal?.aborted) {
+          const aborted = isAbortError(streamErr) || combinedSignal?.aborted;
+          if (aborted && streamCompleted) break;
+          if (aborted) {
             if (isDetach()) {
               return await returnDetached(currentAccumulator, [
                 contContentSmoother,

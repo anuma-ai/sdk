@@ -52,6 +52,7 @@ const checkedTestFiles = [
   "src/lib/chat/untrustedToolResult.test.ts",
   "src/lib/chat/xhrTransport.test.ts",
   "src/lib/chat/streamDrain.test.ts",
+  "src/lib/chat/streamCancellation.test.ts",
   "src/lib/db/chat/operations.chunkText.test.ts",
   "src/lib/db/chat/operations.embeddingEncryption.test.ts",
   "src/lib/db/chat/operations.summary.test.ts",

@@ -2,7 +2,7 @@
 
 > **listActiveStreams**(`options`: `object`): `Promise`<[`ActiveStream`](../type-aliases/ActiveStream.md)\[]>
 
-Defined in: [src/lib/chat/resumeStream.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#71)
+Defined in: [src/lib/chat/resumeStream.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/resumeStream.ts#76)
 
 List the caller's generations still running on the portal.
 
