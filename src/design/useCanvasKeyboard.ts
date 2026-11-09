@@ -3,7 +3,14 @@
 import { useEffect } from "react";
 
 import { type AnumaNode, findById, removeById } from "../tools/slides/jsx";
-import { getLayoutModeOf } from "./dragLogic";
+import {
+  commitResize,
+  commitRotation,
+  getLayoutModeOf,
+  RESIZE_HANDLE_DIRS,
+  type ResizeHandle,
+} from "./dragLogic";
+import { transitionResizingOnMove } from "./transitions";
 
 export type UseCanvasKeyboardOpts = {
   setDeck: (updater: AnumaNode | ((d: AnumaNode) => AnumaNode)) => void;
@@ -82,13 +89,62 @@ function applyArrowNudge(ids: ReadonlySet<string>, dx: number, dy: number) {
   };
 }
 
+function applyHandleArrow(
+  target: HTMLElement,
+  ids: ReadonlySet<string>,
+  dx: number,
+  dy: number,
+  shiftKey: boolean
+) {
+  const overlay = target.closest<HTMLElement>("[data-canvas-selection]");
+  const id = overlay?.dataset.canvasSelection;
+  const handle = (Object.keys(RESIZE_HANDLE_DIRS) as ResizeHandle[]).find(
+    (name) => name === target.dataset.resizeHandle
+  );
+  const measuredWidth = Number(overlay?.dataset.canvasWidth);
+  const measuredHeight = Number(overlay?.dataset.canvasHeight);
+  return (d: AnumaNode): AnumaNode => {
+    if (!id || ids.size !== 1 || !ids.has(id)) return d;
+    const node = findById(d, id);
+    if (!node) return d;
+    const rotation = typeof node.attrs.rotation === "number" ? node.attrs.rotation : 0;
+    if (target.dataset.rotateHandle === "true") {
+      return commitRotation(d, id, rotation + Math.sign(dx + dy) * (shiftKey ? 15 : 1));
+    }
+    if (!handle) return d;
+    const w = typeof node.attrs.w === "number" ? node.attrs.w : measuredWidth;
+    const h = typeof node.attrs.h === "number" ? node.attrs.h : measuredHeight;
+    if (!Number.isFinite(w) || !Number.isFinite(h)) return d;
+    const x = typeof node.attrs.x === "number" ? node.attrs.x : 0;
+    const y = typeof node.attrs.y === "number" ? node.attrs.y : 0;
+    const startBounds = { x, y, w, h };
+    const { currentBounds } = transitionResizingOnMove(
+      {
+        phase: "resizing",
+        elementId: id,
+        handle,
+        startClient: { x: 0, y: 0 },
+        startBounds,
+        startCenter: { x: x + w / 2, y: y + h / 2 },
+        rotation,
+        layoutMode: getLayoutModeOf(d, id),
+        currentBounds: startBounds,
+      },
+      { x: dx, y: dy },
+      1
+    );
+    if (currentBounds.w === w && currentBounds.h === h) return d;
+    return commitResize(d, id, currentBounds);
+  };
+}
+
 export function useCanvasKeyboard(opts: UseCanvasKeyboardOpts): void {
   const { setDeck, selectedIds, setSelectedIds, disabled = false, undo, redo } = opts;
 
   useEffect(() => {
     if (disabled) return;
     const handler = (e: KeyboardEvent) => {
-      if (isEditableTarget(e.target)) return;
+      if (e.defaultPrevented || isEditableTarget(e.target)) return;
       if (e.metaKey || e.ctrlKey) {
         handleModifierShortcut(e, undo, redo);
         return;
@@ -105,6 +161,15 @@ export function useCanvasKeyboard(opts: UseCanvasKeyboardOpts): void {
       const arrow = arrowKeyDelta(e.key, e.shiftKey);
       if (arrow) {
         e.preventDefault();
+        const handle =
+          e.target instanceof HTMLElement
+            ? e.target.closest<HTMLElement>("[data-resize-handle], [data-rotate-handle]")
+            : null;
+        if (handle) {
+          e.stopPropagation();
+          setDeck(applyHandleArrow(handle, selectedIds, arrow.dx, arrow.dy, e.shiftKey));
+          return;
+        }
         setDeck(applyArrowNudge(selectedIds, arrow.dx, arrow.dy));
       }
     };
