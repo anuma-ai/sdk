@@ -327,6 +327,7 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
 export function clearNotionToken(walletAddress?: string): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(getTokenStorageKey(walletAddress));
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
   sessionStorage.removeItem(TOKEN_STORAGE_KEY);
   sessionStorage.removeItem(getTokenStorageKey(walletAddress));
   cachedAccessToken = null;
