@@ -302,6 +302,19 @@ it.each(["fresh", "partial"])("patches %s generated header spreads", spawnsNode,
     }
 
     const expectedUtils = readFileSync(utilsPath, "utf-8");
+    const ssePath = join(root, "src/client/core/serverSentEvents.gen.ts");
+    const expectedSse = readFileSync(ssePath, "utf-8");
+    writeFileSync(
+      ssePath,
+      expectedSse
+        .replace("    while (true) {\n", "    while (true) {\n      if (signal.aborted) break;\n\n")
+        .replaceAll(
+          / +if \(signal.aborted\) \{\n +throw Object.assign\(new Error\('The signal aborted the stream'\), \{ name: 'AbortError' \}\);\n +\}\n/g,
+          ""
+        )
+        .replace("        if (signal.aborted) throw error;\n\n", "")
+        .replace("        if (signal.aborted) abortHandler();\n", "")
+    );
     writeFileSync(
       utilsPath,
       expectedUtils.replace(
@@ -342,11 +355,13 @@ it.each(["fresh", "partial"])("patches %s generated header spreads", spawnsNode,
     expect(patched).toBe(expected);
     expect(readFileSync(utilsPath, "utf-8")).toBe(expectedUtils);
     expect(readFileSync(serializerPath, "utf-8")).toBe(expectedSerializer);
+    expect(readFileSync(ssePath, "utf-8")).toBe(expectedSse);
 
     execFileSync(process.execPath, [patchPath]);
     expect(readFileSync(sdkPath, "utf-8")).toBe(expected);
     expect(readFileSync(utilsPath, "utf-8")).toBe(expectedUtils);
     expect(readFileSync(serializerPath, "utf-8")).toBe(expectedSerializer);
+    expect(readFileSync(ssePath, "utf-8")).toBe(expectedSse);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -125,6 +125,48 @@ import { normalizeHeaders } from '../clientHeaders';`,
   },
   {
     file: "src/client/core/serverSentEvents.gen.ts",
+    find: `    while (true) {
+      if (signal.aborted) break;
+
+      attempt++;`,
+    replace: `    while (true) {
+      attempt++;`,
+  },
+  {
+    file: "src/client/core/serverSentEvents.gen.ts",
+    find: `      try {
+        const requestInit: RequestInit = {`,
+    replace: `      try {
+        if (signal.aborted) {
+          throw Object.assign(new Error('The signal aborted the stream'), { name: 'AbortError' });
+        }
+        const requestInit: RequestInit = {`,
+  },
+  {
+    file: "src/client/core/serverSentEvents.gen.ts",
+    find: `            const { done, value } = await reader.read();
+            if (done) break;`,
+    replace: `            const { done, value } = await reader.read();
+            if (signal.aborted) {
+              throw Object.assign(new Error('The signal aborted the stream'), { name: 'AbortError' });
+            }
+            if (done) break;`,
+  },
+  {
+    file: "src/client/core/serverSentEvents.gen.ts",
+    find: "        onSseError?.(error);",
+    replace: `        onSseError?.(error);
+
+        if (signal.aborted) throw error;`,
+  },
+  {
+    file: "src/client/core/serverSentEvents.gen.ts",
+    find: "        signal.addEventListener('abort', abortHandler);",
+    replace: `        signal.addEventListener('abort', abortHandler);
+        if (signal.aborted) abortHandler();`,
+  },
+  {
+    file: "src/client/core/serverSentEvents.gen.ts",
     find: `          signal.removeEventListener('abort', abortHandler);
           reader.releaseLock();`,
     replace: `          signal.removeEventListener('abort', abortHandler);

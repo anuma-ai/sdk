@@ -5,7 +5,12 @@ import { defaultTransport } from "./toolLoop";
 import { getStrategy } from "./useChat/strategies";
 import { type ApiResponse, stripToolCalls } from "./useChat/strategies/types";
 import { StreamSmoother, type StreamSmoothingConfig } from "./useChat/StreamSmoother";
-import { createStreamAccumulator, getInStreamErrorMessage, isDoneMarker } from "./useChat/utils";
+import {
+  createStreamAccumulator,
+  getInStreamErrorMessage,
+  isDoneMarker,
+  isTerminalChunk,
+} from "./useChat/utils";
 
 export type { StreamResumeHandle } from "./toolLoop";
 export { INFERENCE_ID_HEADER, STREAM_RESUMABLE_HEADER } from "./toolLoop";
@@ -319,6 +324,7 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
 
   let sseError: Error | null = null;
   let emittedOutput = false;
+  let streamCompleted = false;
   const sseResult = makeStreamingRequest({
     baseUrl,
     endpoint: streamReplayPath(handle.inferenceId),
@@ -343,6 +349,7 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
 
       if (sseError !== null) break;
 
+      streamCompleted ||= isTerminalChunk(chunk);
       if (isDoneMarker(chunk)) continue;
 
       const inStreamError = getInStreamErrorMessage(chunk);
@@ -357,6 +364,10 @@ export async function resumeStream(options: ResumeStreamOptions): Promise<Resume
         if (thinking) thinkingSmoother.push(thinking);
         if (content || thinking) emittedOutput = true;
       }
+    }
+    if (combinedSignal.aborted && !streamCompleted) {
+      cleanup();
+      return buildInterrupted(abortMessage());
     }
     if (sseError !== null) throw sseError as Error;
   } catch (replayErr) {
