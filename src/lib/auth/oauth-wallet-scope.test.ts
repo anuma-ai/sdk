@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../react/useEncryption", () => ({
-  getEncryptionKey: vi.fn(async () => "mock-crypto-key"),
-  encryptDataWithKey: vi.fn(async (data: string) => `encrypted:${data}`),
-  decryptDataWithKey: vi.fn(async (data: string) => {
-    if (data.startsWith("encrypted:")) return data.slice("encrypted:".length);
-    throw new Error("Decryption failed");
+  getEncryptionKey: vi.fn(() => Promise.resolve("mock-crypto-key")),
+  encryptDataWithKey: vi.fn((data: string) => Promise.resolve(`encrypted:${data}`)),
+  decryptDataWithKey: vi.fn((data: string) => {
+    if (data.startsWith("encrypted:")) return Promise.resolve(data.slice("encrypted:".length));
+    return Promise.reject(new Error("Decryption failed"));
   }),
   hasEncryptionKey: vi.fn(() => true),
-  encryptData: vi.fn(async (data: string) => `encrypted:${data}`),
-  decryptData: vi.fn(async (data: string) => {
-    if (data.startsWith("encrypted:")) return data.slice("encrypted:".length);
-    throw new Error("Decryption failed");
+  encryptData: vi.fn((data: string) => Promise.resolve(`encrypted:${data}`)),
+  decryptData: vi.fn((data: string) => {
+    if (data.startsWith("encrypted:")) return Promise.resolve(data.slice("encrypted:".length));
+    return Promise.reject(new Error("Decryption failed"));
   }),
 }));
 
@@ -88,6 +88,23 @@ describe("wallet-scoped OAuth token rows", () => {
     expect(sessionStorage.getItem(`${NOTION_KEY}:${WALLET_B}`)).toBeNull();
   });
 
+  it.each([
+    ["clearNotionToken", clearNotionToken],
+    ["revokeNotionAccess", revokeNotionAccess],
+  ])("removes legacy-only tokens before an account switch after %s", async (_name, clearToken) => {
+    localStorage.setItem(
+      NOTION_KEY,
+      JSON.stringify({ accessToken: "legacy-access", refreshToken: "legacy-refresh" })
+    );
+
+    clearToken(WALLET_A);
+
+    expect(await getNotionAccessToken(WALLET_B)).toBeNull();
+    expect(localStorage.getItem(NOTION_KEY)).toBeNull();
+    expect(localStorage.getItem(`${NOTION_KEY}:${WALLET_B}`)).toBeNull();
+    expect(sessionStorage.getItem(`${NOTION_KEY}:${WALLET_B}`)).toBeNull();
+  });
+
   it("uses the sessionStorage row when the localStorage row under the same key is not readable", async () => {
     vi.mocked(hasEncryptionKey).mockReturnValue(false);
 
@@ -106,7 +123,7 @@ describe("wallet-scoped OAuth token rows", () => {
 
     expect(await getNotionAccessToken(WALLET_A)).toBe("legacy-token");
     expect(sessionStorage.getItem(NOTION_KEY)).toBeNull();
-    const rowA = JSON.parse(sessionStorage.getItem(`${NOTION_KEY}:${WALLET_A}`) ?? "{}");
+    const rowA: unknown = JSON.parse(sessionStorage.getItem(`${NOTION_KEY}:${WALLET_A}`) ?? "{}");
     expect(rowA).toEqual({ wallet: WALLET_A, token: { accessToken: "legacy-token" } });
     expect(await getNotionAccessToken(WALLET_B)).toBeNull();
   });
@@ -117,7 +134,7 @@ describe("wallet-scoped OAuth token rows", () => {
 
     expect(await getNotionAccessToken(WALLET_A)).toBe("legacy-local");
     expect(localStorage.getItem(NOTION_KEY)).toBeNull();
-    const rowA = JSON.parse(localStorage.getItem(`${NOTION_KEY}:${WALLET_A}`) ?? "{}");
+    const rowA: unknown = JSON.parse(localStorage.getItem(`${NOTION_KEY}:${WALLET_A}`) ?? "{}");
     expect(rowA).toEqual({ wallet: WALLET_A, token: { accessToken: "legacy-local" } });
     expect(sessionStorage.length).toBe(0);
     expect(await getNotionAccessToken(WALLET_B)).toBeNull();
