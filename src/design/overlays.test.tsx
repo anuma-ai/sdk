@@ -53,7 +53,7 @@ function Canvas({
 }
 
 function readAttrs(): AnumaNode["attrs"] {
-  return JSON.parse(screen.getByTestId("attrs").textContent ?? "{}");
+  return JSON.parse(screen.getByTestId("attrs").textContent ?? "{}") as AnumaNode["attrs"];
 }
 
 function resizeHandle(direction: string): HTMLElement {
@@ -107,12 +107,16 @@ describe("canvas handle keyboard access", () => {
     ["s", "ArrowDown", { x: 100, y: 80, w: 120, h: 61 }],
     ["sw", "ArrowLeft", { x: 99, y: 80, w: 121, h: 60 }],
     ["w", "ArrowLeft", { x: 99, y: 80, w: 121, h: 60 }],
-  ])("resizes the %s handle without a canvas nudge", (direction, key, expected) => {
+  ])("resizes the focused %s handle without a canvas nudge", (direction, key, expected) => {
     render(<Canvas />);
+    const handle = resizeHandle(direction);
+    handle.focus();
+    expect(document.activeElement).toBe(handle);
 
-    expect(fireEvent.keyDown(resizeHandle(direction), { key })).toBe(false);
+    expect(fireEvent.keyDown(document.activeElement!, { key })).toBe(false);
 
-    expect(readAttrs()).toMatchObject({ ...expected, rotation: 0 });
+    expect(readAttrs()).toEqual({ id: "rect", ...expected, rotation: 0 });
+    expect(document.activeElement).toBe(handle);
   });
 
   it("supports repeated resize keys, larger steps, and the minimum size at any scale", () => {
@@ -166,17 +170,20 @@ describe("canvas handle keyboard access", () => {
     expect(readAttrs()).toMatchObject({ x: 99, y: 80, w: 121, h: 60 });
   });
 
-  it("rotates in both directions with larger steps and retains position and size", () => {
+  it("rotates the focused handle in both directions and retains position and size", () => {
     render(<Canvas initial={makeDeck({ rotation: 20 })} />);
     const handle = rotateHandle();
+    handle.focus();
+    expect(document.activeElement).toBe(handle);
 
-    expect(fireEvent.keyDown(handle, { key: "ArrowRight" })).toBe(false);
-    expect(readAttrs().rotation).toBe(21);
+    expect(fireEvent.keyDown(document.activeElement!, { key: "ArrowRight" })).toBe(false);
+    expect(readAttrs()).toEqual({ id: "rect", ...initialBounds, rotation: 21 });
     fireEvent.keyDown(handle, { key: "ArrowDown", shiftKey: true });
     expect(readAttrs().rotation).toBe(36);
     fireEvent.keyDown(handle, { key: "ArrowLeft" });
     fireEvent.keyDown(handle, { key: "ArrowUp", shiftKey: true });
-    expect(readAttrs()).toMatchObject({ ...initialBounds, rotation: 20 });
+    expect(readAttrs()).toEqual({ id: "rect", ...initialBounds, rotation: 20 });
+    expect(document.activeElement).toBe(handle);
   });
 
   it("supports undo and redo for handle operations and preserves focus", () => {
