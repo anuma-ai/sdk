@@ -1,5 +1,5 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { StrictMode, useEffect } from "react";
+import { StrictMode, useEffect, useLayoutEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useVoice } from "./useVoice";
@@ -11,12 +11,16 @@ class MockMediaRecorder {
   ondataavailable: ((event: { data: Blob }) => void) | null = null;
   onstop: (() => void) | null = null;
   onerror: (() => void) | null = null;
+  finalChunk: Blob | null = null;
   start = vi.fn(() => {
     this.state = "recording";
   });
   stop = vi.fn(() => {
     this.state = "inactive";
-    queueMicrotask(() => this.onstop?.());
+    queueMicrotask(() => {
+      if (this.finalChunk) this.ondataavailable?.({ data: this.finalChunk });
+      this.onstop?.();
+    });
   });
 }
 
@@ -231,17 +235,73 @@ describe("useVoice recording lifecycle", () => {
     const { result, unmount } = renderHook(() => useVoice());
     await act(() => result.current.startRecording());
     const recorder = recorderConstructor.mock.results[0].value as MockMediaRecorder;
-    recorder.ondataavailable?.({ data: new Blob(["audio"]) });
+    recorder.finalChunk = new Blob(["audio"]);
 
     const stopped = result.current.stopRecording();
     unmount();
     for (const track of tracks) {
       expect(track.stop).toHaveBeenCalledTimes(1);
     }
-    await expect(stopped).resolves.toMatchObject({ mimeType: recorder.mimeType });
+    const recording = await stopped;
+    expect(recording.mimeType).toBe(recorder.mimeType);
+    expect(recording.blob.size).toBe(5);
     expect(recorder.stop).toHaveBeenCalledTimes(1);
     for (const track of tracks) {
       expect(track.stop).toHaveBeenCalledTimes(1);
     }
+  });
+
+  it("records when a layout effect starts it during mount", async () => {
+    const { stream } = createStream();
+    getUserMedia.mockResolvedValueOnce(stream);
+    const starts: Promise<void>[] = [];
+    const { result } = renderHook(() => {
+      const voice = useVoice();
+      const { startRecording } = voice;
+      useLayoutEffect(() => {
+        starts.push(startRecording());
+      }, [startRecording]);
+      return voice;
+    });
+
+    await act(() => starts[0]);
+
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(recorderConstructor).toHaveBeenCalledTimes(1);
+    expect(result.current.isRecording).toBe(true);
+  });
+
+  it("keeps the active recorder when an overlapping start fails", async () => {
+    const current = createStream();
+    let rejectStream!: (error: Error) => void;
+    getUserMedia
+      .mockReturnValueOnce(
+        new Promise<MediaStream>((_resolve, reject) => {
+          rejectStream = reject;
+        })
+      )
+      .mockResolvedValueOnce(current.stream);
+    const { result } = renderHook(() => useVoice());
+    const failing = result.current.startRecording();
+    await act(() => result.current.startRecording());
+    const recorder = recorderConstructor.mock.results[0].value as MockMediaRecorder;
+
+    const error = new Error("Microphone access denied");
+    await act(async () => {
+      rejectStream(error);
+      await expect(failing).rejects.toBe(error);
+    });
+
+    expect(recorder.stop).not.toHaveBeenCalled();
+    for (const track of current.tracks) {
+      expect(track.stop).not.toHaveBeenCalled();
+    }
+    expect(result.current.isRecording).toBe(true);
+    recorder.finalChunk = new Blob(["audio"]);
+    await act(async () => {
+      const recording = await result.current.stopRecording();
+      expect(recording.blob.size).toBe(5);
+    });
+    expect(result.current.isRecording).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type {
   ModelLoadProgress,
@@ -206,23 +206,33 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
   const pipelineRef = useRef<Pipeline | null>(null);
   const modelNameRef = useRef<string | null>(null);
 
-  const releaseRecording = useCallback(() => {
-    const recorder = mediaRecorderRef.current;
-    const stream = mediaStreamRef.current;
-    mediaRecorderRef.current = null;
-    mediaStreamRef.current = null;
+  const releaseRecording = useCallback(
+    (
+      recorder: MediaRecorder | null = mediaRecorderRef.current,
+      stream: MediaStream | null = mediaStreamRef.current
+    ) => {
+      if (mediaRecorderRef.current === recorder) mediaRecorderRef.current = null;
+      if (mediaStreamRef.current === stream) mediaStreamRef.current = null;
 
-    try {
-      if (recorder && recorder.state !== "inactive") {
-        recorder.stop();
+      try {
+        if (recorder && recorder.state !== "inactive") {
+          recorder.stop();
+        }
+      } finally {
+        stream?.getTracks().forEach((track) => track.stop());
       }
-    } finally {
-      stream?.getTracks().forEach((track) => track.stop());
-    }
+    },
+    []
+  );
+
+  const getRecordingLifecycle = useCallback(() => {
+    recordingLifecycleRef.current ??= new AbortController();
+    return recordingLifecycleRef.current;
   }, []);
 
-  useEffect(() => {
-    const lifecycle = new AbortController();
+  useLayoutEffect(() => {
+    const current = recordingLifecycleRef.current;
+    const lifecycle = current && !current.signal.aborted ? current : new AbortController();
     recordingLifecycleRef.current = lifecycle;
 
     return () => {
@@ -300,15 +310,17 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
   }, []);
 
   const startRecording = useCallback(async () => {
-    const lifecycle = recordingLifecycleRef.current;
-    if (!lifecycle || lifecycle.signal.aborted) return;
+    const lifecycle = getRecordingLifecycle();
+    if (lifecycle.signal.aborted) return;
 
     setError(null);
     setRecording(null);
     setTranscription(null);
 
+    let stream: MediaStream | null = null;
+    let recorder: MediaRecorder | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (lifecycle.signal.aborted) {
         stream.getTracks().forEach((track) => track.stop());
         return;
@@ -316,12 +328,12 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
       mediaStreamRef.current = stream;
 
       const mimeType = getSupportedMimeType();
-      const recorder = new MediaRecorder(stream, { mimeType });
+      recorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
-        if (!lifecycle.signal.aborted && e.data.size > 0) {
+        if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
@@ -332,12 +344,12 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
     } catch (err) {
       const processedError = err instanceof Error ? err : new Error("Failed to start recording");
       if (!lifecycle.signal.aborted) {
-        releaseRecording();
+        releaseRecording(recorder, stream);
         setError(processedError);
       }
       throw processedError;
     }
-  }, [releaseRecording]);
+  }, [getRecordingLifecycle, releaseRecording]);
 
   const stopRecording = useCallback(async (): Promise<VoiceRecording> => {
     return new Promise<VoiceRecording>((resolve, reject) => {
