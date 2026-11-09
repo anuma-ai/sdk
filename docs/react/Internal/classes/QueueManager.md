@@ -18,7 +18,7 @@ Defined in: [src/lib/db/queue/manager.ts:92](https://github.com/anuma-ai/sdk/blo
 
 > **clear**(`walletAddress`: `string`): `void`
 
-Defined in: [src/lib/db/queue/manager.ts:291](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#291)
+Defined in: [src/lib/db/queue/manager.ts:295](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#295)
 
 Clear all queued operations for a wallet.
 
@@ -199,7 +199,7 @@ Get the status of a wallet's queue.
 
 > **hasPending**(`walletAddress`: `string`): `boolean`
 
-Defined in: [src/lib/db/queue/manager.ts:334](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#334)
+Defined in: [src/lib/db/queue/manager.ts:338](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#338)
 
 Check if a wallet has any pending operations.
 
@@ -238,7 +238,7 @@ Check if a wallet has any pending operations.
 
 > **onQueueChange**(`walletAddress`: `string`, `callback`: () => `void`): () => `void`
 
-Defined in: [src/lib/db/queue/manager.ts:315](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#315)
+Defined in: [src/lib/db/queue/manager.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#319)
 
 Register a listener for queue changes on a wallet.
 
@@ -295,7 +295,7 @@ Unsubscribe function
 
 > **pause**(`walletAddress`: `string`): `void`
 
-Defined in: [src/lib/db/queue/manager.ts:300](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#300)
+Defined in: [src/lib/db/queue/manager.ts:304](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#304)
 
 Pause the queue for a wallet (stops flush mid-way).
 
@@ -500,7 +500,7 @@ Remove a specific operation from the queue.
 
 > **resume**(`walletAddress`: `string`): `void`
 
-Defined in: [src/lib/db/queue/manager.ts:307](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#307)
+Defined in: [src/lib/db/queue/manager.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#311)
 
 Resume the queue for a wallet.
 
