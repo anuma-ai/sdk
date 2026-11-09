@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   ModelLoadProgress,
@@ -200,10 +200,36 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordingLifecycleRef = useRef<AbortController | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startTimeRef = useRef<number>(0);
   const pipelineRef = useRef<Pipeline | null>(null);
   const modelNameRef = useRef<string | null>(null);
+
+  const releaseRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    const stream = mediaStreamRef.current;
+    mediaRecorderRef.current = null;
+    mediaStreamRef.current = null;
+
+    try {
+      if (recorder && recorder.state !== "inactive") {
+        recorder.stop();
+      }
+    } finally {
+      stream?.getTracks().forEach((track) => track.stop());
+    }
+  }, []);
+
+  useEffect(() => {
+    const lifecycle = new AbortController();
+    recordingLifecycleRef.current = lifecycle;
+
+    return () => {
+      lifecycle.abort();
+      releaseRecording();
+    };
+  }, [releaseRecording]);
 
   const getModelName = useCallback(() => {
     const model = options?.model ?? "whisper-tiny";
@@ -274,12 +300,19 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
   }, []);
 
   const startRecording = useCallback(async () => {
+    const lifecycle = recordingLifecycleRef.current;
+    if (!lifecycle || lifecycle.signal.aborted) return;
+
     setError(null);
     setRecording(null);
     setTranscription(null);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (lifecycle.signal.aborted) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       mediaStreamRef.current = stream;
 
       const mimeType = getSupportedMimeType();
@@ -288,7 +321,7 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
+        if (!lifecycle.signal.aborted && e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
@@ -298,14 +331,18 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
       setIsRecording(true);
     } catch (err) {
       const processedError = err instanceof Error ? err : new Error("Failed to start recording");
-      setError(processedError);
+      if (!lifecycle.signal.aborted) {
+        releaseRecording();
+        setError(processedError);
+      }
       throw processedError;
     }
-  }, []);
+  }, [releaseRecording]);
 
   const stopRecording = useCallback(async (): Promise<VoiceRecording> => {
     return new Promise<VoiceRecording>((resolve, reject) => {
       const recorder = mediaRecorderRef.current;
+      const lifecycle = recordingLifecycleRef.current;
       if (!recorder || recorder.state === "inactive") {
         const err = new Error("No active recording");
         setError(err);
@@ -323,15 +360,19 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
         mediaRecorderRef.current = null;
 
         const result: VoiceRecording = { blob, duration, mimeType };
-        setRecording(result);
-        setIsRecording(false);
+        if (!lifecycle?.signal.aborted) {
+          setRecording(result);
+          setIsRecording(false);
+        }
         resolve(result);
       };
 
       recorder.onerror = () => {
         const err = new Error("Recording failed");
-        setError(err);
-        setIsRecording(false);
+        if (!lifecycle?.signal.aborted) {
+          setError(err);
+          setIsRecording(false);
+        }
         reject(err);
       };
 
