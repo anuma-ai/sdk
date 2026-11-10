@@ -536,7 +536,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
         }
 
         for (let i = 0; i < results.length; i++) {
-          if (results[i].action === "suppressed") continue;
+          if (results[i].action === "suppressed" || results[i].action === "withheld") continue;
           options.onMemoryExtracted?.({
             candidate: candidates[i],
             result: results[i],

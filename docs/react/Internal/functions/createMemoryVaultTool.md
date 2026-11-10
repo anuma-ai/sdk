@@ -2,7 +2,7 @@
 
 > **createMemoryVaultTool**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md) | [`MemoryStore`](../interfaces/MemoryStore.md), `options?`: [`MemoryVaultToolOptions`](../interfaces/MemoryVaultToolOptions.md), `embeddingOptions?`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `cache?`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)): `ToolConfig`
 
-Defined in: [src/lib/memoryVault/tool.ts:188](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#188)
+Defined in: [src/lib/memoryVault/tool.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#197)
 
 Creates a memory vault tool for use with chat completions.
 

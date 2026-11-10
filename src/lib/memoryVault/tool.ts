@@ -37,7 +37,14 @@ function isSharedScope(scope: string | null | undefined): boolean {
  * `RetainResult.action` in `memory/retain` — restated here rather than imported
  * for the same reason MANUAL_FACT_TYPES is (memoryVault → memory import cycle).
  */
-export type VaultWriteAction = "create" | "merge" | "update" | "supersede" | "suppressed" | "skip";
+export type VaultWriteAction =
+  | "create"
+  | "merge"
+  | "update"
+  | "supersede"
+  | "suppressed"
+  | "skip"
+  | "withheld";
 
 export interface VaultWriteOutcome {
   /** The memory the write landed on: the fresh row, or the existing one it merged into. */
@@ -85,6 +92,8 @@ function describeWriteOutcome(outcome: VaultWriteOutcome): string {
       return `The vault already holds this fact (ID: ${outcome.memoryId}); it was noted as re-observed. Nothing new was created — do not save it again.`;
     case "suppressed":
       return "Not saved: this matches a memory the user previously deleted. Do not re-save it.";
+    case "withheld":
+      return "Not saved: the vault already keeps this fact as a private memory, and only the user can share it. Do not save it again.";
   }
 }
 

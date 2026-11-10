@@ -201,8 +201,8 @@ describe("retain", () => {
     vi.mocked(prepareVaultCandidates).mockResolvedValue({
       ...PREPARED,
       memories: [
-        { uniqueId: "kinded", kind: "occupation" },
-        { uniqueId: "free", kind: null },
+        { uniqueId: "kinded", kind: "occupation", scope: "private" },
+        { uniqueId: "free", kind: null, scope: "private" },
       ],
       embeddedItems: [
         { id: "kinded", content: "Works at Google", embedding: [0.1, 0.2, 0.3] },
@@ -1545,5 +1545,160 @@ describe("retain — a consolidator `create` survives the strict cosine stage", 
       memoryId: "close",
       consolidation: "create",
     });
+  });
+});
+
+describe("retain — a shared write never republishes a private memory", () => {
+  const fact = "Plays chess every Tuesday evening at a club in Brooklyn.";
+
+  beforeEach(() => {
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "new" } as never);
+  });
+
+  it("withholds a shared write that matches a private memory and writes nothing", async () => {
+    vi.mocked(prepareVaultCandidates)
+      .mockResolvedValueOnce(prepared([0.1, 0.2, 0.3]) as never)
+      .mockResolvedValueOnce({
+        ...prepared([0.1, 0.2, 0.3]),
+        memories: [{ uniqueId: "private-1", scope: "private", kind: null }],
+      } as never);
+    vi.mocked(rankPreparedVaultCandidates).mockResolvedValueOnce(
+      rankResult([{ uniqueId: "private-1", content: fact, similarity: 0.97 }]) as never
+    );
+
+    const result = await retain(fact, ctx, {
+      scope: "shared",
+      source: "auto-extracted",
+      respectTombstones: true,
+      consolidateOptions: { apiKey: "k" },
+    });
+
+    expect(result).toEqual({
+      action: "withheld",
+      memoryId: "private-1",
+      privateMemoryId: "private-1",
+      proofCount: 0,
+      similarity: 0.97,
+    });
+    expect(vi.mocked(prepareVaultCandidates).mock.calls[1][4]).toEqual({
+      limit: 1,
+      useFusion: false,
+      scopes: ["private"],
+      includeArchived: true,
+      queryEmbedding: [0.1, 0.2, 0.3],
+    });
+    const [lookup] = vi.mocked(rankPreparedVaultCandidates).mock.calls;
+    expect(lookup[1].memories.map((m) => m.uniqueId)).toEqual(["private-1"]);
+    expect(lookup[3]).toMatchObject({ limit: 1, minSimilarity: 0.8 });
+    expect(vi.mocked(consolidateMemory)).not.toHaveBeenCalled();
+    expect(vi.mocked(updateVaultMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(supersedeVaultMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(createSupersedingMemoryOp)).not.toHaveBeenCalled();
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
+  });
+
+  it("checks private memories for a legacy public-scope write too", async () => {
+    mockVaultMatches([]);
+
+    await retain(fact, ctx, { scope: "public" });
+
+    expect(vi.mocked(prepareVaultCandidates)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(prepareVaultCandidates).mock.calls[1][4]).toMatchObject({
+      scopes: ["private"],
+    });
+  });
+
+  it("publishes as before when no private memory clears the auto-merge threshold", async () => {
+    mockVaultMatches([]);
+
+    const result = await retain(fact, ctx, { scope: "shared", autoMergeThreshold: 0.9 });
+
+    expect(result).toMatchObject({ action: "create", memoryId: "new" });
+    expect(vi.mocked(rankPreparedVaultCandidates).mock.calls[0][3]).toMatchObject({
+      limit: 1,
+      minSimilarity: 0.9,
+    });
+    expect(vi.mocked(createVaultMemoryOp).mock.calls[0][1]).toMatchObject({ scope: "shared" });
+  });
+
+  it("never consults other scopes for a private write", async () => {
+    mockVaultMatches([]);
+
+    const result = await retain(fact, ctx, { scope: "private" });
+
+    expect(result.action).toBe("create");
+    expect(vi.mocked(prepareVaultCandidates)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(prepareVaultCandidates).mock.calls[0][4]).toMatchObject({
+      scopes: ["private"],
+    });
+  });
+
+  it("reuses the private lookup's query vector when the shared scope is empty", async () => {
+    vi.mocked(prepareVaultCandidates)
+      .mockResolvedValueOnce({ ...PREPARED, queryEmbedding: [], vaultSize: 0 } as never)
+      .mockResolvedValueOnce(prepared([0.4, 0.5, 0.6]) as never);
+    vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]) as never);
+
+    await retain(fact, ctx, { scope: "shared" });
+
+    expect(vi.mocked(prepareVaultCandidates).mock.calls[1][4]).not.toHaveProperty("queryEmbedding");
+    expect(vi.mocked(generateEmbedding)).not.toHaveBeenCalled();
+    expect(vi.mocked(createVaultMemoryOp).mock.calls[0][1]).toMatchObject({
+      embedding: JSON.stringify([0.4, 0.5, 0.6]),
+    });
+  });
+
+  it("refuses to publish when the private lookup cannot rank on embeddings", async () => {
+    vi.mocked(prepareVaultCandidates)
+      .mockResolvedValueOnce(prepared([0.1, 0.2, 0.3]) as never)
+      .mockResolvedValueOnce({
+        ...prepared([0.1, 0.2, 0.3]),
+        embeddingsUnavailable: true,
+      } as never);
+    vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]) as never);
+
+    await expect(retain(fact, ctx, { scope: "shared" })).rejects.toMatchObject({
+      name: "RetainError",
+      reason: "embeddings-unavailable",
+    });
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
+  });
+
+  it("refuses to publish when some private rows could not be decrypted", async () => {
+    vi.mocked(prepareVaultCandidates)
+      .mockResolvedValueOnce(prepared([0.1, 0.2, 0.3]) as never)
+      .mockResolvedValueOnce({ ...prepared([0.1, 0.2, 0.3]), undecryptableRows: 1 } as never);
+    vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]) as never);
+
+    await expect(retain(fact, ctx, { scope: "shared" })).rejects.toThrow(/could not be decrypted/);
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
+  });
+
+  it("keeps other-scope rows a backend returns away from consolidation and merge", async () => {
+    vi.mocked(prepareVaultCandidates)
+      .mockResolvedValueOnce({
+        ...PREPARED,
+        memories: [
+          { uniqueId: "private-1", scope: "private", kind: null },
+          { uniqueId: "shared-1", scope: "shared", kind: null },
+        ],
+        embeddedItems: [
+          { id: "private-1", content: fact, embedding: [0.1, 0.2, 0.3] },
+          { id: "shared-1", content: "Plays chess", embedding: [0.1, 0.2, 0.3] },
+        ],
+      } as never)
+      .mockResolvedValueOnce(prepared([0.1, 0.2, 0.3]) as never);
+    vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]) as never);
+
+    await retain(fact, ctx, { scope: "shared", consolidateOptions: { apiKey: "k" } });
+
+    const [, consolidationSet, mergeSet] = vi
+      .mocked(rankPreparedVaultCandidates)
+      .mock.calls.map((call) => call[1]);
+    for (const set of [consolidationSet, mergeSet]) {
+      expect(set.memories.map((m) => m.uniqueId)).toEqual(["shared-1"]);
+      expect(set.embeddedItems.map((item) => item.id)).toEqual(["shared-1"]);
+    }
   });
 });

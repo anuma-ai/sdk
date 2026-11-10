@@ -1,6 +1,6 @@
 # VaultWriteAction
 
-> **VaultWriteAction** = `"create"` | `"merge"` | `"update"` | `"supersede"` | `"suppressed"` | `"skip"`
+> **VaultWriteAction** = `"create"` | `"merge"` | `"update"` | `"supersede"` | `"suppressed"` | `"skip"` | `"withheld"`
 
 Defined in: [src/lib/memoryVault/tool.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#40)
 

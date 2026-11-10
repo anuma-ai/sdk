@@ -63,6 +63,22 @@ runMemoryStoreContract((overrides) =>
   })
 );
 
+describe("createLocalMemoryStore shared retain over unreadable private memories", () => {
+  it("refuses to publish while a private row cannot be decrypted", async () => {
+    const store = createLocalMemoryStore({
+      database: makeDatabase(),
+      embeddingOptions,
+      singleTenant: true,
+    });
+    const fact = "Plays chess every Tuesday evening at a club in Brooklyn.";
+    await store.create({ content: `enc:v2:${"ab".repeat(40)}`, scope: "private" });
+
+    await expect(store.retain(fact, { scope: "shared" })).rejects.toThrow(/could not be decrypted/);
+    expect(await store.list({ scopes: ["shared"] })).toEqual([]);
+    expect((await store.retain(fact, { scope: "private" })).action).toBe("create");
+  });
+});
+
 describe("createLocalMemoryStore parity with the raw ops", () => {
   function setup(database: Database = makeDatabase()) {
     const store = createLocalMemoryStore({ database, embeddingOptions });

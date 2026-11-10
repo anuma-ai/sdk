@@ -291,6 +291,22 @@ describe("createMemoryVaultTool", () => {
       );
     });
 
+    it("reports a withheld write as not saved without naming the private memory", async () => {
+      const write = vi.fn().mockResolvedValue({ memoryId: "private-1", action: "withheld" });
+      const tool = createMemoryVaultTool(mockVaultCtx, {
+        ...autoConfirm,
+        write,
+        scope: "shared",
+      });
+
+      const result = await tool.executor!({ content: "Plays chess on Tuesdays" });
+
+      expect(result).toBe(
+        "Not saved: the vault already keeps this fact as a private memory, and only the user can share it. Do not save it again."
+      );
+      expect(result).not.toContain("private-1");
+    });
+
     it("still asks onSave first and honours a cancel before writing", async () => {
       const write = vi.fn();
       const onSave = vi.fn().mockResolvedValue(false);

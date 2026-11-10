@@ -1058,6 +1058,41 @@ describe("extractAndRetain", () => {
     expect(vi.mocked(linkMemoryEntitiesOp)).not.toHaveBeenCalled();
   });
 
+  it("does NOT link entities onto the private memory that withheld a shared fact", async () => {
+    const candidates = {
+      candidates: [
+        {
+          content: "Plays chess every Tuesday evening at a club in Brooklyn.",
+          type: "preference",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: [{ name: "Brooklyn", kind: "place" }],
+        },
+      ],
+    };
+    vi.mocked(retain).mockResolvedValue({
+      action: "withheld",
+      memoryId: "private-1",
+      privateMemoryId: "private-1",
+      proofCount: 0,
+    });
+    const entityCtx = freshEntityCtx();
+
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      {
+        extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) },
+        entityCtx,
+        scope: "shared",
+      }
+    );
+
+    expect(vi.mocked(retain).mock.calls[0][2]).toMatchObject({ scope: "shared" });
+    expect(result.results[0]?.action).toBe("withheld");
+    expect(vi.mocked(linkMemoryEntitiesOp)).not.toHaveBeenCalled();
+  });
+
   it("skips entity-linking when the retained memory is user-managed", async () => {
     const candidates = {
       candidates: [

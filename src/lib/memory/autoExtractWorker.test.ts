@@ -369,6 +369,41 @@ describe("createAutoExtractor", () => {
     });
   });
 
+  it("reports a withheld fact on the turn but never as an extracted memory", async () => {
+    const candidate = {
+      content: "Plays chess every Tuesday evening at a club in Brooklyn.",
+      type: "other" as const,
+      confidence: 0.9,
+      sourceMessageIds: ["m1"],
+      entities: [],
+      eventTime: null,
+    };
+    const withheld = {
+      action: "withheld" as const,
+      memoryId: "private-1",
+      privateMemoryId: "private-1",
+      proofCount: 0,
+      similarity: 0.97,
+    };
+    vi.mocked(extractAndRetain).mockResolvedValue({
+      candidates: [candidate],
+      results: [withheld],
+      failedCount: 0,
+      outcome: "extracted",
+      quarantined: [],
+      ...TELEMETRY_FIXTURE,
+    });
+    const onMemoryExtracted = vi.fn();
+    const onTurnComplete = vi.fn();
+    const extractor = createAutoExtractor({ ...baseOptions, onMemoryExtracted, onTurnComplete });
+
+    extractor.processTurn(messages, "c1");
+    await flush();
+
+    expect(onMemoryExtracted).not.toHaveBeenCalled();
+    expect(onTurnComplete.mock.calls[0][0]).toMatchObject({ results: [withheld] });
+  });
+
   it("invokes onError when extractAndRetain throws", async () => {
     vi.mocked(extractAndRetain).mockRejectedValue(new Error("boom"));
     const onError = vi.fn();
