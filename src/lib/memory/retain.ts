@@ -413,6 +413,12 @@ async function findPrivateMatch(
         "it is already kept as a private memory. Retry when embeddings recover."
     );
   }
+  if (candidates.undecryptableRows) {
+    throw new Error(
+      `retain: ${candidates.undecryptableRows} private memory row(s) could not be decrypted — ` +
+        "refusing to publish a fact that may duplicate one of them until they are repaired."
+    );
+  }
   const { results } = await rankPreparedVaultCandidates(query, candidates, ctx.embeddingOptions, {
     limit: 1,
     minSimilarity: threshold,

@@ -1665,6 +1665,16 @@ describe("retain — a shared write never republishes a private memory", () => {
     expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
   });
 
+  it("refuses to publish when some private rows could not be decrypted", async () => {
+    vi.mocked(prepareVaultCandidates)
+      .mockResolvedValueOnce(prepared([0.1, 0.2, 0.3]) as never)
+      .mockResolvedValueOnce({ ...prepared([0.1, 0.2, 0.3]), undecryptableRows: 1 } as never);
+    vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]) as never);
+
+    await expect(retain(fact, ctx, { scope: "shared" })).rejects.toThrow(/could not be decrypted/);
+    expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
+  });
+
   it("keeps other-scope rows a backend returns away from consolidation and merge", async () => {
     vi.mocked(prepareVaultCandidates)
       .mockResolvedValueOnce({

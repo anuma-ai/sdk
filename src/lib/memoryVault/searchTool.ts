@@ -1458,6 +1458,7 @@ export async function buildProjectedCorpus(
    * exists to end.
    */
   rowsDecrypted: number;
+  undecryptableRows?: number;
   corpusStats: CorpusStats;
 }> {
   let rowsDecrypted = 0;
@@ -1666,6 +1667,7 @@ export async function buildProjectedCorpus(
     eventTimeKind: normalizeEventTimeKind(m.eventTimeKind),
     factType: m.factType,
   }));
+  const undecryptableRows = admittedRows.length - memories.length;
   return {
     memories,
     embeddedItems,
@@ -1673,6 +1675,7 @@ export async function buildProjectedCorpus(
     vaultSize,
     laneEmbedFailed,
     rowsDecrypted,
+    ...(undecryptableRows > 0 && { undecryptableRows }),
     corpusStats,
   };
 }
@@ -1733,6 +1736,8 @@ export interface PreparedVaultCandidates {
   facetEmbeddings?: number[][];
   /** Searchable rows (still-encrypted content already excluded). */
   memories: StoredVaultMemory[];
+  /** Rows excluded from `memories` because their content is still encrypted; absent when none were. */
+  undecryptableRows?: number;
   /** Ranker input, one entry per searchable row. */
   embeddedItems: EmbeddedItem[];
   /** The query vector. Empty array when the vault had nothing to rank. */
@@ -1872,6 +1877,7 @@ export async function prepareVaultCandidates(
   let queryEmbedding: number[];
   let vaultSize: number;
   let rowsDecrypted: number;
+  let undecryptableRows: number;
   let embeddingsUnavailable = false;
   let embeddingFailure = false;
   const onEmbeddingDegraded = () => {
@@ -1919,6 +1925,7 @@ export async function prepareVaultCandidates(
       };
     }
     ({ memories, embeddedItems, queryEmbedding, vaultSize } = corpus);
+    undecryptableRows = corpus.undecryptableRows ?? 0;
     rowsDecrypted = corpus.rowsDecrypted;
     if (corpus.laneEmbedFailed) embeddingFailure = true;
     if (memories.length === 0) {
@@ -1931,6 +1938,7 @@ export async function prepareVaultCandidates(
         embeddingFailure,
         decryptLast: true,
         rowsDecrypted: corpus.rowsDecrypted,
+        ...(undecryptableRows > 0 && { undecryptableRows }),
         queryEmbedMs: embedStats.queryMs,
         rowsEmbedded: embedStats.rowsEmbedded,
         corpusStats,
@@ -1945,6 +1953,7 @@ export async function prepareVaultCandidates(
     vaultSize = loaded.length;
     rowsDecrypted = loaded.length;
     memories = loaded.filter((m) => !isEncrypted(m.content));
+    undecryptableRows = loaded.length - memories.length;
     if (memories.length < loaded.length) {
       getLogger().warn(
         `memoryVault: ${loaded.length - memories.length}/${loaded.length} memories still ` +
@@ -1961,6 +1970,7 @@ export async function prepareVaultCandidates(
         embeddingFailure: false,
         decryptLast: false,
         rowsDecrypted: loaded.length,
+        ...(undecryptableRows > 0 && { undecryptableRows }),
         queryEmbedMs: embedStats.queryMs,
         rowsEmbedded: embedStats.rowsEmbedded,
       };
@@ -2074,6 +2084,7 @@ export async function prepareVaultCandidates(
     embeddingFailure,
     decryptLast: !!searchOptions?.decryptLast,
     rowsDecrypted,
+    ...(undecryptableRows > 0 && { undecryptableRows }),
     ...(corpusStats && { corpusStats }),
   };
 }
