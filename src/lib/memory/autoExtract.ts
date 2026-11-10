@@ -814,7 +814,11 @@ export async function extractAndRetain(
       succeededCandidates.push(candidate);
       results.push(result);
 
-      if (result.action !== "suppressed" && candidate.entities.length > 0) {
+      if (
+        result.action !== "suppressed" &&
+        result.action !== "withheld" &&
+        candidate.entities.length > 0
+      ) {
         try {
           signal?.throwIfAborted();
           if (memoryStore) {

@@ -521,7 +521,14 @@ export interface RecallTelemetryCallbacks {
   onError?: (error: Error) => void;
 }
 
-export type RetainAction = "create" | "merge" | "update" | "skip" | "suppressed" | "supersede";
+export type RetainAction =
+  | "create"
+  | "merge"
+  | "update"
+  | "skip"
+  | "suppressed"
+  | "supersede"
+  | "withheld";
 
 /**
  * The consolidation LLM's decision for a candidate, when it made one. Reported
@@ -678,7 +685,13 @@ export interface RetainResult {
    * re-creation. `memoryId` is set to the same id (no new memory was written).
    */
   tombstoneId?: string;
-  /** Updated proof_count after this write. 0 when nothing was written (suppressed). */
+  /**
+   * When action is 'withheld', the id of the private memory that already holds
+   * this fact, left untouched instead of publishing a shared copy. `memoryId` is
+   * set to the same id (no new memory was written).
+   */
+  privateMemoryId?: string;
+  /** Updated proof_count after this write. 0 when nothing was written (suppressed, withheld). */
   proofCount: number;
   /**
    * How close the write was to the threshold that allowed it. Absent on the
@@ -688,6 +701,8 @@ export interface RetainResult {
    *
    * - `suppressed` — an exact cosine against the tombstone, computed in
    *   `findTombstoneMatch`.
+   * - `withheld` — the ranker's score for the private match, read the same way
+   *   as `merge` below.
    * - `merge` — the RANKER's score for the target, not a pure cosine. The
    *   cosine is what cleared `minSimilarity`, but the supersession pass may
    *   then adjust it (`oldScore - delta` / `newScore + delta`) before this

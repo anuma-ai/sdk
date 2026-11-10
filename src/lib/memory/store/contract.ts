@@ -425,6 +425,44 @@ export function runMemoryStoreContract(
       expect(facts.results[0]?.uniqueId).toBe(first.memoryId);
     });
 
+    it("keeps a private fact private when a shared retain repeats it", async () => {
+      const store = await makeStore();
+      const fact = "Plays chess every Tuesday evening at a club in Brooklyn.";
+      const saved = await store.retain(fact, { scope: "private" });
+
+      const repeated = await store.retain(fact, {
+        scope: "shared",
+        source: "auto-extracted",
+        respectTombstones: true,
+      });
+
+      expect(repeated).toMatchObject({
+        action: "withheld",
+        memoryId: saved.memoryId,
+        privateMemoryId: saved.memoryId,
+        proofCount: 0,
+      });
+      expect(await store.list({ includeArchived: true })).toMatchObject([
+        { uniqueId: saved.memoryId, content: fact, scope: "private", proofCount: 1 },
+      ]);
+    });
+
+    it("still gives a private retain its own copy of a shared fact", async () => {
+      const store = await makeStore();
+      const fact = "Plays chess every Tuesday evening at a club in Brooklyn.";
+      const shared = await store.retain(fact, { scope: "shared" });
+
+      const own = await store.retain(fact, { scope: "private" });
+
+      expect(own.action).toBe("create");
+      expect((await store.list()).map((m) => [m.uniqueId, m.scope]).sort()).toEqual(
+        [
+          [shared.memoryId, "shared"],
+          [own.memoryId, "private"],
+        ].sort()
+      );
+    });
+
     it("extracts topics for the backlog and stamps what it answered", async () => {
       const store = await makeStore();
       const hike = await store.create({ content: "Hikes Mt Hood", embedding: vectorA });

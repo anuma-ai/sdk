@@ -7,6 +7,7 @@ import {
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations.js";
+import { levelFromScope } from "../db/memoryVault/types.js";
 import { getLogger } from "../logger.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants.js";
 import { generateEmbedding } from "../memoryEngine/embeddings.js";
@@ -24,7 +25,8 @@ import { notifyConsolidationFallback } from "./consolidationFallback.js";
 import type { RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.8;
-const DEFAULT_SCOPE = "private";
+const PRIVATE_SCOPE = "private";
+const DEFAULT_SCOPE = PRIVATE_SCOPE;
 const DEFAULT_CONSOLIDATE_THRESHOLD = 0.55;
 const DEFAULT_CONSOLIDATE_TOP_K = 20;
 
@@ -152,6 +154,7 @@ export async function retainWithPersistence(
   let consolidationDecidedCreate = false;
   let supersedeContent: string | undefined;
   let prepared: PreparedVaultCandidates | undefined;
+  let queryEmbedding: number[] = [];
 
   if (enableAutoMerge) {
     prepared = await ctx.persistence.prepare(trimmed, {
@@ -161,7 +164,11 @@ export async function retainWithPersistence(
       includeArchived: true,
       ...(options.folderId !== undefined && { folderId: options.folderId }),
     });
-    prepared = withoutKindedRows(prepared);
+    prepared = keepRows(
+      prepared,
+      (memory) =>
+        (memory.kind === null || memory.kind === undefined) && memory.scope === resolvedScope
+    );
 
     if (prepared.embeddingFailure || prepared.embeddingsUnavailable) {
       throw new RetainError(
@@ -170,6 +177,21 @@ export async function retainWithPersistence(
           "which would create a duplicate instead of merging into the existing memory. Retry " +
           "when embeddings recover, or pass enableAutoMerge: false to force a create."
       );
+    }
+    queryEmbedding = prepared.queryEmbedding;
+
+    if (levelFromScope(resolvedScope) !== "private") {
+      const privateLookup = await findPrivateMatch(trimmed, ctx, queryEmbedding, threshold);
+      if (privateLookup.match) {
+        return {
+          action: "withheld",
+          memoryId: privateLookup.match.id,
+          privateMemoryId: privateLookup.match.id,
+          proofCount: 0,
+          similarity: privateLookup.match.similarity,
+        };
+      }
+      if (queryEmbedding.length === 0) queryEmbedding = privateLookup.queryEmbedding;
     }
 
     if (options.consolidateOptions) {
@@ -236,9 +258,7 @@ export async function retainWithPersistence(
 
   const contentToWrite = supersedeContent ?? trimmed;
   const reusableQueryEmbedding =
-    supersedeContent === undefined && prepared && prepared.queryEmbedding.length > 0
-      ? prepared.queryEmbedding
-      : undefined;
+    supersedeContent === undefined && queryEmbedding.length > 0 ? queryEmbedding : undefined;
   const generatedEmbedding =
     reusableQueryEmbedding ?? (await generateEmbedding(contentToWrite, ctx.embeddingOptions));
   const embedding = ctx.normalizeEmbedding?.(generatedEmbedding) ?? generatedEmbedding;
@@ -357,15 +377,51 @@ export async function retainWithPersistence(
   };
 }
 
-function withoutKindedRows(prepared: PreparedVaultCandidates): PreparedVaultCandidates {
-  const kinded = new Set(
-    prepared.memories.filter((m) => m.kind !== null && m.kind !== undefined).map((m) => m.uniqueId)
-  );
-  if (kinded.size === 0) return prepared;
+function keepRows(
+  prepared: PreparedVaultCandidates,
+  keep: (memory: PreparedVaultCandidates["memories"][number]) => boolean
+): PreparedVaultCandidates {
+  const dropped = new Set(prepared.memories.filter((m) => !keep(m)).map((m) => m.uniqueId));
+  if (dropped.size === 0) return prepared;
   return {
     ...prepared,
-    memories: prepared.memories.filter((m) => !kinded.has(m.uniqueId)),
-    embeddedItems: prepared.embeddedItems.filter((item) => !kinded.has(item.id)),
+    memories: prepared.memories.filter((m) => !dropped.has(m.uniqueId)),
+    embeddedItems: prepared.embeddedItems.filter((item) => !dropped.has(item.id)),
+  };
+}
+
+async function findPrivateMatch(
+  query: string,
+  ctx: RetainPipelineContext,
+  queryEmbedding: number[],
+  threshold: number
+): Promise<{ match: { id: string; similarity: number } | null; queryEmbedding: number[] }> {
+  const candidates = keepRows(
+    await ctx.persistence.prepare(query, {
+      limit: 1,
+      useFusion: false,
+      scopes: [PRIVATE_SCOPE],
+      includeArchived: true,
+      ...(queryEmbedding.length > 0 && { queryEmbedding }),
+    }),
+    (memory) => memory.scope === PRIVATE_SCOPE
+  );
+  if (candidates.embeddingFailure || candidates.embeddingsUnavailable) {
+    throw new RetainError(
+      "embeddings-unavailable",
+      "retain: embeddings unavailable — refusing to publish a fact without checking whether " +
+        "it is already kept as a private memory. Retry when embeddings recover."
+    );
+  }
+  const { results } = await rankPreparedVaultCandidates(query, candidates, ctx.embeddingOptions, {
+    limit: 1,
+    minSimilarity: threshold,
+    useFusion: false,
+  });
+  const top = results[0];
+  return {
+    match: top ? { id: top.uniqueId, similarity: top.similarity } : null,
+    queryEmbedding: candidates.queryEmbedding,
   };
 }
 
