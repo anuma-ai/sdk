@@ -12,9 +12,9 @@ import {
 import type { UIInteractionContext } from "./uiInteraction";
 
 const MARKET_ARGS_ERROR =
-  "display_prediction_market needs title, outcome and url as text and probability as a number from 0 to 1, copied from the market_detail or search result.";
+  "display_prediction_market needs title and outcome as text, url as the polymarket.com link and probability as a number from 0 to 1, copied from the market_detail or search result.";
 const HOLDERS_ARGS_ERROR =
-  "display_prediction_holders needs title and url as text and outcomes copied from the top_holders result: each with outcome, price (0 to 1), top_value_usd, and optional holders of name, amount and value_usd.";
+  "display_prediction_holders needs title as text, url as the polymarket.com link from the market_detail or search result, and outcomes copied from the top_holders result: each with outcome, price (0 to 1), top_value_usd, and optional holders of name, amount and value_usd.";
 const OUTCOME_COUNT_ERROR = "Pass 1 to 5 outcomes; for an event, the top 5 by odds.";
 const HOLDER_COUNT_ERROR = "Pass at most 10 holders per outcome.";
 
@@ -136,6 +136,9 @@ describe("isPolymarketUrl", () => {
 describe("formatChance and formatCents", () => {
   it.each([
     [0.085, "9%"],
+    [0.145, "15%"],
+    [0.285, "29%"],
+    [0.575, "58%"],
     [0.005, "<1%"],
     [0.995, ">99%"],
     [0.99, "99%"],
@@ -260,6 +263,10 @@ describe("createPredictionMarketTool", () => {
     ["no title", { ...valid, title: undefined }],
     ["a blank outcome", { ...valid, outcome: "   " }],
     ["a url that is not text", { ...valid, url: 42 }],
+    ["a url off polymarket.com", { ...valid, url: "https://evil.io/x" }],
+    ["an http url", { ...valid, url: "http://polymarket.com/event/x" }],
+    ["a lookalike host", { ...valid, url: "https://polymarket.com.evil.io/x" }],
+    ["a javascript url", { ...valid, url: "javascript:alert(1)" }],
     ["a probability above 1", { ...valid, probability: 1.5 }],
     ["a probability below 0", { ...valid, probability: -0.1 }],
     ["a probability that is NaN", { ...valid, probability: Number.NaN }],
@@ -400,6 +407,10 @@ describe("createPredictionHoldersTool", () => {
   it.each([
     ["no title", { ...valid, title: "" }],
     ["a url that is not text", { ...valid, url: null }],
+    ["a url off polymarket.com", { ...valid, url: "https://evil.io/x" }],
+    ["an http url", { ...valid, url: "http://polymarket.com/event/x" }],
+    ["a lookalike host", { ...valid, url: "https://polymarket.com.evil.io/x" }],
+    ["a javascript url", { ...valid, url: "javascript:alert(1)" }],
     ["outcomes that are not a list", { ...valid, outcomes: "Yes" }],
     ["an outcome that is null", { ...valid, outcomes: [null] }],
     ["an outcome with no label", { ...valid, outcomes: [{ ...no, outcome: " " }] }],
