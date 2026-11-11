@@ -32,7 +32,10 @@ const DEFAULT_CONSOLIDATE_TOP_K = 20;
 
 export class RetainError extends Error {
   constructor(
-    readonly reason: Extract<WriteFailureReason, "embeddings-unavailable" | "merge-not-persisted">,
+    readonly reason: Extract<
+      WriteFailureReason,
+      "embeddings-unavailable" | "merge-not-persisted" | "private-memory-unreadable"
+    >,
     message: string
   ) {
     super(message);
@@ -414,7 +417,8 @@ async function findPrivateMatch(
     );
   }
   if (candidates.undecryptableRows) {
-    throw new Error(
+    throw new RetainError(
+      "private-memory-unreadable",
       `retain: ${candidates.undecryptableRows} private memory row(s) could not be decrypted — ` +
         "refusing to publish a fact that may duplicate one of them until they are repaired."
     );

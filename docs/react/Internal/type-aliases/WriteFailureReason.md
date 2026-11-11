@@ -1,5 +1,5 @@
 # WriteFailureReason
 
-> **WriteFailureReason** = `"source-ineligible"` | `"embeddings-unavailable"` | `"merge-not-persisted"` | `"aborted"` | `"unknown"`
+> **WriteFailureReason** = `"source-ineligible"` | `"embeddings-unavailable"` | `"merge-not-persisted"` | `"private-memory-unreadable"` | `"aborted"` | `"unknown"`
 
 Defined in: [src/lib/memory/autoExtract.ts:500](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#500)
