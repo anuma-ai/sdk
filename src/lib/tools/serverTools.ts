@@ -1561,6 +1561,19 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
     anchors: ["AnumaPaymentsMCP-anuma_search_flights"],
     anchorMinSimilarity: 0.5,
   },
+  {
+    name: "birdeye-token-lookup",
+    members: [
+      "AnumaBirdeyeMCP-get_solana_token_overview",
+      "AnumaBirdeyeMCP-get_solana_token_security",
+      "AnumaBirdeyeMCP-get_solana_holder_distribution",
+      "AnumaBirdeyeMCP-get_solana_exit_liquidity",
+      "AnumaBirdeyeMCP-get_solana_token_prices",
+      "AnumaBirdeyeMCP-get_solana_price_history",
+    ],
+    anchors: ["AnumaBirdeyeMCP-search_solana_tokens"],
+    anchorMinSimilarity: 0.5,
+  },
 ];
 
 /**

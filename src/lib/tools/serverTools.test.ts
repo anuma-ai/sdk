@@ -732,3 +732,51 @@ describe("flight booking — searching flights brings the booking tools", () => 
     expect(looseFilter([1, 0], catalogWithSearchScore(0.4))).toEqual([SEARCH]);
   });
 });
+
+describe("birdeye — searching Solana tokens brings the mint tools", () => {
+  const SEARCH = "AnumaBirdeyeMCP-search_solana_tokens";
+  const MINT_TOOLS = [
+    "AnumaBirdeyeMCP-get_solana_token_overview",
+    "AnumaBirdeyeMCP-get_solana_token_security",
+    "AnumaBirdeyeMCP-get_solana_holder_distribution",
+    "AnumaBirdeyeMCP-get_solana_exit_liquidity",
+    "AnumaBirdeyeMCP-get_solana_token_prices",
+    "AnumaBirdeyeMCP-get_solana_price_history",
+  ];
+  const LIST_TOOLS = [
+    "AnumaBirdeyeMCP-get_solana_trending_tokens",
+    "AnumaBirdeyeMCP-get_solana_new_listings",
+  ];
+  const st = (name: string, embedding: number[]): ServerTool => ({
+    type: "function",
+    name,
+    description: `desc ${name}`,
+    parameters: { type: "object", properties: {}, required: [] },
+    embedding,
+  });
+  const catalogWithSearchScore = (score: number) => [
+    st(SEARCH, [score, Math.sqrt(1 - score * score)]),
+    ...[...MINT_TOOLS, ...LIST_TOOLS].map((name) => st(name, [0, 1])),
+  ];
+
+  it("defines birdeye-token-lookup with the search tool as anchor and the mint tools as members", () => {
+    const set = SERVER_TOOL_DEPENDENCY_SETS.find((s) => s.name === "birdeye-token-lookup");
+    expect(set?.members).toEqual(MINT_TOOLS);
+    expect(set?.anchors).toEqual([SEARCH]);
+  });
+
+  it("adds the mint tools when the search tool scores at least 0.5", () => {
+    expect(defaultServerToolsFilter([1, 0], catalogWithSearchScore(0.5))).toEqual([
+      SEARCH,
+      ...MINT_TOOLS,
+    ]);
+  });
+
+  it("does not add the mint tools when the search tool scores 0.4", () => {
+    const looseFilter = createServerToolsFilter({
+      matchOptions: { limit: 5, minSimilarity: 0.3 },
+      toolSets: SERVER_TOOL_DEPENDENCY_SETS,
+    });
+    expect(looseFilter([1, 0], catalogWithSearchScore(0.4))).toEqual([SEARCH]);
+  });
+});
