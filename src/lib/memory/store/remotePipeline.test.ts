@@ -485,6 +485,27 @@ describe("remote admission and consolidation regressions", () => {
     expect(h.put).not.toHaveBeenCalled();
     expect(h.putMany).not.toHaveBeenCalled();
   });
+  it("reports an unreadable private row as a typed failure when a shared retain checks it", async () => {
+    const h = setup();
+    h.seed("broken");
+    h.undecryptable.add("broken");
+    const retained = h.pipeline.retain("Drinks tea", { scope: "shared" });
+    await expect(retained).rejects.toThrow("could not decrypt");
+    await expect(retained).rejects.toMatchObject({
+      name: "RetainError",
+      reason: "private-memory-unreadable",
+    });
+    expect(h.put).not.toHaveBeenCalled();
+  });
+  it("keeps an unreadable shared row an untyped retain failure", async () => {
+    const h = setup();
+    h.seed("broken", { scope: "shared" });
+    h.undecryptable.add("broken");
+    const retained = h.pipeline.retain("Drinks tea", { scope: "shared" });
+    await expect(retained).rejects.toThrow("could not decrypt");
+    await expect(retained).rejects.toMatchObject({ name: "Error" });
+    expect(h.put).not.toHaveBeenCalled();
+  });
   it("refuses tombstone checks that cannot decrypt the nearest tombstone", async () => {
     const h = setup();
     h.seed("gone", { is_deleted: true });

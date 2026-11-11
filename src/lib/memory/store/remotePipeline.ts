@@ -22,7 +22,7 @@ import {
   rankPreparedVaultCandidates,
 } from "../../memoryVault/searchTool.js";
 import { recall } from "../recall.js";
-import { type RetainPersistence, retainWithPersistence } from "../retain.js";
+import { RetainError, type RetainPersistence, retainWithPersistence } from "../retain.js";
 import type { RecallFactSource, RecallResult, RetainResult } from "../types.js";
 import {
   type RemoteMemoryCandidateOptions,
@@ -137,12 +137,17 @@ export function createRemoteMemoryPipeline(
         throw new MemorySourceIneligibleError();
       signal?.throwIfAborted();
     };
-    const rejectUndecryptable = (failed: RemoteMemoryDecodeFailure[]) => {
+    const rejectUndecryptable = (
+      failed: RemoteMemoryDecodeFailure[],
+      scopes: readonly string[] = []
+    ) => {
       if (!failed.length) return;
-      if (mode === "retain")
-        throw new Error(
-          `Remote memories could not decrypt ${failed.length} candidate row(s); refusing to retain until they are repaired`
-        );
+      if (mode === "retain") {
+        const message = `Remote memories could not decrypt ${failed.length} candidate row(s); refusing to retain until they are repaired`;
+        throw scopes.length > 0 && scopes.every((scope) => scope === "private")
+          ? new RetainError("private-memory-unreadable", message)
+          : new Error(message);
+      }
       getLogger().warn(
         `[memory/remote] Skipping ${failed.length} undecryptable candidate row(s)`,
         failed.map((failure) => failure.memory_id)
@@ -254,11 +259,16 @@ export function createRemoteMemoryPipeline(
           clearTimeout(timer);
         }
       }
-      rejectUndecryptable([
-        ...new Map(
-          windows.flatMap((window) => window.failed).map((failure) => [failure.memory_id, failure])
-        ).values(),
-      ]);
+      rejectUndecryptable(
+        [
+          ...new Map(
+            windows
+              .flatMap((window) => window.failed)
+              .map((failure) => [failure.memory_id, failure])
+          ).values(),
+        ],
+        search.scopes
+      );
       const items = [
         ...new Map(
           windows.flatMap((window) => window.items).map((item) => [item.memory.memory_id, item])
@@ -353,7 +363,7 @@ export function createRemoteMemoryPipeline(
           deleted_only: true,
           signal,
         });
-        rejectUndecryptable(window.failed);
+        rejectUndecryptable(window.failed, [scope]);
         return remember(window.items);
       },
       create: (input) => write(createRow(input), 0),
