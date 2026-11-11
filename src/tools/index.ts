@@ -262,6 +262,21 @@ export {
 export type { DisplayPhoneCallOfferResult } from "./phoneCallOffer";
 export { createPhoneCallOfferTool } from "./phoneCallOffer";
 export type {
+  HolderBar,
+  PredictionHolder,
+  PredictionHoldersCardData,
+  PredictionMarketCardData,
+  PredictionOutcomeHolders,
+} from "./predictionCards";
+export {
+  createPredictionHoldersTool,
+  createPredictionMarketTool,
+  formatCents,
+  formatChance,
+  holderBars,
+  isPolymarketUrl,
+} from "./predictionCards";
+export type {
   SlackGetChannelHistoryArgs,
   SlackGetThreadRepliesArgs,
   SlackListChannelsArgs,
