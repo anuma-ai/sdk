@@ -501,6 +501,7 @@ export type WriteFailureReason =
   | "source-ineligible"
   | "embeddings-unavailable"
   | "merge-not-persisted"
+  | "private-memory-unreadable"
   | "aborted"
   | "unknown";
 
