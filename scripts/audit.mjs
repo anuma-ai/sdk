@@ -3,29 +3,7 @@ import { execFileSync } from "node:child_process";
 const SEVERITY_THRESHOLD = new Set(["high", "critical"]);
 const BULK_ENDPOINT = "https://registry.npmjs.org/-/npm/v1/security/advisories/bulk";
 
-const ALLOWLIST = [
-  {
-    id: "GHSA-w3rx-r6r6-pgpr",
-    package: "image-size",
-    reason:
-      "ICNS parser DoS. Only fixed in image-size 2.0.3; no patched 1.x, and metro 0.83 (react-native 0.82) calls the v1 path-string API that v2 removed, so a pnpm.overrides pin breaks metro. Reachable only via react-native -> community-cli-plugin -> metro (build-time bundler), never in a shipped bundle.",
-    expires: "2026-11-10",
-  },
-  {
-    id: "GHSA-5p2g-fcmc-qvqq",
-    package: "image-size",
-    reason:
-      "JXL/HEIF parser DoS in the same package and version as GHSA-w3rx-r6r6-pgpr; identical v1-only-compatible and build-time-only reachability evidence.",
-    expires: "2026-11-10",
-  },
-  {
-    id: "GHSA-vfj7-8cjw-p6xm",
-    package: "braces",
-    reason:
-      "Stack-exhaustion DoS on deeply nested patterns. No patched release exists (advisory covers <= 3.0.3, the latest). Reachable only via react-native's metro bundler and jest tooling (micromatch), never imported by the SDK or in a shipped bundle.",
-    expires: "2026-11-10",
-  },
-];
+const ALLOWLIST = [];
 
 function collectPackages() {
   const raw = execFileSync("pnpm", ["list", "--prod", "--depth", "Infinity", "--json"], {
