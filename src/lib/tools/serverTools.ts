@@ -1571,7 +1571,12 @@ export const SERVER_TOOL_DEPENDENCY_SETS: ToolSet[] = [
       "AnumaBirdeyeMCP-get_solana_token_prices",
       "AnumaBirdeyeMCP-get_solana_price_history",
     ],
-    anchors: ["AnumaBirdeyeMCP-search_solana_tokens"],
+    // Each anchor returns mint addresses that only the members accept.
+    anchors: [
+      "AnumaBirdeyeMCP-search_solana_tokens",
+      "AnumaBirdeyeMCP-get_solana_trending_tokens",
+      "AnumaBirdeyeMCP-get_solana_new_listings",
+    ],
     anchorMinSimilarity: 0.5,
   },
 ];

@@ -735,6 +735,8 @@ describe("flight booking — searching flights brings the booking tools", () => 
 
 describe("birdeye — searching Solana tokens brings the mint tools", () => {
   const SEARCH = "AnumaBirdeyeMCP-search_solana_tokens";
+  const TRENDING = "AnumaBirdeyeMCP-get_solana_trending_tokens";
+  const NEW_LISTINGS = "AnumaBirdeyeMCP-get_solana_new_listings";
   const MINT_TOOLS = [
     "AnumaBirdeyeMCP-get_solana_token_overview",
     "AnumaBirdeyeMCP-get_solana_token_security",
@@ -743,10 +745,7 @@ describe("birdeye — searching Solana tokens brings the mint tools", () => {
     "AnumaBirdeyeMCP-get_solana_token_prices",
     "AnumaBirdeyeMCP-get_solana_price_history",
   ];
-  const LIST_TOOLS = [
-    "AnumaBirdeyeMCP-get_solana_trending_tokens",
-    "AnumaBirdeyeMCP-get_solana_new_listings",
-  ];
+  const ANCHORS = [SEARCH, TRENDING, NEW_LISTINGS];
   const st = (name: string, embedding: number[]): ServerTool => ({
     type: "function",
     name,
@@ -754,29 +753,31 @@ describe("birdeye — searching Solana tokens brings the mint tools", () => {
     parameters: { type: "object", properties: {}, required: [] },
     embedding,
   });
-  const catalogWithSearchScore = (score: number) => [
-    st(SEARCH, [score, Math.sqrt(1 - score * score)]),
-    ...[...MINT_TOOLS, ...LIST_TOOLS].map((name) => st(name, [0, 1])),
+  const catalogWithAnchorScore = (anchor: string, score: number) => [
+    ...ANCHORS.map((name) =>
+      st(name, name === anchor ? [score, Math.sqrt(1 - score * score)] : [0, 1])
+    ),
+    ...MINT_TOOLS.map((name) => st(name, [0, 1])),
   ];
 
-  it("defines birdeye-token-lookup with the search tool as anchor and the mint tools as members", () => {
+  it("defines birdeye-token-lookup with the mint-returning tools as anchors and the mint tools as members", () => {
     const set = SERVER_TOOL_DEPENDENCY_SETS.find((s) => s.name === "birdeye-token-lookup");
     expect(set?.members).toEqual(MINT_TOOLS);
-    expect(set?.anchors).toEqual([SEARCH]);
+    expect(set?.anchors).toEqual(ANCHORS);
   });
 
-  it("adds the mint tools when the search tool scores at least 0.5", () => {
-    expect(defaultServerToolsFilter([1, 0], catalogWithSearchScore(0.5))).toEqual([
-      SEARCH,
+  it.each(ANCHORS)("adds the mint tools when %s scores at least 0.5", (anchor) => {
+    expect(defaultServerToolsFilter([1, 0], catalogWithAnchorScore(anchor, 0.5))).toEqual([
+      anchor,
       ...MINT_TOOLS,
     ]);
   });
 
-  it("does not add the mint tools when the search tool scores 0.4", () => {
+  it.each(ANCHORS)("does not add the mint tools when %s scores 0.4", (anchor) => {
     const looseFilter = createServerToolsFilter({
       matchOptions: { limit: 5, minSimilarity: 0.3 },
       toolSets: SERVER_TOOL_DEPENDENCY_SETS,
     });
-    expect(looseFilter([1, 0], catalogWithSearchScore(0.4))).toEqual([SEARCH]);
+    expect(looseFilter([1, 0], catalogWithAnchorScore(anchor, 0.4))).toEqual([anchor]);
   });
 });
