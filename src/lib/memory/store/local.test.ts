@@ -73,7 +73,12 @@ describe("createLocalMemoryStore shared retain over unreadable private memories"
     const fact = "Plays chess every Tuesday evening at a club in Brooklyn.";
     await store.create({ content: `enc:v2:${"ab".repeat(40)}`, scope: "private" });
 
-    await expect(store.retain(fact, { scope: "shared" })).rejects.toThrow(/could not be decrypted/);
+    const write = store.retain(fact, { scope: "shared" });
+    await expect(write).rejects.toThrow(/could not be decrypted/);
+    await expect(write).rejects.toMatchObject({
+      name: "RetainError",
+      reason: "private-memory-unreadable",
+    });
     expect(await store.list({ scopes: ["shared"] })).toEqual([]);
     expect((await store.retain(fact, { scope: "private" })).action).toBe("create");
   });

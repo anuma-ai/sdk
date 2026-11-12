@@ -673,6 +673,10 @@ describe("extractAndRetain", () => {
       new RetainError("merge-not-persisted", "retain: merge failed to persist"),
       "merge-not-persisted",
     ],
+    [
+      new RetainError("private-memory-unreadable", "retain: private rows could not be decrypted"),
+      "private-memory-unreadable",
+    ],
     [new DOMException("aborted", "AbortError"), "aborted"],
     [{ name: "AbortError", message: "polyfilled abort" }, "aborted"],
   ] as const)("reports why the first write failed: %s", async (error, reason) => {

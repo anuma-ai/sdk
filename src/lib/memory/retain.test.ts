@@ -1671,7 +1671,12 @@ describe("retain — a shared write never republishes a private memory", () => {
       .mockResolvedValueOnce({ ...prepared([0.1, 0.2, 0.3]), undecryptableRows: 1 } as never);
     vi.mocked(rankPreparedVaultCandidates).mockResolvedValue(rankResult([]) as never);
 
-    await expect(retain(fact, ctx, { scope: "shared" })).rejects.toThrow(/could not be decrypted/);
+    const write = retain(fact, ctx, { scope: "shared" });
+    await expect(write).rejects.toThrow(/could not be decrypted/);
+    await expect(write).rejects.toMatchObject({
+      name: "RetainError",
+      reason: "private-memory-unreadable",
+    });
     expect(vi.mocked(createVaultMemoryOp)).not.toHaveBeenCalled();
   });
 

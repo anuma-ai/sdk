@@ -79,7 +79,7 @@ export function isPolymarketUrl(url: string): boolean {
 export function formatChance(price: number, locale: string): string {
   if (price > 0 && price < 0.01) return `<${wholePercent(0.01, locale)}`;
   if (price > 0.99 && price < 1) return `>${wholePercent(0.99, locale)}`;
-  return wholePercent(Math.round(price * 100) / 100, locale);
+  return wholePercent(price, locale);
 }
 
 function wholePercent(fraction: number, locale: string): string {
@@ -103,12 +103,15 @@ const fraction = (value: unknown): value is number => finite(value) && value >= 
 
 const nonNegative = (value: unknown): value is number => finite(value) && value >= 0;
 
+const polymarketUrl = (value: unknown): value is string =>
+  typeof value === "string" && isPolymarketUrl(value);
+
 const MARKET_ARGS_ERROR =
-  "display_prediction_market needs title, outcome and url as text and probability as a number from 0 to 1, copied from the market_detail or search result.";
+  "display_prediction_market needs title and outcome as text, url as the polymarket.com link and probability as a number from 0 to 1, copied from the market_detail or search result.";
 
 function readMarket(args: Args): PredictionMarketCardData | null {
   const { title, outcome, probability, url } = args;
-  if (!text(title) || !text(outcome) || !text(url) || !fraction(probability)) return null;
+  if (!text(title) || !text(outcome) || !polymarketUrl(url) || !fraction(probability)) return null;
   const card: PredictionMarketCardData = { title, outcome, probability, url };
   if (finite(args.one_day_price_change) && Math.abs(args.one_day_price_change) <= 1) {
     card.one_day_price_change = args.one_day_price_change;
@@ -157,7 +160,7 @@ export function createPredictionMarketTool(options: CreateUIToolsOptions): ToolC
 }
 
 const HOLDERS_ARGS_ERROR =
-  "display_prediction_holders needs title and url as text and outcomes copied from the top_holders result: each with outcome, price (0 to 1), top_value_usd, and optional holders of name, amount and value_usd.";
+  "display_prediction_holders needs title as text, url as the polymarket.com link from the market_detail or search result, and outcomes copied from the top_holders result: each with outcome, price (0 to 1), top_value_usd, and optional holders of name, amount and value_usd.";
 
 function readHolder(raw: unknown): PredictionHolder | null {
   const { name, amount, value_usd } = (raw ?? {}) as Args;
@@ -180,7 +183,9 @@ function readOutcome(raw: unknown): PredictionOutcomeHolders | string {
 
 function readHolders(args: Args): PredictionHoldersCardData | { error: string } {
   const { title, url, outcomes, mutually_exclusive } = args;
-  if (!text(title) || !text(url) || !Array.isArray(outcomes)) return { error: HOLDERS_ARGS_ERROR };
+  if (!text(title) || !polymarketUrl(url) || !Array.isArray(outcomes)) {
+    return { error: HOLDERS_ARGS_ERROR };
+  }
   if (outcomes.length < 1 || outcomes.length > MAX_HOLDER_OUTCOMES) {
     return {
       error: `Pass 1 to ${MAX_HOLDER_OUTCOMES} outcomes; for an event, the top ${MAX_HOLDER_OUTCOMES} by odds.`,
