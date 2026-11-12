@@ -132,6 +132,7 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
     const activatedSetNames = new Set(activeSets.map((s) => s.name));
     return {
       serverMatches: [],
+      serverScores: new Map<string, number>(),
       clientMatches: stickyMatches,
       allToolNames: stickyMatches.map((m) => m.tool.name),
       merged: [],
@@ -235,6 +236,7 @@ async function selectTools(prompt: string, activeToolSets: string[] = []) {
 
   return {
     serverMatches,
+    serverScores,
     clientMatches: prunedClientMatches,
     allToolNames,
     merged,
@@ -254,11 +256,31 @@ interface ToolSelectionCase {
   expectNoClientTools?: boolean;
   serverMustInclude?: string[];
   serverMustExclude?: string[];
+  /** Raw similarity floors for server tools, checked whether or not the tool is selected. */
+  serverMinScores?: Record<string, number>;
   expectNoServerTools?: boolean;
   activeToolSets?: string[];
   mustActivateSets?: string[];
   mustNotActivateSets?: string[];
 }
+
+function anchorFloor(setName: string): number {
+  const set = SERVER_TOOL_DEPENDENCY_SETS.find((s) => s.name === setName);
+  if (!set) throw new Error(`No server tool dependency set named "${setName}"`);
+  return set.anchorMinSimilarity ?? 0.6;
+}
+
+const BIRDEYE_ANCHOR_FLOOR = anchorFloor("birdeye-token-lookup");
+const BIRDEYE_SEARCH = "AnumaBirdeyeMCP-search_solana_tokens";
+const BIRDEYE_TRENDING = "AnumaBirdeyeMCP-get_solana_trending_tokens";
+const BIRDEYE_MINT_TOOLS = [
+  "AnumaBirdeyeMCP-get_solana_token_overview",
+  "AnumaBirdeyeMCP-get_solana_token_security",
+  "AnumaBirdeyeMCP-get_solana_holder_distribution",
+  "AnumaBirdeyeMCP-get_solana_exit_liquidity",
+  "AnumaBirdeyeMCP-get_solana_token_prices",
+  "AnumaBirdeyeMCP-get_solana_price_history",
+];
 
 const cases: ToolSelectionCase[] = [
   {
@@ -507,6 +529,27 @@ const cases: ToolSelectionCase[] = [
     serverMustInclude: ["AnumaTwelveDataMCP-get_exchange_rate"],
   },
 
+  // The birdeye-token-lookup unit tests use synthetic embeddings; these check
+  // that real prompts still clear the anchor floor against the live catalog.
+  {
+    label: "Solana token search clears the Birdeye anchor floor and brings the mint tools",
+    prompt: "find the BONK token on Solana",
+    serverMinScores: { [BIRDEYE_SEARCH]: BIRDEYE_ANCHOR_FLOOR },
+    serverMustInclude: [BIRDEYE_SEARCH, ...BIRDEYE_MINT_TOOLS],
+  },
+  {
+    label: "Solana token safety check clears the Birdeye anchor floor and brings the mint tools",
+    prompt: "is this Solana token safe: DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+    serverMinScores: { [BIRDEYE_SEARCH]: BIRDEYE_ANCHOR_FLOOR },
+    serverMustInclude: [BIRDEYE_SEARCH, ...BIRDEYE_MINT_TOOLS],
+  },
+  {
+    label: "Solana trending prompt clears the Birdeye anchor floor and brings the mint tools",
+    prompt: "what's trending on Solana, and is the top one safe?",
+    serverMinScores: { [BIRDEYE_TRENDING]: BIRDEYE_ANCHOR_FLOOR },
+    serverMustInclude: [BIRDEYE_TRENDING, ...BIRDEYE_MINT_TOOLS],
+  },
+
   {
     label: "PDF extraction includes PDF tool",
     prompt: "Extract the text from this PDF document",
@@ -717,6 +760,7 @@ describe("client tool selection (full pipeline)", () => {
     (tc.quarantined ? it.skip : it)(tc.label, async () => {
       const {
         serverMatches,
+        serverScores,
         clientMatches,
         allToolNames,
         anchorActivatedSets,
@@ -809,6 +853,19 @@ describe("client tool selection (full pipeline)", () => {
             matchedServerNames,
             `Server tool "${excluded}" should NOT be selected for: "${tc.prompt}"`
           ).not.toContain(excluded);
+        }
+      }
+
+      if (tc.serverMinScores) {
+        for (const [name, floor] of Object.entries(tc.serverMinScores)) {
+          expect(
+            serverScores.has(name),
+            `Server tool "${name}" is not in the live catalog — renamed or removed server-side?`
+          ).toBe(true);
+          expect(
+            serverScores.get(name),
+            `Server tool "${name}" must score at least ${floor} for: "${tc.prompt}"`
+          ).toBeGreaterThanOrEqual(floor);
         }
       }
 
