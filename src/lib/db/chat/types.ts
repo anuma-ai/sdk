@@ -862,9 +862,10 @@ export interface BaseSendMessageWithStorageArgs {
    * Set this to the user's actual text so the wire keeps the injected context
    * while the persisted user content reflects only what the user typed. This
    * drives everything derived from the stored user text: the DB row, the chat
-   * bubble, the stored message embedding, AND the embedding reused for
+   * bubble, the stored message embedding, the embedding reused for
    * server/client tool selection (so tool filtering keys off the typed text,
-   * not the injected context). Files are still taken from `files` (or
+   * not the injected context), AND the prompt and embedding handed to
+   * `preProcessors`. Files are still taken from `files` (or
    * extracted) independently of this override.
    *
    * Pass `undefined` to fall back to extracting the last user turn's text (the

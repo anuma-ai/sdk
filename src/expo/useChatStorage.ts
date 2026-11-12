@@ -1989,6 +1989,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           apiType: effectiveApiType,
           conversationId: currentConversationId ?? undefined,
           piiRedaction: callPiiRedaction,
+          preProcessorPrompt: storedUserContent,
           headers,
         });
 
@@ -2408,6 +2409,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         imageModel,
         conversationId: convId,
         piiRedaction: callPiiRedaction,
+        preProcessorPrompt: storedUserContent,
         headers:
           resumable && effectiveAssistantUniqueId
             ? {

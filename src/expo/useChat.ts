@@ -390,6 +390,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       conversationId,
       endpointOverride,
       piiRedaction: requestPiiRedaction,
+      preProcessorPrompt,
       headers,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       if (abortControllerRef.current) {
@@ -531,6 +532,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             onStepFinish?.(event);
           },
           preProcessors,
+          preProcessorPrompt,
           hooks,
           piiRedaction: requestPiiRedaction ?? resolvedPiiRedaction,
           onPiiRedacted,

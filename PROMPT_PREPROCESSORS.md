@@ -47,8 +47,11 @@ runToolLoop({
   model,
   token,
   preProcessors: [/* array of PromptPreProcessor */],
+  preProcessorPrompt, // optional: the text the user typed
 });
 ```
+
+`prompt` and the shared embedding come from `preProcessorPrompt` when it is set, and from the last user message otherwise. Set it when the last user message carries injected context (recalled memories, a timestamp) so classification and fetches see only what the user typed. `useChatStorage` sets it from `storedUserContent`.
 
 Return an array of messages to append them to the conversation, or return `void` / `undefined` to leave the conversation unchanged.
 

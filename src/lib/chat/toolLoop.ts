@@ -597,6 +597,10 @@ export type RunToolLoopOptions = {
    */
   preProcessors?: PromptPreProcessor[];
   /**
+   * Text the user typed, used as the pre-processor prompt and embedding input instead of the last user message, which may carry injected context such as recalled memories or a timestamp.
+   */
+  preProcessorPrompt?: string;
+  /**
    * Maximum number of connector tool calls (notion, google calendar, google drive)
    * before they are removed from subsequent rounds. Set to `Infinity` to disable.
    * Only applies to fast models (cerebras) by default.
@@ -931,6 +935,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onStreamRetry,
     transport = defaultTransport,
     preProcessors,
+    preProcessorPrompt,
     maxConnectorCalls = 2,
     hooks: hooksOption,
     piiRedaction,
@@ -1062,7 +1067,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
   if (preProcessors?.length) {
     try {
-      const text = extractLastUserText(messages);
+      const text =
+        preProcessorPrompt === undefined
+          ? extractLastUserText(messages)
+          : redactor
+            ? (await redactor.redactTextAsync(preProcessorPrompt)).text
+            : preProcessorPrompt;
       if (text.length > 0) {
         const embedding = await generateEmbedding(text, {
           apiKey: headers?.["X-API-Key"],
