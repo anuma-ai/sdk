@@ -2394,6 +2394,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           apiType: effectiveApiType,
           conversationId: explicitConversationId ?? currentConversationId ?? undefined,
           piiRedaction: callPiiRedaction,
+          preProcessorPrompt: storedUserContent,
         });
 
         if (result.error || !result.data) {
@@ -2982,6 +2983,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         apiType: requestApiType,
         conversationId: convId,
         piiRedaction: callPiiRedaction,
+        preProcessorPrompt: storedUserContent,
       });
 
       const detached = result as { detached?: true; resume?: StreamResumeHandle | null };

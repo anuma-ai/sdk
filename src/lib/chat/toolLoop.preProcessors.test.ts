@@ -86,6 +86,99 @@ describe("runToolLoop pre-processors", () => {
     expect(p).toHaveBeenCalledWith(expect.objectContaining({ prompt: "summarize this" }));
   });
 
+  describe("with injected memories in the last user message", () => {
+    const typed = "top holders of BONK";
+    const injected = [
+      "Relevant memories:",
+      "## Relevant Memories",
+      ...Array.from({ length: 20 }, (_, i) => `- memory line ${i} about earlier conversations`),
+      "Current time (precise): 2026-11-12T19:10:19Z",
+      typed,
+    ].join("\n");
+    const injectedMessages = [
+      { role: "user" as const, content: [{ type: "text" as const, text: injected }] },
+    ];
+
+    it("gives pre-processors and their embedding only the typed text", async () => {
+      const p = vi
+        .fn<PromptPreProcessor>()
+        .mockResolvedValue([
+          { role: "user", content: [{ type: "text", text: "Crypto prices: BONK" }] },
+        ]);
+
+      await runToolLoop({
+        messages: injectedMessages,
+        model: "test-model",
+        token: "token",
+        preProcessors: [p],
+        preProcessorPrompt: typed,
+      });
+
+      expect(mockGenerateEmbedding).toHaveBeenCalledTimes(1);
+      expect(mockGenerateEmbedding).toHaveBeenCalledWith(typed, expect.any(Object));
+      expect(p).toHaveBeenCalledWith({
+        prompt: typed,
+        embedding: [0.1, 0.2, 0.3],
+        signal: undefined,
+      });
+      const sent = getRequestMessages(0);
+      expect(sent).toHaveLength(2);
+      expect(JSON.stringify(sent[0])).toContain("Crypto prices: BONK");
+      expect(JSON.stringify(sent[1])).toContain("Current time (precise)");
+    });
+
+    it("falls back to the full last user message when no typed text is given", async () => {
+      const p = vi.fn<PromptPreProcessor>().mockResolvedValue(undefined);
+
+      await runToolLoop({
+        messages: injectedMessages,
+        model: "test-model",
+        token: "token",
+        preProcessors: [p],
+      });
+
+      expect(p).toHaveBeenCalledWith(expect.objectContaining({ prompt: injected }));
+    });
+
+    it("skips the stage when the typed text is empty", async () => {
+      const p = vi.fn<PromptPreProcessor>();
+
+      await runToolLoop({
+        messages: injectedMessages,
+        model: "test-model",
+        token: "token",
+        preProcessors: [p],
+        preProcessorPrompt: "",
+      });
+
+      expect(mockGenerateEmbedding).not.toHaveBeenCalled();
+      expect(p).not.toHaveBeenCalled();
+    });
+
+    it("redacts PII in the typed text like the rest of the request", async () => {
+      const email = "alice@example.com";
+      const p = vi.fn<PromptPreProcessor>().mockResolvedValue(undefined);
+
+      await runToolLoop({
+        messages: [
+          {
+            role: "user",
+            content: [{ type: "text", text: `Relevant memories:\n- likes BONK\nemail ${email}` }],
+          },
+        ],
+        model: "test-model",
+        token: "token",
+        preProcessors: [p],
+        preProcessorPrompt: `email ${email}`,
+        piiRedaction: true,
+      });
+
+      const { prompt } = p.mock.calls[0][0];
+      expect(prompt).toMatch(/^email \[EMAIL_\d+\]$/);
+      expect(mockGenerateEmbedding).toHaveBeenCalledWith(prompt, expect.any(Object));
+    });
+  });
+
   it("inserts returned messages in array order before the original user prompt", async () => {
     const p1: PromptPreProcessor = () => [
       { role: "user", content: [{ type: "text", text: "context A" }] },

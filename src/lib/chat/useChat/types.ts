@@ -243,6 +243,10 @@ export type BaseSendMessageArgs = ResponsesApiOptions & {
    * omitted, the hook-level setting applies.
    */
   piiRedaction?: boolean | PiiRedactor;
+  /**
+   * Text the user typed, given to pre-processors in place of the last user message when that message carries injected context.
+   */
+  preProcessorPrompt?: string;
 };
 
 /**
