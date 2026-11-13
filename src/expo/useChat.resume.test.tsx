@@ -3,9 +3,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { StreamingTransport, StreamingTransportOptions } from "../lib/chat/toolLoop";
 import { ProviderStreamError, STREAM_RESUMABLE_HEADER } from "../lib/chat/toolLoop";
 import { extractAssistantText } from "../lib/chat/useChat/strategies";
-import type { StreamingTransport, StreamingTransportOptions } from "../lib/chat/toolLoop";
 import { PiiRedactor } from "../lib/pii/redactor";
 
 let transportImpl: StreamingTransport = () => ({ stream: (async function* () {})() });
@@ -31,7 +31,7 @@ function makeBlockingStream(signal: AbortSignal | undefined, text: string) {
 
 function makeCompleteStream() {
   return (async function* () {
-    yield { type: "response.created", response: { id: "r", model: "m" } };
+    yield await Promise.resolve({ type: "response.created", response: { id: "r", model: "m" } });
     yield { type: "response.output_text.delta", delta: { OfString: "hello" } };
     yield {
       type: "response.completed",
@@ -69,7 +69,9 @@ describe("useChat resumable surface", () => {
       return { stream: makeCompleteStream() };
     };
 
-    const { result } = renderHook(() => useChat({ getToken: async () => "tok", resumable: true }));
+    const { result } = renderHook(() =>
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true })
+    );
 
     await act(async () => {
       await result.current.sendMessage({ messages: userMessages, model: "test-model" });
@@ -85,7 +87,7 @@ describe("useChat resumable surface", () => {
       return { stream: makeCompleteStream() };
     };
 
-    const { result } = renderHook(() => useChat({ getToken: async () => "tok" }));
+    const { result } = renderHook(() => useChat({ getToken: () => Promise.resolve("tok") }));
 
     await act(async () => {
       await result.current.sendMessage({ messages: userMessages, model: "test-model" });
@@ -102,7 +104,9 @@ describe("useChat resumable surface", () => {
       return { stream: makeBlockingStream(options.signal, "partial") };
     };
 
-    const { result } = renderHook(() => useChat({ getToken: async () => "tok", resumable: true }));
+    const { result } = renderHook(() =>
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true })
+    );
 
     let sendPromise: Promise<unknown>;
     await act(async () => {
@@ -111,12 +115,13 @@ describe("useChat resumable surface", () => {
     });
 
     let handle: ReturnType<typeof result.current.detach>;
-    await act(async () => {
+    await act(() => {
       handle = result.current.detach();
+      return Promise.resolve();
     });
 
     expect(capturedSignal?.aborted).toBe(true);
-    expect(handle!?.inferenceId).toBe("inf-detach-1");
+    expect(handle!.inferenceId).toBe("inf-detach-1");
 
     const sendResult = (await sendPromise!) as { error: string; detached?: true };
     expect(sendResult.error).toBe("Request detached");
@@ -135,7 +140,9 @@ describe("useChat resumable surface", () => {
       return { stream: makeBlockingStream(options.signal, id) };
     };
 
-    const { result } = renderHook(() => useChat({ getToken: async () => "tok", resumable: true }));
+    const { result } = renderHook(() =>
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true })
+    );
 
     let sendA: Promise<unknown>;
     await act(async () => {
@@ -150,15 +157,16 @@ describe("useChat resumable surface", () => {
 
     expect(result.current.isLoading).toBe(true);
 
-    await act(async () => {
+    await act(() => {
       result.current.stop();
+      return Promise.resolve();
     });
 
     await waitFor(() => {
       const cancelCall = fetchSpy.mock.calls.find(
         ([url]) => typeof url === "string" && url.includes("/cancel")
       );
-      expect(String(cancelCall?.[0])).toContain("/inf-B/cancel");
+      expect(cancelCall?.[0]).toContain("/inf-B/cancel");
     });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
@@ -203,15 +211,16 @@ describe("useChat resumable surface", () => {
       await sendA;
     });
 
-    await act(async () => {
+    await act(() => {
       result.current.stop();
+      return Promise.resolve();
     });
 
     await waitFor(() => {
       const cancelCall = fetchSpy.mock.calls.find(
         ([url]) => typeof url === "string" && url.includes("/cancel")
       );
-      expect(String(cancelCall?.[0])).toContain("/inf-B/cancel");
+      expect(cancelCall?.[0]).toContain("/inf-B/cancel");
     });
   });
 
@@ -227,7 +236,7 @@ describe("useChat resumable surface", () => {
     };
 
     const { result } = renderHook(() =>
-      useChat({ getToken: async () => "tok", resumable: true, onCancelResult })
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true, onCancelResult })
     );
 
     await act(async () => {
@@ -235,8 +244,9 @@ describe("useChat resumable surface", () => {
       await new Promise((r) => setTimeout(r, 10));
     });
 
-    await act(async () => {
+    await act(() => {
       result.current.stop();
+      return Promise.resolve();
     });
 
     await waitFor(() => {
@@ -249,8 +259,8 @@ describe("useChat resumable surface", () => {
     const cancelCall = fetchSpy.mock.calls.find(
       ([url]) => typeof url === "string" && url.includes("/cancel")
     );
-    expect(String(cancelCall![0])).toContain("/api/v1/chat/streams/inf-cancel-1/cancel");
-    expect((cancelCall![1] as RequestInit | undefined)?.method).toBe("POST");
+    expect(cancelCall?.[0]).toContain("/api/v1/chat/streams/inf-cancel-1/cancel");
+    expect(cancelCall?.[1]?.method).toBe("POST");
 
     await waitFor(() => expect(onCancelResult).toHaveBeenCalled());
     expect(onCancelResult).toHaveBeenCalledWith(
@@ -269,22 +279,30 @@ describe("useChat resumable surface", () => {
       return { stream: makeBlockingStream(options.signal, "x") };
     };
 
-    const { result } = renderHook(() => useChat({ getToken: async () => "tok", resumable: true }));
+    const { result } = renderHook(() =>
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true })
+    );
 
     await act(async () => {
       void result.current.sendMessage({ messages: userMessages, model: "test-model" });
       await new Promise((r) => setTimeout(r, 10));
     });
 
-    await act(async () => {
+    await act(() => {
       result.current.cancel({ inferenceId: "inf-old" } as never);
+      return Promise.resolve();
     });
 
     await waitFor(() => {
-      const urls = fetchSpy.mock.calls.map(([url]) => String(url));
-      expect(urls.some((url) => url.includes("/inf-old/cancel"))).toBe(true);
+      expect(
+        fetchSpy.mock.calls.some(
+          ([url]) => typeof url === "string" && url.includes("/inf-old/cancel")
+        )
+      ).toBe(true);
     });
-    expect(fetchSpy.mock.calls.some(([url]) => String(url).includes("/inf-live/"))).toBe(false);
+    expect(
+      fetchSpy.mock.calls.some(([url]) => typeof url === "string" && url.includes("/inf-live/"))
+    ).toBe(false);
     expect(liveSignal?.aborted).toBe(false);
     expect(result.current.detach()?.inferenceId).toBe("inf-live");
     result.current.stop();
@@ -300,14 +318,15 @@ describe("useChat resumable surface", () => {
       return { stream: makeBlockingStream(options.signal, "x") };
     };
 
-    const { result } = renderHook(() => useChat({ getToken: async () => "tok" }));
+    const { result } = renderHook(() => useChat({ getToken: () => Promise.resolve("tok") }));
 
     await act(async () => {
       void result.current.sendMessage({ messages: userMessages, model: "test-model" });
       await new Promise((r) => setTimeout(r, 10));
     });
-    await act(async () => {
+    await act(() => {
       result.current.stop();
+      return Promise.resolve();
     });
 
     const cancelCall = fetchSpy.mock.calls.find(
@@ -326,14 +345,17 @@ describe("useChat resumable surface", () => {
       return { stream: makeCompleteStream() };
     };
 
-    const { result } = renderHook(() => useChat({ getToken: async () => "tok", resumable: true }));
+    const { result } = renderHook(() =>
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true })
+    );
 
     await act(async () => {
       await result.current.sendMessage({ messages: userMessages, model: "test-model" });
     });
 
-    await act(async () => {
+    await act(() => {
       result.current.stop();
+      return Promise.resolve();
     });
 
     const cancelCall = fetchSpy.mock.calls.find(
@@ -353,7 +375,7 @@ describe("useChat resumable surface", () => {
     };
 
     const { result, unmount } = renderHook(() =>
-      useChat({ getToken: async () => "tok", resumable: true })
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true })
     );
 
     await act(async () => {
@@ -384,15 +406,16 @@ describe("useChat resumable surface", () => {
     };
 
     const { result } = renderHook(() =>
-      useChat({ getToken: async () => "tok", resumable: true, onCancelResult })
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true, onCancelResult })
     );
 
     await act(async () => {
       void result.current.sendMessage({ messages: userMessages, model: "test-model" });
       await new Promise((r) => setTimeout(r, 10));
     });
-    await act(async () => {
+    await act(() => {
       expect(() => result.current.stop()).not.toThrow();
+      return Promise.resolve();
     });
 
     await waitFor(() => {
@@ -404,9 +427,9 @@ describe("useChat resumable surface", () => {
 
   it("resumeStream() resolves getToken AT invocation and forwards the fresh bearer", async () => {
     let tokenReads = 0;
-    const getToken = vi.fn(async () => {
+    const getToken = vi.fn(() => {
       tokenReads++;
-      return `token-${tokenReads}`;
+      return Promise.resolve(`token-${tokenReads}`);
     });
 
     let replaySeen: StreamingTransportOptions | undefined;
@@ -437,7 +460,7 @@ describe("useChat resumable surface", () => {
   });
 
   it("non-headless resume still emits onData AND onFinish (regression)", async () => {
-    const onData = vi.fn();
+    const onData = vi.fn<(chunk: string) => void>();
     const onFinish = vi.fn();
     transportImpl = (options) => {
       if (options.method === "GET") return { stream: makeCompleteStream() };
@@ -445,7 +468,7 @@ describe("useChat resumable surface", () => {
     };
 
     const { result } = renderHook(() =>
-      useChat({ getToken: async () => "tok", resumable: true, onData, onFinish })
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true, onData, onFinish })
     );
 
     let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
@@ -471,13 +494,16 @@ describe("useChat resumable surface", () => {
       expect(redactor.redactText("john@example.com").text).toBe("[EMAIL_1]");
       const previousRedactor = new PiiRedactor();
       previousRedactor.redactText("old@example.com");
-      const getToken = async () => "tok";
-      const onData = vi.fn();
-      const onThinking = vi.fn();
+      const getToken = () => Promise.resolve("tok");
+      const onData = vi.fn<(chunk: string) => void>();
+      const onThinking = vi.fn<(chunk: string) => void>();
       const onFinish = vi.fn();
       transportImpl = () => ({
         stream: (async function* () {
-          yield { type: "response.created", response: { id: "r", model: "m" } };
+          yield await Promise.resolve({
+            type: "response.created",
+            response: { id: "r", model: "m" },
+          });
           yield { type: "response.reasoning.delta", delta: { OfString: "Contact [EMA" } };
           yield { type: "response.reasoning.delta", delta: { OfString: "IL_1] first" } };
           yield { type: "response.output_text.delta", delta: { OfString: "Sent to [EMA" } };
@@ -495,6 +521,23 @@ describe("useChat resumable surface", () => {
         { initialProps: { piiRedaction: source === "hook" ? redactor : previousRedactor } }
       );
       if (source === "updated hook") rerender({ piiRedaction: redactor });
+
+      if (source === "override") {
+        await act(async () => {
+          const replay = await result.current.resumeStream(
+            { inferenceId: "inf-pii", apiType: "responses", model: "test-model" },
+            { smoothing: false }
+          );
+          expect(replay.error).toBeNull();
+          expect(extractAssistantText(replay.data!)).toMatchObject({
+            content: "Sent to old@example.com now",
+            thinking: "Contact old@example.com first",
+          });
+        });
+        onData.mockClear();
+        onThinking.mockClear();
+        onFinish.mockClear();
+      }
 
       let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
       await act(async () => {
@@ -521,8 +564,8 @@ describe("useChat resumable surface", () => {
   );
 
   it("headless resume emits NOTHING to onData/onThinking/onFinish/onError on a clean completion (still replays)", async () => {
-    const onData = vi.fn();
-    const onThinking = vi.fn();
+    const onData = vi.fn<(chunk: string) => void>();
+    const onThinking = vi.fn<(chunk: string) => void>();
     const onFinish = vi.fn();
     const onError = vi.fn();
     let replaySeen: StreamingTransportOptions | undefined;
@@ -533,7 +576,7 @@ describe("useChat resumable surface", () => {
 
     const { result } = renderHook(() =>
       useChat({
-        getToken: async () => "tok",
+        getToken: () => Promise.resolve("tok"),
         resumable: true,
         onData,
         onThinking,
@@ -560,15 +603,15 @@ describe("useChat resumable surface", () => {
   });
 
   it("headless resume emits NOTHING to onData/onThinking/onFinish/onError on a transient failure (result still carries data)", async () => {
-    const onData = vi.fn();
-    const onThinking = vi.fn();
+    const onData = vi.fn<(chunk: string) => void>();
+    const onThinking = vi.fn<(chunk: string) => void>();
     const onFinish = vi.fn();
     const onError = vi.fn();
     transportImpl = makeTransientReplayTransport();
 
     const { result } = renderHook(() =>
       useChat({
-        getToken: async () => "tok",
+        getToken: () => Promise.resolve("tok"),
         resumable: true,
         onData,
         onThinking,
@@ -598,7 +641,7 @@ describe("useChat resumable surface", () => {
     transportImpl = makeTransientReplayTransport();
 
     const { result } = renderHook(() =>
-      useChat({ getToken: async () => "tok", resumable: true, onError })
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true, onError })
     );
 
     let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
@@ -627,7 +670,9 @@ describe("useChat resumable surface", () => {
       return { stream: makeBlockingStream(options.signal, "visible") };
     };
 
-    const { result } = renderHook(() => useChat({ getToken: async () => "tok", resumable: true }));
+    const { result } = renderHook(() =>
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true })
+    );
 
     await act(async () => {
       void result.current.sendMessage({ messages: userMessages, model: "test-model" });
@@ -642,8 +687,9 @@ describe("useChat resumable surface", () => {
       await new Promise((r) => setTimeout(r, 10));
     });
 
-    await act(async () => {
+    await act(() => {
       result.current.stop();
+      return Promise.resolve();
     });
 
     expect(visibleSignal?.aborted).toBe(true);
@@ -658,7 +704,7 @@ describe("useChat resumable surface", () => {
     };
 
     const { result } = renderHook(() =>
-      useChat({ getToken: async () => "tok", resumable: true, onStreamMeta })
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true, onStreamMeta })
     );
 
     await act(async () => {
@@ -690,7 +736,7 @@ describe("useChat resumable surface", () => {
     };
 
     const { result } = renderHook(() =>
-      useChat({ getToken: async () => "tok", resumable: true, onStreamMeta })
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true, onStreamMeta })
     );
 
     let sendPromise: Promise<unknown>;
@@ -702,10 +748,11 @@ describe("useChat resumable surface", () => {
     expect(onStreamMeta).toHaveBeenCalledTimes(1);
 
     let handle: ReturnType<typeof result.current.detach>;
-    await act(async () => {
+    await act(() => {
       handle = result.current.detach();
+      return Promise.resolve();
     });
-    expect(handle!?.inferenceId).toBe("inf-throwmeta");
+    expect(handle!.inferenceId).toBe("inf-throwmeta");
 
     const sendResult = (await sendPromise!) as { error: string; detached?: true };
     expect(sendResult.detached).toBe(true);
@@ -717,7 +764,9 @@ describe("useChat resumable surface", () => {
       return { stream: makeCompleteStream() };
     };
 
-    const { result } = renderHook(() => useChat({ getToken: async () => "tok", resumable: true }));
+    const { result } = renderHook(() =>
+      useChat({ getToken: () => Promise.resolve("tok"), resumable: true })
+    );
 
     let sendResult: Awaited<ReturnType<typeof result.current.sendMessage>>;
     await act(async () => {
@@ -749,7 +798,10 @@ describe("useChat resumable surface", () => {
 
     function droppingStream(failure: Failure) {
       return (async function* () {
-        yield { type: "response.created", response: { id: "r", model: "m" } };
+        yield await Promise.resolve({
+          type: "response.created",
+          response: { id: "r", model: "m" },
+        });
         yield { type: "response.output_text.delta", delta: { OfString: "Half" } };
         if (failureChunks[failure]) yield failureChunks[failure];
         throw new Error("Network request failed");
@@ -768,7 +820,7 @@ describe("useChat resumable surface", () => {
       };
       const onError = vi.fn();
       const { result } = renderHook(() =>
-        useChat({ getToken: async () => "tok", resumable: options.resumable, onError })
+        useChat({ getToken: () => Promise.resolve("tok"), resumable: options.resumable, onError })
       );
       let sent: Awaited<ReturnType<typeof result.current.sendMessage>> | undefined;
       await act(async () => {
@@ -822,7 +874,10 @@ describe("useChat resumable surface", () => {
         if (current === 1) return { stream: droppingStream("network") };
         return {
           stream: (async function* () {
-            yield { type: "response.created", response: { id: "r", model: "m" } };
+            yield await Promise.resolve({
+              type: "response.created",
+              response: { id: "r", model: "m" },
+            });
             yield {
               type: "response.output_item.added",
               item: {
@@ -839,7 +894,7 @@ describe("useChat resumable surface", () => {
       };
       const onError = vi.fn();
       const { result } = renderHook(() =>
-        useChat({ getToken: async () => "tok", resumable: true, onError })
+        useChat({ getToken: () => Promise.resolve("tok"), resumable: true, onError })
       );
       let sent: Awaited<ReturnType<typeof result.current.sendMessage>> | undefined;
       await act(async () => {
