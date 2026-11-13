@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderStreamError, STREAM_RESUMABLE_HEADER } from "../lib/chat/toolLoop";
 import { extractAssistantText } from "../lib/chat/useChat/strategies";
 import type { StreamingTransport, StreamingTransportOptions } from "../lib/chat/toolLoop";
+import { PiiRedactor } from "../lib/pii/redactor";
 
 let transportImpl: StreamingTransport = () => ({ stream: (async function* () {})() });
 vi.mock("../lib/chat/xhrTransport", () => ({
@@ -462,6 +463,62 @@ describe("useChat resumable surface", () => {
     expect(onFinish).toHaveBeenCalledTimes(1);
     expect(resumeResult!.error).toBeNull();
   });
+
+  it.each(["hook", "updated hook", "override"] as const)(
+    "restores replay text and final responses with the %s redactor",
+    async (source) => {
+      const redactor = new PiiRedactor();
+      expect(redactor.redactText("john@example.com").text).toBe("[EMAIL_1]");
+      const previousRedactor = new PiiRedactor();
+      previousRedactor.redactText("old@example.com");
+      const getToken = async () => "tok";
+      const onData = vi.fn();
+      const onThinking = vi.fn();
+      const onFinish = vi.fn();
+      transportImpl = () => ({
+        stream: (async function* () {
+          yield { type: "response.created", response: { id: "r", model: "m" } };
+          yield { type: "response.reasoning.delta", delta: { OfString: "Contact [EMA" } };
+          yield { type: "response.reasoning.delta", delta: { OfString: "IL_1] first" } };
+          yield { type: "response.output_text.delta", delta: { OfString: "Sent to [EMA" } };
+          yield { type: "response.output_text.delta", delta: { OfString: "IL_1] now" } };
+          yield {
+            type: "response.completed",
+            response: { usage: { input_tokens: 1, output_tokens: 1 } },
+          };
+        })(),
+      });
+
+      const { result, rerender } = renderHook(
+        ({ piiRedaction }) =>
+          useChat({ getToken, piiRedaction, onData, onThinking, onFinish, resumable: true }),
+        { initialProps: { piiRedaction: source === "hook" ? redactor : previousRedactor } }
+      );
+      if (source === "updated hook") rerender({ piiRedaction: redactor });
+
+      let resumeResult: Awaited<ReturnType<typeof result.current.resumeStream>>;
+      await act(async () => {
+        resumeResult = await result.current.resumeStream(
+          { inferenceId: "inf-pii", apiType: "responses", model: "test-model" },
+          { smoothing: false, ...(source === "override" ? { piiRedactor: redactor } : {}) }
+        );
+      });
+
+      expect(onData.mock.calls.map(([chunk]) => chunk).join("")).toBe(
+        "Sent to john@example.com now"
+      );
+      expect(onThinking.mock.calls.map(([chunk]) => chunk).join("")).toBe(
+        "Contact john@example.com first"
+      );
+      expect(resumeResult!.error).toBeNull();
+      expect(resumeResult!.data).not.toBeNull();
+      expect(extractAssistantText(resumeResult!.data!)).toMatchObject({
+        content: "Sent to john@example.com now",
+        thinking: "Contact john@example.com first",
+      });
+      expect(onFinish).toHaveBeenCalledExactlyOnceWith(resumeResult!.data);
+    }
+  );
 
   it("headless resume emits NOTHING to onData/onThinking/onFinish/onError on a clean completion (still replays)", async () => {
     const onData = vi.fn();
