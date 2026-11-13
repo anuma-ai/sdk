@@ -160,7 +160,10 @@ type UseChatResult = BaseUseChatResult & {
    */
   resumeStream: (
     handle: StreamResumeHandle,
-    opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing" | "finishedToolNames"> & {
+    opts?: Pick<
+      ResumeStreamOptions,
+      "idleTimeoutMs" | "smoothing" | "finishedToolNames" | "piiRedactor"
+    > & {
       /**
        * Replay + reconcile + persist exactly as normal, but emit NOTHING to any
        * consumer callback — `onData` / `onThinking` / `onFinish` / `onError` are
@@ -318,7 +321,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   const resumeStream = useCallback(
     async (
       handle: StreamResumeHandle,
-      opts?: Pick<ResumeStreamOptions, "idleTimeoutMs" | "smoothing" | "finishedToolNames"> & {
+      opts?: Pick<
+        ResumeStreamOptions,
+        "idleTimeoutMs" | "smoothing" | "finishedToolNames" | "piiRedactor"
+      > & {
         headless?: boolean;
       }
     ): Promise<ResumeStreamResult> => {
@@ -344,6 +350,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           transport: xhrTransport,
           smoothing,
           signal: abortController.signal,
+          piiRedactor: typeof resolvedPiiRedaction === "object" ? resolvedPiiRedaction : undefined,
           ...(headless
             ? {}
             : {
@@ -365,7 +372,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, baseUrl, smoothing, globalOnData, globalOnThinking, onFinish, onError]
+    [
+      getToken,
+      baseUrl,
+      smoothing,
+      resolvedPiiRedaction,
+      globalOnData,
+      globalOnThinking,
+      onFinish,
+      onError,
+    ]
   );
 
   const sendMessage = useCallback(
