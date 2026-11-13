@@ -108,11 +108,7 @@ export async function createMediaOp(
         media._setRaw("dimensions", JSON.stringify(encryptedOpts.dimensions));
       if (encryptedOpts.duration !== undefined) media._setRaw("duration", encryptedOpts.duration);
       if (encryptedOpts.metadata) {
-        const metadataValue =
-          typeof encryptedOpts.metadata === "string"
-            ? encryptedOpts.metadata
-            : JSON.stringify(encryptedOpts.metadata);
-        media._setRaw("metadata", metadataValue);
+        media._setRaw("metadata", JSON.stringify(encryptedOpts.metadata));
       }
       media._setRaw("created_at", now);
       media._setRaw("updated_at", now);
@@ -162,11 +158,7 @@ export async function createMediaBatchOp(
           if (options.dimensions) media._setRaw("dimensions", JSON.stringify(options.dimensions));
           if (options.duration !== undefined) media._setRaw("duration", options.duration);
           if (options.metadata) {
-            const metadataValue =
-              typeof options.metadata === "string"
-                ? options.metadata
-                : JSON.stringify(options.metadata);
-            media._setRaw("metadata", metadataValue);
+            media._setRaw("metadata", JSON.stringify(options.metadata));
           }
           media._setRaw("created_at", now);
           media._setRaw("updated_at", now);
@@ -244,16 +236,31 @@ export async function updateMediaOp(
   const media = results[0];
   const now = Date.now();
 
+  const encryptedOpts =
+    ctx.walletAddress &&
+    ctx.signMessage &&
+    (options.name !== undefined ||
+      options.sourceUrl !== undefined ||
+      options.metadata !== undefined)
+      ? await encryptMediaFields(
+          options,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        )
+      : options;
+
   await ctx.database.write(async () => {
     await media.update((m) => {
-      if (options.name !== undefined) m._setRaw("name", options.name);
+      if (encryptedOpts.name !== undefined) m._setRaw("name", encryptedOpts.name);
       if (options.messageId !== undefined) m._setRaw("message_id", options.messageId);
       if (options.mediaType !== undefined) m._setRaw("media_type", options.mediaType);
-      if (options.sourceUrl !== undefined) m._setRaw("source_url", options.sourceUrl);
+      if (encryptedOpts.sourceUrl !== undefined) m._setRaw("source_url", encryptedOpts.sourceUrl);
       if (options.dimensions !== undefined)
         m._setRaw("dimensions", JSON.stringify(options.dimensions));
       if (options.duration !== undefined) m._setRaw("duration", options.duration);
-      if (options.metadata !== undefined) m._setRaw("metadata", JSON.stringify(options.metadata));
+      if (encryptedOpts.metadata !== undefined)
+        m._setRaw("metadata", JSON.stringify(encryptedOpts.metadata));
       if (options.isDeleted !== undefined) m._setRaw("is_deleted", options.isDeleted);
       m._setRaw("updated_at", now);
     });
