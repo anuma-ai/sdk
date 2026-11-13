@@ -1,6 +1,6 @@
 # ProfileSection
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:171](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#171)
+Defined in: [src/lib/memory/synthesizeProfile.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#170)
 
 A synthesized profile section, grounded in specific vault facts.
 
@@ -10,7 +10,7 @@ A synthesized profile section, grounded in specific vault facts.
 
 > **generatedAt**: `number`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#197)
+Defined in: [src/lib/memory/synthesizeProfile.ts:196](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#196)
 
 Unix ms this section was generated.
 
@@ -20,7 +20,7 @@ Unix ms this section was generated.
 
 > `optional` **interests**: `string`\[]
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#195)
+Defined in: [src/lib/memory/synthesizeProfile.ts:194](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#194)
 
 Structured interests — the `interests` facet only. Discrete entries,
 trimmed and deduped case- and space-insensitively (first spelling wins), at
@@ -33,7 +33,7 @@ most 12 items of at most 40 code points each, ready for a profile store's
 
 > **key**: [`ProfileFacetKey`](../type-aliases/ProfileFacetKey.md)
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#172)
+Defined in: [src/lib/memory/synthesizeProfile.ts:171](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#171)
 
 ***
 
@@ -41,7 +41,7 @@ Defined in: [src/lib/memory/synthesizeProfile.ts:172](https://github.com/anuma-a
 
 > **label**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#173)
+Defined in: [src/lib/memory/synthesizeProfile.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#172)
 
 ***
 
@@ -49,7 +49,7 @@ Defined in: [src/lib/memory/synthesizeProfile.ts:173](https://github.com/anuma-a
 
 > `optional` **occupation**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:188](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#188)
+Defined in: [src/lib/memory/synthesizeProfile.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#187)
 
 Structured occupation — the `work_role` facet only. A short role phrase
 (at most 80 code points, PII-gated alongside [ProfileSection.text](#text))
@@ -65,7 +65,7 @@ unaffected either way, so the prose is never blocked on this.
 
 > **sourceMemoryIds**: `string`\[]
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#178)
+Defined in: [src/lib/memory/synthesizeProfile.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#177)
 
 Vault memory ids this section was grounded on — provenance + delta refresh.
 
@@ -75,7 +75,7 @@ Vault memory ids this section was grounded on — provenance + delta refresh.
 
 > `optional` **stale**: `boolean`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#199)
+Defined in: [src/lib/memory/synthesizeProfile.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#198)
 
 True when regeneration failed (e.g. LLM returned empty) — the caller may choose to retry.
 
@@ -85,7 +85,7 @@ True when regeneration failed (e.g. LLM returned empty) — the caller may choos
 
 > **text**: `string`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#176)
+Defined in: [src/lib/memory/synthesizeProfile.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#175)
 
 Synthesized prose (PII-redacted when a redactor is supplied). Empty when
 the vault has no evidence for this facet.
