@@ -2732,6 +2732,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     ]
   );
 
+  const replayRedactorFor = useCallback(
+    (conversationId: string | null): PiiRedactor | undefined =>
+      resolveCallPii(undefined, piiRedaction, () =>
+        getConversationRedactor(conversationId, nerDetectorRef.current)
+      ).redactor,
+    [piiRedaction, getConversationRedactor]
+  );
+
   const resumeStream = useCallback(
     async (
       handleOverride?: StreamResumeHandle,
@@ -2801,6 +2809,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const result = await baseResumeStream(handle, {
           headless: opts?.headless,
           finishedToolNames: renderToolNames(detachedToolsRef.current),
+          piiRedactor: replayRedactorFor(rctx.convId || null),
         });
         const responseDuration = (Date.now() - rctx.startTime) / 1000;
 
@@ -2892,6 +2901,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     },
     [
       baseResumeStream,
+      replayRedactorFor,
       currentConversationId,
       finalizeResumedRow,
       embedMessageAsync,
@@ -2936,13 +2946,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const watchStream = useCallback(
     (stream: ActiveStream) =>
-      baseResumeStream({
-        inferenceId: stream.inferenceId,
-        apiType: stream.apiType,
-        model: stream.model,
-        conversationId: stream.conversationId ?? undefined,
-      }),
-    [baseResumeStream]
+      baseResumeStream(
+        {
+          inferenceId: stream.inferenceId,
+          apiType: stream.apiType,
+          model: stream.model,
+          conversationId: stream.conversationId ?? undefined,
+        },
+        { piiRedactor: replayRedactorFor(stream.conversationId ?? currentConversationId) }
+      ),
+    [baseResumeStream, replayRedactorFor, currentConversationId]
   );
 
   const registeredInboxKeyRef = useRef<{ inbox: VaultInbox; publicKey: string } | null>(null);
