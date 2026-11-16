@@ -25,7 +25,6 @@ afterEach(() => {
 });
 
 type Seal = ReturnType<typeof memoryCipher>;
-type Fake = ReturnType<typeof createFakeChatStore>;
 
 async function sealFor(seed: string): Promise<Seal> {
   return memoryCipher(await deriveMemoryKeyRing("0x" + seed.repeat(65)));
@@ -35,10 +34,11 @@ function cacheStorage(): ChatCacheStorage & { values: Map<string, string> } {
   const values = new Map<string, string>();
   return {
     values,
-    get: async (account) => values.get(account) ?? null,
-    set: async (account, sealed) => {
+    get: (account) => Promise.resolve(values.get(account) ?? null),
+    set: (account, sealed) => {
       if (sealed === null) values.delete(account);
       else values.set(account, sealed);
+      return Promise.resolve();
     },
   };
 }
@@ -47,11 +47,12 @@ function outboxStorage(): ChatOutboxStorage & { values: Map<string, string> } {
   const values = new Map<string, string>();
   return {
     values,
-    slots: async () => [...values.keys()],
-    get: async (slot) => values.get(slot) ?? null,
-    set: async (slot, sealed) => {
+    slots: () => Promise.resolve([...values.keys()]),
+    get: (slot) => Promise.resolve(values.get(slot) ?? null),
+    set: (slot, sealed) => {
       if (sealed === null) values.delete(slot);
       else values.set(slot, sealed);
+      return Promise.resolve();
     },
   };
 }
@@ -98,6 +99,37 @@ async function chat(b: VaultChatBackend, conversationId: string, title: string, 
 }
 
 describe("vault chat cache", () => {
+  it("reuses sealed records when only the cache cursor changes", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const encrypt = vi.fn(seal.encrypt);
+    const b = backend(fake.store);
+    await chat(b, "conv_1", "Cached thread payload", "msg_1");
+    await b.flush();
+    const snapshot: ChatCacheSnapshot = {
+      account: "0xaaa",
+      cursor: "cursor_1",
+      records: [(await fake.row("conversation", "conv_1"))!, (await fake.row("message", "msg_1"))!],
+      threads: ["conv_1"],
+      absent: [],
+    };
+    const previous = await saveChatCache(storage, encrypt, snapshot);
+    const entries = new Map(storage.values);
+    const set = vi.spyOn(storage, "set");
+    encrypt.mockClear();
+
+    const next = { ...snapshot, cursor: "cursor_2" };
+    await saveChatCache(storage, encrypt, next, previous);
+
+    expect(set).toHaveBeenCalledExactlyOnceWith(snapshot.account, expect.any(String));
+    expect(encrypt).toHaveBeenCalledTimes(1);
+    expect(encrypt.mock.calls[0][0]).not.toContain("Cached thread payload");
+    for (const [key, sealed] of entries)
+      if (key !== snapshot.account) expect(storage.values.get(key)).toBe(sealed);
+    expect(await loadChatCache(storage, snapshot.account, seal.decrypt)).toMatchObject(next);
+  });
+
   it("seals only the changed thread and conversation after a confirmed turn", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");
@@ -187,7 +219,7 @@ describe("vault chat cache", () => {
     await b.flush();
     await cached(storage, seal, cache.account, (c) => expect(ids(c)).toContain("msg_1"));
     const before = new Map(storage.values);
-    const write = storage.set;
+    const write = storage.set.bind(storage);
     const set = vi.fn<ChatCacheStorage["set"]>(async (key, sealed) => {
       if (key === cache.account && sealed !== null) throw new Error("disk full");
       await write(key, sealed);
@@ -404,7 +436,10 @@ describe("vault chat cache", () => {
     await expect(otherWallet.getConversations()).rejects.toThrow("offline");
 
     const [entry] = storage.values.values();
-    const leaky: ChatCacheStorage = { get: async () => entry, set: async () => {} };
+    const leaky: ChatCacheStorage = {
+      get: () => Promise.resolve(entry),
+      set: () => Promise.resolve(),
+    };
     for (const cache of [
       { storage: leaky, seal, account: "0xbbb" },
       { storage: leaky, seal: await sealFor("78"), account: "0xbbb" },
@@ -497,7 +532,7 @@ describe("vault chat cache", () => {
     const seal = await sealFor("56");
     const set = vi.fn(() => Promise.reject(new Error("disk full")));
     const b = backend(fake.store, {
-      cache: { storage: { get: async () => null, set }, seal, account: "0xaaa" },
+      cache: { storage: { get: () => Promise.resolve(null), set }, seal, account: "0xaaa" },
     });
     await chat(b, "conv_1", "Trip", "msg_1");
     await b.flush();
