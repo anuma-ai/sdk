@@ -9,6 +9,7 @@ import {
   encryptDataWithKey,
   getEncryptionKey,
   hasEncryptionKey,
+  hexToBytes,
   refreshEncryptionKeyIfMatches,
   requestEncryptionKey,
 } from "../../../react/useEncryption";
@@ -600,6 +601,88 @@ export async function getConversationsByProjectOp(
   );
 }
 
+const CURSOR_WINDOW_CHUNK_BYTES = 512 * 1024;
+
+function tooWideForCursor(error: unknown): boolean {
+  return /CursorWindow/.test(error instanceof Error ? error.message : String(error));
+}
+
+async function readRowInChunks(
+  collection: Collection<Message>,
+  id: string
+): Promise<Record<string, unknown> | null> {
+  const table = collection.table;
+  const columns = collection.schema.columnArray;
+  const scalars = ["id", "_status", "_changed"].concat(
+    columns.filter((c) => c.type !== "string").map((c) => c.name)
+  );
+  const [base] = (await collection
+    .query(Q.unsafeSqlQuery(`select ${scalars.join(", ")} from ${table} where id = ?`, [id]))
+    .unsafeFetchRaw()) as Record<string, unknown>[];
+  if (!base) return null;
+  const row: Record<string, unknown> = { ...base };
+  for (const { name } of columns.filter((c) => c.type === "string")) {
+    const hexParts: string[] = [];
+    let isNull = false;
+    for (let start = 1; ; start += CURSOR_WINDOW_CHUNK_BYTES) {
+      const [chunk] = (await collection
+        .query(
+          Q.unsafeSqlQuery(
+            `select hex(substr(cast(${name} as blob), ?, ?)) as hex, ${name} is null as missing from ${table} where id = ?`,
+            [start, CURSOR_WINDOW_CHUNK_BYTES, id]
+          )
+        )
+        .unsafeFetchRaw()) as { hex: string; missing: number }[];
+      if (!chunk) return null;
+      if (chunk.missing) {
+        isNull = true;
+        break;
+      }
+      hexParts.push(chunk.hex);
+      if (chunk.hex.length < CURSOR_WINDOW_CHUNK_BYTES * 2) break;
+    }
+    const hex = hexParts.join("");
+    row[name] = isNull ? null : hex ? new TextDecoder().decode(hexToBytes(hex)) : "";
+  }
+  return row;
+}
+
+async function fetchConversationMessagesRaw(
+  collection: Collection<Message>,
+  convId: string
+): Promise<Record<string, unknown>[]> {
+  try {
+    return (await collection
+      .query(Q.where("conversation_id", convId), Q.sortBy("message_id", Q.asc))
+      .unsafeFetchRaw()) as Record<string, unknown>[];
+  } catch (error) {
+    if (!tooWideForCursor(error)) throw error;
+  }
+  const ids = (await collection
+    .query(
+      Q.unsafeSqlQuery(
+        `select id from ${collection.table} where conversation_id = ? and _status is not ? order by message_id asc`,
+        [convId, "deleted"]
+      )
+    )
+    .unsafeFetchRaw()) as { id: string }[];
+  const rows: Record<string, unknown>[] = [];
+  for (const { id } of ids) {
+    let row: Record<string, unknown> | null | undefined;
+    try {
+      [row] = (await collection.query(Q.where("id", id)).unsafeFetchRaw()) as Record<
+        string,
+        unknown
+      >[];
+    } catch (error) {
+      if (!tooWideForCursor(error)) throw error;
+      row = await readRowInChunks(collection, id);
+    }
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
 export async function getMessagesOp(
   ctx: StorageOperationsContext,
   convId: string,
@@ -608,9 +691,7 @@ export async function getMessagesOp(
     rawFilter?: (raw: Record<string, unknown>) => boolean;
   }
 ): Promise<StoredMessage[]> {
-  const fetched = (await ctx.messagesCollection
-    .query(Q.where("conversation_id", convId), Q.sortBy("message_id", Q.asc))
-    .unsafeFetchRaw()) as Record<string, unknown>[];
+  const fetched = await fetchConversationMessagesRaw(ctx.messagesCollection, convId);
   const results = opts?.rawFilter ? fetched.filter(opts.rawFilter) : fetched;
 
   return Promise.all(

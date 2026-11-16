@@ -60,7 +60,7 @@ function isKinded(record: { kind?: string | null }): boolean {
   return record.kind !== null && record.kind !== undefined;
 }
 
-async function assertCanWrite(ctx: VaultMemoryOperationsContext): Promise<void> {
+export async function assertCanWrite(ctx: VaultMemoryOperationsContext): Promise<void> {
   if (ctx.canWrite && !(await ctx.canWrite())) {
     throw new MemorySourceIneligibleError();
   }

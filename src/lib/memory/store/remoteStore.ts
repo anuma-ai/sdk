@@ -429,17 +429,15 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   ): Promise<string[]> => {
     const wanted = new Set(extractQueryEntities(query).map(normalizeTopicName).filter(Boolean));
     if (wanted.size === 0 || recallOptions.memoryIds?.length === 0) return [];
-    const rows = await pages(
-      metadata,
-      {
-        topics: [...wanted].slice(0, MAX_QUERY_TOPICS),
-        ...(recallOptions.scopes && { scopes: recallOptions.scopes }),
-        ...(recallOptions.factTypes && { fact_types: recallOptions.factTypes }),
-        ...(recallOptions.memoryIds && { memory_ids: recallOptions.memoryIds }),
-      },
-      GRAPH_LANE_ROWS
-    );
-    return rows
+    const filters = {
+      topics: [...wanted].slice(0, MAX_QUERY_TOPICS),
+      ...(recallOptions.scopes && { scopes: recallOptions.scopes }),
+      ...(recallOptions.factTypes && { fact_types: recallOptions.factTypes }),
+    };
+    const rows = recallOptions.memoryIds
+      ? await enumerateIds(metadata, recallOptions.memoryIds, filters, GRAPH_LANE_ROWS)
+      : await pages(metadata, filters, GRAPH_LANE_ROWS);
+    return [...new Map(rows.map((row) => [row.memory.memory_id, row])).values()]
       .map(({ memory }) => ({
         memoryId: memory.memory_id,
         matched: [...canonicalTopics(memory)].filter((name) => wanted.has(name)).length,
@@ -457,12 +455,13 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const enumerateIds = async <T extends Row>(
     read: (options: RemoteMemoryQueryOptions) => Promise<Page<T>>,
     ids: readonly string[],
-    filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit" | "memory_ids">
+    filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit" | "memory_ids">,
+    max = Infinity
   ) =>
     (
       await Promise.all(
         chunks([...new Set(ids)], MAX_QUERY_IDS).map((memory_ids) =>
-          pages(read, { ...filters, memory_ids })
+          pages(read, { ...filters, memory_ids }, max)
         )
       )
     ).flat();

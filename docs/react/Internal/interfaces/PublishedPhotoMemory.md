@@ -1,6 +1,6 @@
 # PublishedPhotoMemory
 
-Defined in: [src/lib/db/memoryVault/photoIngest.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#15)
+Defined in: [src/lib/db/memoryVault/photoIngest.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#16)
 
 One row of `GET /api/memories/published`, narrowed to what ingest needs.
 
@@ -14,7 +14,7 @@ a shared nominal type would drag one across a package boundary for no gain.
 
 > `optional` **eventTime**: { `end`: `number` | `null`; `kind`: `"point"` | `"range"` | `"ongoing"` | `null`; `start`: `number` | `null`; } | `null`
 
-Defined in: [src/lib/db/memoryVault/photoIngest.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#23)
+Defined in: [src/lib/db/memoryVault/photoIngest.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#24)
 
 When the event in the memory happened, if the server knows.
 
@@ -24,7 +24,7 @@ When the event in the memory happened, if the server knows.
 
 > `optional` **media**: [`PhotoMediaRef`](PhotoMediaRef.md)\[] | `null`
 
-Defined in: [src/lib/db/memoryVault/photoIngest.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#21)
+Defined in: [src/lib/db/memoryVault/photoIngest.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#22)
 
 The photo(s) this fact was read out of.
 
@@ -34,7 +34,7 @@ The photo(s) this fact was read out of.
 
 > **memoryId**: `string`
 
-Defined in: [src/lib/db/memoryVault/photoIngest.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#17)
+Defined in: [src/lib/db/memoryVault/photoIngest.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#18)
 
 The server-minted memory id. `photo:<feedItemID>:fact:NN` or `:caption`.
 
@@ -44,7 +44,7 @@ The server-minted memory id. `photo:<feedItemID>:fact:NN` or `:caption`.
 
 > **text**: `string`
 
-Defined in: [src/lib/db/memoryVault/photoIngest.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#19)
+Defined in: [src/lib/db/memoryVault/photoIngest.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#20)
 
 The projected fact text.
 
@@ -54,6 +54,6 @@ The projected fact text.
 
 > `optional` **userAuthored**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/photoIngest.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#29)
+Defined in: [src/lib/db/memoryVault/photoIngest.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/photoIngest.ts#30)
 
 True when the text is the user's own words (a kept caption).

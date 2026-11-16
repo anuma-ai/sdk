@@ -144,6 +144,7 @@ export interface ChatStore {
   putMany(writes: readonly ChatWrite[], signal?: AbortSignal): Promise<ChatSnapshot[]>;
   getMany(refs: readonly ChatRef[], signal?: AbortSignal): Promise<ChatSnapshot[]>;
   account(signal?: AbortSignal): Promise<ChatAccount>;
+  takeConnectedAccount?(): ChatAccount | undefined;
   importRecords(records: readonly ChatImport[], signal?: AbortSignal): Promise<number>;
   verify(revisions: readonly ChatRevision[], signal?: AbortSignal): Promise<ChatRef[]>;
   activate(signal?: AbortSignal): Promise<boolean>;

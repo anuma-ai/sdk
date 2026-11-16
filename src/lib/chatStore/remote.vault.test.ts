@@ -4,7 +4,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
 import { createRemoteChatStore } from "./remote";
-import { type ChatRecord, ChatStoreError } from "./types";
+import { type ChatRecord, type ChatSnapshot, type ChatStore, ChatStoreError } from "./types";
+import { createVaultChatBackend } from "./vaultBackend";
 
 beforeAll(() => {
   vi.stubGlobal("crypto", webcrypto);
@@ -88,7 +89,13 @@ async function setup(override?: (call: Call) => Response | undefined) {
     calls.push(call);
     const overridden = override?.(call);
     if (overridden) return overridden;
-    if (path === "/account" && method === "GET") return Response.json(account);
+    if (path === "/account" && method === "GET") {
+      const head = [...rows.values()]
+        .map((s) => s.server_updated_at)
+        .sort()
+        .at(-1);
+      return Response.json({ ...account, ...(head ? { changes_cursor: head } : {}) });
+    }
     if (path === "/account" && method === "PUT") {
       const transitioned = account.state === "migrating";
       account.state = "active";
@@ -563,5 +570,133 @@ describe("remote ChatStore against vault's server-only contract", () => {
       ).rejects.toThrow(ChatStoreError);
     await expect(s.store.search(holey)).rejects.toThrow(ChatStoreError);
     expect(s.calls.filter((c) => c.path === "/import" || c.path === "/search")).toHaveLength(0);
+  });
+});
+
+const quiet = {
+  pollIntervalMs: 0,
+  activity: { isActive: () => true, subscribe: () => () => {} },
+};
+
+function route(call: Call): string {
+  return `${call.method} ${call.path.split("?")[0]}`;
+}
+
+describe("vault chat backend over the remote ChatStore", () => {
+  it("connects with one /account read and polls from the cursor it read before the history", async () => {
+    const s = await setup();
+    await s.store.putMany([{ record: record("conversation", "early"), expectedVersion: 0 }]);
+    const head = s.rows.get("conversation/early")?.server_updated_at;
+    s.calls.length = 0;
+    const backend = createVaultChatBackend({
+      store: () => createRemoteChatStore(s.options),
+      ...quiet,
+    });
+    expect((await backend.getConversations()).map((c) => c.conversationId)).toEqual(["early"]);
+    await s.store.putMany([{ record: record("conversation", "late"), expectedVersion: 0 }]);
+    await backend.poll();
+    expect((await backend.getConversations()).map((c) => c.conversationId).sort()).toEqual([
+      "early",
+      "late",
+    ]);
+    expect(s.calls.map(route)).toEqual([
+      "GET /account",
+      "GET /records",
+      "POST /records/batch",
+      "GET /changes",
+    ]);
+    expect(new URLSearchParams(s.calls.at(-1)?.path.split("?")[1]).get("cursor")).toBe(head);
+    backend.close();
+  });
+
+  it("reads /account again for a store that has made another request since it connected", async () => {
+    const s = await setup();
+    const fresh = await createRemoteChatStore(s.options);
+    await s.store.putMany([{ record: record("conversation", "c"), expectedVersion: 0 }]);
+    s.calls.length = 0;
+    const used = createVaultChatBackend({ store: s.store, ...quiet });
+    const unused = createVaultChatBackend({ store: fresh, ...quiet });
+    expect((await used.getConversations()).map((c) => c.conversationId)).toEqual(["c"]);
+    expect((await unused.getConversations()).map((c) => c.conversationId)).toEqual(["c"]);
+    expect(s.calls.filter((c) => route(c) === "GET /account")).toHaveLength(1);
+    used.close();
+    unused.close();
+  });
+});
+
+describe("remote ChatStore page decoding", () => {
+  const reads: [string, (store: ChatStore) => Promise<ChatSnapshot[]>, string[]][] = [
+    [
+      "list",
+      async (store) => (await store.list({ kind: "message", conversationId: "c" })).items,
+      ["m1", "m2"],
+    ],
+    ["changes", async (store) => (await store.changes()).items, ["c", "m1", "m2"]],
+    [
+      "getMany",
+      (store) =>
+        store.getMany([
+          { kind: "message", id: "m1" },
+          { kind: "message", id: "m2" },
+        ]),
+      ["m1", "m2"],
+    ],
+    ["search", (store) => store.search(unit(3)), ["m1", "m2"]],
+  ];
+
+  async function seeded() {
+    const s = await setup();
+    await s.store.putMany([
+      { record: record("conversation", "c"), expectedVersion: 0 },
+      { record: record("message", "m1", "c", 1), expectedVersion: 0 },
+      { record: record("message", "m2", "c", 2), expectedVersion: 0 },
+    ]);
+    const idOf = new Map([...s.rows.values()].map((w) => [w.record.payload, w.record.id]));
+    return { s, idOf };
+  }
+
+  it.each(reads)(
+    "%s decrypts a page concurrently and keeps vault's order",
+    async (_, read, order) => {
+      const { s, idOf } = await seeded();
+      const started: string[] = [];
+      const release = new Map<string, () => void>();
+      const store = await createRemoteChatStore({
+        ...s.options,
+        decrypt: async (ciphertext) => {
+          const id = idOf.get(ciphertext) ?? "";
+          started.push(id);
+          await new Promise<void>((resolve) => release.set(id, resolve));
+          return s.options.decrypt(ciphertext);
+        },
+      });
+      const page = read(store);
+      await vi.waitFor(() => expect(started).toEqual(order));
+      for (const id of [...order].reverse()) {
+        release.get(id)?.();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      expect((await page).map((snapshot) => snapshot.record.id)).toEqual(order);
+    }
+  );
+
+  it.each(reads)("%s fails a page on its first bad record in vault's order", async (_, read) => {
+    const { s, idOf } = await seeded();
+    const started: string[] = [];
+    const store = await createRemoteChatStore({
+      ...s.options,
+      decrypt: async (ciphertext) => {
+        const id = idOf.get(ciphertext) ?? "";
+        started.push(id);
+        if (id === "m1") {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          throw new Error("m1 is unreadable");
+        }
+        if (id === "m2") throw new Error("m2 is unreadable");
+        return s.options.decrypt(ciphertext);
+      },
+    });
+    await expect(read(store)).rejects.toThrow("m1 is unreadable");
+    expect(started).toContain("m2");
   });
 });
