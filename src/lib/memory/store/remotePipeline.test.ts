@@ -122,7 +122,9 @@ function setup() {
     return { items, failed };
   });
   const get = vi.fn((id: string) => Promise.resolve(structuredClone(rows.get(id) ?? null)));
-  const list = vi.fn(() => Promise.reject(new Error("The pipeline must not enumerate the vault")));
+  const list = vi
+    .fn<RemoteMemoryPersistence["list"]>()
+    .mockRejectedValue(new Error("The test must not enumerate the vault."));
   const persistence: RemoteMemoryPersistence = {
     claimWork: vi.fn(),
     releaseWork: vi.fn(),
@@ -137,13 +139,15 @@ function setup() {
     candidateSet,
     candidates,
     list,
-    query: vi.fn(() => Promise.reject(new Error("The pipeline must not enumerate the vault"))),
-    queryMetadata: vi.fn(() =>
-      Promise.reject(new Error("The pipeline must not enumerate the vault"))
-    ),
+    query: vi
+      .fn<RemoteMemoryPersistence["query"]>()
+      .mockRejectedValue(new Error("The test must not enumerate the vault.")),
+    queryMetadata: vi
+      .fn<RemoteMemoryPersistence["queryMetadata"]>()
+      .mockRejectedValue(new Error("The test must not enumerate the vault.")),
   };
-  const graphRanking = vi.fn(() => Promise.resolve<string[]>([]));
-  const temporalRanking = vi.fn(() => Promise.resolve<string[]>([]));
+  const graphRanking = vi.fn<() => Promise<string[]>>().mockResolvedValue([]);
+  const temporalRanking = vi.fn<() => Promise<string[]>>().mockResolvedValue([]);
   const pipeline = createRemoteMemoryPipeline({
     persistence,
     embeddingOptions: { apiKey: "device-only", model: "model" },
@@ -207,6 +211,48 @@ describe("remote retain source eligibility", () => {
 });
 
 describe("remote shared recall/retain pipeline", () => {
+  it.each([0, 1000, 1001, 2001])(
+    "recalls from a %i-id filter across all facet windows",
+    async (count) => {
+      const h = setup();
+      const ids = Array.from({ length: count }, (_, i) => `memory-${i}`);
+      const expected = [...new Set([ids[0], ids[999], ids.at(-1)])].filter(
+        (id): id is string => id !== undefined
+      );
+      for (const id of expected)
+        h.seed(id, { content: `Drinks tea ${id}`, fact_type: "preference" });
+      h.seed("unreviewed", { fact_type: "preference" });
+      const candidates = h.candidates.getMockImplementation()!;
+      h.candidates.mockImplementation((embedding, options) => {
+        expect(options!.memory_ids!.length).toBeLessThanOrEqual(1000);
+        return candidates(embedding, options);
+      });
+      h.graphRanking.mockResolvedValueOnce(expected);
+
+      const result = await h.pipeline.recall("Drinks tea", {
+        memoryIds: count === 2001 ? [...ids, ids[0]] : ids,
+        scopes: ["private"],
+        factTypes: ["preference"],
+        subQueries: ["Drinks tea", "Favorite drink"],
+        minScore: 0,
+      });
+
+      expect(result.memories.map((memory) => memory.id).sort()).toEqual(expected.sort());
+      const batches = Math.max(1, Math.ceil(count / 1000));
+      expect(h.candidates).toHaveBeenCalledTimes(3 * batches);
+      const calls = h.candidates.mock.calls.map(([, options]) => options!);
+      for (const options of calls)
+        expect(options).toMatchObject({
+          scopes: ["private"],
+          fact_types: ["preference"],
+          embedding_model: "model",
+          signal: calls[0].signal,
+        });
+      expect(calls.slice(0, batches).flatMap((options) => options.memory_ids!)).toEqual(ids);
+      expect(calls.slice(batches).every((options) => options.force_ids!.length === 0)).toBe(true);
+      expect(h.list).not.toHaveBeenCalled();
+    }
+  );
   it.each(["deleted", "superseded", "live"])(
     "freshly probes %s secondary targets after a write conflict",
     async (state) => {
