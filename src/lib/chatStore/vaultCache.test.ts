@@ -252,6 +252,97 @@ describe("vault chat cache", () => {
     expect(await loadChatCache(storage, snapshot.account, seal.decrypt)).toMatchObject(next);
   });
 
+  it("reuses live entries from another tab and replaces only a changed thread", async () => {
+    const storage = cacheStorage();
+    const seal = await sealFor("56");
+    const snapshot = conversationCache(2);
+    snapshot.threads = snapshot.records.map(({ record }) => record.id);
+    snapshot.records.push(
+      ...snapshot.records.map(({ record, ...rest }) => ({
+        ...rest,
+        record: {
+          ...record,
+          kind: "message" as const,
+          id: `msg_${record.id}`,
+          conversationId: record.id,
+          data: { role: "user", content: `Message ${record.id}` },
+        },
+      }))
+    );
+    const first = await saveChatCache(storage, seal.encrypt, snapshot);
+    const stored = () => storedChatCacheEntries(storage, snapshot.account, seal.decrypt);
+    const second = await saveChatCache(
+      storage,
+      seal.encrypt,
+      (await loadChatCache(storage, snapshot.account, seal.decrypt))!,
+      undefined,
+      await stored()
+    );
+    const sealed = new Map(storage.values);
+    const encrypt = vi.fn(seal.encrypt);
+    const set = vi.spyOn(storage, "set");
+    const next = { ...snapshot, cursor: "cursor_2" };
+
+    const reused = await saveChatCache(storage, encrypt, next, first, await stored(), seal.decrypt);
+
+    expect(reused.entries).toEqual(second.entries);
+    expect(encrypt).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenCalledExactlyOnceWith(snapshot.account, expect.any(String));
+    for (const [, slot] of second.entries!) expect(storage.values.get(slot)).toBe(sealed.get(slot));
+
+    const changed = {
+      ...next,
+      cursor: "cursor_3",
+      records: second.records.map((entry) =>
+        entry.record.id === "msg_conv_1"
+          ? {
+              ...entry,
+              version: entry.version + 1,
+              record: {
+                ...entry.record,
+                data: { ...entry.record.data, content: "Changed message" },
+              },
+            }
+          : entry
+      ),
+    };
+    encrypt.mockClear();
+    set.mockClear();
+    const saved = await saveChatCache(
+      storage,
+      encrypt,
+      changed,
+      second,
+      await stored(),
+      seal.decrypt
+    );
+    const before = new Map(reused.entries);
+    const after = new Map(saved.entries);
+
+    expect(encrypt).toHaveBeenCalledTimes(2);
+    expect(set).toHaveBeenCalledTimes(3);
+    expect(after.get("conversations")).toBe(before.get("conversations"));
+    expect(after.get("thread/conv_0")).toBe(before.get("thread/conv_0"));
+    expect(after.get("thread/conv_1")).not.toBe(before.get("thread/conv_1"));
+    const confirmed = (await loadChatCache(storage, snapshot.account, seal.decrypt))!;
+    expect(confirmed).toMatchObject(changed);
+
+    encrypt.mockClear();
+    set.mockClear();
+    const caughtUp = await saveChatCache(
+      storage,
+      encrypt,
+      { ...confirmed, cursor: "cursor_4" },
+      reused,
+      await stored(),
+      seal.decrypt
+    );
+
+    expect(caughtUp.entries).toEqual(saved.entries);
+    expect(encrypt).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenCalledExactlyOnceWith(snapshot.account, expect.any(String));
+  });
+
   it("seals the changed thread and conversation index after a confirmed turn", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");
@@ -377,11 +468,12 @@ describe("vault chat cache", () => {
     expect(storage.values.size).toBe(3);
   });
 
-  it("removes replaced entries after the first tab closes and clears them from a cold tab", async () => {
+  it("reuses entries after the first tab closes and clears them from a cold tab", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");
     const storage = cacheStorage();
-    const cache = { storage, seal, account: "0xaaa" };
+    const encrypt = vi.fn(seal.encrypt);
+    const cache = { storage, seal: { ...seal, encrypt }, account: "0xaaa" };
     const first = backend(fake.store, { cache });
     const second = backend(fake.store, { cache });
     expect(await second.getConversations()).toEqual([]);
@@ -391,22 +483,21 @@ describe("vault chat cache", () => {
       expect(ids(c)).toContain("msg_1")
     );
     first.close();
+    encrypt.mockClear();
+    const set = vi.spyOn(storage, "set");
 
     await second.poll();
     expect((await second.getMessages("conv_1")).map((message) => message.uniqueId)).toEqual([
       "msg_1",
     ]);
-    const replaced = new Set(before.entries!.map(([, slot]) => slot));
+    await vi.waitFor(() => expect(set).toHaveBeenCalled(), { timeout: 3000 });
+    expect(encrypt).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenCalledExactlyOnceWith(cache.account, expect.any(String));
     const after = await cached(storage, seal, cache.account, (c) => {
       expect(ids(c)).toContain("msg_1");
-      expect(c.entries!.every(([, slot]) => !replaced.has(slot))).toBe(true);
+      expect(c.entries).toEqual(before.entries);
     });
-    const retained = new Set(after.entries!.map(([, slot]) => slot));
-    await vi.waitFor(() => {
-      expect(storage.values.size).toBe(retained.size + 1);
-      for (const [, slot] of before.entries!)
-        if (!retained.has(slot)) expect(storage.values.has(slot)).toBe(false);
-    });
+    expect(storage.values.size).toBe(after.entries!.length + 1);
     second.close();
 
     await backend(offline, { cache }).clearCache();

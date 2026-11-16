@@ -33,12 +33,38 @@ function groups(records: readonly ChatSnapshot[]): Map<string, ChatSnapshot[]> {
   return result;
 }
 
+async function loadEntry(
+  storage: ChatCacheStorage,
+  account: string,
+  key: string,
+  slot: string,
+  decrypt: (ciphertext: string) => Promise<string>
+): Promise<ChatSnapshot[] | undefined> {
+  if (
+    typeof key !== "string" ||
+    typeof slot !== "string" ||
+    !slot.startsWith(`${account}/chat-cache/`)
+  )
+    return undefined;
+  const sealed = await storage.get(slot);
+  if (!sealed) return undefined;
+  const entry = JSON.parse(await decrypt(sealed)) as {
+    account: string;
+    key: string;
+    records: ChatSnapshot[];
+  };
+  if (entry.account !== account || entry.key !== key || !Array.isArray(entry.records))
+    return undefined;
+  return entry.records;
+}
+
 export async function saveChatCache(
   storage: ChatCacheStorage,
   encrypt: (plaintext: string) => Promise<string>,
   snapshot: ChatCacheSnapshot,
   previous?: ChatCacheSnapshot,
-  stored?: readonly [string, string][]
+  stored?: readonly [string, string][],
+  decrypt?: (ciphertext: string) => Promise<string>
 ): Promise<ChatCacheSnapshot> {
   const before = groups(previous?.records ?? []);
   const slots = new Map(previous?.entries);
@@ -48,13 +74,25 @@ export async function saveChatCache(
   try {
     for (const [key, records] of groups(snapshot.records)) {
       const known = before.get(key);
-      let slot = slots.get(key);
-      if (
-        !slot ||
-        (live && live.get(key) !== slot) ||
-        known?.length !== records.length ||
-        !records.every((record, index) => record === known[index])
-      ) {
+      let slot = live ? live.get(key) : slots.get(key);
+      let unchanged =
+        slot === slots.get(key) &&
+        known?.length === records.length &&
+        records.every((record, index) => record === known[index]);
+      if (slot && !unchanged && decrypt) {
+        const current = await loadEntry(storage, snapshot.account, key, slot, decrypt).catch(
+          () => undefined
+        );
+        const versions = new Map(
+          current?.map(({ record, version }) => [`${record.kind}/${record.id}`, version])
+        );
+        unchanged =
+          current?.length === records.length &&
+          records.every(
+            ({ record, version }) => versions.get(`${record.kind}/${record.id}`) === version
+          );
+      }
+      if (!slot || !unchanged) {
         slot = `${snapshot.account}/chat-cache/${uuidv7()}`;
         created.push(slot);
         await storage.set(
@@ -83,7 +121,7 @@ export async function saveChatCache(
     throw error;
   }
   const retained = new Set(entries.map(([, slot]) => slot));
-  const replaced = new Set([...slots.values(), ...(live?.values() ?? [])]);
+  const replaced = new Set(live?.values() ?? slots.values());
   await Promise.allSettled(
     [...replaced].filter((slot) => !retained.has(slot)).map((slot) => storage.set(slot, null))
   );
@@ -114,24 +152,9 @@ export async function loadChatCache(
   const records: ChatSnapshot[] = [];
   for (let offset = 0; offset < parsed.entries.length; offset += entryReadBatchSize) {
     const loaded = await Promise.all(
-      parsed.entries.slice(offset, offset + entryReadBatchSize).map(async ([key, slot]) => {
-        if (
-          typeof key !== "string" ||
-          typeof slot !== "string" ||
-          !slot.startsWith(`${account}/chat-cache/`)
-        )
-          return undefined;
-        const sealedEntry = await storage.get(slot);
-        if (!sealedEntry) return undefined;
-        const entry = JSON.parse(await decrypt(sealedEntry)) as {
-          account: string;
-          key: string;
-          records: ChatSnapshot[];
-        };
-        if (entry.account !== account || entry.key !== key || !Array.isArray(entry.records))
-          return undefined;
-        return entry.records;
-      })
+      parsed.entries
+        .slice(offset, offset + entryReadBatchSize)
+        .map(([key, slot]) => loadEntry(storage, account, key, slot, decrypt))
     );
     for (const batch of loaded) {
       if (!batch) return undefined;

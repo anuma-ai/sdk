@@ -345,7 +345,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       cache.seal.encrypt,
       cacheSnapshot(),
       savedCache,
-      stored
+      stored,
+      cache.seal.decrypt
     );
   };
 
