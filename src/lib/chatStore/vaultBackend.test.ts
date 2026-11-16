@@ -1133,6 +1133,32 @@ describe("vault chat backend", () => {
     expect(stop).toHaveBeenCalledTimes(1);
   });
 
+  it("skips a disconnected report while already disconnected and polls on a real drop", async () => {
+    const fake = await createChatStoreHarness();
+    let report: ((connected: boolean) => void) | undefined;
+    const { b } = backend(fake, {
+      subscribeChanges: (onChange) => {
+        report = onChange;
+        onChange(false);
+        return () => {};
+      },
+    });
+    await b.getConversations();
+    await vi.waitFor(() => expect(report).toBeDefined());
+    const changes = () => fake.calls.filter((c) => c === "changes").length;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(changes()).toBe(0);
+
+    report!(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(changes()).toBe(0);
+
+    report!(true);
+    await vi.waitFor(() => expect(changes()).toBe(1));
+    report!(false);
+    await vi.waitFor(() => expect(changes()).toBe(2));
+  });
+
   it("polls again after a marker that arrives during a poll", async () => {
     const fake = await createChatStoreHarness();
     let report: ((connected: boolean) => void) | undefined;

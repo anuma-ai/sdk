@@ -766,8 +766,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   };
 
   const onChanges = (connectedNow: boolean) => {
+    const wasConnected = changesConnected;
     changesConnected = connectedNow;
-    if (closed || !activity.isActive()) return;
+    if (closed || !activity.isActive() || (!connectedNow && !wasConnected)) return;
     if (polling) pollAgain = true;
     else void poll();
   };
