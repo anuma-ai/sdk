@@ -647,6 +647,7 @@ export async function getAllVaultMemoriesOp(
     levels?: MemoryLevel[];
     /** Restrict to these profile kinds. */
     kinds?: string[];
+    withEmbeddings?: boolean;
   }
 ): Promise<StoredVaultMemory[]> {
   const results = (await ctx.vaultMemoryCollection

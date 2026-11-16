@@ -148,18 +148,22 @@ export async function assembleMemoryContext(
       ? guard(
           "profile",
           async () => {
-            const stable = await loadFacts({
-              ...filters,
-              memoryIds,
-              factTypes: ["identity", "preference", "constraint", "relationship"],
-              limit: 8,
-            });
-            const dynamic = await loadFacts({
-              ...filters,
-              memoryIds,
-              factTypes: ["ongoing_context", "plan"],
-              limit: 4,
-            });
+            const [stable, dynamic] = await Promise.all([
+              loadFacts({
+                ...filters,
+                memoryIds,
+                factTypes: ["identity", "preference", "constraint", "relationship"],
+                limit: 8,
+                withEmbeddings: false,
+              }),
+              loadFacts({
+                ...filters,
+                memoryIds,
+                factTypes: ["ongoing_context", "plan"],
+                limit: 4,
+                withEmbeddings: false,
+              }),
+            ]);
             return [...stable, ...dynamic].filter(active).map((m) => asItem(m, "profile"));
           },
           []
@@ -174,7 +178,11 @@ export async function assembleMemoryContext(
               .sort((a, b) => b.score - a.score)
               .slice(0, 10);
             if (!refs.length) return [];
-            const rows = await loadFacts({ ...filters, memoryIds: refs.map((r) => r.memoryId) });
+            const rows = await loadFacts({
+              ...filters,
+              memoryIds: refs.map((r) => r.memoryId),
+              withEmbeddings: false,
+            });
             const byId = new Map(rows.filter(active).map((m) => [m.uniqueId, m]));
             return refs.flatMap((ref) => {
               const m = byId.get(ref.memoryId);
