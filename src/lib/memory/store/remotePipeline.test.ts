@@ -413,6 +413,79 @@ describe("remote shared recall/retain pipeline", () => {
 });
 
 describe("remote admission and consolidation regressions", () => {
+  it.each([
+    { count: 0, sizes: [0] },
+    { count: 1000, sizes: [1000] },
+    { count: 1001, sizes: [1000, 1] },
+    { count: 2000, sizes: [1000, 1000] },
+    { count: 2001, sizes: [1000, 1000, 1] },
+  ])("recalls a reviewed set of $count ids through bounded windows", async ({ count, sizes }) => {
+    const h = setup();
+    const memoryIds = Array.from({ length: count }, (_, i) => `reviewed-${i}`);
+    const expectedIds = memoryIds.filter((_, i) => i % 1000 === 0);
+    for (const id of [...expectedIds, "unreviewed"])
+      h.seed(id, { content: `Drinks tea ${id}`, fact_type: "preference" });
+
+    const result = await h.pipeline.recall("Drinks tea", {
+      memoryIds,
+      scopes: ["private"],
+      factTypes: ["preference"],
+      minScore: 0,
+    });
+
+    expect(new Set(result.memories.map((memory) => memory.id))).toEqual(new Set(expectedIds));
+    expect(h.candidates.mock.calls.map(([, options]) => options!.memory_ids!.length)).toEqual(
+      sizes
+    );
+    expect(h.candidates.mock.calls.flatMap(([, options]) => options!.memory_ids!)).toEqual(
+      memoryIds
+    );
+    for (const [, options] of h.candidates.mock.calls)
+      expect(options).toMatchObject({
+        scopes: ["private"],
+        fact_types: ["preference"],
+        embedding_model: "model",
+        limit: 30,
+      });
+    expect(h.candidateSet).not.toHaveBeenCalled();
+    expect(h.persistence.list).not.toHaveBeenCalled();
+  });
+
+  it("merges reviewed windows across query facets before the final result limit", async () => {
+    const h = setup();
+    const memoryIds = Array.from({ length: 1001 }, (_, i) => `reviewed-${i}`);
+    h.seed(memoryIds[0]);
+    h.seed(memoryIds[1000]);
+    h.seed("unreviewed");
+    const forceIds = [memoryIds[1000], "unreviewed"];
+
+    const result = await h.pipeline.factSource.search("Drinks tea", {
+      memoryIds,
+      subQueries: ["Drinks tea", "Favorite drink"],
+      entityRanking: forceIds,
+      includeArchived: true,
+      limit: 1,
+      minSimilarity: 0,
+    });
+
+    expect(result.results).toHaveLength(1);
+    expect(memoryIds).toContain(result.results[0].uniqueId);
+    expect(result.rowsDecrypted).toBe(2);
+    expect(h.candidates.mock.calls.map(([, options]) => options!.memory_ids!.length)).toEqual([
+      1000, 1, 1000, 1, 1000, 1,
+    ]);
+    expect(h.candidates.mock.calls.map(([, options]) => options!.force_ids)).toEqual([
+      forceIds,
+      forceIds,
+      [],
+      [],
+      [],
+      [],
+    ]);
+    expect(new Set(h.candidates.mock.calls.map(([, options]) => options!.signal)).size).toBe(1);
+    expect(h.candidates.mock.calls.every(([, options]) => options!.include_archived)).toBe(true);
+  });
+
   it("bounds crowded auxiliary lanes while preserving primary recall", async () => {
     const h = setup();
     h.seed("a");
