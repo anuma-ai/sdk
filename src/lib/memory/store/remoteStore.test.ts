@@ -44,8 +44,8 @@ import {
   RemoteMemoryPartialCreateError,
   type RemoteMemoryStoreOptions,
 } from "./remoteStore";
-import type { MemoryRecallOptions } from "./types";
 import { createTopicCodec } from "./topicCodec";
+import type { MemoryRecallOptions } from "./types";
 
 type Row = Record<string, unknown> & { memory_id: string; content: string };
 interface Stored {

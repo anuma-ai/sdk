@@ -20,10 +20,10 @@ vi.mock("../retain.js", async (importOriginal) => {
 });
 
 import { getLogger } from "../../logger.js";
-import type { RecallDiagnostics } from "../types.js";
 import { generateEmbeddings } from "../../memoryEngine/embeddings.js";
 import { consolidateMemory } from "../consolidate.js";
 import type { RetainPersistence } from "../retain.js";
+import type { RecallDiagnostics } from "../types.js";
 import {
   type RemoteMemoryCandidateOptions,
   type RemoteMemoryPersistence,
