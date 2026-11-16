@@ -44,7 +44,7 @@ Defined in: [src/lib/db/memoryVault/operations.ts:2104](https://github.com/anuma
 
 > `optional` **lastObservedAt**: `number` | `null`
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2104](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2104)
+Defined in: [src/lib/db/memoryVault/operations.ts:2110](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2110)
 
 ***
 
