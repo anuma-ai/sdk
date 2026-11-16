@@ -276,6 +276,7 @@ const candidateListLimits = [
 ] as const;
 
 const MAX_LANE_TOPICS = 100;
+export const CANDIDATE_LANES_UNSUPPORTED = "candidate_lanes_unsupported";
 
 function isIdList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((id) => typeof id === "string");
@@ -535,6 +536,7 @@ export async function createRemoteMemoryPersistence(
   // While rows with legacy topics remain, topic queries also walk them. Another
   // device may be the one upgrading them, so /account is checked again now and
   // then, and the walk stops once it reports none.
+  let candidateLanes = account.candidate_lanes === true;
   let legacyCheckedAt = Date.now();
   let legacyCheck: Promise<void> | undefined;
   const recheckLegacyTopicRows = () => {
@@ -754,6 +756,14 @@ export async function createRemoteMemoryPersistence(
         throw new Error(`Candidate ${key} accepts at most ${max} entries (got ${values.length})`);
     }
     const lanes = candidateOptions.lanes && (await wireLanes(candidateOptions.lanes));
+    const lanesUnsupported = () => {
+      candidateLanes = false;
+      return new RemoteMemoryError(
+        "Nearby does not rank candidate lanes",
+        422,
+        CANDIDATE_LANES_UNSUPPORTED
+      );
+    };
     const result = await request(
       "/candidates",
       {
@@ -793,16 +803,20 @@ export async function createRemoteMemoryPersistence(
         }),
       },
       candidateOptions.signal
-    );
-    if (
-      !record(result) ||
-      !Array.isArray(result.items) ||
-      (lanes &&
-        (!record(result.lanes) ||
-          !isIdList(result.lanes.topic) ||
-          !isIdList(result.lanes.event_time)))
-    )
+    ).catch((error: unknown) => {
+      throw lanes &&
+        error instanceof RemoteMemoryError &&
+        (error.status === 400 || error.status === 422)
+        ? lanesUnsupported()
+        : error;
+    });
+    if (!record(result) || !Array.isArray(result.items))
       throw new Error("Invalid nearby candidate response");
+    if (
+      lanes &&
+      (!record(result.lanes) || !isIdList(result.lanes.topic) || !isIdList(result.lanes.event_time))
+    )
+      throw lanesUnsupported();
     return result as Record<string, unknown> & {
       items: unknown[];
       lanes?: { topic: string[]; event_time: string[] };
@@ -934,7 +948,7 @@ export async function createRemoteMemoryPersistence(
     ...createRemoteTopicPersistence(request, codec),
     ...createRemoteWorkPersistence(request),
     supportsRealtimeChanges: account.realtime_changes === true,
-    supportsCandidateLanes: () => account.candidate_lanes === true && !legacyTopicRows,
+    supportsCandidateLanes: () => candidateLanes && !legacyTopicRows,
     counts: async () => {
       const result = await request("/counts", {});
       if (

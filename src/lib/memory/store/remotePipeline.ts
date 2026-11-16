@@ -31,6 +31,7 @@ import type {
   RetainResult,
 } from "../types.js";
 import {
+  CANDIDATE_LANES_UNSUPPORTED,
   type RemoteMemoryCandidateLanes,
   type RemoteMemoryCandidateOptions,
   type RemoteMemoryDecodeFailure,
@@ -555,7 +556,32 @@ export function createRemoteMemoryPipeline(
     ...(candidateLanes && {
       searchWithLanes: (query, recallOptions) => {
         const lanes = candidateLanes(query, recallOptions);
-        return lanes && search(lanes);
+        if (!lanes) return undefined;
+        const searchLanes: RecallFactSource["search"] = async (text, searchOptions, cache) => {
+          try {
+            return await search(lanes)(text, searchOptions, cache);
+          } catch (error) {
+            if (!(error instanceof RemoteMemoryError && error.code === CANDIDATE_LANES_UNSUPPORTED))
+              throw error;
+            getLogger().warn("[memory/remote] Nearby stopped ranking candidate lanes", error);
+            const lane = (ranking: Promise<string[]>) => ranking.catch((): string[] => []);
+            const [entityRanking, temporalRanking] = await Promise.all([
+              lane(options.graphRanking(text, false, recallOptions)),
+              lane(options.temporalRanking(text, recallOptions.now)),
+            ]);
+            const result = await search()(
+              text,
+              {
+                ...searchOptions,
+                ...(entityRanking.length > 0 && { entityRanking }),
+                ...(temporalRanking.length > 0 && { temporalRanking }),
+              },
+              cache
+            );
+            return { ...result, lanes: { entityRanking, temporalRanking } };
+          }
+        };
+        return searchLanes;
       },
     }),
   };

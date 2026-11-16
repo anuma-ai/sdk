@@ -2657,6 +2657,27 @@ describe("one-request fact lane", () => {
     }
   });
 
+  it("falls back to the separate lanes when vault stops ranking them", async () => {
+    const { connect } = await seeded();
+    const before = await connect(false);
+    const after = await connect(true);
+    const serve = after.server.fetch.getMockImplementation()!;
+    after.server.fetch.mockImplementation(async (url, init) =>
+      typeof init?.body === "string" && "lanes" in parseBody(init.body)
+        ? Response.json({ detail: "unexpected property lanes" }, { status: 422 })
+        : serve(url, init)
+    );
+    const query = "What did Priya say about Acme yesterday?";
+    const old = await recallWith(before, query, {});
+    const first = await recallWith(after, query, {});
+    expect(first.ranked).toEqual(old.ranked);
+    expect([first.graph, first.temporal]).toEqual([old.graph, old.temporal]);
+    expect(first.paths).toEqual([...old.paths, "/candidates"].sort());
+    const second = await recallWith(after, query, {});
+    expect(second).toEqual(old);
+    expect(after.persistence.supportsCandidateLanes!()).toBe(false);
+  });
+
   it("keeps the separate lanes where the server cannot rank them", async () => {
     const { connect, rows } = await seeded();
     const after = await connect(true);

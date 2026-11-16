@@ -1451,7 +1451,7 @@ describe("candidate lanes", () => {
     expect(JSON.stringify(body)).not.toMatch(/paris|rome/i);
   });
 
-  it("sends no lanes it has no input for and refuses a response missing requested lanes", async () => {
+  it("sends no lanes it has no input for", async () => {
     const h = setup();
     const persistence = await createRemoteMemoryPersistence(h.options);
     const empty = await persistence.candidates([1, 0], {
@@ -1461,29 +1461,49 @@ describe("candidate lanes", () => {
     expect(h.requests.at(-1)!.body).not.toHaveProperty("lanes");
     expect(h.requests.at(-1)!.body!.force_ids).toEqual([]);
 
-    const onlyTime = { lanes: { event_time: { start: 1, end: 2, limit: 100 } } };
-    await expect(persistence.candidates([1, 0], onlyTime)).rejects.toThrow(
-      "Invalid nearby candidate response"
-    );
-    expect(h.requests.at(-1)!.body!.lanes).toEqual({
-      event_time: { start: 1, end: 2, limit: 100 },
-    });
-    for (const lanes of [
-      { topic: [], event_time: [3] },
-      { topic: [3], event_time: [] },
-      { event_time: [] },
-    ]) {
-      h.fetch.mockResolvedValueOnce(Response.json({ items: [], lanes }));
-      await expect(persistence.candidates([1, 0], onlyTime)).rejects.toThrow(
-        "Invalid nearby candidate response"
-      );
-    }
-
     const calls = h.fetch.mock.calls.length;
     const topics = Array.from({ length: 101 }, (_, i) => `topic ${i}`);
     await expect(
       persistence.candidates([1, 0], { lanes: { topic: { topics, rows: 256, limit: 64 } } })
     ).rejects.toThrow("at most 100 topics");
     expect(h.fetch).toHaveBeenCalledTimes(calls);
+  });
+
+  it.each([
+    ["no lanes", () => Response.json({ items: [] })],
+    ["no topic ranking", () => Response.json({ items: [], lanes: { event_time: [] } })],
+    [
+      "an invalid topic ranking",
+      () => Response.json({ items: [], lanes: { topic: [3], event_time: [] } }),
+    ],
+    [
+      "an invalid event-time ranking",
+      () => Response.json({ items: [], lanes: { topic: [], event_time: [3] } }),
+    ],
+    ["422", () => Response.json({ detail: "unexpected property" }, { status: 422 })],
+    ["400", () => Response.json({ detail: "unknown field" }, { status: 400 })],
+  ])("stops sending lanes after a server answers with %s", async (_, answer) => {
+    const h = setup();
+    h.account.candidate_lanes = true;
+    const persistence = await createRemoteMemoryPersistence(h.options);
+    h.fetch.mockResolvedValueOnce(answer());
+    const lanes = { lanes: { event_time: { start: 1, end: 2, limit: 100 } } };
+    await expect(persistence.candidates([1, 0], lanes)).rejects.toMatchObject({
+      status: 422,
+      code: "candidate_lanes_unsupported",
+    });
+    expect(JSON.parse(String(h.fetch.mock.calls.at(-1)![1]!.body)).lanes).toEqual(lanes.lanes);
+    expect(persistence.supportsCandidateLanes!()).toBe(false);
+  });
+
+  it("keeps lanes on for other failures", async () => {
+    const h = setup();
+    h.account.candidate_lanes = true;
+    const persistence = await createRemoteMemoryPersistence(h.options);
+    h.fetch.mockResolvedValueOnce(Response.json({ detail: "down" }, { status: 503 }));
+    await expect(
+      persistence.candidates([1, 0], { lanes: { event_time: { start: 1, end: 2, limit: 100 } } })
+    ).rejects.toMatchObject({ status: 503 });
+    expect(persistence.supportsCandidateLanes!()).toBe(true);
   });
 });
