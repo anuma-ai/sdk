@@ -761,7 +761,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       await seeding;
       if (!connected && typeof options.store === "function") connected = await options.store();
       const source = connected!;
-      const account = await source.account();
+      const account = source.takeConnectedAccount?.() ?? (await source.account());
       if (!fromCache) {
         cursor = account.changesCursor ?? "";
         (await listIndex(source)).forEach(merge);

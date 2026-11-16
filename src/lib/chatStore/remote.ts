@@ -255,6 +255,11 @@ function invalid(): never {
   throw new ChatStoreError("Invalid encrypted chat record or response", 0, "invalid_record");
 }
 
+function fulfilled<T>(result: PromiseSettledResult<T>): T {
+  if (result.status === "rejected") throw result.reason;
+  return result.value;
+}
+
 /** Connect to owner-scoped server storage using the account's canonical device-held cipher. */
 export async function createRemoteChatStore(options: RemoteChatStoreOptions): Promise<ChatStore> {
   if (
@@ -268,7 +273,9 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
   const decrypt = options.decrypt;
   const hashTopic = options.hashTopic;
   const nearby = createNearbyRequest({ ...options }, "/api/private-chats");
+  let connectRead: unknown;
   const request: typeof nearby = async (...args) => {
+    connectRead = undefined;
     try {
       return await nearby(...args);
     } catch (error) {
@@ -283,6 +290,32 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
   const accountId = account.account_id;
   if (account.key_id && account.key_id !== keyId)
     throw new ChatStoreError("Canonical chat key does not match", 409, "key_mismatch");
+  connectRead = account;
+
+  const parseAccount = (value: unknown): ChatAccount => {
+    if (
+      !object(value) ||
+      value.account_id !== accountId ||
+      !text(value.key_id) ||
+      (value.state !== "none" && value.state !== "migrating" && value.state !== "active") ||
+      !integer(value.record_count) ||
+      !integer(value.storage_bytes) ||
+      !integer(value.vector_count) ||
+      (value.changes_cursor !== undefined &&
+        (!text(value.changes_cursor) || value.changes_cursor.length > 2048))
+    )
+      invalid();
+    if (value.key_id && value.key_id !== keyId)
+      throw new ChatStoreError("Canonical chat key does not match", 409, "key_mismatch");
+    return {
+      keyId: value.key_id,
+      state: value.state,
+      recordCount: value.record_count,
+      storageBytes: value.storage_bytes,
+      vectorCount: value.vector_count,
+      ...(value.changes_cursor ? { changesCursor: value.changes_cursor } : {}),
+    };
+  };
 
   const decode = async (value: unknown): Promise<ChatSnapshot> => {
     if (
@@ -463,8 +496,8 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       )
         invalid();
       const items: ChatSnapshot[] = [];
-      for (const item of value.items) {
-        const result = await decode(item);
+      for (const decoded of await Promise.allSettled(value.items.map(decode))) {
+        const result = fulfilled(decoded);
         if (
           result.record.kind !== query.kind ||
           result.record.conversationId !== parent ||
@@ -505,8 +538,8 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         )
           invalid();
         const asked = new Set(batch.map((r) => `${r.kind}/${r.id}`));
-        for (const item of value.items) {
-          const snapshot = await decode(item);
+        for (const decoded of await Promise.allSettled(value.items.map(decode))) {
+          const snapshot = fulfilled(decoded);
           const key = `${snapshot.record.kind}/${snapshot.record.id}`;
           if (!asked.has(key) || found.has(key)) invalid();
           found.set(key, snapshot);
@@ -526,30 +559,12 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       });
     },
     async account(signal) {
-      const value = await request("/account", {}, signal);
-      if (
-        !object(value) ||
-        value.account_id !== accountId ||
-        !text(value.key_id) ||
-        (value.state !== "none" && value.state !== "migrating" && value.state !== "active") ||
-        !integer(value.record_count) ||
-        !integer(value.storage_bytes) ||
-        !integer(value.vector_count) ||
-        (value.changes_cursor !== undefined &&
-          (!text(value.changes_cursor) || value.changes_cursor.length > 2048))
-      )
-        invalid();
-      if (value.key_id && value.key_id !== keyId)
-        throw new ChatStoreError("Canonical chat key does not match", 409, "key_mismatch");
-      const out: ChatAccount = {
-        keyId: value.key_id,
-        state: value.state,
-        recordCount: value.record_count,
-        storageBytes: value.storage_bytes,
-        vectorCount: value.vector_count,
-        ...(value.changes_cursor ? { changesCursor: value.changes_cursor } : {}),
-      };
-      return out;
+      return parseAccount(await request("/account", {}, signal));
+    },
+    takeConnectedAccount() {
+      const value = connectRead;
+      connectRead = undefined;
+      return value === undefined ? undefined : parseAccount(value);
     },
     async importRecords(records, signal) {
       const captured = capture<ChatImport>(records, maxImportRecords, signal);
@@ -636,8 +651,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         (value.changes_cursor !== undefined && !text(value.changes_cursor))
       )
         invalid();
-      const items: ChatSnapshot[] = [];
-      for (const item of value.items) items.push(await decode(item));
+      const items = (await Promise.allSettled(value.items.map(decode))).map(fulfilled);
       options?.signal?.throwIfAborted();
       return {
         items,
@@ -686,7 +700,8 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       );
       if (!object(value) || !Array.isArray(value.items) || value.items.length > limit) invalid();
       const hits: ChatSearchHit[] = [];
-      for (const item of value.items) {
+      const decoded = await Promise.allSettled(value.items.map(decode));
+      for (const [i, item] of value.items.entries()) {
         if (
           !object(item) ||
           !integer(item.chunk) ||
@@ -694,7 +709,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
           !Number.isFinite(item.score)
         )
           invalid();
-        const snapshot = await decode(item);
+        const snapshot = fulfilled(decoded[i]);
         if (
           snapshot.record.isDeleted ||
           (kindsFilter !== undefined &&
