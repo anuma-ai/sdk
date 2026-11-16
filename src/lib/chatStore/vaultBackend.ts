@@ -704,8 +704,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       () => {
         if (threads.get(conversationId) !== loading) return;
         complete.add(conversationId);
-        partial.delete(conversationId);
+        const wasPartial = partial.delete(conversationId);
         saveCache();
+        if (wasPartial) emit({ type: "messages", conversationId, origin: "remote" });
       },
       () => threads.delete(conversationId)
     );
@@ -917,8 +918,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     return view(k);
   };
 
-  const reloadPartial = async (conversationId: string): Promise<boolean> => {
-    if (!(await remote().catch(() => undefined))) return false;
+  const reloadPartial = async (conversationId: string): Promise<void> => {
+    if (!(await remote().catch(() => undefined)) || !partial.has(conversationId)) return;
     const known = complete.has(conversationId) ? threads.get(conversationId) : undefined;
     if (known) threads.delete(conversationId);
     await loadThread(conversationId).catch(() => {
@@ -927,7 +928,6 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         complete.add(conversationId);
       }
     });
-    return !partial.has(conversationId);
   };
 
   const thread = async (conversationId: string, wait = true): Promise<ChatRecord[]> => {
@@ -935,10 +935,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     if (!conversationLive(conversationId)) return [];
     if (partial.has(conversationId)) {
       if (wait || reachable) await reloadPartial(conversationId);
-      else
-        void reloadPartial(conversationId).then((loaded) => {
-          if (loaded) emit({ type: "messages", conversationId, origin: "remote" });
-        });
+      else void reloadPartial(conversationId);
     } else await loadThread(conversationId);
     return all("message", conversationId).sort(
       (a, b) => a.sortKey - b.sortKey || a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1)

@@ -13,7 +13,7 @@ import {
   saveChatCache,
   storedChatCacheEntries,
 } from "./vaultCache";
-import type { ChatOutboxStorage } from "./vaultOutbox";
+import type { ChatOutboxLocks, ChatOutboxStorage } from "./vaultOutbox";
 
 beforeAll(() => {
   vi.stubGlobal("crypto", webcrypto);
@@ -413,20 +413,131 @@ describe("vault chat cache", () => {
       }))
     );
     expect(await b.getMessages("anuma-1on1")).toHaveLength(205);
-    await cached(storage, seal, cache.account, (c) => {
+    const saved = await cached(storage, seal, cache.account, (c) => {
       const messages = c.records.filter((s) => s.record.kind === "message");
       expect(messages).toHaveLength(200);
       expect(messages[0].record.id).toBe("msg_5");
       expect(messages[199].record.id).toBe("msg_204");
     });
     b.close();
+    await saveChatCache(
+      storage,
+      seal.encrypt,
+      { ...saved, cursor: (await fake.store.account()).changesCursor! },
+      saved
+    );
+
+    let connect!: (store: ChatStore) => void;
+    const connection = new Promise<ChatStore>((resolve) => (connect = resolve));
+    const connecting = backend(() => connection, { cache });
+    const received = vi.fn();
+    const messages = connecting.getMessages("anuma-1on1").then(received);
+    const updates: number[] = [];
+    const subscription = connecting.observeMessages("anuma-1on1").subscribe({
+      next: (messages) => updates.push(messages.length),
+    });
+    await vi.waitFor(() => expect(received).toHaveBeenCalledWith(expect.any(Array)));
+    expect(received.mock.calls[0][0]).toHaveLength(200);
+    expect(updates).toEqual([200]);
+    connect(fake.store);
+    await messages;
+    await vi.waitFor(() => expect(updates).toEqual([200, 205]));
+    subscription.unsubscribe();
+    connecting.close();
 
     let online = false;
     const cold = backend(() => (online ? Promise.resolve(fake.store) : offline()), { cache });
     expect(await cold.getMessages("anuma-1on1")).toHaveLength(200);
     online = true;
     await cold.poll();
-    expect(await cold.getMessages("anuma-1on1")).toHaveLength(205);
+    await vi.waitFor(async () => expect(await cold.getMessages("anuma-1on1")).toHaveLength(205));
+  });
+
+  it.each(["manifest", "entry"])("holds the account lock across %s reads", async (phase) => {
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const snapshot = conversationCache(1);
+    snapshot.threads = ["conv_0"];
+    snapshot.records.push({
+      ...snapshot.records[0],
+      record: {
+        ...snapshot.records[0].record,
+        kind: "message",
+        id: "msg_1",
+        conversationId: "conv_0",
+        data: { role: "user", content: "Cached message" },
+      },
+    });
+    const previous = await saveChatCache(storage, seal.encrypt, snapshot);
+    const changed = {
+      ...snapshot,
+      records: snapshot.records.map((entry) =>
+        entry.record.kind === "message" ? { ...entry, version: entry.version + 1 } : entry
+      ),
+    };
+    let releaseRead!: () => void;
+    const resume = new Promise<void>((resolve) => (releaseRead = resolve));
+    let started!: () => void;
+    const reading = new Promise<void>((resolve) => (started = resolve));
+    let queued!: () => void;
+    const waiting = new Promise<void>((resolve) => (queued = resolve));
+    const held = new Set<string>();
+    const tails = new Map<string, Promise<void>>();
+    const locks: ChatOutboxLocks = {
+      request(name, _options, callback) {
+        if (held.has(name)) queued();
+        const result = (tails.get(name) ?? Promise.resolve()).then(async () => {
+          held.add(name);
+          try {
+            return await callback({});
+          } finally {
+            held.delete(name);
+          }
+        });
+        tails.set(
+          name,
+          result.then(
+            () => undefined,
+            () => undefined
+          )
+        );
+        return result;
+      },
+    };
+    const navigator = globalThis.navigator;
+    vi.stubGlobal("navigator", { locks });
+    const target =
+      phase === "manifest" ? snapshot.account : new Map(previous.entries).get("thread/conv_0")!;
+    const get = storage.get.bind(storage);
+    let paused = false;
+    vi.spyOn(storage, "get").mockImplementation(async (key) => {
+      const manifest = key === snapshot.account ? await get(key) : undefined;
+      if (key === target && !paused) {
+        paused = true;
+        started();
+        await resume;
+      }
+      return manifest ?? get(key);
+    });
+    let saving: Promise<ChatCacheSnapshot> | undefined;
+    try {
+      const cold = backend(offline, { cache: { storage, seal, account: snapshot.account } });
+      await reading;
+      saving = locks.request(`chat-cache:${snapshot.account}`, {}, () =>
+        saveChatCache(storage, seal.encrypt, changed, previous)
+      );
+      await Promise.race([saving, waiting]);
+      releaseRead();
+      expect((await cold.getMessages("conv_0")).map((message) => message.uniqueId)).toEqual([
+        "msg_1",
+      ]);
+      await saving;
+      expect(await loadChatCache(storage, snapshot.account, seal.decrypt)).toMatchObject(changed);
+    } finally {
+      releaseRead();
+      await saving;
+      vi.stubGlobal("navigator", navigator);
+    }
   });
 
   it("serves a capped cached thread while the vault connection is pending", async () => {
