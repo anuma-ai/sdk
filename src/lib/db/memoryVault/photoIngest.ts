@@ -3,6 +3,7 @@ import { Q } from "@nozbe/watermelondb";
 import { SOURCE_PHOTO } from "../../memory/decay.js";
 import { encryptVaultMemoryContent } from "./encryption";
 import type { VaultMemoryOperationsContext } from "./operations";
+import { assertCanWrite } from "./operations";
 import type { PhotoMediaRef } from "./types";
 
 /**
@@ -125,6 +126,7 @@ export async function ingestPublishedPhotoMemoriesOp(
   const now = Date.now();
   let inserted = 0;
   await ctx.database.write(async () => {
+    await assertCanWrite(ctx);
     const present = await getExistingPhotoMemoryIds(ctx, fresh);
     const writable = fresh
       .map((row, i) => ({ row, content: contents[i] }))

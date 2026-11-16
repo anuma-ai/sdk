@@ -23,15 +23,16 @@ import { getLogger } from "../../logger.js";
 import { generateEmbeddings } from "../../memoryEngine/embeddings.js";
 import { consolidateMemory } from "../consolidate.js";
 import type { RetainPersistence } from "../retain.js";
+import type { RecallDiagnostics } from "../types.js";
 import {
   type RemoteMemoryCandidateOptions,
   type RemoteMemoryPersistence,
   type RemoteMemoryRecord,
   type RemoteMemoryRow,
 } from "./remotePersistence.js";
-import { createRemoteMemoryPipeline } from "./remotePipeline.js";
+import { createRemoteMemoryPipeline, type RemoteMemoryPipelineOptions } from "./remotePipeline.js";
 
-function setup() {
+function setup({ candidateLanes }: Pick<RemoteMemoryPipelineOptions, "candidateLanes"> = {}) {
   const rows = new Map<string, RemoteMemoryRecord>();
   const undecryptable = new Set<string>();
   const vector = [1, ...new Array<number>(1535).fill(0)];
@@ -153,6 +154,7 @@ function setup() {
     embeddingOptions: { apiKey: "device-only", model: "model" },
     graphRanking,
     temporalRanking,
+    candidateLanes,
   });
   return {
     pipeline,
@@ -590,6 +592,52 @@ describe("remote admission and consolidation regressions", () => {
         .memories[0].id
     ).toBe("a");
     expect(h.candidates.mock.calls.length - afterTimeout).toBe(1);
+  });
+  it("ranks both lanes in the primary candidate request when the store supplies them", async () => {
+    const lanes = {
+      topic: { topics: ["acme"], rows: 256, limit: 64 },
+      event_time: { start: 1, end: 2, limit: 100 },
+    };
+    const candidateLanes = vi.fn(() => lanes);
+    const h = setup({ candidateLanes });
+    h.seed("a");
+    h.seed("lane-only", { content: "Unrelated words", embedding: undefined });
+    const candidates = h.candidates.getMockImplementation()!;
+    h.candidates.mockImplementation(async (embedding, options) => {
+      const window = await candidates(embedding, {
+        ...options,
+        ...(options?.lanes && { force_ids: ["lane-only"] }),
+      });
+      return options?.lanes
+        ? { ...window, lanes: { topic: ["lane-only"], event_time: ["a"] } }
+        : window;
+    });
+    let diagnostics: RecallDiagnostics | undefined;
+    const result = await h.pipeline.recall("How is Acme?", {
+      subQueries: ["Acme status", "Acme news"],
+      minScore: 0,
+      now: 5,
+      scopes: ["private"],
+      onDiagnostics: (d) => (diagnostics = d),
+    });
+    expect(candidateLanes).toHaveBeenCalledWith(
+      "How is Acme?",
+      expect.objectContaining({ now: 5, scopes: ["private"] })
+    );
+    expect(h.graphRanking).not.toHaveBeenCalled();
+    expect(h.temporalRanking).not.toHaveBeenCalled();
+    expect(h.candidates.mock.calls.map(([, options]) => options!.lanes)).toEqual([
+      lanes,
+      undefined,
+      undefined,
+    ]);
+    expect(h.candidates.mock.calls[0][1]!.force_ids).toEqual([]);
+    expect(result.memories.map((m) => m.id).sort()).toEqual(["a", "lane-only"]);
+    expect(diagnostics).toMatchObject({ graphLaneCount: 1, temporalLaneCount: 1 });
+    expect(h.pipeline.factSource.searchWithLanes!("How is Acme?", {})).toBeTypeOf("function");
+    candidateLanes.mockReturnValueOnce(undefined as never);
+    expect(h.pipeline.factSource.searchWithLanes!("How is Acme?", {})).toBeUndefined();
+    expect(setup().pipeline.factSource.searchWithLanes).toBeUndefined();
   });
   it("forces graph and temporal ids only into the primary window", async () => {
     const h = setup();

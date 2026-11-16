@@ -60,7 +60,7 @@ function isKinded(record: { kind?: string | null }): boolean {
   return record.kind !== null && record.kind !== undefined;
 }
 
-async function assertCanWrite(ctx: VaultMemoryOperationsContext): Promise<void> {
+export async function assertCanWrite(ctx: VaultMemoryOperationsContext): Promise<void> {
   if (ctx.canWrite && !(await ctx.canWrite())) {
     throw new MemorySourceIneligibleError();
   }
@@ -647,6 +647,7 @@ export async function getAllVaultMemoriesOp(
     levels?: MemoryLevel[];
     /** Restrict to these profile kinds. */
     kinds?: string[];
+    withEmbeddings?: boolean;
   }
 ): Promise<StoredVaultMemory[]> {
   const results = (await ctx.vaultMemoryCollection
