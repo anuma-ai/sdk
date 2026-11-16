@@ -35,6 +35,7 @@ import {
 } from "../../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "../queryTemporal";
+import type { RecallDiagnostics } from "../types";
 import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
 import { deriveMemoryKeyRing, memoryCipher, type MemoryKeyRing } from "./memoryKeys";
 import { createRemoteMemoryPersistence, type RemoteMemoryRecord } from "./remotePersistence";
@@ -43,6 +44,7 @@ import {
   RemoteMemoryPartialCreateError,
   type RemoteMemoryStoreOptions,
 } from "./remoteStore";
+import type { MemoryRecallOptions } from "./types";
 import { createTopicCodec } from "./topicCodec";
 
 type Row = Record<string, unknown> & { memory_id: string; content: string };
@@ -121,8 +123,9 @@ const TOMBSTONE_FIELDS = [
   "last_observed_at",
 ];
 
-function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
+function fakeNearby(keyId: string, { scrubTombstones = false, candidateLanes = false } = {}) {
   const rows = new Map<string, Stored>();
+  const laneForces: string[][] = [];
   const catalog = new Map<
     string,
     {
@@ -195,13 +198,63 @@ function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
   };
   const cosine = (a: number[], b: number[]) => a.reduce((sum, v, i) => sum + v * b[i], 0);
 
-  const handle = (input: RequestInfo | URL, init: RequestInit = {}) => {
+  const read = async (path: string, payload: Record<string, unknown>) =>
+    (await (
+      await handle(`https://nearby.test/api/private-memories${path}`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      })
+    ).json()) as { items: (Stored & { memory_id: string })[] };
+  const rankLanes = async (
+    body: Record<string, unknown>,
+    lanes: {
+      topic?: { topic_hashes: string[]; rows: number; limit: number };
+      event_time?: { start: number; end: number; limit: number };
+    }
+  ) => {
+    const topic = lanes.topic
+      ? (
+          await read("/memories/query", {
+            topic_hashes: lanes.topic.topic_hashes,
+            limit: lanes.topic.rows,
+            ...(body.scopes !== undefined && { scopes: body.scopes }),
+            ...(body.fact_types !== undefined && { fact_types: body.fact_types }),
+            ...(body.memory_ids !== undefined && { memory_ids: body.memory_ids }),
+          })
+        ).items
+          .map(({ memory }) => ({
+            id: memory.memory_id,
+            matched: new Set(
+              topicHashes(memory).filter((h) => lanes.topic!.topic_hashes.includes(h))
+            ).size,
+          }))
+          .sort((a, b) => b.matched - a.matched)
+          .slice(0, lanes.topic.limit)
+          .map((row) => row.id)
+      : [];
+    const eventTime = lanes.event_time
+      ? (await read("/temporal", lanes.event_time)).items.map((item) => item.memory_id)
+      : [];
+    const forced = new Set(body.force_ids as string[]);
+    for (let i = 0; i < Math.max(topic.length, eventTime.length) && forced.size < 100; i++) {
+      if (topic[i] !== undefined) forced.add(topic[i]);
+      if (forced.size < 100 && eventTime[i] !== undefined) forced.add(eventTime[i]);
+    }
+    laneForces.push([...forced]);
+    return { topic, event_time: eventTime, forced: [...forced] };
+  };
+  const handle = async (input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> => {
     const url = new URL(requestUrl(input));
     const path = url.pathname.replace(/^.*\/api\/private-memories/, "");
     const method = init.method ?? "GET";
     const body = init.body ? parseBody(init.body) : {};
     if (path === "/account")
-      return json(200, { state: "active", key_id: keyId, realtime_changes: true });
+      return json(200, {
+        state: "active",
+        key_id: keyId,
+        realtime_changes: true,
+        ...(candidateLanes && { candidate_lanes: true }),
+      });
     if (path === "/work/claim") {
       const kind = String(body.kind);
       const current = leases.get(kind);
@@ -400,6 +453,10 @@ function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
       return json(200, out(apply(write)));
     }
     if (path === "/candidates") {
+      const lanes = body.lanes
+        ? await rankLanes(body, body.lanes as Parameters<typeof rankLanes>[1])
+        : undefined;
+      const forceIds = lanes ? lanes.forced : (body.force_ids as string[]);
       const query = body.embedding as number[];
       const scopes = body.scopes as string[] | undefined;
       const ids = body.memory_ids as string[] | undefined;
@@ -424,12 +481,13 @@ function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
       const forced = eligible
         .filter(
           (s) =>
-            (body.force_ids as string[]).includes(s.memory.memory_id) &&
+            forceIds.includes(s.memory.memory_id) &&
             !ranked.some((r) => r.memory.memory_id === s.memory.memory_id)
         )
         .map((s) => out(s));
       return json(200, {
         items: [...ranked, ...forced],
+        ...(lanes && { lanes: { topic: lanes.topic, event_time: lanes.event_time } }),
         ...(body.with_counts === true && {
           total_count: eligible.length,
           unavailable_count: eligible.length - compatible.length,
@@ -451,7 +509,7 @@ function fakeNearby(keyId: string, { scrubTombstones = false } = {}) {
       seq: ++writes,
     });
   };
-  return { rows, catalog, leases, fetch, touch };
+  return { rows, catalog, leases, fetch, touch, laneForces };
 }
 
 async function remoteStore(
@@ -2419,6 +2477,212 @@ describe("default recall lanes", () => {
     expect(ranked).toHaveLength(100);
     expect(ranked[0]).toBe("old-best");
     expect(queried).toEqual([{ start: window.start, end: window.end, limit: 100 }]);
+  });
+});
+
+describe("one-request fact lane", () => {
+  const NOW = Date.UTC(2026, 9, 15, 12);
+  const day = 24 * 60 * 60 * 1000;
+
+  let fixture: ReturnType<typeof seed> | undefined;
+  const seeded = () => (fixture ??= seed());
+  async function seed() {
+    const keys = await deriveMemoryKeyRing(`0x${"e5".repeat(65)}`);
+    const cipher = memoryCipher(keys);
+    const codec = topicCodec(keys);
+    const yesterday = parseQueryTimeWindow("yesterday", NOW)!;
+    const rows: Stored[] = [];
+    const add = async (
+      id: string,
+      text: string,
+      i: number,
+      topics: string[],
+      extra: Record<string, unknown> = {}
+    ) =>
+      rows.push({
+        memory: {
+          memory_id: id,
+          content: await cipher.encrypt(text),
+          scope: "private",
+          created_at: 1000 + i,
+          updated_at: 1000 + i,
+          is_deleted: false,
+          embedding: await generateEmbedding(text, { apiKey: "test-key" }),
+          ...(topics.length && {
+            topics: await codec.encodeTopics(
+              JSON.stringify(topics.map((name) => ({ name, source: "auto" })))
+            ),
+          }),
+          ...extra,
+        },
+        version: 1,
+        server_updated_at: "2026-01-01T00:00:00Z",
+        seq: i,
+      });
+    for (let i = 0; i < 260; i++)
+      await add(
+        `acme-${i}`,
+        `Acme weekly note ${i} about the launch`,
+        i,
+        i % 10 === 0 ? ["Acme", "Priya"] : ["Acme"],
+        i % 7 === 0 ? { scope: "shared" } : {}
+      );
+    await add("old-acme-priya", "Priya reviewed the Acme launch plan", -900, ["Acme", "Priya"]);
+    await add("dinner", "Had dinner with Priya", 300, ["Priya"], {
+      event_time_start: yesterday.start + 3_600_000,
+      event_time_kind: "point",
+    });
+    await add("trip", "Trip to the Acme office", 301, ["Acme"], {
+      event_time_start: yesterday.start - day,
+      event_time_end: yesterday.start + day / 2,
+      event_time_kind: "range",
+    });
+    await add("job", "Works at Acme", 302, [], {
+      event_time_start: yesterday.start - 30 * day,
+      event_time_kind: "ongoing",
+    });
+    await add("tea", "Likes green tea", 303, ["Tea"]);
+    const connect = async (candidateLanes: boolean) => {
+      const server = fakeNearby(keys.keyId, { candidateLanes });
+      for (const row of rows) server.rows.set(row.memory.memory_id, structuredClone(row));
+      const paths: string[] = [];
+      const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
+        paths.push(requestUrl(url).replace(/^.*\/api\/private-memories/, ""));
+        return server.fetch(url as never, init as never);
+      });
+      const persistence = await createRemoteMemoryPersistence({
+        baseUrl: "https://nearby.test",
+        getToken: () => Promise.resolve("token"),
+        keyId: keys.keyId,
+        ...cipher,
+        fetch: fetch as unknown as typeof globalThis.fetch,
+      });
+      const store = createRemoteMemoryStore({
+        persistence,
+        embeddingOptions: { apiKey: "test-key" },
+      });
+      return { store, server, paths, persistence };
+    };
+    return { connect, rows };
+  }
+
+  async function recallWith(
+    side: Awaited<ReturnType<Awaited<ReturnType<typeof seeded>>["connect"]>>,
+    query: string,
+    options: MemoryRecallOptions
+  ) {
+    side.paths.length = 0;
+    let diagnostics: RecallDiagnostics | undefined;
+    const result = await side.store.recall(query, {
+      limit: 12,
+      minScore: 0,
+      now: NOW,
+      ...options,
+      onDiagnostics: (d) => (diagnostics = d),
+    });
+    return {
+      ranked: result.memories.map((m) => [m.id, m.score]),
+      graph: diagnostics!.graphLaneCount,
+      temporal: diagnostics!.temporalLaneCount,
+      degraded: diagnostics!.degraded,
+      paths: [...side.paths].sort(),
+    };
+  }
+
+  it("ranks exactly as the three-request flow with one candidates request", async () => {
+    const { connect, rows } = await seeded();
+    const before = await connect(false);
+    const after = await connect(true);
+    expect(before.persistence.supportsCandidateLanes!()).toBe(false);
+    expect(after.persistence.supportsCandidateLanes!()).toBe(true);
+    const someIds = rows.filter((_, i) => i % 3 === 0).map((row) => row.memory.memory_id);
+    const cases: [string, MemoryRecallOptions][] = [
+      ["What did Priya say about Acme yesterday?", {}],
+      ["How is the Acme launch going?", {}],
+      ["What did I do yesterday?", {}],
+      ["What did Priya say about Acme yesterday?", { scopes: ["private"] }],
+      ["What did Priya say about Acme yesterday?", { memoryIds: someIds }],
+      ["What did Priya say about Acme yesterday?", { memoryIds: [] }],
+      ["What did Priya say about Acme yesterday?", { subQueries: ["Priya on Acme", "yesterday"] }],
+      ["likes green tea", {}],
+    ];
+    let lanesSeen = 0;
+    for (const [query, options] of cases) {
+      const old = await recallWith(before, query, options);
+      const forcedBefore = before.server.laneForces.length;
+      const next = await recallWith(after, query, options);
+      expect(next.ranked, `${query} ${JSON.stringify(options)}`).toEqual(old.ranked);
+      expect([next.graph, next.temporal]).toEqual([old.graph, old.temporal]);
+      expect(next.degraded).toEqual(old.degraded);
+      expect(next.paths.filter((path) => path !== "/candidates")).toEqual([]);
+      expect(old.paths.filter((path) => path === "/candidates")).toHaveLength(next.paths.length);
+      expect(before.server.laneForces).toHaveLength(forcedBefore);
+      if (old.graph + old.temporal > 0) {
+        lanesSeen++;
+        expect(old.paths.length).toBeGreaterThan(next.paths.length);
+      }
+    }
+    expect(lanesSeen).toBeGreaterThanOrEqual(5);
+    const old = await recallWith(before, "What did Priya say about Acme yesterday?", {});
+    expect(old.paths).toEqual(["/candidates", "/memories/query", "/memories/query", "/temporal"]);
+    expect(old.graph).toBe(64);
+    expect(old.temporal).toBeGreaterThan(0);
+    const next = await recallWith(after, "What did Priya say about Acme yesterday?", {});
+    expect(next.paths).toEqual(["/candidates"]);
+  }, 30_000);
+
+  it("forces the same ids the device forced", async () => {
+    const { connect } = await seeded();
+    const before = await connect(false);
+    const after = await connect(true);
+    const forced: string[][] = [];
+    const sent = (side: typeof before) =>
+      side.server.fetch.mock.calls
+        .filter(([url]) => requestUrl(url).endsWith("/candidates"))
+        .map(([, init]) => parseBody(init?.body));
+    for (const query of [
+      "What did Priya say about Acme yesterday?",
+      "How is the Acme launch going?",
+      "What did I do yesterday?",
+    ]) {
+      await recallWith(before, query, {});
+      await recallWith(after, query, {});
+      forced.push((sent(before).at(-1)!.force_ids as string[]) ?? []);
+    }
+    expect(after.server.laneForces).toEqual(forced);
+    expect(forced.every((ids) => ids.length > 0)).toBe(true);
+    for (const body of sent(after)) {
+      expect(body.force_ids).toEqual([]);
+      expect(JSON.stringify(body.lanes)).not.toMatch(/acme|priya/i);
+    }
+  });
+
+  it("keeps the separate lanes where the server cannot rank them", async () => {
+    const { connect, rows } = await seeded();
+    const after = await connect(true);
+    const manyIds = [
+      ...rows.map((row) => row.memory.memory_id),
+      ...Array.from({ length: 1001 - rows.length }, (_, i) => `missing-${i}`),
+    ];
+    const letter = (n: number) => String.fromCharCode(97 + n);
+    const manyTopics = Array.from(
+      { length: 101 },
+      (_, i) => `Topic${letter(Math.floor(i / 26))}${letter(i % 26)}`
+    ).join(", ");
+    for (const [query, options] of [
+      ["What did Priya say about Acme yesterday?", { memoryIds: manyIds }],
+      [manyTopics, {}],
+    ] as [string, MemoryRecallOptions][]) {
+      expect(after.store.factSource.searchWithLanes!(query, options)).toBeUndefined();
+      const result = await recallWith(after, query, options);
+      expect(result.paths).toContain("/memories/query");
+    }
+    const custom = createRemoteMemoryStore({
+      persistence: after.persistence,
+      embeddingOptions: { apiKey: "test-key" },
+      graphRanking: () => Promise.resolve([]),
+    });
+    expect(custom.factSource.searchWithLanes).toBeUndefined();
   });
 });
 

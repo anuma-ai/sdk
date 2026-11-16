@@ -34,6 +34,7 @@ import type {
   RecallDegradation,
   RecallDiagnostics,
   RecallEmptyReason,
+  RecallFactSource,
   RecallOptions,
   RecallResult,
 } from "./types.js";
@@ -241,6 +242,9 @@ export async function recall(
 
   const needsChunkEmbedding = types.includes("chunk") && !!searchChunks;
   const wantsTemporal = types.includes("fact") && (ctx.factSource || ctx.vaultCtx);
+  const laneSearch = types.includes("fact")
+    ? ctx.factSource?.searchWithLanes?.(query, options)
+    : undefined;
   const queryEmbedTotalTimeoutMs =
     options.queryEmbedTotalTimeoutMs ?? DEFAULT_QUERY_EMBED_TOTAL_TIMEOUT_MS;
   const prepStart = nowMs();
@@ -274,20 +278,22 @@ export async function recall(
             return undefined;
           })
       : Promise.resolve(undefined),
-    safeLane(
-      "graph",
-      () => (graphLaneFailed = true),
-      () =>
-        ctx.factSource
-          ? ctx.factSource.graphRanking(query, flags.traverse, options)
-          : buildGraphLaneRanking(
-              query,
-              ctx,
-              flags.traverse,
-              graphTraversalOptions(options, flags.traverse)
-            )
-    ),
-    wantsTemporal
+    laneSearch
+      ? Promise.resolve([] as string[])
+      : safeLane(
+          "graph",
+          () => (graphLaneFailed = true),
+          () =>
+            ctx.factSource
+              ? ctx.factSource.graphRanking(query, flags.traverse, options)
+              : buildGraphLaneRanking(
+                  query,
+                  ctx,
+                  flags.traverse,
+                  graphTraversalOptions(options, flags.traverse)
+                )
+        ),
+    wantsTemporal && !laneSearch
       ? safeLane(
           "temporal",
           () => (temporalLaneFailed = true),
@@ -306,6 +312,17 @@ export async function recall(
     const factStart = nowMs();
     const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
     factFloor = vaultMinScore;
+    const searchFacts: RecallFactSource["search"] =
+      laneSearch ??
+      ctx.factSource?.search.bind(ctx.factSource) ??
+      ((searchQuery, searchOptions) =>
+        searchVaultMemoriesWithSize(
+          searchQuery,
+          ctx.vaultCtx!,
+          embeddingOptions,
+          ctx.vaultCache!,
+          searchOptions
+        ));
     const {
       results,
       vaultSize: size,
@@ -319,17 +336,8 @@ export async function recall(
       decryptLast: factDecryptLast,
       rowsDecrypted: factRowsDecrypted,
       corpusStats: factCorpusStats,
-    } = await (
-      ctx.factSource?.search.bind(ctx.factSource) ??
-      ((searchQuery, searchOptions) =>
-        searchVaultMemoriesWithSize(
-          searchQuery,
-          ctx.vaultCtx!,
-          embeddingOptions,
-          ctx.vaultCache!,
-          searchOptions
-        ))
-    )(
+      lanes,
+    } = await searchFacts(
       query,
       {
         limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
@@ -390,6 +398,10 @@ export async function recall(
     decryptLastRan = factDecryptLast;
     vaultRowsDecrypted = factRowsDecrypted;
     corpusStats = factCorpusStats;
+    if (lanes) {
+      graphLaneCount = lanes.entityRanking.length;
+      temporalLaneCount = lanes.temporalRanking.length;
+    }
     factLaneMs = nowMs() - factStart;
   }
 

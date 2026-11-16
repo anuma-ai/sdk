@@ -23,8 +23,15 @@ import {
 } from "../../memoryVault/searchTool.js";
 import { recall } from "../recall.js";
 import { RetainError, type RetainPersistence, retainWithPersistence } from "../retain.js";
-import type { RecallFactSource, RecallResult, RetainResult } from "../types.js";
+import type {
+  RecallFactLanes,
+  RecallFactSource,
+  RecallOptions,
+  RecallResult,
+  RetainResult,
+} from "../types.js";
 import {
+  type RemoteMemoryCandidateLanes,
   type RemoteMemoryCandidateOptions,
   type RemoteMemoryDecodeFailure,
   RemoteMemoryError,
@@ -42,6 +49,10 @@ export interface RemoteMemoryPipelineOptions {
   /** Server-backed metadata lanes. These callbacks execute on the device. */
   graphRanking: RecallFactSource["graphRanking"];
   temporalRanking: RecallFactSource["temporalRanking"];
+  candidateLanes?: (
+    query: string,
+    options: RecallOptions
+  ) => RemoteMemoryCandidateLanes | undefined;
 }
 export interface RemoteMemoryPipeline {
   recall(query: string, options?: MemoryRecallOptions): Promise<RecallResult>;
@@ -169,8 +180,9 @@ export function createRemoteMemoryPipeline(
     };
     const prepare = async (
       query: string,
-      search: MemoryVaultSearchOptions = {}
-    ): Promise<PreparedVaultCandidates> => {
+      search: MemoryVaultSearchOptions = {},
+      lanes?: RemoteMemoryCandidateLanes
+    ): Promise<PreparedVaultCandidates & { lanes?: RecallFactLanes }> => {
       if (search.folderId !== undefined)
         throw new Error("Remote memories do not support folder filters");
       const facets = normalizeSubQueries(search.subQueries);
@@ -222,6 +234,7 @@ export function createRemoteMemoryPipeline(
       const windowOptions = (i: number, signal?: AbortSignal): RemoteMemoryCandidateOptions => ({
         limit: Math.min(100, Math.max((search.limit ?? 8) * 3, 30)),
         force_ids: i === 0 ? forceIds : [],
+        ...(i === 0 && lanes && { lanes }),
         ...(search.scopes && { scopes: search.scopes }),
         ...(search.factTypes && { fact_types: search.factTypes }),
         ...(search.memoryIds !== undefined && { memory_ids: search.memoryIds }),
@@ -235,6 +248,7 @@ export function createRemoteMemoryPipeline(
         failed: RemoteMemoryDecodeFailure[];
         total_count?: number;
         unavailable_count?: number;
+        lanes?: { topic: string[]; event_time: string[] };
       }[];
       if (mode === "retain") {
         windows = await Promise.all(
@@ -321,6 +335,12 @@ export function createRemoteMemoryPipeline(
         rowsDecrypted: items.length,
         queryEmbedMs,
         rowsEmbedded: 0,
+        ...(lanes && {
+          lanes: {
+            entityRanking: windows[0].lanes?.topic ?? [],
+            temporalRanking: windows[0].lanes?.event_time ?? [],
+          },
+        }),
       };
     };
     const createRow = (input: Parameters<RetainPersistence["create"]>[0]): RemoteMemoryRow => {
@@ -488,10 +508,9 @@ export function createRemoteMemoryPipeline(
     };
     return { prepare, port };
   };
-  const factSource: RecallFactSource = {
-    graphRanking: options.graphRanking,
-    temporalRanking: options.temporalRanking,
-    search: async (text, searchOptions, embeddingCache) => {
+  const search =
+    (lanes?: RemoteMemoryCandidateLanes): RecallFactSource["search"] =>
+    async (text, searchOptions, embeddingCache) => {
       const queryOptions: EmbeddingOptions = {
         ...embeddingOptions,
         taskType: "memory_recall_embed",
@@ -501,8 +520,23 @@ export function createRemoteMemoryPipeline(
           }),
       };
       const { prepare } = operation("recall", queryOptions);
-      const prepared = await prepare(text, searchOptions);
-      const ranked = await rankPreparedVaultCandidates(text, prepared, queryOptions, searchOptions);
+      const prepared = await prepare(text, searchOptions, lanes);
+      const ranked = await rankPreparedVaultCandidates(
+        text,
+        prepared,
+        queryOptions,
+        prepared.lanes
+          ? {
+              ...searchOptions,
+              ...(prepared.lanes.entityRanking.length > 0 && {
+                entityRanking: prepared.lanes.entityRanking,
+              }),
+              ...(prepared.lanes.temporalRanking.length > 0 && {
+                temporalRanking: prepared.lanes.temporalRanking,
+              }),
+            }
+          : searchOptions
+      );
       return {
         ...ranked,
         rankedOnCosine: prepared.memories.length > 0 && !prepared.embeddingsUnavailable,
@@ -510,8 +544,20 @@ export function createRemoteMemoryPipeline(
         rowsDecrypted: prepared.rowsDecrypted,
         queryEmbedMs: prepared.queryEmbedMs,
         rowsEmbedded: 0,
+        ...(prepared.lanes && { lanes: prepared.lanes }),
       };
-    },
+    };
+  const { candidateLanes } = options;
+  const factSource: RecallFactSource = {
+    graphRanking: options.graphRanking,
+    temporalRanking: options.temporalRanking,
+    search: search(),
+    ...(candidateLanes && {
+      searchWithLanes: (query, recallOptions) => {
+        const lanes = candidateLanes(query, recallOptions);
+        return lanes && search(lanes);
+      },
+    }),
   };
   return {
     factSource,

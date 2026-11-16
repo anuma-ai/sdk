@@ -119,6 +119,11 @@ export interface RemoteMemoryMetadataPage {
   next_cursor?: string;
 }
 
+export interface RemoteMemoryCandidateLanes {
+  topic?: { topics: string[]; rows: number; limit: number };
+  event_time?: { start: number; end: number; limit: number };
+}
+
 export interface RemoteMemoryCandidateOptions extends RemoteMemoryReadFilters {
   scopes?: string[];
   memory_ids?: string[];
@@ -128,6 +133,7 @@ export interface RemoteMemoryCandidateOptions extends RemoteMemoryReadFilters {
   deleted_only?: boolean;
   limit?: number;
   force_ids?: string[];
+  lanes?: RemoteMemoryCandidateLanes;
   signal?: AbortSignal;
 }
 
@@ -173,6 +179,7 @@ export class RemoteMemoryError extends Error {
 export interface RemoteMemoryPersistence
   extends RemoteTopicPersistence, RemoteMemoryWorkPersistence {
   supportsRealtimeChanges?: boolean;
+  supportsCandidateLanes?(): boolean;
   counts(): Promise<MemoryCounts>;
   temporal(window: { start: number; end: number }, limit?: number): Promise<string[]>;
   get(memoryId: string, signal?: AbortSignal): Promise<RemoteMemoryRecord | null>;
@@ -211,7 +218,11 @@ export interface RemoteMemoryPersistence
   candidates(
     embedding: number[],
     options?: RemoteMemoryCandidateOptions
-  ): Promise<{ items: RemoteMemoryRecord[]; failed: RemoteMemoryDecodeFailure[] }>;
+  ): Promise<{
+    items: RemoteMemoryRecord[];
+    failed: RemoteMemoryDecodeFailure[];
+    lanes?: { topic: string[]; event_time: string[] };
+  }>;
 }
 
 const TOPIC_UPGRADE_PROCESSOR = "topic-hash-v1";
@@ -263,6 +274,12 @@ const candidateListLimits = [
   ["memory_ids", 1000],
   ["force_ids", 100],
 ] as const;
+
+const MAX_LANE_TOPICS = 100;
+
+function isIdList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((id) => typeof id === "string");
+}
 
 const queryListLimits = [
   ["scopes", 20],
@@ -736,6 +753,7 @@ export async function createRemoteMemoryPersistence(
       if (values && values.length > max)
         throw new Error(`Candidate ${key} accepts at most ${max} entries (got ${values.length})`);
     }
+    const lanes = candidateOptions.lanes && (await wireLanes(candidateOptions.lanes));
     const result = await request(
       "/candidates",
       {
@@ -771,13 +789,47 @@ export async function createRemoteMemoryPersistence(
           ...(candidateOptions.include_superseded !== undefined && {
             include_superseded: candidateOptions.include_superseded,
           }),
+          ...(lanes && { lanes }),
         }),
       },
       candidateOptions.signal
     );
-    if (!record(result) || !Array.isArray(result.items))
+    if (
+      !record(result) ||
+      !Array.isArray(result.items) ||
+      (lanes &&
+        (!record(result.lanes) ||
+          !isIdList(result.lanes.topic) ||
+          !isIdList(result.lanes.event_time)))
+    )
       throw new Error("Invalid nearby candidate response");
-    return result as Record<string, unknown> & { items: unknown[] };
+    return result as Record<string, unknown> & {
+      items: unknown[];
+      lanes?: { topic: string[]; event_time: string[] };
+    };
+  };
+  const wireLanes = async ({ topic, event_time }: RemoteMemoryCandidateLanes) => {
+    if (topic && topic.topics.length > MAX_LANE_TOPICS)
+      throw new Error(
+        `Candidate topic lane accepts at most ${MAX_LANE_TOPICS} topics (got ${topic.topics.length})`
+      );
+    const hashes = topic
+      ? [
+          ...new Set(
+            (await Promise.all(topic.topics.map((name) => codec.hash(name)))).filter(
+              (h) => h !== null
+            )
+          ),
+        ]
+      : [];
+    if (!hashes.length && !event_time) return undefined;
+    return {
+      ...(topic &&
+        hashes.length > 0 && {
+          topic: { topic_hashes: hashes, rows: topic.rows, limit: topic.limit },
+        }),
+      ...(event_time && { event_time }),
+    };
   };
   const fetchQueryPage = async (
     queryOptions: RemoteMemoryQueryOptions & { topics_legacy?: boolean }
@@ -882,6 +934,7 @@ export async function createRemoteMemoryPersistence(
     ...createRemoteTopicPersistence(request, codec),
     ...createRemoteWorkPersistence(request),
     supportsRealtimeChanges: account.realtime_changes === true,
+    supportsCandidateLanes: () => account.candidate_lanes === true && !legacyTopicRows,
     counts: async () => {
       const result = await request("/counts", {});
       if (
@@ -1044,8 +1097,15 @@ export async function createRemoteMemoryPersistence(
       };
     },
     candidateSet,
-    candidates: async (embedding, candidateOptions = {}) =>
-      decodeAll((await fetchCandidates(embedding, candidateOptions, false)).items),
+    candidates: async (embedding, candidateOptions = {}) => {
+      const result = await fetchCandidates(embedding, candidateOptions, false);
+      return {
+        ...(await decodeAll(result.items)),
+        ...(result.lanes && {
+          lanes: { topic: result.lanes.topic, event_time: result.lanes.event_time },
+        }),
+      };
+    },
   };
 
   let rejectedRows = 0;

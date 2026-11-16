@@ -240,15 +240,28 @@ export interface RecallOptions {
   graphRefine?: boolean;
 }
 
+export interface RecallFactLanes {
+  entityRanking: string[];
+  temporalRanking: string[];
+}
+
 /** A fact source supplies bounded candidates; recall owns ranking and result handling. */
 export interface RecallFactSource {
   search: (
     query: string,
     options?: import("../memoryVault/searchTool.js").MemoryVaultSearchOptions,
     embeddingCache?: Map<string, Float32Array>
-  ) => ReturnType<typeof import("../memoryVault/searchTool.js").searchVaultMemoriesWithSize>;
+  ) => Promise<
+    Awaited<
+      ReturnType<typeof import("../memoryVault/searchTool.js").searchVaultMemoriesWithSize>
+    > & { lanes?: RecallFactLanes }
+  >;
   graphRanking: (query: string, traverse: boolean, options: RecallOptions) => Promise<string[]>;
   temporalRanking: (query: string, now?: number) => Promise<string[]>;
+  searchWithLanes?: (
+    query: string,
+    options: RecallOptions
+  ) => RecallFactSource["search"] | undefined;
 }
 
 export interface RecallContext {
