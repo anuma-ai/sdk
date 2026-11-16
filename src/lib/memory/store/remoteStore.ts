@@ -1165,7 +1165,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       changesConnected = false;
       return;
     }
-    if (!stopChanges && persistence.supportsRealtimeChanges && options.subscribeChanges)
+    if (!stopChanges && options.subscribeChanges)
       stopChanges = options.subscribeChanges((connected) => {
         changesConnected = connected;
         if (polling) {

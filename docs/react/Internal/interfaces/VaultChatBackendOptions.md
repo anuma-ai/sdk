@@ -104,7 +104,7 @@ A connected store, or a function that connects one; with a seeded `cache`, reads
 
 Defined in: [src/lib/chatStore/vaultBackend.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#100)
 
-Reports realtime connection state on subscribe and reconnect, and true on each `private_chats` marker; each report polls `/changes`, and while connected to a vault that publishes markers the periodic poll runs at most every 5 minutes.
+A `createVaultRealtime` source for `private_chats`: each report polls `/changes`, and while it reports connected the periodic poll runs at most every 5 minutes.
 
 **Parameters**
 

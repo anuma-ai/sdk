@@ -46,14 +46,6 @@ function backend(
   return { b, events };
 }
 
-function publishesMarkers(fake: ChatStoreHarness, realtimeChanges: boolean) {
-  const account = fake.store.account.bind(fake.store);
-  vi.spyOn(fake.store, "account").mockImplementation(async (signal) => ({
-    ...(await account(signal)),
-    realtimeChanges,
-  }));
-}
-
 function memoryStorage(): ChatOutboxStorage & { values: Map<string, string> } {
   const values = new Map<string, string>();
   return {
@@ -1103,7 +1095,6 @@ describe("vault chat backend", () => {
 
   it("polls on each realtime marker and slows the periodic poll while connected", async () => {
     const fake = await createChatStoreHarness();
-    publishesMarkers(fake, true);
     let report: ((connected: boolean) => void) | undefined;
     const stop = vi.fn();
     const { b, events } = backend(fake, {
@@ -1144,7 +1135,6 @@ describe("vault chat backend", () => {
 
   it("polls again after a marker that arrives during a poll", async () => {
     const fake = await createChatStoreHarness();
-    publishesMarkers(fake, true);
     let report: ((connected: boolean) => void) | undefined;
     const { b } = backend(fake, {
       subscribeChanges: (onChange) => {
@@ -1173,23 +1163,6 @@ describe("vault chat backend", () => {
     await vi.waitFor(async () =>
       expect((await b.getConversations()).map((c) => c.conversationId)).toContain("conv_late")
     );
-  });
-
-  it("listens for markers only when vault publishes them", async () => {
-    const quiet = await createChatStoreHarness();
-    publishesMarkers(quiet, false);
-    const unused = vi.fn(() => () => {});
-    const silent = backend(quiet, { subscribeChanges: unused }).b;
-    await silent.getConversations();
-
-    const fake = await createChatStoreHarness();
-    publishesMarkers(fake, true);
-    const used = vi.fn(() => () => {});
-    const live = backend(fake, { subscribeChanges: used }).b;
-    await live.getConversations();
-
-    await vi.waitFor(() => expect(used).toHaveBeenCalledTimes(1));
-    expect(unused).not.toHaveBeenCalled();
   });
 
   it("tells the account's other tabs to poll after a write", async () => {

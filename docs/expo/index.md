@@ -856,6 +856,12 @@ Re-exports [CreateVaultMemoryOptions](../react/Internal/interfaces/CreateVaultMe
 
 ***
 
+### createVaultRealtime
+
+Re-exports [createVaultRealtime](../react/Internal/functions/createVaultRealtime.md)
+
+***
+
 ### createWalletPaymentTool
 
 Re-exports [createWalletPaymentTool](../react/Internal/functions/createWalletPaymentTool.md)
@@ -3142,6 +3148,12 @@ Re-exports [VaultChatBackendOptions](../react/Internal/interfaces/VaultChatBacke
 
 ***
 
+### vaultChatEntities
+
+Re-exports [vaultChatEntities](../react/Internal/variables/vaultChatEntities.md)
+
+***
+
 ### VaultChatEvent
 
 Re-exports [VaultChatEvent](../react/Internal/type-aliases/VaultChatEvent.md)
@@ -3172,6 +3184,12 @@ Re-exports [VaultInbox](../react/Internal/interfaces/VaultInbox.md)
 
 ***
 
+### vaultMemoryEntities
+
+Re-exports [vaultMemoryEntities](../react/Internal/variables/vaultMemoryEntities.md)
+
+***
+
 ### VaultMemoryKind
 
 Re-exports [VaultMemoryKind](../react/Internal/type-aliases/VaultMemoryKind.md)
@@ -3199,6 +3217,36 @@ Re-exports [VaultMemoryVisibility](../react/Internal/type-aliases/VaultMemoryVis
 ### VaultMemoryWriter
 
 Re-exports [VaultMemoryWriter](../react/Internal/type-aliases/VaultMemoryWriter.md)
+
+***
+
+### VaultRealtime
+
+Re-exports [VaultRealtime](../react/Internal/interfaces/VaultRealtime.md)
+
+***
+
+### VaultRealtimeEntity
+
+Re-exports [VaultRealtimeEntity](../react/Internal/type-aliases/VaultRealtimeEntity.md)
+
+***
+
+### VaultRealtimeOptions
+
+Re-exports [VaultRealtimeOptions](../react/Internal/interfaces/VaultRealtimeOptions.md)
+
+***
+
+### VaultRealtimeSocket
+
+Re-exports [VaultRealtimeSocket](../react/Internal/interfaces/VaultRealtimeSocket.md)
+
+***
+
+### VaultRealtimeSocketFactory
+
+Re-exports [VaultRealtimeSocketFactory](../react/Internal/type-aliases/VaultRealtimeSocketFactory.md)
 
 ***
 

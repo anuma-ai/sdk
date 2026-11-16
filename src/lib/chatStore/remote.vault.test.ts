@@ -298,17 +298,6 @@ describe("remote ChatStore against vault's server-only contract", () => {
     expect((await withCursor.store.account()).changesCursor).toBe("head");
   });
 
-  it("reads whether vault publishes chat markers from the account", async () => {
-    const s = await setup();
-    expect((await s.store.account()).realtimeChanges).toBeUndefined();
-    const live = await setup((call) =>
-      call.method === "GET" && call.path === "/account"
-        ? Response.json({ ...s.account, realtime_changes: true })
-        : undefined
-    );
-    expect((await live.store.account()).realtimeChanges).toBe(true);
-  });
-
   it("reads many records in request order, following remaining and skipping missing", async () => {
     const s = await setup();
     await s.store.putMany(

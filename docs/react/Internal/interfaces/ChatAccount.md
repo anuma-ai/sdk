@@ -22,16 +22,6 @@ Defined in: [src/lib/chatStore/types.ts:47](https://github.com/anuma-ai/sdk/blob
 
 ***
 
-### realtimeChanges?
-
-> `optional` **realtimeChanges**: `boolean`
-
-Defined in: [src/lib/chatStore/types.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#55)
-
-True when vault publishes a `private_chats` marker to the account's realtime channel on every chat commit.
-
-***
-
 ### recordCount
 
 > **recordCount**: `number`

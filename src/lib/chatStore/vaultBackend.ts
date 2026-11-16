@@ -96,7 +96,7 @@ export interface VaultChatBackendOptions {
   activity?: VaultChatActivity;
   /** Polls `/changes` this often while active; 0 polls only on activity and broadcast hints. */
   pollIntervalMs?: number;
-  /** Reports realtime connection state on subscribe and reconnect, and true on each `private_chats` marker; each report polls `/changes`, and while connected to a vault that publishes markers the periodic poll runs at most every 5 minutes. */
+  /** A `createVaultRealtime` source for `private_chats`: each report polls `/changes`, and while it reports connected the periodic poll runs at most every 5 minutes. */
   subscribeChanges?: (onChange: (connected: boolean) => void) => () => void;
   /** BroadcastChannel name shared by this account's tabs, so one tab's writes prompt the others to poll. */
   channel?: string;
@@ -783,7 +783,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         (await listIndex(source)).forEach(merge);
       }
       await adopt();
-      if (account.realtimeChanges && options.subscribeChanges && !stopChanges && !closed)
+      if (options.subscribeChanges && !stopChanges && !closed)
         stopChanges = options.subscribeChanges(onChanges);
       schedulePoll();
     })();

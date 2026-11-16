@@ -573,11 +573,14 @@ describe("remote MemoryStore", () => {
     }
   });
 
-  it("keeps normal polling when the server does not advertise realtime changes", async () => {
+  it("keeps normal polling until the realtime source reports connected", async () => {
     const ring = await deriveMemoryKeyRing(`0x${"e5".repeat(65)}`);
     const server = fakeNearby(ring.keyId);
     server.fetch.mockResolvedValueOnce(Response.json({ state: "active", key_id: ring.keyId }));
-    const subscribeChanges = vi.fn(() => () => {});
+    const subscribeChanges = vi.fn((listener: (connected: boolean) => void) => {
+      listener(false);
+      return () => {};
+    });
     const { store } = await remoteStore(server, ring, 60_000, {}, undefined, subscribeChanges);
     server.fetch.mockClear();
     vi.useFakeTimers();
@@ -586,7 +589,7 @@ describe("remote MemoryStore", () => {
       await vi.advanceTimersByTimeAsync(0);
       await vi.advanceTimersByTimeAsync(60_000);
       expect(server.fetch).toHaveBeenCalledTimes(2);
-      expect(subscribeChanges).not.toHaveBeenCalled();
+      expect(subscribeChanges).toHaveBeenCalledTimes(1);
     } finally {
       stop();
       vi.useRealTimers();
