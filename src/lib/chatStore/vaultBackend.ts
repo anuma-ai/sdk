@@ -35,7 +35,14 @@ import {
   type ChatStore,
   ChatStoreError,
 } from "./types";
-import { type ChatCacheStorage, loadChatCache, saveChatCache } from "./vaultCache";
+import {
+  type ChatCacheSnapshot,
+  type ChatCacheStorage,
+  clearChatCache,
+  loadChatCache,
+  saveChatCache,
+  storedChatCacheEntries,
+} from "./vaultCache";
 import {
   applyPatch,
   type ChatOutboxLocks,
@@ -137,6 +144,7 @@ export interface VaultChatBackend extends ChatBackend {
 
 const terminalCodes = new Set(["key_mismatch", "account_changed", "account_not_found"]);
 const cacheSaveDelayMs = 500;
+const cachedMessageLimit = 200;
 
 function cursorRejected(error: unknown): boolean {
   return error instanceof ChatStoreError && (error.status === 400 || error.status === 410);
@@ -223,9 +231,12 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   let pollFailures = 0;
   let persisting: Promise<void> = Promise.resolve();
   let readyPromise: Promise<void> | null = null;
+  let reachable = false;
   let adopting: Promise<void> | null = null;
   let connected = typeof options.store === "function" ? undefined : options.store;
   const complete = new Set<string>();
+  const partial = new Set<string>();
+  let savedCache: ChatCacheSnapshot | undefined;
   let fromCache = false;
   let caching = false;
   let cacheOff = false;
@@ -281,15 +292,37 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   const cacheSnapshot = () => {
     const kept = [...threads.keys()].filter((id) => complete.has(id) && confirmedLive(id));
     const keep = new Set(kept);
+    const records: ChatSnapshot[] = [];
+    const messages = new Map<string, ChatSnapshot[]>();
+    const truncated = new Set(kept.filter((id) => partial.has(id)));
+    for (const snapshot of confirmed.values()) {
+      const { record } = snapshot;
+      if (record.kind === "conversation") records.push(snapshot);
+      else if (record.kind !== "project" && keep.has(record.conversationId)) {
+        if (record.kind !== "message") records.push(snapshot);
+        else if (!record.isDeleted) {
+          const group = messages.get(record.conversationId) ?? [];
+          group.push(snapshot);
+          messages.set(record.conversationId, group);
+        }
+      }
+    }
+    for (const [id, group] of messages) {
+      group.sort(
+        (a, b) =>
+          a.record.sortKey - b.record.sortKey ||
+          a.record.createdAt - b.record.createdAt ||
+          (a.record.id < b.record.id ? -1 : 1)
+      );
+      if (group.length > cachedMessageLimit) truncated.add(id);
+      records.push(...group.slice(-cachedMessageLimit));
+    }
     return {
       account: cache!.account,
       cursor: cursor ?? "",
-      records: [...confirmed.values()].filter(
-        ({ record }) =>
-          record.kind === "conversation" ||
-          (record.kind !== "project" && keep.has(record.conversationId))
-      ),
+      records,
       threads: kept,
+      partial: [...truncated],
       absent: [...checked].filter((k) => {
         const [kind, ...rest] = k.split("/");
         return (
@@ -301,17 +334,28 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     };
   };
 
+  const cacheLocked = <T>(fn: () => Promise<T>): Promise<T> =>
+    locks ? locks.request(`chat-cache:${cache!.account}`, {}, fn) : fn();
+
+  const writeCache = async () => {
+    if (!cache || cacheOff || closed) return;
+    const stored = await storedChatCacheEntries(cache.storage, cache.account, cache.seal.decrypt);
+    if (cacheOff || closed) return;
+    savedCache = await saveChatCache(
+      cache.storage,
+      cache.seal.encrypt,
+      cacheSnapshot(),
+      savedCache,
+      stored,
+      cache.seal.decrypt
+    );
+  };
+
   const saveCache = () => {
     if (!cache || !caching || cacheOff || closed || cacheTimer || cursor === undefined) return;
     cacheTimer = setTimeout(() => {
       cacheTimer = undefined;
-      saving = saving
-        .then(() =>
-          cacheOff || closed
-            ? undefined
-            : saveChatCache(cache.storage, cache.seal.encrypt, cacheSnapshot())
-        )
-        .catch(() => undefined);
+      saving = saving.then(() => cacheLocked(writeCache)).catch(() => undefined);
     }, cacheSaveDelayMs);
   };
 
@@ -321,7 +365,11 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     clearTimeout(cacheTimer);
     cacheTimer = undefined;
     await saving;
-    if (cache) await cache.storage.set(cache.account, null);
+    if (cache)
+      await cacheLocked(() =>
+        clearChatCache(cache.storage, cache.account, cache.seal.decrypt, savedCache)
+      );
+    savedCache = undefined;
   };
 
   const wipeIfTerminal = (error: unknown) => {
@@ -608,6 +656,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
 
   const forgetConversation = (conversationId: string) => {
     threads.delete(conversationId);
+    partial.delete(conversationId);
     for (const [k, snapshot] of confirmed)
       if (snapshot.record.conversationId === conversationId) forget(k);
     for (const [k, patch] of pending)
@@ -655,7 +704,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       () => {
         if (threads.get(conversationId) !== loading) return;
         complete.add(conversationId);
+        const wasPartial = partial.delete(conversationId);
         saveCache();
+        if (wasPartial) emit({ type: "messages", conversationId, origin: "remote" });
       },
       () => threads.delete(conversationId)
     );
@@ -716,6 +767,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     checked.clear();
     threads.clear();
     complete.clear();
+    partial.clear();
     cursor = account.changesCursor ?? "";
     index.forEach(merge);
     emit({ type: "conversations", origin: "remote" });
@@ -767,6 +819,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         (await listIndex(source)).forEach(merge);
       }
       await adopt();
+      reachable = true;
       schedulePoll();
     })();
     readyPromise.catch((error) => {
@@ -865,10 +918,25 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     return view(k);
   };
 
-  const thread = async (conversationId: string): Promise<ChatRecord[]> => {
+  const reloadPartial = async (conversationId: string): Promise<void> => {
+    if (!(await remote().catch(() => undefined)) || !partial.has(conversationId)) return;
+    const known = complete.has(conversationId) ? threads.get(conversationId) : undefined;
+    if (known) threads.delete(conversationId);
+    await loadThread(conversationId).catch(() => {
+      if (known && !threads.has(conversationId)) {
+        threads.set(conversationId, known);
+        complete.add(conversationId);
+      }
+    });
+  };
+
+  const thread = async (conversationId: string, wait = true): Promise<ChatRecord[]> => {
     await available();
     if (!conversationLive(conversationId)) return [];
-    await loadThread(conversationId);
+    if (partial.has(conversationId)) {
+      if (wait || reachable) await reloadPartial(conversationId);
+      else void reloadPartial(conversationId);
+    } else await loadThread(conversationId);
     return all("message", conversationId).sort(
       (a, b) => a.sortKey - b.sortKey || a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1)
     );
@@ -1012,13 +1080,13 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       );
     },
     async getMessages(conversationId) {
-      return (await thread(conversationId)).map(toMessage);
+      return (await thread(conversationId, false)).map(toMessage);
     },
     async getMessagesPage(conversationId, page: GetMessagesPageOptions) {
       const limit = Math.floor(page.limit);
       if (!Number.isFinite(limit) || limit < 1) return [];
       const exclude = new Set(page.boundaryExcludeUniqueIds ?? []);
-      const records = (await thread(conversationId)).filter(
+      const records = (await thread(conversationId, false)).filter(
         (r) =>
           page.beforeMessageId === undefined ||
           (exclude.size > 0 ? r.sortKey <= page.beforeMessageId : r.sortKey < page.beforeMessageId)
@@ -1029,7 +1097,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         .map(toMessage);
     },
     async getMessageSkeletons(conversationId): Promise<MessageSkeleton[]> {
-      return toSkeletons(await thread(conversationId));
+      return toSkeletons(await thread(conversationId, false));
     },
     async getMessagesByIds(uniqueIds) {
       await available();
@@ -1148,8 +1216,11 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       return patchMessage(uniqueId, { set: { fileIds } });
     },
     async clearMessages(conversationId) {
+      const records = await thread(conversationId);
+      if (partial.has(conversationId))
+        throw new ChatStoreError("Chat history is not fully loaded", 0, "history_incomplete");
       await invalidateSummary(conversationId);
-      for (const record of await thread(conversationId))
+      for (const record of records)
         await enqueue({ kind: "message", id: record.id, conversationId, delete: true });
       emit({ type: "messages", conversationId, origin: "local" });
     },
@@ -1174,7 +1245,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     },
     async getAllFiles(query?: Parameters<typeof getAllFilesOp>[1]) {
       await available();
-      if (query?.conversationId) await loadThread(query.conversationId);
+      if (query?.conversationId) await thread(query.conversationId);
       const files: StoredFileWithContext[] = [];
       for (const record of all("message", query?.conversationId)) {
         if (!conversationLive(record.conversationId)) continue;
@@ -1355,11 +1426,13 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   const seed = async () => {
     if (!cache) return;
     try {
-      const snapshot = await loadChatCache(cache.storage, cache.account, cache.seal.decrypt).catch(
-        () => undefined
-      );
+      const snapshot = await cacheLocked(() =>
+        loadChatCache(cache.storage, cache.account, cache.seal.decrypt)
+      ).catch(() => undefined);
       if (!snapshot || cacheOff) return;
+      savedCache = snapshot;
       snapshot.records.forEach(merge);
+      for (const conversationId of snapshot.partial ?? []) partial.add(conversationId);
       for (const conversationId of snapshot.threads) {
         if (!confirmedLive(conversationId)) continue;
         threads.set(conversationId, Promise.resolve());
