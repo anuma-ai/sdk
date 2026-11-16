@@ -49,6 +49,7 @@ import {
 } from "../topicExtract.js";
 import type { RecallFactSource, RecallOptions } from "../types.js";
 import {
+  MAX_REMOTE_MEMORY_IDS,
   type RemoteMemoryDecodeFailure,
   RemoteMemoryError,
   type RemoteMemoryMetadataRecord,
@@ -135,7 +136,6 @@ function safely(onChange: () => void) {
 }
 
 const MAX_BATCH = 50;
-const MAX_QUERY_IDS = 1000;
 const MAX_QUERY_TOPICS = 100;
 const MAX_QUERY_FILTER = 20;
 const GRAPH_LANE_ROWS = 256;
@@ -460,7 +460,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   ) =>
     (
       await Promise.all(
-        chunks([...new Set(ids)], MAX_QUERY_IDS).map((memory_ids) =>
+        chunks([...new Set(ids)], MAX_REMOTE_MEMORY_IDS).map((memory_ids) =>
           pages(read, { ...filters, memory_ids }, max)
         )
       )
@@ -753,7 +753,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   ) => {
     const records = new Map<string, RemoteMemoryRecord>();
     const unreadable = new Set<string>();
-    for (const memory_ids of chunks(ids, MAX_QUERY_IDS)) {
+    for (const memory_ids of chunks(ids, MAX_REMOTE_MEMORY_IDS)) {
       let cursor: string | undefined;
       do {
         const page = await persistence.query({
@@ -1022,7 +1022,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       resume = page.changes_cursor ?? resume;
       next = page.next_cursor;
     } while (next);
-    for (const memory_ids of chunks([...pending], MAX_QUERY_IDS)) {
+    for (const memory_ids of chunks([...pending], MAX_REMOTE_MEMORY_IDS)) {
       let retry: string | undefined;
       do {
         const page = await persistence.query({
