@@ -37,10 +37,12 @@ export async function saveChatCache(
   storage: ChatCacheStorage,
   encrypt: (plaintext: string) => Promise<string>,
   snapshot: ChatCacheSnapshot,
-  previous?: ChatCacheSnapshot
+  previous?: ChatCacheSnapshot,
+  stored?: readonly [string, string][]
 ): Promise<ChatCacheSnapshot> {
   const before = groups(previous?.records ?? []);
   const slots = new Map(previous?.entries);
+  const live = stored ? new Map(stored) : undefined;
   const entries: [string, string][] = [];
   const created: string[] = [];
   try {
@@ -49,6 +51,7 @@ export async function saveChatCache(
       let slot = slots.get(key);
       if (
         !slot ||
+        (live && live.get(key) !== slot) ||
         known?.length !== records.length ||
         !records.every((record, index) => record === known[index])
       ) {
@@ -80,8 +83,9 @@ export async function saveChatCache(
     throw error;
   }
   const retained = new Set(entries.map(([, slot]) => slot));
+  const replaced = new Set([...slots.values(), ...(live?.values() ?? [])]);
   await Promise.allSettled(
-    [...slots.values()].filter((slot) => !retained.has(slot)).map((slot) => storage.set(slot, null))
+    [...replaced].filter((slot) => !retained.has(slot)).map((slot) => storage.set(slot, null))
   );
   return { ...snapshot, entries };
 }
@@ -137,6 +141,27 @@ export async function loadChatCache(
   };
 }
 
+export async function storedChatCacheEntries(
+  storage: ChatCacheStorage,
+  account: string,
+  decrypt: (ciphertext: string) => Promise<string>
+): Promise<[string, string][]> {
+  const sealed = await storage.get(account);
+  const parsed = sealed
+    ? await decrypt(sealed)
+        .then((plaintext) => JSON.parse(plaintext) as Partial<ChatCacheSnapshot>)
+        .catch(() => undefined)
+    : undefined;
+  if (parsed?.account !== account || !Array.isArray(parsed.entries)) return [];
+  return parsed.entries.filter(
+    (entry): entry is [string, string] =>
+      Array.isArray(entry) &&
+      typeof entry[0] === "string" &&
+      typeof entry[1] === "string" &&
+      entry[1].startsWith(`${account}/chat-cache/`)
+  );
+}
+
 export async function clearChatCache(
   storage: ChatCacheStorage,
   account: string,
@@ -144,15 +169,7 @@ export async function clearChatCache(
   previous?: ChatCacheSnapshot
 ): Promise<void> {
   const slots = new Set(previous?.entries?.map(([, slot]) => slot));
-  const sealed = await storage.get(account);
-  const parsed = sealed
-    ? await decrypt(sealed)
-        .then((plaintext) => JSON.parse(plaintext) as Partial<ChatCacheSnapshot>)
-        .catch(() => undefined)
-    : undefined;
-  if (parsed?.account === account && Array.isArray(parsed.entries))
-    for (const [, slot] of parsed.entries)
-      if (typeof slot === "string" && slot.startsWith(`${account}/chat-cache/`)) slots.add(slot);
+  for (const [, slot] of await storedChatCacheEntries(storage, account, decrypt)) slots.add(slot);
   await storage.set(account, null);
   await Promise.all([...slots].map((slot) => storage.set(slot, null)));
 }

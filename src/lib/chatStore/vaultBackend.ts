@@ -41,6 +41,7 @@ import {
   clearChatCache,
   loadChatCache,
   saveChatCache,
+  storedChatCacheEntries,
 } from "./vaultCache";
 import {
   applyPatch,
@@ -332,21 +333,27 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     };
   };
 
+  const cacheLocked = <T>(fn: () => Promise<T>): Promise<T> =>
+    locks ? locks.request(`chat-cache:${cache!.account}`, {}, fn) : fn();
+
+  const writeCache = async () => {
+    if (!cache || cacheOff || closed) return;
+    const stored = await storedChatCacheEntries(cache.storage, cache.account, cache.seal.decrypt);
+    if (cacheOff || closed) return;
+    savedCache = await saveChatCache(
+      cache.storage,
+      cache.seal.encrypt,
+      cacheSnapshot(),
+      savedCache,
+      stored
+    );
+  };
+
   const saveCache = () => {
     if (!cache || !caching || cacheOff || closed || cacheTimer || cursor === undefined) return;
     cacheTimer = setTimeout(() => {
       cacheTimer = undefined;
-      saving = saving
-        .then(async () => {
-          if (cacheOff || closed) return;
-          savedCache = await saveChatCache(
-            cache.storage,
-            cache.seal.encrypt,
-            cacheSnapshot(),
-            savedCache
-          );
-        })
-        .catch(() => undefined);
+      saving = saving.then(() => cacheLocked(writeCache)).catch(() => undefined);
     }, cacheSaveDelayMs);
   };
 
@@ -356,7 +363,10 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     clearTimeout(cacheTimer);
     cacheTimer = undefined;
     await saving;
-    if (cache) await clearChatCache(cache.storage, cache.account, cache.seal.decrypt, savedCache);
+    if (cache)
+      await cacheLocked(() =>
+        clearChatCache(cache.storage, cache.account, cache.seal.decrypt, savedCache)
+      );
     savedCache = undefined;
   };
 
@@ -1198,8 +1208,11 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       return patchMessage(uniqueId, { set: { fileIds } });
     },
     async clearMessages(conversationId) {
+      const records = await thread(conversationId);
+      if (partial.has(conversationId))
+        throw new ChatStoreError("Chat history is not fully loaded", 0, "history_incomplete");
       await invalidateSummary(conversationId);
-      for (const record of await thread(conversationId))
+      for (const record of records)
         await enqueue({ kind: "message", id: record.id, conversationId, delete: true });
       emit({ type: "messages", conversationId, origin: "local" });
     },
@@ -1224,7 +1237,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     },
     async getAllFiles(query?: Parameters<typeof getAllFilesOp>[1]) {
       await available();
-      if (query?.conversationId) await loadThread(query.conversationId);
+      if (query?.conversationId) await thread(query.conversationId);
       const files: StoredFileWithContext[] = [];
       for (const record of all("message", query?.conversationId)) {
         if (!conversationLive(record.conversationId)) continue;

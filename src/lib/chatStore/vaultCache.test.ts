@@ -11,6 +11,7 @@ import {
   type ChatCacheStorage,
   loadChatCache,
   saveChatCache,
+  storedChatCacheEntries,
 } from "./vaultCache";
 import type { ChatOutboxStorage } from "./vaultOutbox";
 
@@ -207,6 +208,89 @@ describe("vault chat cache", () => {
     online = true;
     await cold.poll();
     expect(await cold.getMessages("anuma-1on1")).toHaveLength(205);
+  });
+
+  it("keeps the cache loadable when another tab replaced a reused entry", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const b = backend(fake.store);
+    await chat(b, "conv_1", "Shared thread", "msg_1");
+    await b.createMessage({
+      conversationId: "conv_1",
+      role: "assistant",
+      content: "Reply",
+      uniqueId: "msg_2",
+    });
+    await b.flush();
+    const conversation = (await fake.row("conversation", "conv_1"))!;
+    const first = (await fake.row("message", "msg_1"))!;
+    const snapshot: ChatCacheSnapshot = {
+      account: "0xaaa",
+      cursor: "cursor_1",
+      records: [conversation, first],
+      threads: ["conv_1"],
+      absent: [],
+    };
+    const shared = await saveChatCache(storage, seal.encrypt, snapshot);
+    const stored = () => storedChatCacheEntries(storage, snapshot.account, seal.decrypt);
+
+    await saveChatCache(
+      storage,
+      seal.encrypt,
+      { ...snapshot, records: [conversation, first, (await fake.row("message", "msg_2"))!] },
+      shared,
+      await stored()
+    );
+    const next = { ...snapshot, cursor: "cursor_2" };
+    await saveChatCache(storage, seal.encrypt, next, shared, await stored());
+
+    expect(await loadChatCache(storage, snapshot.account, seal.decrypt)).toMatchObject(next);
+    expect(storage.values.size).toBe(3);
+  });
+
+  it("loads the full capped thread before it lists files or clears messages", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const b = backend(fake.store, { cache });
+    await b.createConversation({ conversationId: "anuma-1on1" });
+    await b.flush();
+    await fake.write(
+      Array.from({ length: 205 }, (_, index) => ({
+        record: {
+          kind: "message" as const,
+          id: `msg_${index}`,
+          conversationId: "anuma-1on1",
+          sortKey: index,
+          createdAt: index,
+          updatedAt: index,
+          isDeleted: false,
+          data: {
+            role: "user",
+            content: `Message ${index}`,
+            ...(index === 0
+              ? { files: [{ id: "file_0", name: "old.png", type: "image/png", size: 1 }] }
+              : {}),
+          },
+        },
+        expectedVersion: 0,
+      }))
+    );
+    expect(await b.getMessages("anuma-1on1")).toHaveLength(205);
+    await cached(storage, seal, cache.account, (c) => {
+      const messages = c.records.filter((s) => s.record.kind === "message");
+      expect(messages).toHaveLength(200);
+    });
+    b.close();
+
+    let online = false;
+    const cold = backend(() => (online ? Promise.resolve(fake.store) : offline()), { cache });
+    await expect(cold.clearMessages("anuma-1on1")).rejects.toThrow("not fully loaded");
+    online = true;
+    const files = await cold.getAllFiles({ conversationId: "anuma-1on1" });
+    expect(files.map((file) => file.id)).toEqual(["file_0"]);
   });
 
   it("retains the last cache when the manifest write fails and retries the changed entries", async () => {
