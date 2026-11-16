@@ -50,6 +50,7 @@ import {
 import type { RecallFactSource, RecallOptions } from "../types.js";
 import {
   MAX_REMOTE_MEMORY_IDS,
+  type RemoteMemoryCandidateLanes,
   type RemoteMemoryDecodeFailure,
   RemoteMemoryError,
   type RemoteMemoryMetadataRecord,
@@ -139,6 +140,7 @@ const MAX_BATCH = 50;
 const MAX_QUERY_TOPICS = 100;
 const MAX_QUERY_FILTER = 20;
 const GRAPH_LANE_ROWS = 256;
+const TEMPORAL_LANE_ROWS = 100;
 const REPAIR_ROWS = 50;
 const REPAIR_SCAN = 2000;
 const DECAY_TRANSITIONS_PER_SWEEP = 200;
@@ -289,6 +291,10 @@ function sameTopics(stored: readonly StoredTopic[] | null, next: readonly Stored
   return next.every((t) => keys.has(key(t)));
 }
 
+function queryTopics(query: string): string[] {
+  return [...new Set(extractQueryEntities(query).map(normalizeTopicName).filter(Boolean))];
+}
+
 function canonicalTopics(row: Pick<RemoteMemoryRow, "topics">): Set<string> {
   return new Set((parseTopics(row.topics) ?? []).map((topic) => normalizeTopicName(topic.name)));
 }
@@ -323,6 +329,10 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       options.graphRanking ??
       ((query, _traverse, recallOptions) => topicGraphRanking(query, recallOptions)),
     temporalRanking: options.temporalRanking ?? ((query, now) => eventTimeRanking(query, now)),
+    ...(!options.graphRanking &&
+      !options.temporalRanking && {
+        candidateLanes: (query, recallOptions) => candidateLanes(query, recallOptions),
+      }),
   });
   const subscribers = new Set<Subscriber>();
   const retainTopics = () =>
@@ -427,7 +437,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     query: string,
     recallOptions: RecallOptions = {}
   ): Promise<string[]> => {
-    const wanted = new Set(extractQueryEntities(query).map(normalizeTopicName).filter(Boolean));
+    const wanted = new Set(queryTopics(query));
     if (wanted.size === 0 || recallOptions.memoryIds?.length === 0) return [];
     const filters = {
       topics: [...wanted].slice(0, MAX_QUERY_TOPICS),
@@ -450,7 +460,29 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const eventTimeRanking = async (query: string, now?: number): Promise<string[]> => {
     const window = parseQueryTimeWindow(query, now);
     if (!window) return [];
-    return persistence.temporal({ start: window.start, end: window.end });
+    return persistence.temporal({ start: window.start, end: window.end }, TEMPORAL_LANE_ROWS);
+  };
+  const candidateLanes = (
+    query: string,
+    recallOptions: RecallOptions
+  ): RemoteMemoryCandidateLanes | undefined => {
+    const topics = queryTopics(query);
+    if (
+      !persistence.supportsCandidateLanes?.() ||
+      topics.length > MAX_QUERY_TOPICS ||
+      (recallOptions.memoryIds?.length ?? 0) > MAX_REMOTE_MEMORY_IDS
+    )
+      return undefined;
+    const window = parseQueryTimeWindow(query, recallOptions.now);
+    return {
+      ...(topics.length > 0 &&
+        recallOptions.memoryIds?.length !== 0 && {
+          topic: { topics, rows: GRAPH_LANE_ROWS, limit: NODE_BUDGET },
+        }),
+      ...(window && {
+        event_time: { start: window.start, end: window.end, limit: TEMPORAL_LANE_ROWS },
+      }),
+    };
   };
   const enumerateIds = async <T extends Row>(
     read: (options: RemoteMemoryQueryOptions) => Promise<Page<T>>,
