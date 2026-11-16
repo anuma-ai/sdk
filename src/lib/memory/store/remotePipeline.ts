@@ -562,22 +562,41 @@ export function createRemoteMemoryPipeline(
           } catch (error) {
             if (!(error instanceof RemoteMemoryError && error.code === CANDIDATE_LANES_UNSUPPORTED))
               throw error;
-            getLogger().warn("[memory/remote] Nearby stopped ranking candidate lanes", error);
-            const lane = (ranking: Promise<string[]>) => ranking.catch((): string[] => []);
-            const [entityRanking, temporalRanking] = await Promise.all([
-              lane(options.graphRanking(text, false, recallOptions)),
-              lane(options.temporalRanking(text, recallOptions.now)),
+            getLogger().warn("[memory/remote] Vault stopped ranking candidate lanes", error);
+            const lane = (label: string, ranking: Promise<string[]>) =>
+              ranking.then(
+                (ids) => ({ ids, failed: false }),
+                (laneError: unknown) => {
+                  getLogger().warn(
+                    `[memory/remote] ${label} lane failed; continuing without it: ${
+                      laneError instanceof Error ? laneError.message : String(laneError)
+                    }`
+                  );
+                  return { ids: [] as string[], failed: true };
+                }
+              );
+            const [entity, temporal] = await Promise.all([
+              lane("graph", options.graphRanking(text, false, recallOptions)),
+              lane("temporal", options.temporalRanking(text, recallOptions.now)),
             ]);
             const result = await search()(
               text,
               {
                 ...searchOptions,
-                ...(entityRanking.length > 0 && { entityRanking }),
-                ...(temporalRanking.length > 0 && { temporalRanking }),
+                ...(entity.ids.length > 0 && { entityRanking: entity.ids }),
+                ...(temporal.ids.length > 0 && { temporalRanking: temporal.ids }),
               },
               cache
             );
-            return { ...result, lanes: { entityRanking, temporalRanking } };
+            return {
+              ...result,
+              lanes: {
+                entityRanking: entity.ids,
+                temporalRanking: temporal.ids,
+                ...(entity.failed && { entityFailed: true }),
+                ...(temporal.failed && { temporalFailed: true }),
+              },
+            };
           }
         };
         return searchLanes;

@@ -1,6 +1,6 @@
 # RecallTruncation
 
-Defined in: [src/lib/memory/types.ts:525](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#525)
+Defined in: [src/lib/memory/types.ts:527](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#527)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:525](https://github.com/anuma-ai/sdk/blob/m
 
 > **effectiveLimit**: `number`
 
-Defined in: [src/lib/memory/types.ts:527](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#527)
+Defined in: [src/lib/memory/types.ts:529](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#529)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/types.ts:527](https://github.com/anuma-ai/sdk/blob/m
 
 > **requestedLimit**: `number`
 
-Defined in: [src/lib/memory/types.ts:526](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#526)
+Defined in: [src/lib/memory/types.ts:528](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#528)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/lib/memory/types.ts:526](https://github.com/anuma-ai/sdk/blob/m
 
 > **truncatedByBudget**: `boolean`
 
-Defined in: [src/lib/memory/types.ts:528](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#528)
+Defined in: [src/lib/memory/types.ts:530](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#530)

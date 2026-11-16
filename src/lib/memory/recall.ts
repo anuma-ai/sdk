@@ -401,6 +401,8 @@ export async function recall(
     if (lanes) {
       graphLaneCount = lanes.entityRanking.length;
       temporalLaneCount = lanes.temporalRanking.length;
+      if (lanes.entityFailed) graphLaneFailed = true;
+      if (lanes.temporalFailed) temporalLaneFailed = true;
     }
     factLaneMs = nowMs() - factStart;
   }

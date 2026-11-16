@@ -243,6 +243,8 @@ export interface RecallOptions {
 export interface RecallFactLanes {
   entityRanking: string[];
   temporalRanking: string[];
+  entityFailed?: boolean;
+  temporalFailed?: boolean;
 }
 
 /** A fact source supplies bounded candidates; recall owns ranking and result handling. */
