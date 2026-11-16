@@ -13,6 +13,7 @@ import {
   updateVaultMemoryOp,
 } from "./operations";
 import { ingestPublishedPhotoMemoriesOp, type PublishedPhotoMemory } from "./photoIngest";
+import { MemorySourceIneligibleError } from "./types";
 
 vi.mock("./encryption", () => ({
   encryptVaultMemoryContent: vi.fn((content: string) => Promise.resolve(`encrypted:${content}`)),
@@ -56,6 +57,40 @@ describe("ingestPublishedPhotoMemoriesOp", () => {
     db = makeRealDatabase();
     ctx = { database: db, vaultMemoryCollection: db.get<VaultMemory>("memory_vault") };
   });
+
+  it.each([false, true])(
+    "checks source eligibility inside the writer before row preparation: %s",
+    async (eligible) => {
+      const prepare = vi.spyOn(ctx.vaultMemoryCollection, "prepareCreate");
+      const batch = vi.spyOn(db, "batch");
+      const canWrite = vi.fn(() => {
+        expect(db._workQueue.isWriterRunning).toBe(true);
+        expect(prepare).not.toHaveBeenCalled();
+        expect(batch).not.toHaveBeenCalled();
+        return Promise.resolve(eligible);
+      });
+      ctx.canWrite = canWrite;
+
+      const result = ingestPublishedPhotoMemoriesOp(ctx, [
+        publishedRow(),
+        publishedRow({ memoryId: CAPTION_ID, text: "caption text" }),
+      ]);
+
+      if (eligible) {
+        await expect(result).resolves.toEqual({ inserted: 2, skipped: 0 });
+        expect(prepare).toHaveBeenCalledTimes(2);
+        expect(batch).toHaveBeenCalledTimes(1);
+        expect((await getVaultMemoryOp(ctx, FACT_ID))?.visibility).toBe("public");
+        expect((await getVaultMemoryOp(ctx, CAPTION_ID))?.visibility).toBe("public");
+      } else {
+        await expect(result).rejects.toBeInstanceOf(MemorySourceIneligibleError);
+        expect(prepare).not.toHaveBeenCalled();
+        expect(batch).not.toHaveBeenCalled();
+        expect(await getAllVaultMemoriesOp(ctx)).toHaveLength(0);
+      }
+      expect(canWrite).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it("writes a fresh photo memory under the SERVER's id, public, sourced photo", async () => {
     const result = await ingestPublishedPhotoMemoriesOp(ctx, [publishedRow()]);
