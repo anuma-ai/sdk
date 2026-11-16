@@ -251,9 +251,17 @@ export function createRemoteMemoryPipeline(
         );
         try {
           windows = await Promise.all(
-            vectors.map((embedding, i) =>
-              persistence.candidates(embedding, windowOptions(i, deadline.signal))
-            )
+            vectors.flatMap((embedding, i) => {
+              const candidateOptions = windowOptions(i, deadline.signal);
+              const memoryIds = candidateOptions.memory_ids;
+              if (!memoryIds?.length) return persistence.candidates(embedding, candidateOptions);
+              return Array.from({ length: Math.ceil(memoryIds.length / 1000) }, (_, chunk) =>
+                persistence.candidates(embedding, {
+                  ...candidateOptions,
+                  memory_ids: memoryIds.slice(chunk * 1000, (chunk + 1) * 1000),
+                })
+              );
+            })
           );
         } finally {
           clearTimeout(timer);
