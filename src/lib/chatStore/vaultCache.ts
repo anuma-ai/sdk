@@ -25,9 +25,7 @@ function groups(records: readonly ChatSnapshot[]): Map<string, ChatSnapshot[]> {
   for (const snapshot of records) {
     const { record } = snapshot;
     const key =
-      record.kind === "conversation"
-        ? `conversation/${record.id}`
-        : `thread/${record.conversationId}`;
+      record.kind === "conversation" ? "conversations" : `thread/${record.conversationId}`;
     const group = result.get(key) ?? [];
     group.push(snapshot);
     result.set(key, group);

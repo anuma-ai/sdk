@@ -99,31 +99,106 @@ async function chat(b: VaultChatBackend, conversationId: string, title: string, 
   await b.createMessage({ conversationId, role: "user", content: `${title} note`, uniqueId });
 }
 
+function conversationCache(count: number): ChatCacheSnapshot {
+  return {
+    account: "0xaaa",
+    cursor: "cursor_1",
+    records: Array.from({ length: count }, (_, index) => ({
+      record: {
+        kind: "conversation" as const,
+        id: `conv_${index}`,
+        conversationId: "",
+        sortKey: index,
+        createdAt: index,
+        updatedAt: index,
+        isDeleted: false,
+        data: { title: `Conversation ${index}` },
+      },
+      version: 1,
+      serverUpdatedAt: new Date(index).toISOString(),
+    })),
+    threads: [],
+    absent: [],
+  };
+}
+
 describe("vault chat cache", () => {
-  it("loads a large conversation index with bounded concurrent reads and decryptions", async () => {
+  it("saves and loads 500 conversations with two storage operations", async () => {
     const storage = cacheStorage();
-    const snapshot: ChatCacheSnapshot = {
-      account: "0xaaa",
-      cursor: "cursor_1",
-      records: Array.from({ length: 500 }, (_, index) => ({
+    const snapshot = conversationCache(500);
+    const encrypt = vi.fn((plaintext: string) => Promise.resolve(plaintext));
+    const set = vi.spyOn(storage, "set");
+
+    const saved = await saveChatCache(storage, encrypt, snapshot);
+
+    expect(saved.entries).toHaveLength(1);
+    expect(set).toHaveBeenCalledTimes(2);
+    expect(encrypt).toHaveBeenCalledTimes(2);
+    const get = vi.spyOn(storage, "get");
+    const decrypt = vi.fn((sealed: string) => Promise.resolve(sealed));
+    expect(await loadChatCache(storage, snapshot.account, decrypt)).toMatchObject(snapshot);
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(decrypt).toHaveBeenCalledTimes(2);
+    storage.values.delete(saved.entries![0][1]);
+    await expect(loadChatCache(storage, snapshot.account, decrypt)).resolves.toBeUndefined();
+  });
+
+  it.each([1, 2])("converts schema %i to one conversation index entry", async (schema) => {
+    const storage = cacheStorage();
+    const snapshot = conversationCache(500);
+    const entries: [string, string][] = [];
+    if (schema === 2) {
+      for (const record of snapshot.records) {
+        const key = `conversation/${record.record.id}`;
+        const slot = `${snapshot.account}/chat-cache/${record.record.id}`;
+        entries.push([key, slot]);
+        await storage.set(
+          slot,
+          JSON.stringify({ account: snapshot.account, key, records: [record] })
+        );
+      }
+    }
+    await storage.set(
+      snapshot.account,
+      JSON.stringify({
+        ...snapshot,
+        schema,
+        records: schema === 1 ? snapshot.records : undefined,
+        partial: [],
+        entries,
+      })
+    );
+    const decrypt = (sealed: string) => Promise.resolve(sealed);
+    const previous = await loadChatCache(storage, snapshot.account, decrypt);
+    expect(previous).toMatchObject(snapshot);
+    const encrypt = vi.fn((plaintext: string) => Promise.resolve(plaintext));
+
+    const saved = await saveChatCache(storage, encrypt, previous!, previous);
+
+    expect(saved.entries).toHaveLength(1);
+    expect(encrypt).toHaveBeenCalledTimes(2);
+    expect(storage.values.size).toBe(2);
+    expect(await loadChatCache(storage, snapshot.account, decrypt)).toMatchObject(snapshot);
+  });
+
+  it("loads thread entries with bounded concurrent reads and decryptions", async () => {
+    const storage = cacheStorage();
+    const snapshot = conversationCache(500);
+    snapshot.threads = snapshot.records.map(({ record }) => record.id);
+    snapshot.records.push(
+      ...snapshot.records.map(({ record, ...rest }) => ({
+        ...rest,
         record: {
-          kind: "conversation" as const,
-          id: `conv_${index}`,
-          conversationId: "",
-          sortKey: index,
-          createdAt: index,
-          updatedAt: index,
-          isDeleted: false,
-          data: { title: `Conversation ${index}` },
+          ...record,
+          kind: "message" as const,
+          id: `msg_${record.id}`,
+          conversationId: record.id,
+          data: { role: "user", content: `Message ${record.id}` },
         },
-        version: 1,
-        serverUpdatedAt: new Date(index).toISOString(),
-      })),
-      threads: [],
-      absent: [],
-    };
+      }))
+    );
     const saved = await saveChatCache(storage, (plaintext) => Promise.resolve(plaintext), snapshot);
-    const first = storage.values.get(saved.entries![0][1]);
+    const first = storage.values.get(saved.entries![1][1]);
     const get = vi.spyOn(storage, "get");
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
@@ -133,16 +208,16 @@ describe("vault chat cache", () => {
     });
     const loading = loadChatCache(storage, snapshot.account, decrypt);
     try {
-      await vi.waitFor(() => expect(decrypt.mock.calls.length).toBeGreaterThan(2));
+      await vi.waitFor(() => expect(decrypt.mock.calls.length).toBeGreaterThan(3));
       expect(get.mock.calls.length).toBeLessThanOrEqual(17);
     } finally {
       release();
     }
 
     expect(await loading).toMatchObject(snapshot);
-    expect(get).toHaveBeenCalledTimes(501);
-    expect(decrypt).toHaveBeenCalledTimes(501);
-    storage.values.delete(saved.entries![499][1]);
+    expect(get).toHaveBeenCalledTimes(502);
+    expect(decrypt).toHaveBeenCalledTimes(502);
+    storage.values.delete(saved.entries![500][1]);
     await expect(loadChatCache(storage, snapshot.account, decrypt)).resolves.toBeUndefined();
   });
 
@@ -177,7 +252,7 @@ describe("vault chat cache", () => {
     expect(await loadChatCache(storage, snapshot.account, seal.decrypt)).toMatchObject(next);
   });
 
-  it("seals only the changed thread and conversation after a confirmed turn", async () => {
+  it("seals the changed thread and conversation index after a confirmed turn", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");
     const encrypt = vi.fn(seal.encrypt);
@@ -187,7 +262,9 @@ describe("vault chat cache", () => {
     await chat(b, "conv_a", "Unchanged thread payload", "msg_a");
     await chat(b, "conv_b", "Changed thread", "msg_b");
     await b.flush();
-    await cached(storage, seal, cache.account, (c) => expect(ids(c)).toContain("msg_b"));
+    const previous = await cached(storage, seal, cache.account, (c) =>
+      expect(ids(c)).toContain("msg_b")
+    );
     encrypt.mockClear();
 
     await b.createMessage({
@@ -197,10 +274,15 @@ describe("vault chat cache", () => {
       uniqueId: "msg_reply",
     });
     await b.flush();
-    await cached(storage, seal, cache.account, (c) => expect(ids(c)).toContain("msg_reply"));
+    const saved = await cached(storage, seal, cache.account, (c) =>
+      expect(ids(c)).toContain("msg_reply")
+    );
 
+    expect(new Map(saved.entries).get("thread/conv_a")).toBe(
+      new Map(previous.entries).get("thread/conv_a")
+    );
     expect(encrypt.mock.calls.map(([plaintext]) => plaintext).join()).not.toContain(
-      "Unchanged thread payload"
+      "Unchanged thread payload note"
     );
     encrypt.mockClear();
     await b.poll();
@@ -808,7 +890,7 @@ describe("vault chat cache", () => {
     );
     expect(ids(saved)).toEqual(expect.arrayContaining(["conv_a", "msg_b", "msg_c"]));
     expect(ids(saved)).not.toContain("msg_a");
-    await vi.waitFor(() => expect(storage.values.size).toBe(6));
+    await vi.waitFor(() => expect(storage.values.size).toBe(4));
     b.close();
 
     const cold = backend(offline, { cache, threadCacheSize: 2 });

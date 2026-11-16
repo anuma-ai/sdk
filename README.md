@@ -98,8 +98,8 @@ persistence until the separate verified app migration lands. See [the migration 
 `createVaultChatBackend` uses `ChatCacheStorage` for the account manifest and
 separate sealed cache entries. The manifest key is the account string. Entry
 keys use `<account>/chat-cache/<uuid>` and change when the corresponding records
-change. Each account can use many keys. The SDK reads and decrypts at most 16
-entries at a time.
+change. Conversation records share one index entry. Each cached thread uses a
+separate entry. The SDK reads and decrypts at most 16 entries at a time.
 
 **Integration:** Treat each `get` and `set` argument as an exact storage key.
 Keep distinct keys in distinct records. Return `null` when a key does not exist.
