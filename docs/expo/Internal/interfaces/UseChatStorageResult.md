@@ -898,6 +898,23 @@ published set to diff against the server index.
 
 </td>
 </tr>
+<tr>
+<td>
+
+`options.withEmbeddings?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
 </tbody>
 </table>
 

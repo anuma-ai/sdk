@@ -82,7 +82,7 @@ describe("shared context assembly", () => {
     });
     expect(context.items.map((m) => m.id)).toEqual(["profile", "session"]);
     expect(context.degraded).toEqual(expect.arrayContaining(["fact", "episode"]));
-    expect(loadFacts).toHaveBeenCalledWith({ memoryIds: ["session"] });
+    expect(loadFacts).toHaveBeenCalledWith({ memoryIds: ["session"], withEmbeddings: false });
   });
   it("passes topic membership before ranking and never searches unrestricted episodes", async () => {
     const recall = vi
@@ -208,6 +208,37 @@ describe("shared context assembly", () => {
     expect(loadFacts).toHaveBeenCalledTimes(3);
     for (const call of loadFacts.mock.calls) {
       expect(call[0]).toEqual(expect.objectContaining({ scopes: ["private"], folderId: "folder" }));
+    }
+  });
+  it("reads the stable and dynamic profile at the same time", async () => {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const loadFacts = vi.fn(async (_options: unknown) => {
+      await gate;
+      return [];
+    });
+    const assembling = assembleMemoryContext({
+      query: "My allergies?",
+      recall: async () => result(),
+      loadFacts,
+    });
+    await vi.waitFor(() => expect(loadFacts).toHaveBeenCalledTimes(2));
+    release();
+    await assembling;
+  });
+  it("never downloads embeddings for profile or session rows", async () => {
+    const loadFacts = vi.fn(async (_options: unknown) => []);
+    await assembleMemoryContext({
+      query: "My allergies?",
+      recall: async () => result(),
+      loadFacts,
+      loadSessionRefs: async () => [{ memoryId: "m1", score: 1 }],
+    });
+    expect(loadFacts).toHaveBeenCalledTimes(3);
+    for (const call of loadFacts.mock.calls) {
+      expect(call[0]).toEqual(expect.objectContaining({ withEmbeddings: false }));
     }
   });
 });
