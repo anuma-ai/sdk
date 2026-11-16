@@ -1,6 +1,6 @@
 # VaultRealtimeOptions
 
-Defined in: src/lib/vaultRealtime.ts:21
+Defined in: [src/lib/vaultRealtime.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#21)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/vaultRealtime.ts:21
 
 > `optional` **activity**: `object`
 
-Defined in: src/lib/vaultRealtime.ts:29
+Defined in: [src/lib/vaultRealtime.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#29)
 
 Closes the socket while inactive and reconnects at once when active again.
 
@@ -63,7 +63,7 @@ Closes the socket while inactive and reconnects at once when active again.
 
 > **baseUrl**: `string`
 
-Defined in: src/lib/vaultRealtime.ts:23
+Defined in: [src/lib/vaultRealtime.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#23)
 
 Vault's own origin, such as `https://vault.anuma.ai`; the socket is not served on hosts that only share vault's `/api/private-*` routes.
 
@@ -73,7 +73,7 @@ Vault's own origin, such as `https://vault.anuma.ai`; the socket is not served o
 
 > `optional` **fetch**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: src/lib/vaultRealtime.ts:25
+Defined in: [src/lib/vaultRealtime.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#25)
 
 **Call Signature**
 
@@ -175,7 +175,7 @@ Defined in: src/lib/vaultRealtime.ts:25
 
 > **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: src/lib/vaultRealtime.ts:24
+Defined in: [src/lib/vaultRealtime.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#24)
 
 **Returns**
 
@@ -187,7 +187,7 @@ Defined in: src/lib/vaultRealtime.ts:24
 
 > `optional` **retry**: `object`
 
-Defined in: src/lib/vaultRealtime.ts:30
+Defined in: [src/lib/vaultRealtime.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#30)
 
 **maxMs?**
 
@@ -203,7 +203,7 @@ Defined in: src/lib/vaultRealtime.ts:30
 
 > `optional` **silenceMs**: `number`
 
-Defined in: src/lib/vaultRealtime.ts:32
+Defined in: [src/lib/vaultRealtime.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#32)
 
 Reconnects when nothing arrives for this long; vault sends a ping every 25 s.
 
@@ -213,6 +213,6 @@ Reconnects when nothing arrives for this long; vault sends a ping every 25 s.
 
 > `optional` **socket**: [`VaultRealtimeSocketFactory`](../type-aliases/VaultRealtimeSocketFactory.md)
 
-Defined in: src/lib/vaultRealtime.ts:27
+Defined in: [src/lib/vaultRealtime.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#27)
 
 Opens the socket; defaults to the global `WebSocket`.

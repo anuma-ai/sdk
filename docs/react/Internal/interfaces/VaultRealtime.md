@@ -1,6 +1,6 @@
 # VaultRealtime
 
-Defined in: src/lib/vaultRealtime.ts:36
+Defined in: [src/lib/vaultRealtime.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#36)
 
 One account's vault realtime socket, shared by its memory store and chat backend.
 
@@ -10,7 +10,7 @@ One account's vault realtime socket, shared by its memory store and chat backend
 
 > **changes**(`entities`: readonly [`VaultRealtimeEntity`](../type-aliases/VaultRealtimeEntity.md)\[]): (`onChange`: (`connected`: `boolean`) => `void`) => () => `void`
 
-Defined in: src/lib/vaultRealtime.ts:38
+Defined in: [src/lib/vaultRealtime.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#38)
 
 A `subscribeChanges` for the given entities: reports the connection state on subscribe and on every connect and disconnect, and `true` on each marker for one of them.
 
@@ -82,7 +82,7 @@ readonly [`VaultRealtimeEntity`](../type-aliases/VaultRealtimeEntity.md)\[]
 
 > **close**(): `void`
 
-Defined in: src/lib/vaultRealtime.ts:41
+Defined in: [src/lib/vaultRealtime.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#41)
 
 **Returns**
 

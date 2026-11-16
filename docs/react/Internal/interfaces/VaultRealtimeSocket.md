@@ -1,6 +1,6 @@
 # VaultRealtimeSocket
 
-Defined in: src/lib/vaultRealtime.ts:12
+Defined in: [src/lib/vaultRealtime.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#12)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/vaultRealtime.ts:12
 
 > **onclose**: (`event`: `unknown`) => `void` | `null`
 
-Defined in: src/lib/vaultRealtime.ts:14
+Defined in: [src/lib/vaultRealtime.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#14)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/vaultRealtime.ts:14
 
 > **onerror**: (`event`: `unknown`) => `void` | `null`
 
-Defined in: src/lib/vaultRealtime.ts:15
+Defined in: [src/lib/vaultRealtime.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#15)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: src/lib/vaultRealtime.ts:15
 
 > **onmessage**: (`event`: `object`) => `void` | `null`
 
-Defined in: src/lib/vaultRealtime.ts:13
+Defined in: [src/lib/vaultRealtime.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#13)
 
 ## Methods
 
@@ -32,7 +32,7 @@ Defined in: src/lib/vaultRealtime.ts:13
 
 > **close**(`code?`: `number`, `reason?`: `string`): `void`
 
-Defined in: src/lib/vaultRealtime.ts:16
+Defined in: [src/lib/vaultRealtime.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#16)
 
 **Parameters**
 

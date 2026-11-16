@@ -2,7 +2,7 @@
 
 > **VaultRealtimeSocketFactory** = (`url`: `string`, `protocols`: `string`\[]) => [`VaultRealtimeSocket`](../interfaces/VaultRealtimeSocket.md)
 
-Defined in: src/lib/vaultRealtime.ts:19
+Defined in: [src/lib/vaultRealtime.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/vaultRealtime.ts#19)
 
 ## Parameters
 
