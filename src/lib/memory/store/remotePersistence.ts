@@ -257,10 +257,12 @@ const memoryFields = {
   geohash: true,
 } satisfies Record<keyof RemoteMemoryRow, boolean>;
 
+export const MAX_REMOTE_MEMORY_IDS = 1000;
+
 const candidateListLimits = [
   ["scopes", 20],
   ["fact_types", 20],
-  ["memory_ids", 1000],
+  ["memory_ids", MAX_REMOTE_MEMORY_IDS],
   ["force_ids", 100],
 ] as const;
 
@@ -268,7 +270,7 @@ const queryListLimits = [
   ["scopes", 20],
   ["fact_types", 20],
   ["visibility", 20],
-  ["memory_ids", 1000],
+  ["memory_ids", MAX_REMOTE_MEMORY_IDS],
   ["topics", 100],
 ] as const;
 

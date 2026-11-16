@@ -25,6 +25,7 @@ import { recall } from "../recall.js";
 import { RetainError, type RetainPersistence, retainWithPersistence } from "../retain.js";
 import type { RecallFactSource, RecallResult, RetainResult } from "../types.js";
 import {
+  MAX_REMOTE_MEMORY_IDS,
   type RemoteMemoryCandidateOptions,
   type RemoteMemoryDecodeFailure,
   RemoteMemoryError,
@@ -33,8 +34,6 @@ import {
   type RemoteMemoryRow,
 } from "./remotePersistence.js";
 import type { MemoryRecallOptions, MemoryRetainOptions } from "./types.js";
-
-const MAX_QUERY_IDS = 1000;
 
 export interface RemoteMemoryPipelineOptions {
   persistence: RemoteMemoryPersistence;
@@ -253,10 +252,10 @@ export function createRemoteMemoryPipeline(
         );
         try {
           const idFilters: Pick<RemoteMemoryCandidateOptions, "memory_ids">[] = [];
-          if (search.memoryIds && search.memoryIds.length > MAX_QUERY_IDS) {
+          if (search.memoryIds && search.memoryIds.length > MAX_REMOTE_MEMORY_IDS) {
             const ids = [...new Set(search.memoryIds)];
-            for (let i = 0; i < ids.length; i += MAX_QUERY_IDS)
-              idFilters.push({ memory_ids: ids.slice(i, i + MAX_QUERY_IDS) });
+            for (let i = 0; i < ids.length; i += MAX_REMOTE_MEMORY_IDS)
+              idFilters.push({ memory_ids: ids.slice(i, i + MAX_REMOTE_MEMORY_IDS) });
           } else idFilters.push({});
           windows = await Promise.all(
             vectors.flatMap((embedding, i) => {
