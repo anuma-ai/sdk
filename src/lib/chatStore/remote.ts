@@ -314,6 +314,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       storageBytes: value.storage_bytes,
       vectorCount: value.vector_count,
       ...(value.changes_cursor ? { changesCursor: value.changes_cursor } : {}),
+      ...(value.realtime_changes === true ? { realtimeChanges: true } : {}),
     };
   };
 

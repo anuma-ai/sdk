@@ -1,6 +1,6 @@
 # ChatSearchOptions
 
-Defined in: [src/lib/chatStore/types.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#76)
+Defined in: [src/lib/chatStore/types.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#78)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:76](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#79)
+Defined in: [src/lib/chatStore/types.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#81)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/types.ts:79](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#82)
+Defined in: [src/lib/chatStore/types.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#84)
 
 Ranks only vectors from this model; vectors stored without one always count.
 
@@ -26,7 +26,7 @@ Ranks only vectors from this model; vectors stored without one always count.
 
 > `optional` **excludeConversationId**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#80)
+Defined in: [src/lib/chatStore/types.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#82)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/chatStore/types.ts:80](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **kinds**: (`"message"` | `"summary"`)\[]
 
-Defined in: [src/lib/chatStore/types.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#78)
+Defined in: [src/lib/chatStore/types.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#80)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/lib/chatStore/types.ts:78](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#77)
+Defined in: [src/lib/chatStore/types.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#79)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/lib/chatStore/types.ts:77](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [src/lib/chatStore/types.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#83)
+Defined in: [src/lib/chatStore/types.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#85)

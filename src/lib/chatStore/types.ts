@@ -51,6 +51,8 @@ export interface ChatAccount {
   vectorCount: number;
   /** The newest change; read it before loading history and poll `changes` from it. Absent before the first record. */
   changesCursor?: string;
+  /** True when vault publishes a `private_chats` marker to the account's realtime channel on every chat commit. */
+  realtimeChanges?: boolean;
 }
 
 export interface ChatImport {

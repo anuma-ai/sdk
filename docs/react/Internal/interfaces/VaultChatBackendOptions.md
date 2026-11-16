@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/vaultBackend.ts:96](https://github.com/anuma-ai/s
 
 > `optional` **cache**: `object`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#102)
+Defined in: [src/lib/chatStore/vaultBackend.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#104)
 
 Keeps `account`'s confirmed records and `/changes` cursor sealed with `seal`, so a cold start reads them before vault answers.
 
@@ -38,7 +38,7 @@ Keeps `account`'s confirmed records and `/changes` cursor sealed with `seal`, so
 
 > `optional` **channel**: `string`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#100)
+Defined in: [src/lib/chatStore/vaultBackend.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#102)
 
 BroadcastChannel name shared by this account's tabs, so one tab's writes prompt the others to poll.
 
@@ -48,7 +48,7 @@ BroadcastChannel name shared by this account's tabs, so one tab's writes prompt 
 
 > `optional` **now**: () => `number`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#108)
+Defined in: [src/lib/chatStore/vaultBackend.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#110)
 
 **Returns**
 
@@ -98,8 +98,51 @@ A connected store, or a function that connects one; with a seeded `cache`, reads
 
 ***
 
+### subscribeChanges()?
+
+> `optional` **subscribeChanges**: (`onChange`: (`connected`: `boolean`) => `void`) => () => `void`
+
+Defined in: [src/lib/chatStore/vaultBackend.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#100)
+
+Reports realtime connection state on subscribe and reconnect, and true on each `private_chats` marker; each report polls `/changes`, and while connected to a vault that publishes markers the periodic poll runs at most every 5 minutes.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`onChange`
+
+</td>
+<td>
+
+(`connected`: `boolean`) => `void`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+> (): `void`
+
+**Returns**
+
+`void`
+
+***
+
 ### threadCacheSize?
 
 > `optional` **threadCacheSize**: `number`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#107)
+Defined in: [src/lib/chatStore/vaultBackend.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#109)
