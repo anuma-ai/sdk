@@ -9,6 +9,7 @@ import {
   encryptDataWithKey,
   getEncryptionKey,
   hasEncryptionKey,
+  hexToBytes,
   refreshEncryptionKeyIfMatches,
   requestEncryptionKey,
 } from "../../../react/useEncryption";
@@ -600,12 +601,10 @@ export async function getConversationsByProjectOp(
   );
 }
 
-const CURSOR_WINDOW_CHUNK_CHARS = 256 * 1024;
+const CURSOR_WINDOW_CHUNK_BYTES = 512 * 1024;
 
 function tooWideForCursor(error: unknown): boolean {
-  return /Row too big to fit into CursorWindow/.test(
-    error instanceof Error ? error.message : String(error)
-  );
+  return /CursorWindow/.test(error instanceof Error ? error.message : String(error));
 }
 
 async function readRowInChunks(
@@ -623,28 +622,27 @@ async function readRowInChunks(
   if (!base) return null;
   const row: Record<string, unknown> = { ...base };
   for (const { name } of columns.filter((c) => c.type === "string")) {
-    const parts: string[] = [];
+    const hexParts: string[] = [];
     let isNull = false;
-    for (let start = 1; ; start += CURSOR_WINDOW_CHUNK_CHARS) {
+    for (let start = 1; ; start += CURSOR_WINDOW_CHUNK_BYTES) {
       const [chunk] = (await collection
         .query(
-          Q.unsafeSqlQuery(`select substr(${name}, ?, ?) as v from ${table} where id = ?`, [
-            start,
-            CURSOR_WINDOW_CHUNK_CHARS,
-            id,
-          ])
+          Q.unsafeSqlQuery(
+            `select hex(substr(cast(${name} as blob), ?, ?)) as hex, ${name} is null as missing from ${table} where id = ?`,
+            [start, CURSOR_WINDOW_CHUNK_BYTES, id]
+          )
         )
-        .unsafeFetchRaw()) as { v: unknown }[];
+        .unsafeFetchRaw()) as { hex: string; missing: number }[];
       if (!chunk) return null;
-      if (chunk.v === null || chunk.v === undefined) {
+      if (chunk.missing) {
         isNull = true;
         break;
       }
-      const text = String(chunk.v);
-      parts.push(text);
-      if (text.length < CURSOR_WINDOW_CHUNK_CHARS) break;
+      hexParts.push(chunk.hex);
+      if (chunk.hex.length < CURSOR_WINDOW_CHUNK_BYTES * 2) break;
     }
-    row[name] = isNull ? null : parts.join("");
+    const hex = hexParts.join("");
+    row[name] = isNull ? null : hex ? new TextDecoder().decode(hexToBytes(hex)) : "";
   }
   return row;
 }

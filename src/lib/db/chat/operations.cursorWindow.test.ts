@@ -40,8 +40,11 @@ const { encodeSchema } = requireNode("@nozbe/watermelondb/adapters/sqlite/encode
   encodeSchema: (schema: typeof sdkSchema) => string;
 };
 
-const WINDOW_CHARS = 1_000_000;
-const HUGE = "x".repeat(1_200_000);
+const WINDOW_BYTES = 2 * 1024 * 1024;
+const HUGE = `x${"é".repeat(1_100_000)}🌊`;
+const ROW_TOO_BIG = "Row too big to fit into CursorWindow requiredPos=0, totalRows=1";
+const ANDROID_8_ROW_TOO_BIG =
+  "Couldn't read row 0, col 0 from CursorWindow.  Make sure the Cursor is initialized correctly before accessing data from it.";
 
 function lokiCtx(): StorageOperationsContext {
   const database = new Database({
@@ -89,16 +92,16 @@ async function copyHistory(ctx: StorageOperationsContext): Promise<SqliteDb> {
 function sqliteCtx(
   db: SqliteDb,
   schemaFrom: StorageOperationsContext,
-  windowChars: number
+  windowBytes: number,
+  tooBig = ROW_TOO_BIG
 ): StorageOperationsContext {
   const fit = (rows: Record<string, unknown>[]) => {
     for (const row of rows) {
-      const chars = Object.values(row).reduce<number>(
-        (sum, v) => sum + (typeof v === "string" ? v.length : 8),
+      const bytes = Object.values(row).reduce<number>(
+        (sum, v) => sum + (typeof v === "string" ? Buffer.byteLength(v) : 8),
         0
       );
-      if (chars > windowChars)
-        throw new Error("Row too big to fit into CursorWindow requiredPos=0, totalRows=1");
+      if (bytes > windowBytes) throw new Error(tooBig);
     }
     return rows;
   };
@@ -167,12 +170,20 @@ describe("getMessagesOp past Android's CursorWindow", () => {
       content: "elsewhere",
       uniqueId: "m-other",
     });
+    await createConversationOp(source, { conversationId: "nul" });
+    await createMessageOp(source, {
+      conversationId: "nul",
+      role: "assistant",
+      content: "before\u0000after",
+      thinking: "t".repeat(2_200_000),
+      uniqueId: "m-nul",
+    });
     sqlite = await copyHistory(source);
   });
 
   it("returns every message, the oversized one whole, exactly as an unbounded read does", async () => {
     const unbounded = await getMessagesOp(sqliteCtx(sqlite, source, Infinity), "conv");
-    const bounded = await getMessagesOp(sqliteCtx(sqlite, source, WINDOW_CHARS), "conv");
+    const bounded = await getMessagesOp(sqliteCtx(sqlite, source, WINDOW_BYTES), "conv");
 
     expect(bounded.map((m) => m.uniqueId)).toEqual(["m-1", "m-2", "m-3"]);
     expect(bounded[1]?.content).toBe(HUGE);
@@ -182,8 +193,25 @@ describe("getMessagesOp past Android's CursorWindow", () => {
     expect(bounded).toEqual(unbounded);
   });
 
+  it("falls back on the error older Android versions raise for the same row", async () => {
+    const unbounded = await getMessagesOp(sqliteCtx(sqlite, source, Infinity), "conv");
+    const bounded = await getMessagesOp(
+      sqliteCtx(sqlite, source, WINDOW_BYTES, ANDROID_8_ROW_TOO_BIG),
+      "conv"
+    );
+
+    expect(bounded).toEqual(unbounded);
+  });
+
+  it("keeps text past a NUL in a row that is oversized because of another column", async () => {
+    const [message] = await getMessagesOp(sqliteCtx(sqlite, source, WINDOW_BYTES), "nul");
+
+    expect(message?.content).toBe("before\u0000after");
+    expect(message?.thinking).toHaveLength(2_200_000);
+  });
+
   it("still fails on any other read error", async () => {
-    const ctx = sqliteCtx(sqlite, source, WINDOW_CHARS);
+    const ctx = sqliteCtx(sqlite, source, WINDOW_BYTES);
     const broken = {
       ...ctx,
       messagesCollection: {
