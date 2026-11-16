@@ -98,6 +98,175 @@ async function chat(b: VaultChatBackend, conversationId: string, title: string, 
 }
 
 describe("vault chat cache", () => {
+  it("seals only the changed thread and conversation after a confirmed turn", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const encrypt = vi.fn(seal.encrypt);
+    const storage = cacheStorage();
+    const cache = { storage, seal: { ...seal, encrypt }, account: "0xaaa" };
+    const b = backend(fake.store, { cache });
+    await chat(b, "conv_a", "Unchanged thread payload", "msg_a");
+    await chat(b, "conv_b", "Changed thread", "msg_b");
+    await b.flush();
+    await cached(storage, seal, cache.account, (c) => expect(ids(c)).toContain("msg_b"));
+    encrypt.mockClear();
+
+    await b.createMessage({
+      conversationId: "conv_b",
+      role: "assistant",
+      content: "New reply",
+      uniqueId: "msg_reply",
+    });
+    await b.flush();
+    await cached(storage, seal, cache.account, (c) => expect(ids(c)).toContain("msg_reply"));
+
+    expect(encrypt.mock.calls.map(([plaintext]) => plaintext).join()).not.toContain(
+      "Unchanged thread payload"
+    );
+    encrypt.mockClear();
+    await b.poll();
+    await vi.waitFor(() => expect(encrypt).toHaveBeenCalled(), { timeout: 3000 });
+    expect(encrypt).toHaveBeenCalledTimes(1);
+    expect(encrypt.mock.calls[0][0]).not.toContain("note");
+    b.close();
+    const cold = backend(offline, { cache });
+    expect((await cold.getMessages("conv_a")).map((m) => m.uniqueId)).toEqual(["msg_a"]);
+    expect((await cold.getMessages("conv_b")).map((m) => m.uniqueId)).toEqual([
+      "msg_b",
+      "msg_reply",
+    ]);
+  });
+
+  it("caps cached messages and reloads the complete thread when vault answers", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const b = backend(fake.store, { cache });
+    await b.createConversation({ conversationId: "anuma-1on1" });
+    await b.flush();
+    await fake.write(
+      Array.from({ length: 205 }, (_, index) => ({
+        record: {
+          kind: "message" as const,
+          id: `msg_${index}`,
+          conversationId: "anuma-1on1",
+          sortKey: index,
+          createdAt: index,
+          updatedAt: index,
+          isDeleted: false,
+          data: { role: "user", content: `Message ${index}` },
+        },
+        expectedVersion: 0,
+      }))
+    );
+    expect(await b.getMessages("anuma-1on1")).toHaveLength(205);
+    await cached(storage, seal, cache.account, (c) => {
+      const messages = c.records.filter((s) => s.record.kind === "message");
+      expect(messages).toHaveLength(200);
+      expect(messages[0].record.id).toBe("msg_5");
+      expect(messages[199].record.id).toBe("msg_204");
+    });
+    b.close();
+
+    let online = false;
+    const cold = backend(() => (online ? Promise.resolve(fake.store) : offline()), { cache });
+    expect(await cold.getMessages("anuma-1on1")).toHaveLength(200);
+    online = true;
+    await cold.poll();
+    expect(await cold.getMessages("anuma-1on1")).toHaveLength(205);
+  });
+
+  it("retains the last cache when the manifest write fails and retries the changed entries", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const b = backend(fake.store, { cache });
+    await chat(b, "conv_1", "Trip", "msg_1");
+    await b.flush();
+    await cached(storage, seal, cache.account, (c) => expect(ids(c)).toContain("msg_1"));
+    const before = new Map(storage.values);
+    const write = storage.set;
+    const set = vi.fn<ChatCacheStorage["set"]>(async (key, sealed) => {
+      if (key === cache.account && sealed !== null) throw new Error("disk full");
+      await write(key, sealed);
+    });
+    storage.set = set;
+
+    await b.createMessage({
+      conversationId: "conv_1",
+      role: "assistant",
+      content: "Reply",
+      uniqueId: "msg_2",
+    });
+    await b.flush();
+    await b.poll();
+    await vi.waitFor(() => expect(set).toHaveBeenCalledWith(cache.account, expect.any(String)), {
+      timeout: 3000,
+    });
+    await vi.waitFor(() => expect(storage.values).toEqual(before));
+    const cold = backend(offline, { cache });
+    expect((await cold.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_1"]);
+    cold.close();
+
+    storage.set = write;
+    await b.poll();
+    await cached(storage, seal, cache.account, (c) => expect(ids(c)).toContain("msg_2"));
+    await vi.waitFor(() => expect(storage.values.size).toBe(3));
+  });
+
+  it("reads a legacy cache and converts it to separate entries after a change", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const writer = backend(fake.store);
+    await chat(writer, "conv_1", "Trip", "msg_1");
+    await writer.flush();
+    const snapshot: ChatCacheSnapshot = {
+      account: cache.account,
+      cursor: (await fake.store.account()).changesCursor!,
+      records: [(await fake.row("conversation", "conv_1"))!, (await fake.row("message", "msg_1"))!],
+      threads: ["conv_1"],
+      absent: [],
+    };
+    await storage.set(
+      cache.account,
+      await seal.encrypt(JSON.stringify({ schema: 1, ...snapshot }))
+    );
+    const b = backend(fake.store, { cache });
+    expect((await b.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_1"]);
+    await b.updateConversationTitle("conv_1", "New title");
+    await b.flush();
+    await cached(storage, seal, cache.account, (c) =>
+      expect(c.records.find((s) => s.record.id === "conv_1")?.record.data.title).toBe("New title")
+    );
+    const manifest = await seal.decrypt(storage.values.get(cache.account)!);
+    expect(JSON.parse(manifest)).toMatchObject({ schema: 2 });
+    expect(manifest).not.toContain("New title");
+    expect(storage.values.size).toBe(3);
+  });
+
+  it("rejects the cache cursor if a referenced entry is absent", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const b = backend(fake.store, { cache });
+    await chat(b, "conv_1", "Trip", "msg_1");
+    await b.flush();
+    const saved = await cached(storage, seal, cache.account, (c) =>
+      expect(ids(c)).toContain("msg_1")
+    );
+    b.close();
+    const entry = saved.entries!.find(([key]) => key === "thread/conv_1")!;
+    storage.values.delete(entry[1]);
+    await expect(loadChatCache(storage, cache.account, seal.decrypt)).resolves.toBeUndefined();
+    await expect(backend(offline, { cache }).getConversations()).rejects.toThrow("offline");
+    expect(await backend(fake.store, { cache }).getMessages("conv_1")).toHaveLength(1);
+  });
+
   it("serves cached chats on an offline cold start and catches up once vault answers", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");
@@ -270,6 +439,38 @@ describe("vault chat cache", () => {
     await expect(backend(offline, { cache }).getConversations()).rejects.toThrow("offline");
   });
 
+  it("clears all entries after an active cache save completes", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const encrypt = vi.fn(seal.encrypt);
+    const cache = { storage, seal: { ...seal, encrypt }, account: "0xaaa" };
+    const b = backend(fake.store, { cache });
+    await chat(b, "conv_1", "Trip", "msg_1");
+    await b.flush();
+    await cached(storage, seal, cache.account, (c) => expect(ids(c)).toContain("msg_1"));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let entered = false;
+    encrypt.mockImplementationOnce(async (plaintext) => {
+      entered = true;
+      await gate;
+      return seal.encrypt(plaintext);
+    });
+    await b.createMessage({
+      conversationId: "conv_1",
+      role: "assistant",
+      content: "Reply",
+      uniqueId: "msg_2",
+    });
+    await b.flush();
+    await vi.waitFor(() => expect(entered).toBe(true), { timeout: 3000 });
+    const clearing = b.clearCache();
+    release();
+    await clearing;
+    expect(storage.values.size).toBe(0);
+  });
+
   it("deletes the cache when vault says the account or key changed", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");
@@ -301,6 +502,7 @@ describe("vault chat cache", () => {
     await chat(b, "conv_1", "Trip", "msg_1");
     await b.flush();
     await vi.waitFor(() => expect(set).toHaveBeenCalled(), { timeout: 3000 });
+    set.mockClear();
     await b.createMessage({
       conversationId: "conv_1",
       role: "user",
@@ -308,7 +510,7 @@ describe("vault chat cache", () => {
       uniqueId: "msg_2",
     });
     await b.flush();
-    await vi.waitFor(() => expect(set).toHaveBeenCalledTimes(2), { timeout: 3000 });
+    await vi.waitFor(() => expect(set).toHaveBeenCalled(), { timeout: 3000 });
     expect((await b.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_1", "msg_2"]);
   });
 
@@ -375,6 +577,10 @@ describe("vault chat cache", () => {
     const b = backend(fake.store, { cache, threadCacheSize: 2 });
     await chat(b, "conv_a", "A", "msg_a");
     await chat(b, "conv_b", "B", "msg_b");
+    await b.flush();
+    await cached(storage, seal, cache.account, (c) =>
+      expect(c.threads).toEqual(["conv_a", "conv_b"])
+    );
     await chat(b, "conv_c", "C", "msg_c");
     await b.flush();
     const saved = await cached(storage, seal, "0xaaa", (c) =>
@@ -382,6 +588,7 @@ describe("vault chat cache", () => {
     );
     expect(ids(saved)).toEqual(expect.arrayContaining(["conv_a", "msg_b", "msg_c"]));
     expect(ids(saved)).not.toContain("msg_a");
+    await vi.waitFor(() => expect(storage.values.size).toBe(6));
     b.close();
 
     const cold = backend(offline, { cache, threadCacheSize: 2 });
