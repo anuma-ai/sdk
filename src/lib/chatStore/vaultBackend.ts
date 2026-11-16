@@ -231,6 +231,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   let pollFailures = 0;
   let persisting: Promise<void> = Promise.resolve();
   let readyPromise: Promise<void> | null = null;
+  let reachable = false;
   let adopting: Promise<void> | null = null;
   let connected = typeof options.store === "function" ? undefined : options.store;
   const complete = new Set<string>();
@@ -817,6 +818,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         (await listIndex(source)).forEach(merge);
       }
       await adopt();
+      reachable = true;
       schedulePoll();
     })();
     readyPromise.catch((error) => {
@@ -915,20 +917,28 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     return view(k);
   };
 
-  const thread = async (conversationId: string): Promise<ChatRecord[]> => {
+  const reloadPartial = async (conversationId: string): Promise<boolean> => {
+    if (!(await remote().catch(() => undefined))) return false;
+    const known = complete.has(conversationId) ? threads.get(conversationId) : undefined;
+    if (known) threads.delete(conversationId);
+    await loadThread(conversationId).catch(() => {
+      if (known && !threads.has(conversationId)) {
+        threads.set(conversationId, known);
+        complete.add(conversationId);
+      }
+    });
+    return !partial.has(conversationId);
+  };
+
+  const thread = async (conversationId: string, wait = true): Promise<ChatRecord[]> => {
     await available();
     if (!conversationLive(conversationId)) return [];
     if (partial.has(conversationId)) {
-      if (await remote().catch(() => undefined)) {
-        const known = complete.has(conversationId) ? threads.get(conversationId) : undefined;
-        if (known) threads.delete(conversationId);
-        await loadThread(conversationId).catch(() => {
-          if (known && !threads.has(conversationId)) {
-            threads.set(conversationId, known);
-            complete.add(conversationId);
-          }
+      if (wait || reachable) await reloadPartial(conversationId);
+      else
+        void reloadPartial(conversationId).then((loaded) => {
+          if (loaded) emit({ type: "messages", conversationId, origin: "remote" });
         });
-      }
     } else await loadThread(conversationId);
     return all("message", conversationId).sort(
       (a, b) => a.sortKey - b.sortKey || a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1)
@@ -1073,13 +1083,13 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       );
     },
     async getMessages(conversationId) {
-      return (await thread(conversationId)).map(toMessage);
+      return (await thread(conversationId, false)).map(toMessage);
     },
     async getMessagesPage(conversationId, page: GetMessagesPageOptions) {
       const limit = Math.floor(page.limit);
       if (!Number.isFinite(limit) || limit < 1) return [];
       const exclude = new Set(page.boundaryExcludeUniqueIds ?? []);
-      const records = (await thread(conversationId)).filter(
+      const records = (await thread(conversationId, false)).filter(
         (r) =>
           page.beforeMessageId === undefined ||
           (exclude.size > 0 ? r.sortKey <= page.beforeMessageId : r.sortKey < page.beforeMessageId)
@@ -1090,7 +1100,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         .map(toMessage);
     },
     async getMessageSkeletons(conversationId): Promise<MessageSkeleton[]> {
-      return toSkeletons(await thread(conversationId));
+      return toSkeletons(await thread(conversationId, false));
     },
     async getMessagesByIds(uniqueIds) {
       await available();
@@ -1419,9 +1429,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   const seed = async () => {
     if (!cache) return;
     try {
-      const snapshot = await loadChatCache(cache.storage, cache.account, cache.seal.decrypt).catch(
-        () => undefined
-      );
+      const snapshot = await cacheLocked(() =>
+        loadChatCache(cache.storage, cache.account, cache.seal.decrypt)
+      ).catch(() => undefined);
       if (!snapshot || cacheOff) return;
       savedCache = snapshot;
       snapshot.records.forEach(merge);

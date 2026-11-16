@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { createFakeChatStore } from "../../../test/chat/fakeChatStore";
 import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
 import { type ChatStore, ChatStoreError } from "./types";
-import { createVaultChatBackend, type VaultChatBackend } from "./vaultBackend";
+import { createVaultChatBackend, type VaultChatBackend, type VaultChatEvent } from "./vaultBackend";
 import {
   type ChatCacheSnapshot,
   type ChatCacheStorage,
@@ -427,6 +427,48 @@ describe("vault chat cache", () => {
     online = true;
     await cold.poll();
     expect(await cold.getMessages("anuma-1on1")).toHaveLength(205);
+  });
+
+  it("serves a capped cached thread while the vault connection is pending", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const b = backend(fake.store, { cache });
+    await b.createConversation({ conversationId: "anuma-1on1" });
+    await b.flush();
+    await fake.write(
+      Array.from({ length: 205 }, (_, index) => ({
+        record: {
+          kind: "message" as const,
+          id: `msg_${index}`,
+          conversationId: "anuma-1on1",
+          sortKey: index,
+          createdAt: index,
+          updatedAt: index,
+          isDeleted: false,
+          data: { role: "user", content: `Message ${index}` },
+        },
+        expectedVersion: 0,
+      }))
+    );
+    expect(await b.getMessages("anuma-1on1")).toHaveLength(205);
+    await cached(storage, seal, cache.account, (c) =>
+      expect(c.records.filter((s) => s.record.kind === "message")).toHaveLength(200)
+    );
+    b.close();
+
+    let connect!: (store: ChatStore) => void;
+    const connection = new Promise<ChatStore>((resolve) => (connect = resolve));
+    const cold = backend(() => connection, { cache });
+    const events: VaultChatEvent[] = [];
+    cold.subscribe((event) => events.push(event));
+    expect(await cold.getMessages("anuma-1on1")).toHaveLength(200);
+    connect(fake.store);
+    const refreshed = { type: "messages", conversationId: "anuma-1on1", origin: "remote" };
+    await vi.waitFor(() => expect(events).toContainEqual(refreshed));
+    expect(await cold.getMessages("anuma-1on1")).toHaveLength(205);
+    cold.close();
   });
 
   it("keeps the cache loadable when another tab replaced a reused entry", async () => {
