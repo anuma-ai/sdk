@@ -2,7 +2,7 @@ import { v7 as uuidv7 } from "uuid";
 
 import type { ChatSnapshot } from "./types";
 
-/** Stores sealed cache entries by key; `set(key, null)` deletes the entry. */
+/** Stores sealed values at account and `<account>/chat-cache/<uuid>` keys; `set(key, null)` deletes only that key. */
 export interface ChatCacheStorage {
   get(key: string): Promise<string | null>;
   set(key: string, sealed: string | null): Promise<void>;
@@ -17,6 +17,8 @@ export interface ChatCacheSnapshot {
   partial?: string[];
   entries?: [string, string][];
 }
+
+const entryReadBatchSize = 16;
 
 function groups(records: readonly ChatSnapshot[]): Map<string, ChatSnapshot[]> {
   const result = new Map<string, ChatSnapshot[]>();
@@ -112,23 +114,31 @@ export async function loadChatCache(
     return Array.isArray(parsed.records) ? (parsed as ChatCacheSnapshot) : undefined;
   if (!Array.isArray(parsed.entries) || !Array.isArray(parsed.partial)) return undefined;
   const records: ChatSnapshot[] = [];
-  for (const [key, slot] of parsed.entries) {
-    if (
-      typeof key !== "string" ||
-      typeof slot !== "string" ||
-      !slot.startsWith(`${account}/chat-cache/`)
-    )
-      return undefined;
-    const sealedEntry = await storage.get(slot);
-    if (!sealedEntry) return undefined;
-    const entry = JSON.parse(await decrypt(sealedEntry)) as {
-      account: string;
-      key: string;
-      records: ChatSnapshot[];
-    };
-    if (entry.account !== account || entry.key !== key || !Array.isArray(entry.records))
-      return undefined;
-    records.push(...entry.records);
+  for (let offset = 0; offset < parsed.entries.length; offset += entryReadBatchSize) {
+    const loaded = await Promise.all(
+      parsed.entries.slice(offset, offset + entryReadBatchSize).map(async ([key, slot]) => {
+        if (
+          typeof key !== "string" ||
+          typeof slot !== "string" ||
+          !slot.startsWith(`${account}/chat-cache/`)
+        )
+          return undefined;
+        const sealedEntry = await storage.get(slot);
+        if (!sealedEntry) return undefined;
+        const entry = JSON.parse(await decrypt(sealedEntry)) as {
+          account: string;
+          key: string;
+          records: ChatSnapshot[];
+        };
+        if (entry.account !== account || entry.key !== key || !Array.isArray(entry.records))
+          return undefined;
+        return entry.records;
+      })
+    );
+    for (const batch of loaded) {
+      if (!batch) return undefined;
+      records.push(...batch);
+    }
   }
   return {
     account,

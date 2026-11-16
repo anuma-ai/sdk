@@ -93,6 +93,29 @@ its children. Follow `nextCursor` for complete lists. Batches accept at most 25 
 ciphertext; each record accepts 2 MiB. Existing `useChatStorage` hooks still use their current local
 persistence until the separate verified app migration lands. See [the migration epic](https://github.com/anuma-ai/nearby/issues/1001).
 
+### Chat cache adapters
+
+`createVaultChatBackend` uses `ChatCacheStorage` for the account manifest and
+separate sealed cache entries. The manifest key is the account string. Entry
+keys use `<account>/chat-cache/<uuid>` and change when the corresponding records
+change. Each account can use many keys. The SDK reads and decrypts at most 16
+entries at a time.
+
+**Integration:** Treat each `get` and `set` argument as an exact storage key.
+Keep distinct keys in distinct records. Return `null` when a key does not exist.
+Make each `set` operation atomic. Remove only the specified key when `sealed` is
+`null`. Adapters that validate wallet addresses, retain one value per account,
+or ignore the key require updates.
+
+**Breaking changes:** `set(account, null)` removes only the manifest. Call
+`backend.clearCache()` on logout or account changes to remove the manifest and
+its referenced entries. The SDK still reads the previous snapshot cache format
+and converts it on the next save.
+
+Cached threads contain at most 200 messages. Reads can serve this partial
+history offline. `clearMessages` rejects with `history_incomplete` until the
+backend loads the full thread.
+
 ### iCloud backups
 
 Add a `backupRevision` field with type `String` to the `ConversationBackup`

@@ -100,6 +100,52 @@ async function chat(b: VaultChatBackend, conversationId: string, title: string, 
 }
 
 describe("vault chat cache", () => {
+  it("loads a large conversation index with bounded concurrent reads and decryptions", async () => {
+    const storage = cacheStorage();
+    const snapshot: ChatCacheSnapshot = {
+      account: "0xaaa",
+      cursor: "cursor_1",
+      records: Array.from({ length: 500 }, (_, index) => ({
+        record: {
+          kind: "conversation" as const,
+          id: `conv_${index}`,
+          conversationId: "",
+          sortKey: index,
+          createdAt: index,
+          updatedAt: index,
+          isDeleted: false,
+          data: { title: `Conversation ${index}` },
+        },
+        version: 1,
+        serverUpdatedAt: new Date(index).toISOString(),
+      })),
+      threads: [],
+      absent: [],
+    };
+    const saved = await saveChatCache(storage, (plaintext) => Promise.resolve(plaintext), snapshot);
+    const first = storage.values.get(saved.entries![0][1]);
+    const get = vi.spyOn(storage, "get");
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const decrypt = vi.fn(async (sealed: string) => {
+      if (sealed === first) await gate;
+      return sealed;
+    });
+    const loading = loadChatCache(storage, snapshot.account, decrypt);
+    try {
+      await vi.waitFor(() => expect(decrypt.mock.calls.length).toBeGreaterThan(2));
+      expect(get.mock.calls.length).toBeLessThanOrEqual(17);
+    } finally {
+      release();
+    }
+
+    expect(await loading).toMatchObject(snapshot);
+    expect(get).toHaveBeenCalledTimes(501);
+    expect(decrypt).toHaveBeenCalledTimes(501);
+    storage.values.delete(saved.entries![499][1]);
+    await expect(loadChatCache(storage, snapshot.account, decrypt)).resolves.toBeUndefined();
+  });
+
   it("reuses sealed records when only the cache cursor changes", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");
@@ -249,7 +295,43 @@ describe("vault chat cache", () => {
     expect(storage.values.size).toBe(3);
   });
 
-  it("loads the full capped thread before it lists files or clears messages", async () => {
+  it("removes replaced entries after the first tab closes and clears them from a cold tab", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const first = backend(fake.store, { cache });
+    const second = backend(fake.store, { cache });
+    expect(await second.getConversations()).toEqual([]);
+    await chat(first, "conv_1", "Shared thread", "msg_1");
+    await first.flush();
+    const before = await cached(storage, seal, cache.account, (c) =>
+      expect(ids(c)).toContain("msg_1")
+    );
+    first.close();
+
+    await second.poll();
+    expect((await second.getMessages("conv_1")).map((message) => message.uniqueId)).toEqual([
+      "msg_1",
+    ]);
+    const replaced = new Set(before.entries!.map(([, slot]) => slot));
+    const after = await cached(storage, seal, cache.account, (c) => {
+      expect(ids(c)).toContain("msg_1");
+      expect(c.entries!.every(([, slot]) => !replaced.has(slot))).toBe(true);
+    });
+    const retained = new Set(after.entries!.map(([, slot]) => slot));
+    await vi.waitFor(() => {
+      expect(storage.values.size).toBe(retained.size + 1);
+      for (const [, slot] of before.entries!)
+        if (!retained.has(slot)) expect(storage.values.has(slot)).toBe(false);
+    });
+    second.close();
+
+    await backend(offline, { cache }).clearCache();
+    expect(storage.values.size).toBe(0);
+  });
+
+  it("rejects capped thread clears until the full history loads", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");
     const storage = cacheStorage();
@@ -287,10 +369,29 @@ describe("vault chat cache", () => {
 
     let online = false;
     const cold = backend(() => (online ? Promise.resolve(fake.store) : offline()), { cache });
-    await expect(cold.clearMessages("anuma-1on1")).rejects.toThrow("not fully loaded");
+    const unchanged = async () => {
+      expect(cold.status().pending).toBe(0);
+      expect((await fake.row("message", "msg_0"))!.record.isDeleted).toBe(false);
+      expect((await fake.row("message", "msg_204"))!.record.isDeleted).toBe(false);
+    };
+    await expect(cold.clearMessages("anuma-1on1")).rejects.toMatchObject({
+      code: "history_incomplete",
+    });
+    await unchanged();
     online = true;
+    fake.fail({ op: "list", error: new TypeError("offline"), sticky: true });
+    await expect(cold.clearMessages("anuma-1on1")).rejects.toMatchObject({
+      code: "history_incomplete",
+    });
+    await unchanged();
+    fake.heal();
     const files = await cold.getAllFiles({ conversationId: "anuma-1on1" });
     expect(files.map((file) => file.id)).toEqual(["file_0"]);
+    await cold.clearMessages("anuma-1on1");
+    await cold.flush();
+    expect((await fake.row("message", "msg_0"))!.record.isDeleted).toBe(true);
+    expect((await fake.row("message", "msg_204"))!.record.isDeleted).toBe(true);
+    expect(await backend(fake.store).getMessages("anuma-1on1")).toEqual([]);
   });
 
   it("retains the last cache when the manifest write fails and retries the changed entries", async () => {

@@ -2,7 +2,7 @@
 
 Defined in: [src/lib/chatStore/vaultCache.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultCache.ts#6)
 
-Stores sealed cache entries by key; `set(key, null)` deletes the entry.
+Stores sealed values at account and `<account>/chat-cache/<uuid>` keys; `set(key, null)` deletes only that key.
 
 ## Methods
 
