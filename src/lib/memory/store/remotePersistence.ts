@@ -178,7 +178,6 @@ export class RemoteMemoryError extends Error {
  */
 export interface RemoteMemoryPersistence
   extends RemoteTopicPersistence, RemoteMemoryWorkPersistence {
-  supportsRealtimeChanges?: boolean;
   supportsCandidateLanes?(): boolean;
   counts(): Promise<MemoryCounts>;
   temporal(window: { start: number; end: number }, limit?: number): Promise<string[]>;
@@ -949,7 +948,6 @@ export async function createRemoteMemoryPersistence(
   const persistence: RemoteMemoryPersistence = {
     ...createRemoteTopicPersistence(request, codec),
     ...createRemoteWorkPersistence(request),
-    supportsRealtimeChanges: account.realtime_changes === true,
     supportsCandidateLanes: () => candidateLanes && !legacyTopicRows,
     counts: async () => {
       const result = await request("/counts", {});

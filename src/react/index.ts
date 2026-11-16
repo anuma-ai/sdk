@@ -841,6 +841,16 @@ export {
   shouldRefreshTools,
   withActiveToolSetServerTools,
 } from "../lib/tools";
+export {
+  createVaultRealtime,
+  vaultChatEntities,
+  vaultMemoryEntities,
+  type VaultRealtime,
+  type VaultRealtimeEntity,
+  type VaultRealtimeOptions,
+  type VaultRealtimeSocket,
+  type VaultRealtimeSocketFactory,
+} from "../lib/vaultRealtime";
 export type {
   ModelLoadProgress,
   TranscriptionResult,

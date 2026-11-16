@@ -664,6 +664,16 @@ export {
   getCachedServerTools,
   getServerTools,
 } from "../lib/tools";
+export {
+  createVaultRealtime,
+  vaultChatEntities,
+  vaultMemoryEntities,
+  type VaultRealtime,
+  type VaultRealtimeEntity,
+  type VaultRealtimeOptions,
+  type VaultRealtimeSocket,
+  type VaultRealtimeSocketFactory,
+} from "../lib/vaultRealtime";
 export type { LoggerProviderProps } from "../react/LoggerProvider";
 export { LoggerProvider } from "../react/LoggerProvider";
 export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";

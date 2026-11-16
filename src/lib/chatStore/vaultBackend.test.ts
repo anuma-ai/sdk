@@ -1093,6 +1093,104 @@ describe("vault chat backend", () => {
     expect((await b.getConversations()).map((c) => c.conversationId)).toContain("conv_late");
   });
 
+  it("polls on each realtime marker and slows the periodic poll while connected", async () => {
+    const fake = await createChatStoreHarness();
+    let report: ((connected: boolean) => void) | undefined;
+    const stop = vi.fn();
+    const { b, events } = backend(fake, {
+      pollIntervalMs: 20,
+      subscribeChanges: (onChange) => {
+        report = onChange;
+        onChange(true);
+        return stop;
+      },
+    });
+    await b.getConversations();
+    await vi.waitFor(() => expect(report).toBeDefined());
+    const changes = () => fake.calls.filter((c) => c === "changes").length;
+    await vi.waitFor(() => expect(b.status().pending).toBe(0));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const idle = changes();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(changes()).toBe(idle);
+
+    const other = backend(fake).b;
+    await other.createConversation({ conversationId: "conv_2", title: "From another device" });
+    await other.flush();
+    report!(true);
+    await vi.waitFor(() =>
+      expect(events).toContainEqual({ type: "conversations", origin: "remote" })
+    );
+    expect((await b.getConversations()).map((c) => c.conversationId)).toEqual(["conv_2"]);
+
+    report!(false);
+    const disconnected = changes();
+    await vi.waitFor(() => expect(changes()).toBeGreaterThan(disconnected + 2), {
+      timeout: 1_000,
+    });
+
+    b.close();
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips a disconnected report while already disconnected and polls on a real drop", async () => {
+    const fake = await createChatStoreHarness();
+    let report: ((connected: boolean) => void) | undefined;
+    const { b } = backend(fake, {
+      subscribeChanges: (onChange) => {
+        report = onChange;
+        onChange(false);
+        return () => {};
+      },
+    });
+    await b.getConversations();
+    await vi.waitFor(() => expect(report).toBeDefined());
+    const changes = () => fake.calls.filter((c) => c === "changes").length;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(changes()).toBe(0);
+
+    report!(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(changes()).toBe(0);
+
+    report!(true);
+    await vi.waitFor(() => expect(changes()).toBe(1));
+    report!(false);
+    await vi.waitFor(() => expect(changes()).toBe(2));
+  });
+
+  it("polls again after a marker that arrives during a poll", async () => {
+    const fake = await createChatStoreHarness();
+    let report: ((connected: boolean) => void) | undefined;
+    const { b } = backend(fake, {
+      subscribeChanges: (onChange) => {
+        report = onChange;
+        return () => {};
+      },
+    });
+    await b.getConversations();
+    await vi.waitFor(() => expect(report).toBeDefined());
+    const changes = fake.store.changes.bind(fake.store);
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    vi.spyOn(fake.store, "changes").mockImplementationOnce(async (...args) => {
+      const page = await changes(...args);
+      await held;
+      return page;
+    });
+    const polling = b.poll();
+    await vi.waitFor(() => expect(fake.store.changes).toHaveBeenCalledTimes(1));
+    const other = backend(fake).b;
+    await other.createConversation({ conversationId: "conv_late" });
+    await other.flush();
+    report!(true);
+    release();
+    await polling;
+    await vi.waitFor(async () =>
+      expect((await b.getConversations()).map((c) => c.conversationId)).toContain("conv_late")
+    );
+  });
+
   it("tells the account's other tabs to poll after a write", async () => {
     const fake = await createChatStoreHarness();
     const channel = `chat-test-${Math.random()}`;

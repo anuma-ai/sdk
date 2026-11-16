@@ -103,6 +103,8 @@ export interface VaultChatBackendOptions {
   activity?: VaultChatActivity;
   /** Polls `/changes` this often while active; 0 polls only on activity and broadcast hints. */
   pollIntervalMs?: number;
+  /** A `createVaultRealtime` source for `private_chats`: each report polls `/changes`, and while it reports connected the periodic poll runs at most every 5 minutes. */
+  subscribeChanges?: (onChange: (connected: boolean) => void) => () => void;
   /** BroadcastChannel name shared by this account's tabs, so one tab's writes prompt the others to poll. */
   channel?: string;
   /** Keeps `account`'s confirmed records and `/changes` cursor sealed with `seal`, so a cold start reads them before vault answers. */
@@ -229,6 +231,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   let pollTimer: ReturnType<typeof setTimeout> | undefined;
   let polling: Promise<void> | null = null;
   let pollFailures = 0;
+  let pollAgain = false;
+  let changesConnected = false;
+  let stopChanges: (() => void) | undefined;
   let persisting: Promise<void> = Promise.resolve();
   let readyPromise: Promise<void> | null = null;
   let reachable = false;
@@ -793,7 +798,10 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       })
       .finally(() => {
         polling = null;
-        schedulePoll();
+        if (pollAgain && !closed) {
+          pollAgain = false;
+          void poll();
+        } else schedulePoll();
       });
     return polling;
   };
@@ -802,10 +810,19 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     clearTimeout(pollTimer);
     pollTimer = undefined;
     if (closed || pollIntervalMs <= 0 || !activity.isActive()) return;
+    const interval = changesConnected ? Math.max(pollIntervalMs, 300_000) : pollIntervalMs;
     const delay = pollFailures
-      ? Math.min(300_000, pollIntervalMs * 2 ** Math.min(pollFailures, 3))
-      : pollIntervalMs;
+      ? Math.min(300_000, interval * 2 ** Math.min(pollFailures, 3))
+      : interval;
     pollTimer = setTimeout(() => void poll(), delay);
+  };
+
+  const onChanges = (connectedNow: boolean) => {
+    const wasConnected = changesConnected;
+    changesConnected = connectedNow;
+    if (closed || !activity.isActive() || (!connectedNow && !wasConnected)) return;
+    if (polling) pollAgain = true;
+    else void poll();
   };
 
   const ready = (): Promise<void> => {
@@ -820,6 +837,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       }
       await adopt();
       reachable = true;
+      if (options.subscribeChanges && !stopChanges && !closed)
+        stopChanges = options.subscribeChanges(onChanges);
       schedulePoll();
     })();
     readyPromise.catch((error) => {
@@ -1408,6 +1427,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       clearTimeout(flushTimer);
       clearTimeout(retryTimer);
       clearTimeout(pollTimer);
+      stopChanges?.();
       unsubscribeActivity();
       releaseSlot?.();
       channel?.close();

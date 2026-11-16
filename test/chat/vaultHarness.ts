@@ -18,6 +18,8 @@ export interface ChatStoreHarness {
   write(writes: ChatWrite[]): Promise<ChatSnapshot[]>;
   /** Stored vectors; only the in-memory fake can show them. */
   vectors?(kind: ChatRecordKind, id: string): number[][] | undefined;
+  /** The real vault's base URL and a token for this account; absent on the in-memory fake. */
+  vault?: { baseUrl: string; getToken(): Promise<string> };
 }
 
 const env = typeof process === "undefined" ? {} : process.env;
@@ -132,6 +134,7 @@ async function realVault(): Promise<ChatStoreHarness> {
     },
     row: async (kind, id) => (await direct.get(kind, id)) ?? undefined,
     write: (writes) => direct.putMany(writes),
+    vault: { baseUrl: env.VAULT_CONFORMANCE_URL!, getToken: () => privyToken(did) },
   };
 }
 
