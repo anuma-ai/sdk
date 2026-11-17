@@ -575,10 +575,7 @@ export interface BaseUseChatStorageOptions {
     /** Callback for errors (non-fatal) */
     onError?: (fileName: string, error: Error) => void;
   };
-  /**
-   * Configuration for server-side tools fetching and caching.
-   * Server tools are fetched from /api/v1/tools and cached in localStorage.
-   */
+  /** Configuration for the server tools cache and tool selection. */
   serverTools?: {
     /** Cache expiration time in milliseconds (default: 86400000 = 1 day) */
     cacheExpirationMs?: number;
@@ -590,12 +587,7 @@ export interface BaseUseChatStorageOptions {
      * {@link DeferLoadingConfig}.
      */
     deferLoading?: DeferLoadingConfig;
-    /**
-     * Where to read/write the cached server-tools catalog. Defaults to browser
-     * `localStorage`, which is a silent no-op on React Native — so on RN pass an
-     * AsyncStorage/MMKV-backed {@link ToolsCacheBackend} here or every send
-     * refetches the whole catalog. Forwarded to `getServerTools`.
-     */
+    /** Cache backend; defaults to localStorage with a memory fallback on platforms without localStorage. */
     cache?: ToolsCacheBackend;
   };
   /**

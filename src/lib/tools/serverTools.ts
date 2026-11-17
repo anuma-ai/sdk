@@ -72,9 +72,7 @@ export interface ServerTool {
   embedding?: number[];
 }
 
-/**
- * Cached tools structure stored in localStorage
- */
+/** Cached server tools for the active cache backend. */
 export interface CachedServerTools {
   tools: ServerTool[];
   timestamp: number;
@@ -85,20 +83,7 @@ export interface CachedServerTools {
   etag?: string;
 }
 
-/**
- * Pluggable persistence for the fetched server-tools list.
- *
- * The default backend ({@link localStorageToolsCache}) writes to browser
- * `localStorage` and is a silent no-op where `localStorage` is undefined
- * (Node, React Native). Pass a custom backend to `getServerTools` to cache
- * somewhere that survives on those platforms — e.g. an AsyncStorage/MMKV
- * adapter on RN, or an in-memory `Map` on a server. Methods may be sync or
- * async; `getServerTools` awaits them either way.
- *
- * The stored payload carries a `version`; `getServerTools` discards any entry
- * whose version does not match the current cache format, so a stale custom
- * backend can never feed an incompatible shape back into selection.
- */
+/** Cache backend for server tools, with synchronous or asynchronous methods. */
 export interface ToolsCacheBackend {
   /** Return the cached payload, or null when absent/unreadable. */
   get(): CachedServerTools | null | Promise<CachedServerTools | null>;
@@ -127,11 +112,7 @@ export interface ServerToolsOptions {
   getToken?: () => Promise<string | null>;
   /** Direct API key for server-side usage (uses X-API-Key header) */
   apiKey?: string;
-  /**
-   * Where to read/write the cached tools list. Defaults to
-   * {@link localStorageToolsCache} (browser `localStorage`; no-op elsewhere).
-   * Provide a backend to enable caching on Node / React Native.
-   */
+  /** Cache backend; defaults to localStorage with a memory fallback when localStorage is absent. */
   cache?: ToolsCacheBackend;
 }
 
@@ -190,6 +171,8 @@ export interface ParsedServerToolsResponse {
 type ServerToolsFetchResult =
   | { notModified: true }
   | ({ notModified: false; etag?: string } & ParsedServerToolsResponse);
+
+const serverToolsRequests = new Map<string, Promise<ServerToolsFetchResult>>();
 
 function convertServerToolsResponse(response: ServerToolsResponse): ParsedServerToolsResponse {
   let toolsMap: ServerToolsMap;
@@ -260,11 +243,21 @@ function toResponsesFormat(tool: ServerTool): Record<string, unknown> {
   };
 }
 
-/**
- * Get cached tools from localStorage
- */
+let memoryCachedServerTools: CachedServerTools | null = null;
+
+const memoryToolsCache = {
+  get: () => memoryCachedServerTools,
+  set: (entry: CachedServerTools) => {
+    memoryCachedServerTools = entry;
+  },
+  clear: () => {
+    memoryCachedServerTools = null;
+  },
+} satisfies ToolsCacheBackend;
+
+/** Get server tools from localStorage or the memory fallback when localStorage is absent. */
 export function getCachedServerTools(): CachedServerTools | null {
-  if (typeof localStorage === "undefined") return null;
+  if (typeof localStorage === "undefined") return memoryToolsCache.get();
 
   try {
     const cached = localStorage.getItem(SERVER_TOOLS_CACHE_KEY);
@@ -302,7 +295,7 @@ function buildCacheEntry(tools: ServerTool[], checksum?: string, etag?: string):
 }
 
 function writeLocalStorageCache(entry: CachedServerTools): void {
-  if (typeof localStorage === "undefined") return;
+  if (typeof localStorage === "undefined") return memoryToolsCache.set(entry);
 
   try {
     localStorage.setItem(SERVER_TOOLS_CACHE_KEY, JSON.stringify(entry));
@@ -312,7 +305,7 @@ function writeLocalStorageCache(entry: CachedServerTools): void {
 }
 
 function removeLocalStorageCache(): void {
-  if (typeof localStorage === "undefined") return;
+  if (typeof localStorage === "undefined") return memoryToolsCache.clear();
   localStorage.removeItem(SERVER_TOOLS_CACHE_KEY);
 }
 
@@ -322,12 +315,7 @@ export const localStorageToolsCache: ToolsCacheBackend = {
   clear: removeLocalStorageCache,
 };
 
-/**
- * Clear the cached server tools. Defaults to the browser-`localStorage` backend;
- * pass the SAME {@link ToolsCacheBackend} you gave `getServerTools` to invalidate
- * a custom backend (a no-op when that backend defines no `clear`). Returns the
- * backend's clear result, which may be async.
- */
+/** Clear the server tools from the default cache or the supplied backend. */
 export function clearServerToolsCache(): void;
 export function clearServerToolsCache(cache: ToolsCacheBackend): void | Promise<void>;
 export function clearServerToolsCache(
@@ -336,12 +324,7 @@ export function clearServerToolsCache(
   return cache.clear?.();
 }
 
-/**
- * Get the checksum of the currently cached tools, or undefined when there is no
- * cache / no stored checksum. Defaults to the browser-`localStorage` backend;
- * pass the SAME backend you gave `getServerTools` to read a custom backend's
- * checksum (an async backend yields a promise).
- */
+/** Get the checksum from the default cache or the supplied backend. */
 export function getToolsChecksum(): string | undefined;
 export function getToolsChecksum(
   cache: ToolsCacheBackend
@@ -383,7 +366,7 @@ export function shouldRefreshTools(
   return cachedChecksum instanceof Promise ? cachedChecksum.then(decide) : decide(cachedChecksum);
 }
 
-async function fetchServerToolsFromApi(
+async function requestServerToolsFromApi(
   baseUrl: string,
   authHeaders: Record<string, string>,
   etag?: string
@@ -424,17 +407,23 @@ async function fetchServerToolsFromApi(
   };
 }
 
-/**
- * Get server tools with caching support.
- *
- * Flow:
- * 1. Check the cache backend (localStorage by default; override via `cache`)
- * 2. If cache valid and not force refresh, return cached tools
- * 3. Otherwise, fetch from API, cache, and return. When the cache holds an ETag,
- *    the request sends If-None-Match. On 304 the cached tools stay and only the
- *    stored timestamp changes.
- * 4. On fetch failure, return cached tools if available (stale-while-error)
- */
+function fetchServerToolsFromApi(
+  baseUrl: string,
+  authHeaders: Record<string, string>,
+  etag?: string
+): Promise<ServerToolsFetchResult> {
+  const key = JSON.stringify([baseUrl, authHeaders, etag]);
+  const pending = serverToolsRequests.get(key);
+  if (pending) return pending;
+
+  const request = requestServerToolsFromApi(baseUrl, authHeaders, etag).finally(() => {
+    serverToolsRequests.delete(key);
+  });
+  serverToolsRequests.set(key, request);
+  return request;
+}
+
+/** Get server tools from the cache or the API, and share equivalent requests until each request completes. */
 export async function getServerTools(options: ServerToolsOptions): Promise<ServerTool[]> {
   const {
     baseUrl,
