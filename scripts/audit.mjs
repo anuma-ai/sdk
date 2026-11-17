@@ -3,7 +3,19 @@ import { execFileSync } from "node:child_process";
 const SEVERITY_THRESHOLD = new Set(["high", "critical"]);
 const BULK_ENDPOINT = "https://registry.npmjs.org/-/npm/v1/security/advisories/bulk";
 
-const ALLOWLIST = [];
+const ALLOWLIST = [
+  {
+    id: "GHSA-fc5q-39xc-vjpf",
+    package: "picomatch",
+    expires: "2026-12-17",
+    reason:
+      "ReDoS through single-branch repeated extglobs. The advisory was widened on 2026-11-17 to " +
+      "<=4.0.7, which is every published release, so no pnpm override can resolve it. picomatch " +
+      "reaches the production tree only through the react-native peer dependency's build " +
+      "tooling (metro, babel-jest, jest-environment-node), which never matches untrusted globs " +
+      "at runtime.",
+  },
+];
 
 function collectPackages() {
   const raw = execFileSync("pnpm", ["list", "--prod", "--depth", "Infinity", "--json"], {
