@@ -3668,3 +3668,137 @@ describe("account topic catalog", () => {
     }
   });
 });
+
+describe("retained reads", () => {
+  const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
+  const bare = { withEmbeddings: false } as const;
+  const tracked = async (...args: Parameters<typeof remoteStore>) => {
+    const context = await remoteStore(...args);
+    const stop = context.store.subscribe(vi.fn());
+    await settle();
+    context.server.fetch.mockClear();
+    return { ...context, stop };
+  };
+  const listReads = (fetch: ReturnType<typeof fakeNearby>["fetch"]) =>
+    fetch.mock.calls.filter(([, init]) => parseBody(init?.body).order === "created").length;
+
+  it("serves a repeated embedding-free read from memory while a subscription tracks changes", async () => {
+    const { store, server, stop } = await tracked();
+    try {
+      await store.create({ content: "Lives in Lisbon", embedding: axis(0) });
+      server.fetch.mockClear();
+      expect(await store.list(bare)).toHaveLength(1);
+      expect(await store.list(bare)).toHaveLength(1);
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      stop();
+    }
+  });
+
+  it("re-reads every read that carries embeddings", async () => {
+    const { store, server, stop } = await tracked();
+    try {
+      await store.list();
+      await store.list();
+      expect(server.fetch).toHaveBeenCalledTimes(2);
+    } finally {
+      stop();
+    }
+  });
+
+  it("re-reads when nothing subscribes", async () => {
+    const { store, server } = await remoteStore();
+    server.fetch.mockClear();
+    await store.list(bare);
+    await store.list(bare);
+    expect(server.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-reads after a local write", async () => {
+    const { store, stop } = await tracked();
+    try {
+      expect(await store.list(bare)).toEqual([]);
+      await store.create({ content: "Lives in Lisbon", embedding: axis(0) });
+      expect(await store.list(bare)).toHaveLength(1);
+    } finally {
+      stop();
+    }
+  });
+
+  it("re-reads once a poll sees another device's write", async () => {
+    const ring = await deriveMemoryKeyRing(`0x${"e5".repeat(65)}`);
+    const shared = fakeNearby(ring.keyId);
+    const { store: phone, stop } = await tracked(shared, ring, 20);
+    const { store: laptop } = await remoteStore(shared, ring);
+    try {
+      expect(await phone.list(bare)).toEqual([]);
+      await laptop.create({ content: "Moved to Lisbon", embedding: axis(2) });
+      await vi.waitFor(async () => expect(await phone.list(bare)).toHaveLength(1));
+    } finally {
+      stop();
+    }
+  });
+
+  it("drops retained reads when the page goes inactive", async () => {
+    let active = true;
+    const listeners = new Set<() => void>();
+    const { store, server, stop } = await tracked(
+      undefined,
+      undefined,
+      60_000,
+      {},
+      {
+        isActive: () => active,
+        subscribe: (listener) => {
+          listeners.add(listener);
+          return () => {
+            listeners.delete(listener);
+          };
+        },
+      }
+    );
+    try {
+      await store.list(bare);
+      active = false;
+      listeners.forEach((listener) => listener());
+      server.fetch.mockClear();
+      await store.list(bare);
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      stop();
+    }
+  });
+
+  it("drops retained reads when a poll fails", async () => {
+    const { store, server, stop } = await tracked(undefined, undefined, 20);
+    try {
+      await store.list(bare);
+      let failed = false;
+      server.fetch.mockImplementationOnce(async () => {
+        failed = true;
+        return Response.json({ detail: "Unavailable" }, { status: 503 });
+      });
+      await vi.waitFor(() => expect(failed).toBe(true));
+      await settle(5);
+      server.fetch.mockClear();
+      await store.list(bare);
+      expect(listReads(server.fetch)).toBe(1);
+    } finally {
+      stop();
+    }
+  });
+
+  it("evicts the oldest shared read past the cap", async () => {
+    const { store, server, stop } = await tracked();
+    try {
+      for (let limit = 1; limit <= 65; limit++) await store.list({ ...bare, limit });
+      server.fetch.mockClear();
+      await store.list({ ...bare, limit: 65 });
+      expect(server.fetch).not.toHaveBeenCalled();
+      await store.list({ ...bare, limit: 1 });
+      expect(server.fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      stop();
+    }
+  });
+});
