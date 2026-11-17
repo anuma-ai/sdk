@@ -3774,9 +3774,9 @@ describe("retained reads", () => {
     try {
       await store.list(bare);
       let failed = false;
-      server.fetch.mockImplementationOnce(async () => {
+      server.fetch.mockImplementationOnce(() => {
         failed = true;
-        return Response.json({ detail: "Unavailable" }, { status: 503 });
+        return Promise.resolve(Response.json({ detail: "Unavailable" }, { status: 503 }));
       });
       await vi.waitFor(() => expect(failed).toBe(true));
       await settle(5);
