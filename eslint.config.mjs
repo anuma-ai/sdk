@@ -78,6 +78,7 @@ const checkedTestFiles = [
   "src/lib/pii/chatStorageSession.test.tsx",
   "src/lib/pii/detectors/transformers.test.ts",
   "src/lib/processors/preprocessor.remoteUrls.test.ts",
+  "src/lib/tools/serverTools.cache.test.ts",
   "src/react/useAccountFetch.abort.test.tsx",
   "src/react/useChatStorage.fileSize.test.tsx",
   "src/react/useChatStorage.queueIdentifiers.test.tsx",

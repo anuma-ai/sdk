@@ -2,18 +2,9 @@
 
 > **getServerTools**(`options`: [`ServerToolsOptions`](../interfaces/ServerToolsOptions.md)): `Promise`<[`ServerTool`](../interfaces/ServerTool.md)\[]>
 
-Defined in: [src/lib/tools/serverTools.ts:438](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#438)
+Defined in: [src/lib/tools/serverTools.ts:427](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#427)
 
-Get server tools with caching support.
-
-Flow:
-
-1. Check the cache backend (localStorage by default; override via `cache`)
-2. If cache valid and not force refresh, return cached tools
-3. Otherwise, fetch from API, cache, and return. When the cache holds an ETag,
-   the request sends If-None-Match. On 304 the cached tools stay and only the
-   stored timestamp changes.
-4. On fetch failure, return cached tools if available (stale-while-error)
+Get server tools from the cache or the API, and share equivalent requests until each request completes.
 
 ## Parameters
 

@@ -885,8 +885,7 @@ Opt into the portal stream buffer for every generated round.
 </td>
 <td>
 
-Configuration for server-side tools fetching and caching.
-Server tools are fetched from /api/v1/tools and cached in localStorage.
+Configuration for the server tools cache and tool selection.
 
 </td>
 </tr>
@@ -903,10 +902,7 @@ Server tools are fetched from /api/v1/tools and cached in localStorage.
 </td>
 <td>
 
-Where to read/write the cached server-tools catalog. Defaults to browser
-`localStorage`, which is a silent no-op on React Native — so on RN pass an
-AsyncStorage/MMKV-backed ToolsCacheBackend here or every send
-refetches the whole catalog. Forwarded to `getServerTools`.
+Cache backend; defaults to localStorage with a memory fallback on platforms without localStorage.
 
 </td>
 </tr>
