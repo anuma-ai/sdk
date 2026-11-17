@@ -1,10 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const version = process.argv[2] ?? readJson(join(repoRoot, "package.json")).version;
+const tagArgs = process.argv[3] ? ["--tag", process.argv[3]] : [];
 
 if (!version) {
   console.error("publish-packages: no version given and none found in package.json");
@@ -37,7 +39,15 @@ const rootName = readJson(join(repoRoot, "package.json")).name;
 if (isPublished(rootName)) {
   console.log(`✓ ${rootName}@${version} already on npm — skipping`);
 } else {
-  run("npm", ["publish", "--access", "public"]);
+  run("npm", ["publish", "--access", "public", ...tagArgs]);
+}
+
+function publishWorkspacePackage(name) {
+  const packDir = mkdtempSync(join(tmpdir(), "anuma-pack-"));
+  run("pnpm", ["--filter", name, "pack", "--pack-destination", packDir]);
+  const [tarball] = readdirSync(packDir).filter((file) => file.endsWith(".tgz"));
+  if (!tarball) throw new Error(`pnpm pack produced no tarball for ${name}`);
+  run("npm", ["publish", join(packDir, tarball), "--access", "public", ...tagArgs]);
 }
 
 const agentsDir = join(repoRoot, "packages", "agents");
@@ -53,6 +63,6 @@ for (const entry of readdirSync(agentsDir, { withFileTypes: true })) {
   if (isPublished(name)) {
     console.log(`✓ ${name}@${version} already on npm — skipping`);
   } else {
-    run("pnpm", ["--filter", name, "publish", "--access", "public", "--no-git-checks"]);
+    publishWorkspacePackage(name);
   }
 }
