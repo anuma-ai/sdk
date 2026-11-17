@@ -225,7 +225,10 @@ export function createWeatherTool(
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
 
-        if (error instanceof DOMException && error.name === "AbortError") {
+        if (error.name === "AbortError") {
+          const timeout = new Error(`Weather request timed out after ${timeoutMs} ms`);
+          timeout.name = "TimeoutError";
+          onError?.(timeout, { location });
           return { error: "Weather request timed out", _meta: { location } };
         }
 

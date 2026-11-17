@@ -256,7 +256,7 @@ describe("createWeatherTool", () => {
       expect(onError.mock.calls[0]?.[1]).toEqual({ location: "London" });
     });
 
-    it("returns timeout error when AbortController fires", async () => {
+    it("returns timeout error and reports it through onError when AbortController fires", async () => {
       const onError = vi.fn();
       mockFetch.mockImplementation(
         (_url, init: { signal: AbortSignal }) =>
@@ -276,7 +276,32 @@ describe("createWeatherTool", () => {
         error: "Weather request timed out",
         _meta: { location: "London" },
       });
-      expect(onError).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledTimes(1);
+      const reported = onError.mock.calls[0]?.[0] as Error;
+      expect(reported.name).toBe("TimeoutError");
+      expect(reported.message).toBe("Weather request timed out after 10 ms");
+      expect(onError.mock.calls[0]?.[1]).toEqual({ location: "London" });
+    });
+
+    it("treats an AbortError that is not a DOMException as a timeout", async () => {
+      const onError = vi.fn();
+      mockFetch.mockImplementation(
+        (_url, init: { signal: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init.signal.addEventListener(
+              "abort",
+              () => reject(Object.assign(new Error("Aborted"), { name: "AbortError" })),
+              { once: true }
+            );
+          })
+      );
+      const { tool } = buildTool({ onError, timeoutMs: 10 });
+      const result = (await tool.executor!({ location: "London" })) as DisplayWeatherResult;
+      expect(result).toEqual({
+        error: "Weather request timed out",
+        _meta: { location: "London" },
+      });
+      expect((onError.mock.calls[0]?.[0] as Error).name).toBe("TimeoutError");
     });
 
     it("does not retry on AbortError", async () => {
