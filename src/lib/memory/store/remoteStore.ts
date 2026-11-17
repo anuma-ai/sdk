@@ -1155,8 +1155,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           failedChanged ||
           (topicState !== undefined && topicState !== topicFingerprint)
         ) {
-          reads.clear();
-          metadataReads.clear();
+          dropReads();
           topicSnapshot = undefined;
         }
         const changed = new Set<Subscriber>();
