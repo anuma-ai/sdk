@@ -4,12 +4,9 @@
 
 > **getToolsChecksum**(): `string` | `undefined`
 
-Defined in: [src/lib/tools/serverTools.ts:345](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#345)
+Defined in: [src/lib/tools/serverTools.ts:328](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#328)
 
-Get the checksum of the currently cached tools, or undefined when there is no
-cache / no stored checksum. Defaults to the browser-`localStorage` backend;
-pass the SAME backend you gave `getServerTools` to read a custom backend's
-checksum (an async backend yields a promise).
+Get the checksum from the default cache or the supplied backend.
 
 ### Returns
 
@@ -19,12 +16,9 @@ checksum (an async backend yields a promise).
 
 > **getToolsChecksum**(`cache`: `ToolsCacheBackend`): `string` | `Promise`<`string` | `undefined`> | `undefined`
 
-Defined in: [src/lib/tools/serverTools.ts:346](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#346)
+Defined in: [src/lib/tools/serverTools.ts:329](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#329)
 
-Get the checksum of the currently cached tools, or undefined when there is no
-cache / no stored checksum. Defaults to the browser-`localStorage` backend;
-pass the SAME backend you gave `getServerTools` to read a custom backend's
-checksum (an async backend yields a promise).
+Get the checksum from the default cache or the supplied backend.
 
 ### Parameters
 
