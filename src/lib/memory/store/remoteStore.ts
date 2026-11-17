@@ -144,6 +144,7 @@ const TEMPORAL_LANE_ROWS = 100;
 const REPAIR_ROWS = 50;
 const REPAIR_SCAN = 2000;
 const DECAY_TRANSITIONS_PER_SWEEP = 200;
+const MAX_SHARED_READS = 64;
 
 export class RemoteMemoryPartialCreateError extends Error {
   constructor(
@@ -395,10 +396,16 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     if (active) return active;
     const pending = read();
     inflight.set(key, pending);
+    if (inflight.size > MAX_SHARED_READS) {
+      const oldest = inflight.keys().next();
+      if (!oldest.done) inflight.delete(oldest.value);
+    }
     const clear = () => {
       if (inflight.get(key) === pending) inflight.delete(key);
     };
-    void pending.then(clear, clear);
+    void pending.then(() => {
+      if (options.include_embeddings === true || !retainReads()) clear();
+    }, clear);
     return pending;
   };
   const decrypted = (options: RemoteMemoryQueryOptions) =>
@@ -1080,7 +1087,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   let pollRequested = false;
   let failures = 0;
   let retryAt = 0;
+  const retainReads = () =>
+    ready && failures === 0 && pollIntervalMs > 0 && subscribers.size > 0 && activity.isActive();
+  const dropReads = () => {
+    reads.clear();
+    metadataReads.clear();
+  };
   const backoff = (error: unknown) => {
+    dropReads();
     failures++;
     retryAt =
       Date.now() +
@@ -1141,8 +1155,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           failedChanged ||
           (topicState !== undefined && topicState !== topicFingerprint)
         ) {
-          reads.clear();
-          metadataReads.clear();
+          dropReads();
           topicSnapshot = undefined;
         }
         const changed = new Set<Subscriber>();
@@ -1192,6 +1205,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     if (timer) clearTimeout(timer);
     timer = undefined;
     if (!activity.isActive()) {
+      dropReads();
       stopChanges?.();
       stopChanges = undefined;
       changesConnected = false;
