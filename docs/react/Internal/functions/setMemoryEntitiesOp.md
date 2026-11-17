@@ -2,7 +2,7 @@
 
 > **setMemoryEntitiesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryId`: `string`, `entities`: readonly [`EntityInput`](../type-aliases/EntityInput.md)\[]): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md) | `null`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1286](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1286)
+Defined in: [src/lib/db/memoryVault/operations.ts:1288](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1288)
 
 Replace a memory's topic (entity) links with a user-chosen set and mark the
 memory `topics_user_managed` so auto-extraction stops touching its links.

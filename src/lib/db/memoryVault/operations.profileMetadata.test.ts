@@ -51,6 +51,7 @@ describe("getVaultProfileMetadataOp", () => {
           superseded_by: "b",
           is_deleted: 1,
           proof_count: 3,
+          fact_type: "instruction",
         },
       ]);
       vi.spyOn(ctx.vaultMemoryCollection, "query").mockReturnValueOnce({
@@ -62,7 +63,7 @@ describe("getVaultProfileMetadataOp", () => {
       const [sql, args] = sqlSpy.mock.calls[0];
       expect(sql.split(" from ")[0]).toBe(
         'select "id", "scope", "created_at", "updated_at", "last_observed_at", ' +
-          '"superseded_at", "superseded_by", "is_deleted", "proof_count"'
+          '"superseded_at", "superseded_by", "is_deleted", "proof_count", "fact_type"'
       );
       expect(sql).toContain('"archived_at" is null');
       expect(sql).toContain("\"trust_tier\" is not 'quarantined'");
@@ -82,6 +83,7 @@ describe("getVaultProfileMetadataOp", () => {
           supersededBy: "b",
           isDeleted: true,
           proofCount: 3,
+          factType: "instruction",
         },
       ]);
       expect(decryptVaultMemoryFields).not.toHaveBeenCalled();
@@ -91,7 +93,7 @@ describe("getVaultProfileMetadataOp", () => {
   it("keeps deleted and superseded rows with the same owner and scope on LokiJS", async () => {
     const records: (Record<string, string | number | boolean | null> & { id: string })[] = [
       { id: "active" },
-      { id: "deleted", is_deleted: true },
+      { id: "deleted", is_deleted: true, fact_type: "instruction" },
       { id: "superseded", superseded_by: "active", superseded_at: 5000 },
       { id: "foreign", user_id: "other" },
       { id: "shared", scope: "shared" },
@@ -128,6 +130,8 @@ describe("getVaultProfileMetadataOp", () => {
       supersededAt: 5000,
     });
     expect(rows.find((row) => row.uniqueId === "deleted")?.isDeleted).toBe(true);
+    expect(rows.find((row) => row.uniqueId === "deleted")?.factType).toBe("instruction");
+    expect(rows.find((row) => row.uniqueId === "active")?.factType).toBeNull();
     for (const row of rows) {
       expect(row).not.toHaveProperty("content");
       expect(row).not.toHaveProperty("embedding");
