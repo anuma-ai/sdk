@@ -994,10 +994,9 @@ export async function requestEncryptionKey(
       }
     }
 
-    const [legacyKey, currentKey, keyPair] = await Promise.all([
+    const [legacyKey, currentKey] = await Promise.all([
       deriveKeyFromSignature(signature),
       deriveKeyFromSignatureV3(signature),
-      deriveKeyPairFromSignature(signature, walletAddress),
     ]);
 
     if (sessionEpoch !== startEpoch) {
@@ -1028,8 +1027,16 @@ export async function requestEncryptionKey(
     divergentDeriveAddresses.delete(walletAddress);
     if (!getStoredKeyPair(walletAddress)) {
       const persisted = await loadPersistedKeyPair(walletAddress).catch(() => null);
-      if (sessionEpoch === startEpoch && !getStoredKeyPair(walletAddress)) {
-        setStoredKeyPair(walletAddress, persisted ?? keyPair);
+      const keyPair =
+        persisted ??
+        (await deriveKeyPairFromSignature(signature, walletAddress).catch((error: unknown) => {
+          getLogger().warn(
+            `Failed to derive keypair: ${error instanceof Error ? error.message : String(error)}`
+          );
+          return null;
+        }));
+      if (keyPair && sessionEpoch === startEpoch && !getStoredKeyPair(walletAddress)) {
+        setStoredKeyPair(walletAddress, keyPair);
         if (!persisted) {
           await persistKeyPair(walletAddress, startEpoch).catch((error: unknown) =>
             getLogger().warn(

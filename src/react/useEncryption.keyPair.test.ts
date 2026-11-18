@@ -217,6 +217,22 @@ describe("requestEncryptionKey and the key pair", () => {
     expect(ready).not.toHaveBeenCalled();
   });
 
+  it("still unlocks the encryption keys when the key pair cannot be derived", async () => {
+    const exportKey = crypto.subtle.exportKey.bind(crypto.subtle);
+    vi.spyOn(crypto.subtle, "exportKey").mockImplementation((async (
+      ...args: Parameters<typeof crypto.subtle.exportKey>
+    ) => {
+      if (args[0] === "jwk") throw new Error("JWK export unsupported");
+      return exportKey(...args);
+    }) as typeof crypto.subtle.exportKey);
+
+    expect(
+      await requestEncryptionKey(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE))
+    ).toBe(true);
+
+    expect(hasKeyPair(ADDRESS)).toBe(false);
+  });
+
   it("keeps a key pair the wallet already has", async () => {
     await requestKeyPair(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(OTHER_SIGNATURE));
     const existing = await exportPublicKey(ADDRESS, vi.fn<SignMessageFn>());
