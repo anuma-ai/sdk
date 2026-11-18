@@ -18,6 +18,7 @@ import type {
   ChatBackend,
   ChatBackendFactory,
   ChatChunkSearchOptions,
+  ChatKeywordSearchOptions,
 } from "../storage/ChatBackend";
 import type {
   ChatStorageAdapter,
@@ -131,15 +132,7 @@ export interface VaultChatBackend extends ChatBackend {
   poll(): Promise<void>;
   /** Copies imported conversations and messages into vault with their own ids, times and order, leaving ids vault already holds as they are. */
   /** Messages holding every word of `query` across this account's chats, newest first; empty when vault keeps no word hashes. */
-  searchKeywords(
-    query: string,
-    options?: {
-      limit?: number;
-      conversationId?: string;
-      excludeConversationId?: string;
-      signal?: AbortSignal;
-    }
-  ): Promise<StoredMessage[]>;
+  searchKeywords(query: string, options?: ChatKeywordSearchOptions): Promise<StoredMessage[]>;
   importChats(
     chats: readonly { conversation: StoredConversation; messages: readonly StoredMessage[] }[]
   ): Promise<{ conversations: number; messages: number }>;

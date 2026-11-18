@@ -797,6 +797,7 @@ export type {
   ChatBackendFactory,
   ChatBackendSigner,
   ChatChunkSearchOptions,
+  ChatKeywordSearchOptions,
   ChatStorageAdapter,
   ChatStorageObservable,
   ConversationQueryOptions,

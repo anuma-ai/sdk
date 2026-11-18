@@ -27,6 +27,13 @@ export interface ChatChunkSearchOptions {
   onStats?: (stats: ChunkSearchStats) => void;
 }
 
+export interface ChatKeywordSearchOptions {
+  limit?: number;
+  conversationId?: string;
+  excludeConversationId?: string;
+  signal?: AbortSignal;
+}
+
 /** Everything `useChatStorage` reads and writes for chats, so a hook can run on local or server storage. */
 export interface ChatBackend extends ChatStorageAdapter {
   createConversation(
@@ -48,6 +55,8 @@ export interface ChatBackend extends ChatStorageAdapter {
     queryVector: number[],
     options?: ChatChunkSearchOptions
   ): Promise<ChunkSearchResult[]>;
+  /** Messages holding every word of `query` across the account's chats, newest first, for backends that keep a word index. */
+  searchKeywords?(query: string, options?: ChatKeywordSearchOptions): Promise<StoredMessage[]>;
   /** Fills a chunk vector cache ahead of the first search, for backends that score on the device. */
   warmChunkCache?(options: {
     chunkCache: ChunkVectorCache;

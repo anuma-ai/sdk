@@ -7,6 +7,7 @@ export type {
   ChatBackendFactory,
   ChatBackendSigner,
   ChatChunkSearchOptions,
+  ChatKeywordSearchOptions,
 } from "./ChatBackend";
 export type {
   ChatStorageAdapter,
