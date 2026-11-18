@@ -994,9 +994,10 @@ export async function requestEncryptionKey(
       }
     }
 
-    const [legacyKey, currentKey] = await Promise.all([
+    const [legacyKey, currentKey, keyPair] = await Promise.all([
       deriveKeyFromSignature(signature),
       deriveKeyFromSignatureV3(signature),
+      deriveKeyPairFromSignature(signature, walletAddress),
     ]);
 
     if (sessionEpoch !== startEpoch) {
@@ -1025,6 +1026,19 @@ export async function requestEncryptionKey(
     cryptoKeyCache.delete(`${walletAddress}:v3`);
     refreshCandidatesByAddress.delete(walletAddress);
     divergentDeriveAddresses.delete(walletAddress);
+    if (!getStoredKeyPair(walletAddress)) {
+      const persisted = await loadPersistedKeyPair(walletAddress).catch(() => null);
+      if (sessionEpoch === startEpoch && !getStoredKeyPair(walletAddress)) {
+        setStoredKeyPair(walletAddress, persisted ?? keyPair);
+        if (!persisted) {
+          await persistKeyPair(walletAddress, startEpoch).catch((error: unknown) =>
+            getLogger().warn(
+              `Failed to persist keypair: ${error instanceof Error ? error.message : String(error)}`
+            )
+          );
+        }
+      }
+    }
 
     notifyKeyAvailable(walletAddress);
     return true;

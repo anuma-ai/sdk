@@ -2,8 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearAllEncryptionState,
+  clearKeyPair,
   exportPublicKey,
+  getKeyPair,
   hasKeyPair,
+  requestEncryptionKey,
   requestKeyPair,
   type SignMessageFn,
 } from "./useEncryption";
@@ -121,5 +124,60 @@ describe("requestKeyPair concurrency", () => {
 
     expect(signMessage).toHaveBeenCalledTimes(2);
     expect(hasKeyPair(ADDRESS)).toBe(true);
+  });
+});
+
+describe("requestEncryptionKey and the key pair", () => {
+  beforeEach(() => {
+    clearAllEncryptionState();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearAllEncryptionState();
+  });
+
+  async function publicKeyFrom(signature: string): Promise<string> {
+    await requestKeyPair(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(signature));
+    const publicKey = await exportPublicKey(ADDRESS, vi.fn<SignMessageFn>());
+    clearAllEncryptionState();
+    return publicKey;
+  }
+
+  it("derives the key pair from the same signature, so getKeyPair signs nothing more", async () => {
+    const expected = await publicKeyFrom(SIGNATURE);
+    const signMessage = vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE);
+    const gated = vi.fn<SignMessageFn>().mockRejectedValue(new Error("signing is gated"));
+
+    expect(await requestEncryptionKey(ADDRESS, signMessage)).toBe(true);
+    await getKeyPair(ADDRESS, gated);
+
+    expect(gated).not.toHaveBeenCalled();
+    expect(signMessage).toHaveBeenCalledTimes(1);
+    expect(await exportPublicKey(ADDRESS, gated)).toBe(expected);
+  });
+
+  it("uses the key pair an earlier session persisted", async () => {
+    await requestEncryptionKey(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE));
+    clearKeyPair(ADDRESS);
+    await requestKeyPair(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(OTHER_SIGNATURE));
+    const persistedPublicKey = await exportPublicKey(ADDRESS, vi.fn<SignMessageFn>());
+    const persisted = localStorage.getItem(`ecdh_keypair_${ADDRESS}`);
+    expect(persisted).not.toBeNull();
+    clearAllEncryptionState();
+    localStorage.setItem(`ecdh_keypair_${ADDRESS}`, persisted!);
+
+    await requestEncryptionKey(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE));
+
+    expect(await exportPublicKey(ADDRESS, vi.fn<SignMessageFn>())).toBe(persistedPublicKey);
+  });
+
+  it("keeps a key pair the wallet already has", async () => {
+    await requestKeyPair(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(OTHER_SIGNATURE));
+    const existing = await exportPublicKey(ADDRESS, vi.fn<SignMessageFn>());
+
+    await requestEncryptionKey(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE));
+
+    expect(await exportPublicKey(ADDRESS, vi.fn<SignMessageFn>())).toBe(existing);
   });
 });
