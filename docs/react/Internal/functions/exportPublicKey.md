@@ -2,7 +2,7 @@
 
 > **exportPublicKey**(`address`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:1490](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1490)
+Defined in: [src/react/useEncryption.ts:1493](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1493)
 
 Exports the public key for a wallet address as SPKI format (base64)
 

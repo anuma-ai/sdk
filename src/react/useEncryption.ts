@@ -1039,6 +1039,9 @@ export async function requestEncryptionKey(
         }
       }
     }
+    if (sessionEpoch !== startEpoch) {
+      return false;
+    }
 
     notifyKeyAvailable(walletAddress);
     return true;
@@ -1430,7 +1433,7 @@ async function loadOrCreateKeyPair(
   try {
     const persistedKeyPair = await loadPersistedKeyPair(walletAddress);
     if (persistedKeyPair) {
-      if (sessionEpoch !== startEpoch) return;
+      if (sessionEpoch !== startEpoch || getStoredKeyPair(walletAddress)) return;
       setStoredKeyPair(walletAddress, persistedKeyPair);
       return;
     }
@@ -1462,7 +1465,7 @@ async function loadOrCreateKeyPair(
 
   const keyPair = await deriveKeyPairFromSignature(signature, walletAddress);
 
-  if (sessionEpoch !== startEpoch) {
+  if (sessionEpoch !== startEpoch || getStoredKeyPair(walletAddress)) {
     return;
   }
 

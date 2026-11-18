@@ -6,6 +6,7 @@ import {
   exportPublicKey,
   getKeyPair,
   hasKeyPair,
+  onKeyAvailable,
   requestEncryptionKey,
   requestKeyPair,
   type SignMessageFn,
@@ -170,6 +171,50 @@ describe("requestEncryptionKey and the key pair", () => {
     await requestEncryptionKey(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE));
 
     expect(await exportPublicKey(ADDRESS, vi.fn<SignMessageFn>())).toBe(persistedPublicKey);
+  });
+
+  it("never replaces a key pair installed while an earlier request waited to sign", async () => {
+    const later = deferredSignature();
+    const pending = requestKeyPair(ADDRESS, vi.fn<SignMessageFn>().mockReturnValue(later.promise));
+    await requestEncryptionKey(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE));
+    const installed = await exportPublicKey(ADDRESS, vi.fn<SignMessageFn>());
+
+    later.resolve(OTHER_SIGNATURE);
+    await pending;
+
+    expect(await exportPublicKey(ADDRESS, vi.fn<SignMessageFn>())).toBe(installed);
+  });
+
+  it("reports no key when the session ends while the key pair is being saved", async () => {
+    const encrypt = crypto.subtle.encrypt.bind(crypto.subtle);
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let reached: () => void = () => undefined;
+    const saving = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    vi.spyOn(crypto.subtle, "encrypt").mockImplementation((async (
+      ...args: Parameters<typeof crypto.subtle.encrypt>
+    ) => {
+      reached();
+      await held;
+      return encrypt(...args);
+    }) as typeof crypto.subtle.encrypt);
+    const ready = vi.fn();
+    onKeyAvailable(ADDRESS, ready);
+
+    const request = requestEncryptionKey(
+      ADDRESS,
+      vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE)
+    );
+    await saving;
+    clearAllEncryptionState();
+    release();
+
+    expect(await request).toBe(false);
+    expect(ready).not.toHaveBeenCalled();
   });
 
   it("keeps a key pair the wallet already has", async () => {
