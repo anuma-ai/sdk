@@ -31,16 +31,16 @@ vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/memoryEngine/generate")>();
   return {
     ...orig,
-    generateEmbedding: async () => [0.1, 0.2, 0.3],
-    generateEmbeddings: async (texts: string[]) => texts.map(() => [0.1, 0.2, 0.3]),
+    generateEmbedding: () => Promise.resolve([0.1, 0.2, 0.3]),
+    generateEmbeddings: (texts: string[]) => Promise.resolve(texts.map(() => [0.1, 0.2, 0.3])),
   };
 });
 
 import { sealInboxItem, sealInboxText } from "../lib/chat/fixtures/sealInboxItem";
 import { type InboxItem, openInboxSealedText, type VaultInbox } from "../lib/chat/inbox";
-import type { ToolConfig } from "../lib/chat/useChat/types";
 import { listActiveStreams, resumeStream, StreamExpiredError } from "../lib/chat/resumeStream";
 import { runToolLoop } from "../lib/chat/toolLoop";
+import type { ToolConfig } from "../lib/chat/useChat/types";
 import { PiiRedactor } from "../lib/pii/redactor";
 import { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
 import { useChatStorage } from "./useChatStorage";
@@ -79,7 +79,7 @@ const userTurn = {
 };
 
 const wallet = "0x1111111111111111111111111111111111111111";
-const walletSigner = vi.fn(async () => "0x" + "ab".repeat(65));
+const walletSigner = vi.fn(() => Promise.resolve("0x" + "ab".repeat(65)));
 
 function chartTool(executor: ToolConfig["executor"]): ToolConfig {
   return {
@@ -114,7 +114,7 @@ function renderStorage(options: {
     useChatStorage({
       database,
       conversationId: "conv_bg",
-      getToken: async () => "tok",
+      getToken: () => Promise.resolve("tok"),
       baseUrl: "https://portal.example",
       resumable: true,
       onStreamMeta: options.onStreamMeta,
@@ -150,14 +150,14 @@ describe("expo useChatStorage background turns", () => {
 
   it("puts the reply id on the stream meta and on the detached resume handle", async () => {
     const onStreamMeta = vi.fn();
-    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+    vi.mocked(runToolLoop).mockImplementation((options) => {
       options.onStreamMeta?.({ inferenceId: "0xdetach", round: 0 });
-      return {
+      return Promise.resolve({
         data: null,
         error: "Request detached",
         detached: true,
         resume: { inferenceId: "0xdetach", apiType: "responses" },
-      } as never;
+      } as never);
     });
     const { result } = renderStorage({ onStreamMeta });
 
@@ -265,7 +265,7 @@ describe("expo useChatStorage background turns", () => {
   });
 
   it("draws the card a replayed detached turn ended on", async () => {
-    const draw = vi.fn(async () => ({ chart: "Rain" }));
+    const draw = vi.fn(() => Promise.resolve({ chart: "Rain" }));
     vi.mocked(resumeStream).mockResolvedValue({
       data: answerEndingOnChart("Here is the chart.") as never,
       error: null,
@@ -413,21 +413,21 @@ describe("expo useChatStorage background turns", () => {
       const fetchSpy = vi
         .spyOn(globalThis, "fetch")
         .mockResolvedValue(new Response(null, { status: 204 }));
-      vi.mocked(runToolLoop).mockImplementationOnce(async (options) => {
+      vi.mocked(runToolLoop).mockImplementationOnce((options) => {
         options.onStreamMeta?.({ inferenceId: "0xdet", round: 0 });
-        return {
+        return Promise.resolve({
           data: answer("Half an"),
           error: "Request detached",
           detached: true,
           resume: { inferenceId: "0xdet", apiType: "responses" },
-        } as never;
+        } as never);
       });
       const { result } = renderStorage({});
       await act(async () => {
         await result.current.sendMessage(userTurn);
       });
 
-      await act(async () => {
+      act(() => {
         result.current.stop();
       });
 
@@ -446,8 +446,9 @@ describe("expo useChatStorage background turns", () => {
       let publicKey: string | null = null;
       const removed: string[] = [];
       const inbox: VaultInbox = {
-        putPublicKey: async (key) => {
+        putPublicKey: (key) => {
           publicKey = key;
+          return Promise.resolve();
         },
         list: async () => {
           const items: InboxItem[] = [];
@@ -461,8 +462,9 @@ describe("expo useChatStorage background turns", () => {
           }
           return items;
         },
-        remove: async (id) => {
+        remove: (id) => {
           removed.push(id);
+          return Promise.resolve();
         },
       };
       return { inbox, removed };
@@ -502,7 +504,7 @@ describe("expo useChatStorage background turns", () => {
       it("opens a reward code sealed to the key that deliverInbox registers", async () => {
         let registered: string | null = null;
         const { inbox } = fakeInbox([]);
-        const putPublicKey = inbox.putPublicKey;
+        const putPublicKey = inbox.putPublicKey.bind(inbox);
         inbox.putPublicKey = async (key) => {
           registered = key;
           await putPublicKey(key);
@@ -534,7 +536,7 @@ describe("expo useChatStorage background turns", () => {
       it("opens an envelope to the same text as openInboxSealedText", async () => {
         let registered: string | null = null;
         const { inbox } = fakeInbox([]);
-        const putPublicKey = inbox.putPublicKey;
+        const putPublicKey = inbox.putPublicKey.bind(inbox);
         inbox.putPublicKey = async (key) => {
           registered = key;
           await putPublicKey(key);
@@ -574,7 +576,7 @@ describe("expo useChatStorage background turns", () => {
     });
 
     it("draws the card a detached turn ended on when its answer arrives", async () => {
-      const draw = vi.fn(async () => ({ chart: "Rain" }));
+      const draw = vi.fn(() => Promise.resolve({ chart: "Rain" }));
       const { inbox } = fakeInbox([
         {
           id: "0xc",
@@ -600,7 +602,7 @@ describe("expo useChatStorage background turns", () => {
     });
 
     it("draws the card once when the inbox and a replay both deliver the turn", async () => {
-      const draw = vi.fn(async () => ({ chart: "Rain" }));
+      const draw = vi.fn(() => Promise.resolve({ chart: "Rain" }));
       const { inbox } = fakeInbox([
         {
           id: "0xtwice",
@@ -678,7 +680,7 @@ describe("expo useChatStorage background turns", () => {
         piiRedaction: true,
         database: await deviceWithParent("msg_pii"),
       });
-      await act(async () => {
+      act(() => {
         result.current.setConversationId("conv_other");
       });
 
@@ -712,14 +714,14 @@ describe("expo useChatStorage background turns", () => {
     });
 
     function detachWithPartial(inferenceId: string) {
-      vi.mocked(runToolLoop).mockImplementationOnce(async (options) => {
+      vi.mocked(runToolLoop).mockImplementationOnce((options) => {
         options.onStreamMeta?.({ inferenceId, round: 0 });
-        return {
+        return Promise.resolve({
           data: answer("Half an"),
           error: "Request detached",
           detached: true,
           resume: { inferenceId, apiType: "responses" },
-        } as never;
+        } as never);
       });
     }
 
@@ -973,9 +975,13 @@ describe("expo useChatStorage background turns", () => {
     });
 
     it("detaches a turn whose connection drops after portal's id arrived", async () => {
-      vi.mocked(runToolLoop).mockImplementationOnce(async (options) => {
+      vi.mocked(runToolLoop).mockImplementationOnce((options) => {
         options.onStreamMeta?.({ inferenceId: "0xturn", round: 0 });
-        return { data: null, error: "network error", connectionLost: true } as never;
+        return Promise.resolve({
+          data: null,
+          error: "network error",
+          connectionLost: true,
+        } as never);
       });
       const { result } = renderStorage({ withWallet: true });
 
@@ -994,16 +1000,20 @@ describe("expo useChatStorage background turns", () => {
     });
 
     it("keeps the text that streamed before the drop when the user stops the turn", async () => {
-      vi.mocked(runToolLoop).mockImplementationOnce(async (options) => {
+      vi.mocked(runToolLoop).mockImplementationOnce((options) => {
         options.onStreamMeta?.({ inferenceId: "0xturn", round: 0 });
-        return { data: answer("Half an"), error: "network error", connectionLost: true } as never;
+        return Promise.resolve({
+          data: answer("Half an"),
+          error: "network error",
+          connectionLost: true,
+        } as never);
       });
       const { result } = renderStorage({ withWallet: true });
       await act(async () => {
         await result.current.sendMessage(userTurn);
       });
 
-      await act(async () => {
+      act(() => {
         result.current.stop();
       });
 

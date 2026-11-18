@@ -21,7 +21,7 @@ function toHex(bytes: Uint8Array): string {
 }
 
 async function walletHoldsVectorKey(): Promise<Mock<SignMessageFn>> {
-  const signMessage = vi.fn<SignMessageFn>(async () => signature);
+  const signMessage = vi.fn<SignMessageFn>(() => Promise.resolve(signature));
   await requestEncryptionKey(walletAddress, signMessage);
   const { d: _d, ...publicKey } = vector.recipient_private_jwk;
   const plaintext = new TextEncoder().encode(
@@ -87,7 +87,7 @@ describe("openInboxSealedText", () => {
   it.each(["", undefined])(
     "throws a clear error and asks for no signature without a wallet: %j",
     async (address) => {
-      const signMessage = vi.fn(async () => signature);
+      const signMessage = vi.fn(() => Promise.resolve(signature));
       await expect(
         openInboxSealedText(
           { walletAddress: address as string, signMessage },
@@ -100,7 +100,7 @@ describe("openInboxSealedText", () => {
   );
 
   it("rejects a wallet address that is not an address", async () => {
-    const signMessage = vi.fn(async () => signature);
+    const signMessage = vi.fn(() => Promise.resolve(signature));
     await expect(
       openInboxSealedText(
         { walletAddress: "0x1234", signMessage },
