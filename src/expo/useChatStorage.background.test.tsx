@@ -37,7 +37,7 @@ vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
 });
 
 import { sealInboxItem, sealInboxText } from "../lib/chat/fixtures/sealInboxItem";
-import type { InboxItem, VaultInbox } from "../lib/chat/inbox";
+import { type InboxItem, openInboxSealedText, type VaultInbox } from "../lib/chat/inbox";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { listActiveStreams, resumeStream, StreamExpiredError } from "../lib/chat/resumeStream";
 import { runToolLoop } from "../lib/chat/toolLoop";
@@ -529,6 +529,40 @@ describe("expo useChatStorage background turns", () => {
           result.current.openSealedWithInboxKey(sealedCode, "referral-reward-claim-8")
         ).rejects.toThrow();
         expect(await result.current.getMessages("conv_bg")).toEqual(before);
+      });
+
+      it("opens an envelope to the same text as openInboxSealedText", async () => {
+        let registered: string | null = null;
+        const { inbox } = fakeInbox([]);
+        const putPublicKey = inbox.putPublicKey;
+        inbox.putPublicKey = async (key) => {
+          registered = key;
+          await putPublicKey(key);
+        };
+        const { result } = renderStorage({
+          database: await deviceWithParent("msg_p"),
+          inbox,
+          withWallet: true,
+        });
+        await act(async () => {
+          await result.current.deliverInbox();
+        });
+        const sealedCode = await sealInboxText(
+          registered!,
+          "referral-reward-claim-9",
+          "TEST-REWARD-CODE-0009"
+        );
+        const fromHook = await result.current.openSealedWithInboxKey(
+          sealedCode,
+          "referral-reward-claim-9"
+        );
+        const standalone = await openInboxSealedText(
+          { walletAddress: wallet, signMessage: walletSigner },
+          sealedCode,
+          "referral-reward-claim-9"
+        );
+        expect(fromHook).toBe("TEST-REWARD-CODE-0009");
+        expect(standalone).toBe(fromHook);
       });
 
       it("throws a clear error before the inbox key exists", async () => {

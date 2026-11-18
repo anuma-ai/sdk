@@ -2,7 +2,7 @@
 
 > **InboxDeliveryResult** = `object`
 
-Defined in: [src/lib/chat/inbox.ts:171](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#171)
+Defined in: [src/lib/chat/inbox.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#197)
 
 Outcome of delivering one vault inbox item.
 
@@ -12,7 +12,7 @@ Outcome of delivering one vault inbox item.
 
 > **assistantMessage**: [`StoredMessage`](../interfaces/StoredMessage.md) | `null`
 
-Defined in: [src/lib/chat/inbox.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#175)
+Defined in: [src/lib/chat/inbox.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#201)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/chat/inbox.ts:175](https://github.com/anuma-ai/sdk/blob/mai
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/chat/inbox.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#173)
+Defined in: [src/lib/chat/inbox.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#199)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/chat/inbox.ts:173](https://github.com/anuma-ai/sdk/blob/mai
 
 > `optional` **error**: `string`
 
-Defined in: [src/lib/chat/inbox.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#176)
+Defined in: [src/lib/chat/inbox.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#202)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/lib/chat/inbox.ts:176](https://github.com/anuma-ai/sdk/blob/mai
 
 > **id**: `string`
 
-Defined in: [src/lib/chat/inbox.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#172)
+Defined in: [src/lib/chat/inbox.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#198)
 
 ***
 
@@ -44,4 +44,4 @@ Defined in: [src/lib/chat/inbox.ts:172](https://github.com/anuma-ai/sdk/blob/mai
 
 > **status**: `"stored"` | `"delivered"` | `"elsewhere"` | `"unreadable"` | `"retry"`
 
-Defined in: [src/lib/chat/inbox.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#174)
+Defined in: [src/lib/chat/inbox.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#200)

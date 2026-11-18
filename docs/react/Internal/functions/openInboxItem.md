@@ -2,7 +2,7 @@
 
 > **openInboxItem**(`item`: `Pick`<[`InboxItem`](../type-aliases/InboxItem.md), `"id"` | `"sealed"`>, `keyPair`: `CryptoKeyPair`): `Promise`<[`InboxPlaintext`](../type-aliases/InboxPlaintext.md)>
 
-Defined in: [src/lib/chat/inbox.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#155)
+Defined in: [src/lib/chat/inbox.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#181)
 
 Decrypt a sealed inbox item with the account's ECDH key pair.
 

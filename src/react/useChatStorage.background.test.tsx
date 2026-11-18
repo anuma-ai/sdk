@@ -25,7 +25,7 @@ vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
 });
 
 import { sealInboxItem, sealInboxText } from "../lib/chat/fixtures/sealInboxItem";
-import type { InboxItem, VaultInbox } from "../lib/chat/inbox";
+import { type InboxItem, openInboxSealedText, type VaultInbox } from "../lib/chat/inbox";
 import { listActiveStreams, resumeStream } from "../lib/chat/resumeStream";
 import { runToolLoop } from "../lib/chat/toolLoop";
 import { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
@@ -366,6 +366,30 @@ describe("useChatStorage background turns", () => {
         expect(registered).toHaveLength(1);
         expect(removed).toEqual([]);
         expect(await view.result.current.getMessages("conv_bg")).toEqual(before);
+      });
+
+      it("opens an envelope to the same text as openInboxSealedText", async () => {
+        const database = await deviceWithTurn("msg_parent");
+        const { registered, view } = await registeredKey(database);
+        const sealed = await sealInboxText(
+          registered[0],
+          "referral-reward-claim-9",
+          "TEST-REWARD-CODE-0009"
+        );
+        const fromHook = await view.result.current.openSealedWithInboxKey(
+          sealed,
+          "referral-reward-claim-9"
+        );
+        const standalone = await openInboxSealedText(
+          {
+            walletAddress: "0x1111111111111111111111111111111111111111",
+            signMessage: walletSigner,
+          },
+          sealed,
+          "referral-reward-claim-9"
+        );
+        expect(fromHook).toBe("TEST-REWARD-CODE-0009");
+        expect(standalone).toBe(fromHook);
       });
 
       it("throws a clear error before the inbox key exists", async () => {
