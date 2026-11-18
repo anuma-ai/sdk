@@ -69,7 +69,7 @@ Records the memories a turn drew on in recall order, moving already-linked ones 
 
 > **clearCache**(): `Promise`<`void`>
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#143)
+Defined in: [src/lib/chatStore/vaultBackend.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#153)
 
 Deletes this account's cached chats and stops caching; call it on logout or a wallet switch.
 
@@ -167,7 +167,7 @@ Clears all messages in a conversation (used for the "clear chat" action).
 
 > **close**(): `void`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:144](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#144)
+Defined in: [src/lib/chatStore/vaultBackend.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#154)
 
 **Returns**
 
@@ -930,9 +930,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:45](https://github.com/anuma-ai/sdk/
 
 > **importChats**(`chats`: readonly `object`\[]): `Promise`<{ `conversations`: `number`; `messages`: `number`; }>
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#133)
-
-Copies imported conversations and messages into vault with their own ids, times and order, leaving ids vault already holds as they are.
+Defined in: [src/lib/chatStore/vaultBackend.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#143)
 
 **Parameters**
 
@@ -1114,11 +1112,110 @@ Defined in: [src/lib/storage/ChatBackend.ts:47](https://github.com/anuma-ai/sdk/
 
 ***
 
+### searchKeywords()
+
+> **searchKeywords**(`query`: `string`, `options?`: `object`): `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
+
+Defined in: [src/lib/chatStore/vaultBackend.ts:134](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#134)
+
+Messages holding every word of `query` across this account's chats, newest first; empty when vault keeps no word hashes.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`query`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.conversationId?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.excludeConversationId?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.limit?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.signal?`
+
+</td>
+<td>
+
+`AbortSignal`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<[`StoredMessage`](StoredMessage.md)\[]>
+
+***
+
 ### status()
 
 > **status**(): `object`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#141)
+Defined in: [src/lib/chatStore/vaultBackend.ts:151](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#151)
 
 **Returns**
 
@@ -1179,7 +1276,7 @@ Defined in: [src/lib/chatStore/vaultBackend.ts:127](https://github.com/anuma-ai/
 
 > **updateConversationContext**(`conversationId`: `string`, `context`: `object`): `Promise`<`boolean`>
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#137)
+Defined in: [src/lib/chatStore/vaultBackend.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#147)
 
 Sets keys of a conversation's app context, each saved on its own so devices editing different keys keep both; `null` clears a key.
 

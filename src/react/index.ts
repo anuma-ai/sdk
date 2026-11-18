@@ -180,6 +180,8 @@ export {
   type ChatSnapshot,
   type ChatStore,
   ChatStoreError,
+  type ChatTermSearchOptions,
+  type ChatTermsPage,
   type ChatWrite,
   countUnreadAnumaTurns,
   createAppFileIndex,

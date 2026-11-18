@@ -1,9 +1,17 @@
 import { createNearbyRequest, RemoteMemoryError } from "../memory/store/remotePersistence.js";
 import {
+  chatTermTokens,
+  createChatTermHasher,
+  indexedText,
+  maxQueryTerms,
+  recordTerms,
+} from "./chatTerms.js";
+import {
   type ChatAccount,
   type ChatAttachment,
   type ChatImport,
   type ChatJson,
+  type ChatPage,
   type ChatPresignedUrl,
   type ChatRecord,
   type ChatRecordKind,
@@ -13,6 +21,8 @@ import {
   type ChatSnapshot,
   type ChatStore,
   ChatStoreError,
+  type ChatTermSearchOptions,
+  type ChatTermsPage,
   type ChatWrite,
   type RemoteChatStoreOptions,
 } from "./types.js";
@@ -291,6 +301,8 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
   if (account.key_id && account.key_id !== keyId)
     throw new ChatStoreError("Canonical chat key does not match", 409, "key_mismatch");
   connectRead = account;
+  const termHash =
+    hashTopic && account.term_search === true ? createChatTermHasher(hashTopic) : undefined;
 
   const parseAccount = (value: unknown): ChatAccount => {
     if (
@@ -371,6 +383,11 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
     return payload;
   };
 
+  const termFields = async (record: ChatRecord, payload: string) => {
+    const text = termHash && !record.isDeleted ? indexedText(record) : undefined;
+    return text === undefined ? {} : { terms: await recordTerms(termHash!, text, payload.length) };
+  };
+
   const capture = <
     T extends { record: ChatRecord; embeddings?: number[][]; embeddingModel?: string },
   >(
@@ -402,9 +419,11 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       invalid();
     const captured = capture(writes, 25, signal);
     let bytes = 0;
-    const prepared: ({ record: WireRecord; expected_version: number } & ReturnType<
-      typeof vectorFields
-    >)[] = [];
+    const prepared: ({
+      record: WireRecord;
+      expected_version: number;
+      terms?: string[];
+    } & ReturnType<typeof vectorFields>)[] = [];
     for (const write of captured) {
       const payload = await seal(write.record, signal);
       bytes += payload.length;
@@ -413,6 +432,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         record: wire(write.record, payload),
         expected_version: write.expectedVersion,
         ...vectorFields(write),
+        ...(await termFields(write.record, payload)),
       });
     }
     const result = await request(
@@ -444,6 +464,117 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
     }
     signal?.throwIfAborted();
     return out;
+  };
+
+  const holdsEvery = (record: ChatRecord, tokens: readonly string[]) => {
+    const words = new Set(chatTermTokens(indexedText(record) ?? ""));
+    return tokens.every((token) => words.has(token));
+  };
+
+  const searchTerms = async (query: string, options?: ChatTermSearchOptions): Promise<ChatPage> => {
+    const limit = options?.limit ?? 50;
+    const kindsFilter = options?.kinds;
+    if (
+      typeof query !== "string" ||
+      !integer(limit, 1) ||
+      limit > 100 ||
+      (kindsFilter !== undefined &&
+        (!Array.isArray(kindsFilter) ||
+          kindsFilter.length === 0 ||
+          kindsFilter.some((k) => k !== "message" && k !== "summary"))) ||
+      (options?.conversationId !== undefined && !id(options.conversationId)) ||
+      (options?.excludeConversationId !== undefined && !id(options.excludeConversationId)) ||
+      (options?.cursor !== undefined && (!text(options.cursor) || options.cursor.length > 2048))
+    )
+      invalid();
+    const tokens = chatTermTokens(query).slice(0, maxQueryTerms);
+    if (tokens.length === 0) return { items: [] };
+    const terms = await Promise.all(tokens.map(termHash!));
+    const value = await request(
+      "/terms/search",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          account_id: accountId,
+          terms,
+          limit,
+          ...(kindsFilter ? { kinds: kindsFilter } : {}),
+          ...(options?.conversationId ? { conversation_id: options.conversationId } : {}),
+          ...(options?.excludeConversationId
+            ? { exclude_conversation_id: options.excludeConversationId }
+            : {}),
+          ...(options?.cursor ? { cursor: options.cursor } : {}),
+        }),
+      },
+      options?.signal
+    );
+    if (
+      !object(value) ||
+      !Array.isArray(value.items) ||
+      value.items.length > limit ||
+      (value.next_cursor !== undefined &&
+        (!text(value.next_cursor) || value.next_cursor.length > 2048))
+    )
+      invalid();
+    const items: ChatSnapshot[] = [];
+    for (const decoded of await Promise.allSettled(value.items.map(decode))) {
+      const snapshot = fulfilled(decoded);
+      const { record } = snapshot;
+      if (
+        record.isDeleted ||
+        (record.kind !== "message" && record.kind !== "summary") ||
+        (kindsFilter !== undefined && !kindsFilter.includes(record.kind)) ||
+        (options?.conversationId !== undefined &&
+          record.conversationId !== options.conversationId) ||
+        record.conversationId === options?.excludeConversationId
+      )
+        invalid();
+      if (holdsEvery(record, tokens)) items.push(snapshot);
+    }
+    options?.signal?.throwIfAborted();
+    return { items, ...(value.next_cursor ? { nextCursor: value.next_cursor } : {}) };
+  };
+
+  const indexTermsPage = async (cursor?: string, signal?: AbortSignal): Promise<ChatTermsPage> => {
+    if (cursor !== undefined && (!text(cursor) || cursor.length > 2048)) invalid();
+    const params = new URLSearchParams({ account_id: String(accountId), limit: "50" });
+    if (cursor) params.set("cursor", cursor);
+    const value = await request(`/terms/missing?${params}`, {}, signal);
+    if (
+      !object(value) ||
+      !Array.isArray(value.items) ||
+      value.items.length > 50 ||
+      (value.next_cursor !== undefined &&
+        (!text(value.next_cursor) || value.next_cursor.length > 2048))
+    )
+      invalid();
+    const items: { kind: string; id: string; version: number; terms: string[] }[] = [];
+    const decoded = await Promise.allSettled(value.items.map(decode));
+    for (const [i, result] of decoded.entries()) {
+      if (result.status === "rejected") continue;
+      const { record, version } = result.value;
+      const words = record.isDeleted ? undefined : indexedText(record);
+      if (words === undefined) continue;
+      const payload = (value.items[i] as { record: WireRecord }).record.payload;
+      items.push({
+        kind: record.kind,
+        id: record.id,
+        version,
+        terms: await recordTerms(termHash!, words, payload.length),
+      });
+    }
+    let indexed = 0;
+    if (items.length > 0) {
+      const result = await request(
+        "/terms",
+        { method: "POST", body: JSON.stringify({ account_id: accountId, items }) },
+        signal
+      );
+      if (!object(result) || !integer(result.indexed) || result.indexed > items.length) invalid();
+      indexed = result.indexed;
+    }
+    signal?.throwIfAborted();
+    return { indexed, ...(value.next_cursor ? { nextCursor: value.next_cursor } : {}) };
   };
 
   return {
@@ -574,7 +705,11 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         const payload = await seal(item.record, signal);
         bytes += payload.length;
         if (bytes > maxRequestCiphertext) invalid();
-        prepared.push({ record: wire(item.record, payload), ...vectorFields(item) });
+        prepared.push({
+          record: wire(item.record, payload),
+          ...vectorFields(item),
+          ...(await termFields(item.record, payload)),
+        });
       }
       const value = await request(
         "/import",
@@ -731,6 +866,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       return value.deleted;
     },
     ...(hashTopic ? { sealedId: (value: string) => hashTopic(`record-id\u0000${value}`) } : {}),
+    ...(termHash ? { searchTerms, indexTermsPage } : {}),
     attachments: {
       async create(sizeBytes, signal) {
         if (!integer(sizeBytes, 1) || sizeBytes > maxAttachmentBytes) invalid();

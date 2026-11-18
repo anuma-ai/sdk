@@ -436,6 +436,18 @@ Re-exports [ChatStoreError](../react/Internal/classes/ChatStoreError.md)
 
 ***
 
+### ChatTermSearchOptions
+
+Re-exports [ChatTermSearchOptions](../react/Internal/interfaces/ChatTermSearchOptions.md)
+
+***
+
+### ChatTermsPage
+
+Re-exports [ChatTermsPage](../react/Internal/interfaces/ChatTermsPage.md)
+
+***
+
 ### ChatWrite
 
 Re-exports [ChatWrite](../react/Internal/interfaces/ChatWrite.md)

@@ -130,6 +130,16 @@ export interface VaultChatBackend extends ChatBackend {
   /** Applies changes other devices made since the last poll. */
   poll(): Promise<void>;
   /** Copies imported conversations and messages into vault with their own ids, times and order, leaving ids vault already holds as they are. */
+  /** Messages holding every word of `query` across this account's chats, newest first; empty when vault keeps no word hashes. */
+  searchKeywords(
+    query: string,
+    options?: {
+      limit?: number;
+      conversationId?: string;
+      excludeConversationId?: string;
+      signal?: AbortSignal;
+    }
+  ): Promise<StoredMessage[]>;
   importChats(
     chats: readonly { conversation: StoredConversation; messages: readonly StoredMessage[] }[]
   ): Promise<{ conversations: number; messages: number }>;
@@ -146,6 +156,7 @@ export interface VaultChatBackend extends ChatBackend {
 
 const terminalCodes = new Set(["key_mismatch", "account_changed", "account_not_found"]);
 const cacheSaveDelayMs = 500;
+const termIndexDelayMs = 30_000;
 const cachedMessageLimit = 200;
 
 function cursorRejected(error: unknown): boolean {
@@ -229,6 +240,10 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   let heldUntil = 0;
   let flushTimer: ReturnType<typeof setTimeout> | undefined;
   let pollTimer: ReturnType<typeof setTimeout> | undefined;
+  let termTimer: ReturnType<typeof setTimeout> | undefined;
+  let termCursor: string | undefined;
+  let termsIndexed = false;
+  let indexing: Promise<void> | null = null;
   let polling: Promise<void> | null = null;
   let pollFailures = 0;
   let pollAgain = false;
@@ -825,6 +840,32 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     else void poll();
   };
 
+  const indexTerms = () => {
+    const store = connected;
+    if (termsIndexed || indexing || closed || !store?.indexTermsPage) return;
+    indexing = (async () => {
+      while (!closed && activity.isActive()) {
+        termCursor = (await store.indexTermsPage!(termCursor)).nextCursor;
+        if (!termCursor) {
+          termsIndexed = true;
+          return;
+        }
+      }
+    })()
+      .catch(() => undefined)
+      .finally(() => {
+        indexing = null;
+      });
+  };
+
+  const scheduleTermIndex = () => {
+    if (termTimer || termsIndexed || closed) return;
+    termTimer = setTimeout(() => {
+      termTimer = undefined;
+      indexTerms();
+    }, termIndexDelayMs);
+  };
+
   const ready = (): Promise<void> => {
     readyPromise ??= (async () => {
       await seeding;
@@ -840,6 +881,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       if (options.subscribeChanges && !stopChanges && !closed)
         stopChanges = options.subscribeChanges(onChanges);
       schedulePoll();
+      scheduleTermIndex();
     })();
     readyPromise.catch((error) => {
       readyPromise = null;
@@ -891,6 +933,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   const unsubscribeActivity = activity.subscribe(() => {
     if (!activity.isActive()) return;
     if (readyPromise) void readyPromise.then(adopt).catch(() => undefined);
+    if (reachable) scheduleTermIndex();
     void poll();
     if (pending.size && !flushing && Date.now() >= heldUntil) {
       clearTimeout(retryTimer);
@@ -1312,6 +1355,27 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       }
       return results;
     },
+    async searchKeywords(query, search = {}) {
+      const { limit = 50, conversationId, excludeConversationId, signal } = search;
+      await flush();
+      const store = await remote();
+      if (!store.searchTerms) return [];
+      const found: StoredMessage[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await store.searchTerms(query, {
+          limit: 100,
+          kinds: ["message"],
+          ...(conversationId ? { conversationId } : {}),
+          ...(excludeConversationId ? { excludeConversationId } : {}),
+          ...(cursor ? { cursor } : {}),
+          ...(signal ? { signal } : {}),
+        });
+        for (const { record } of page.items) found.push(toMessage(record));
+        cursor = page.nextCursor;
+      } while (cursor && found.length < limit);
+      return found.slice(0, limit);
+    },
     async getSummary(conversationId): Promise<StoredConversationSummary | null> {
       const record = await child("summary", conversationId);
       return record && !record.isDeleted && record.data.summarizedUpTo ? toSummary(record) : null;
@@ -1427,6 +1491,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       clearTimeout(flushTimer);
       clearTimeout(retryTimer);
       clearTimeout(pollTimer);
+      clearTimeout(termTimer);
       stopChanges?.();
       unsubscribeActivity();
       releaseSlot?.();

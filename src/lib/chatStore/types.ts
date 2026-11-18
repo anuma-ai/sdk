@@ -83,6 +83,20 @@ export interface ChatSearchOptions {
   signal?: AbortSignal;
 }
 
+export interface ChatTermSearchOptions {
+  limit?: number;
+  kinds?: ("message" | "summary")[];
+  conversationId?: string;
+  excludeConversationId?: string;
+  cursor?: string;
+  signal?: AbortSignal;
+}
+
+export interface ChatTermsPage {
+  indexed: number;
+  nextCursor?: string;
+}
+
 export interface ChatSearchHit extends ChatSnapshot {
   chunk: number;
   score: number;
@@ -154,6 +168,10 @@ export interface ChatStore {
     options?: { limit?: number; kinds?: readonly ChatRecordKind[]; signal?: AbortSignal }
   ): Promise<ChatChanges>;
   search(embedding: readonly number[], options?: ChatSearchOptions): Promise<ChatSearchHit[]>;
+  /** Messages and summaries holding every word of `query`, newest first; present when vault keeps keyed word hashes. */
+  searchTerms?(query: string, options?: ChatTermSearchOptions): Promise<ChatPage>;
+  /** Stores word hashes for one page of records vault has none for; call again with `nextCursor` until it is absent. */
+  indexTermsPage?(cursor?: string, signal?: AbortSignal): Promise<ChatTermsPage>;
   deleteAll(signal?: AbortSignal): Promise<number>;
   /** A keyed hash vault cannot reproduce, for record ids derived from private names. */
   sealedId?(value: string): Promise<string>;
