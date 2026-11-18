@@ -27,6 +27,7 @@ import type {
 } from "../storage/ChatStorageAdapter";
 import { ANUMA_CONVERSATION_ID } from "./anuma";
 import { batches, conversationRecord, messageRecord } from "./chatImports";
+import { chatTermTokens, holdsEveryToken } from "./chatTerms";
 import { validChatId } from "./remote";
 import {
   type ChatJson,
@@ -236,6 +237,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   let termTimer: ReturnType<typeof setTimeout> | undefined;
   let termCursor: string | undefined;
   let termsIndexed = false;
+  let termFailures = 0;
   let indexing: Promise<void> | null = null;
   let polling: Promise<void> | null = null;
   let pollFailures = 0;
@@ -282,6 +284,15 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       if (patch) record = applyPatch(record, patch) ?? record;
     }
     return record;
+  };
+
+  const withLocalChanges = (record: ChatRecord): ChatRecord | undefined => {
+    const k = key(record.kind, record.id);
+    let out: ChatRecord | undefined = record;
+    for (const patch of [inflight.get(k), pending.get(k)]) {
+      if (patch) out = applyPatch(out, patch);
+    }
+    return out;
   };
 
   const conversationLive = (conversationId: string) => {
@@ -839,24 +850,28 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     indexing = (async () => {
       while (!closed && activity.isActive()) {
         termCursor = (await store.indexTermsPage!(termCursor)).nextCursor;
+        termFailures = 0;
         if (!termCursor) {
           termsIndexed = true;
           return;
         }
       }
     })()
-      .catch(() => undefined)
+      .catch(() => {
+        termFailures += 1;
+        scheduleTermIndex(termIndexDelayMs * 2 ** Math.min(termFailures, 4));
+      })
       .finally(() => {
         indexing = null;
       });
   };
 
-  const scheduleTermIndex = () => {
+  const scheduleTermIndex = (delay = termIndexDelayMs) => {
     if (termTimer || termsIndexed || closed) return;
     termTimer = setTimeout(() => {
       termTimer = undefined;
       indexTerms();
-    }, termIndexDelayMs);
+    }, delay);
   };
 
   const ready = (): Promise<void> => {
@@ -1353,6 +1368,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       await flush();
       const store = await remote();
       if (!store.searchTerms) return [];
+      const tokens = chatTermTokens(query);
       const found: StoredMessage[] = [];
       let cursor: string | undefined;
       do {
@@ -1364,7 +1380,13 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
           ...(cursor ? { cursor } : {}),
           ...(signal ? { signal } : {}),
         });
-        for (const { record } of page.items) found.push(toMessage(record));
+        for (const { record } of page.items) {
+          const local = withLocalChanges(record);
+          if (!local || local.isDeleted) continue;
+          if (view(key("conversation", local.conversationId))?.isDeleted) continue;
+          if (local !== record && !holdsEveryToken(local, tokens)) continue;
+          found.push(toMessage(local));
+        }
         cursor = page.nextCursor;
       } while (cursor && found.length < limit);
       return found.slice(0, limit);

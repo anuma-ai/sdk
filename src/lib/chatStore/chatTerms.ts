@@ -20,6 +20,11 @@ export function chatTermTokens(text: string): string[] {
   return [...tokens];
 }
 
+export function holdsEveryToken(record: ChatRecord, tokens: readonly string[]): boolean {
+  const words = new Set(chatTermTokens(indexedText(record) ?? ""));
+  return tokens.every((token) => words.has(token));
+}
+
 export function indexedText(record: ChatRecord): string | undefined {
   if (record.kind === "message")
     return typeof record.data.content === "string" ? record.data.content : "";

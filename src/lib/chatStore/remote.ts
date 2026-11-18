@@ -2,6 +2,7 @@ import { createNearbyRequest, RemoteMemoryError } from "../memory/store/remotePe
 import {
   chatTermTokens,
   createChatTermHasher,
+  holdsEveryToken,
   indexedText,
   maxQueryTerms,
   recordTerms,
@@ -466,11 +467,6 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
     return out;
   };
 
-  const holdsEvery = (record: ChatRecord, tokens: readonly string[]) => {
-    const words = new Set(chatTermTokens(indexedText(record) ?? ""));
-    return tokens.every((token) => words.has(token));
-  };
-
   const searchTerms = async (query: string, options?: ChatTermSearchOptions): Promise<ChatPage> => {
     const limit = options?.limit ?? 50;
     const kindsFilter = options?.kinds;
@@ -487,9 +483,9 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       (options?.cursor !== undefined && (!text(options.cursor) || options.cursor.length > 2048))
     )
       invalid();
-    const tokens = chatTermTokens(query).slice(0, maxQueryTerms);
+    const tokens = chatTermTokens(query);
     if (tokens.length === 0) return { items: [] };
-    const terms = await Promise.all(tokens.map(termHash!));
+    const terms = await Promise.all(tokens.slice(0, maxQueryTerms).map(termHash!));
     const value = await request(
       "/terms/search",
       {
@@ -529,7 +525,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         record.conversationId === options?.excludeConversationId
       )
         invalid();
-      if (holdsEvery(record, tokens)) items.push(snapshot);
+      if (holdsEveryToken(record, tokens)) items.push(snapshot);
     }
     options?.signal?.throwIfAborted();
     return { items, ...(value.next_cursor ? { nextCursor: value.next_cursor } : {}) };

@@ -739,6 +739,18 @@ describe("keyword terms", () => {
     expect(s.posts).toHaveLength(before);
   });
 
+  it("checks every word of a long query on the device though vault gets only 32", async () => {
+    const s = await termSetup(true);
+    const words = Array.from({ length: 40 }, (_, i) => `w${i}`);
+    await s.store.putMany([
+      { record: message("m1", words.slice(0, 32).join(" ")), expectedVersion: 0 },
+      { record: message("m2", words.join(" ")), expectedVersion: 0 },
+    ]);
+    const page = await s.store.searchTerms!(words.join(" "));
+    expect(page.items.map((i) => i.record.id)).toEqual(["m2"]);
+    expect(s.posts.at(-1)!.body.terms).toHaveLength(32);
+  });
+
   it("indexes a page of records vault holds no terms for at the version it read", async () => {
     const s = await termSetup(true);
     await s.store.putMany([{ record: message("m1", "Coffee in Kyoto"), expectedVersion: 0 }]);

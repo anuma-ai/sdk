@@ -1243,10 +1243,73 @@ describe.skipIf(conformance)("keyword search over vault", () => {
     ]);
   });
 
+  it("applies writes still waiting to be sent before returning vault's matches", async () => {
+    const fake = await createChatStoreHarness();
+    const searchTerms = vi.fn<NonNullable<ChatStore["searchTerms"]>>();
+    const { b } = backend({ ...fake, store: { ...fake.store, searchTerms } });
+    await b.createConversation({ conversationId: "conv_1" });
+    await b.createConversation({ conversationId: "conv_2" });
+    for (const [id, conversationId] of [
+      ["msg_deleted", "conv_1"],
+      ["msg_edited", "conv_1"],
+      ["msg_kept", "conv_1"],
+      ["msg_in_deleted_chat", "conv_2"],
+    ])
+      await b.createMessage({ conversationId, role: "user", content: "coffee", uniqueId: id });
+    await b.flush();
+    const rows = await Promise.all(
+      ["msg_deleted", "msg_edited", "msg_kept", "msg_in_deleted_chat"].map(
+        async (id) => (await fake.row("message", id))!
+      )
+    );
+    searchTerms.mockResolvedValue({ items: rows });
+
+    fake.fail({
+      op: "putMany",
+      error: new ChatStoreError("busy", 429, "rate_limited", 60_000),
+      sticky: true,
+    });
+    await b.deleteMessage("msg_deleted");
+    await b.upsertMessage({
+      conversationId: "conv_1",
+      role: "user",
+      content: "tea",
+      uniqueId: "msg_edited",
+    });
+    await b.deleteConversation("conv_2");
+
+    expect((await b.searchKeywords("coffee")).map((m) => m.uniqueId)).toEqual(["msg_kept"]);
+  });
+
   it("finds nothing when vault keeps no word hashes", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake);
     expect(await b.searchKeywords("coffee")).toEqual([]);
+  });
+
+  it("retries indexing with backoff after a failed page, from the same cursor", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = await createChatStoreHarness();
+      let calls = 0;
+      const indexTermsPage = vi.fn<NonNullable<ChatStore["indexTermsPage"]>>(async () => {
+        calls += 1;
+        if (calls === 1) throw new ChatStoreError("busy", 503, "unavailable");
+        return { indexed: 1 };
+      });
+      const { b } = backend({ ...fake, store: { ...fake.store, indexTermsPage } });
+      await b.poll();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(indexTermsPage).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(59_999);
+      expect(indexTermsPage).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(indexTermsPage.mock.calls.map(([cursor]) => cursor)).toEqual([undefined, undefined]);
+      await vi.advanceTimersByTimeAsync(600_000);
+      expect(indexTermsPage).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("indexes records without terms page by page, 30 seconds after connecting and only while active", async () => {
