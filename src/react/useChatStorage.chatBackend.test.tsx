@@ -5,16 +5,35 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useChatStorage as useExpoChatStorage } from "../expo/useChatStorage";
 import { runToolLoop } from "../lib/chat/toolLoop";
+import { createMediaBatchOp, deleteMediaByConversationOp } from "../lib/db/media";
 import { queueManager } from "../lib/db/queue";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 import type { ChatBackend, ChatBackendFactory, ChatBackendSigner } from "../lib/storage";
-import { localChatBackend } from "../lib/storage";
+import { isOPFSSupported, localChatBackend } from "../lib/storage";
 import { useChatStorage as useReactChatStorage } from "./useChatStorage";
 import { clearEncryptionKey, seedEncryptionKeys } from "./useEncryption";
 
 vi.mock("../lib/chat/toolLoop", async (importOriginal) => {
   const original = await importOriginal<typeof import("../lib/chat/toolLoop")>();
   return { ...original, runToolLoop: vi.fn() };
+});
+
+vi.mock("../lib/db/media", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../lib/db/media")>();
+  return {
+    ...original,
+    createMediaBatchOp: vi.fn(original.createMediaBatchOp),
+    deleteMediaByConversationOp: vi.fn(original.deleteMediaByConversationOp),
+  };
+});
+
+vi.mock("../lib/storage", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../lib/storage")>();
+  return {
+    ...original,
+    isOPFSSupported: vi.fn(original.isOPFSSupported),
+    writeEncryptedFile: vi.fn().mockResolvedValue(undefined),
+  };
 });
 
 const walletAddress = "0x00000000000000000000000000000000000000b1";
@@ -148,6 +167,30 @@ describe.each([
     }
   });
 
+  it("deletes a conversation whose local media cannot be deleted", async () => {
+    const hookDatabase = makeDatabase();
+    const backend = recordingBackend(makeDatabase());
+    const { result } = renderHook(() =>
+      useChatStorage({
+        database: hookDatabase,
+        chatBackend: backend.factory,
+        getToken: () => Promise.resolve("token"),
+        autoEmbedMessages: false,
+      })
+    );
+    const { conversationId } = await act(async () =>
+      result.current.createConversation({ title: "Degraded" })
+    );
+    expect(result.current.conversationId).toBe(conversationId);
+    vi.mocked(deleteMediaByConversationOp).mockRejectedValueOnce(new Error("database degraded"));
+
+    expect(await act(async () => result.current.deleteConversation(conversationId))).toBe(true);
+
+    expect(await result.current.getConversation(conversationId)).toBeNull();
+    expect(backend.calls).toContain("deleteSummary");
+    expect(result.current.conversationId).toBeNull();
+  });
+
   it("replays writes queued before the key was ready through the backend", async () => {
     const hookDatabase = makeDatabase();
     const backendDatabase = makeDatabase();
@@ -232,4 +275,54 @@ describe.each([
       expect(stored?.title).toBe("Untitled chat");
     }
   );
+});
+
+describe("useChatStorage with a chat backend when media records cannot be written", () => {
+  beforeEach(() => {
+    clearEncryptionKey(walletAddress);
+    seedEncryptionKeys(walletAddress, { legacy: "11".repeat(32), current: "22".repeat(32) });
+    vi.mocked(runToolLoop).mockResolvedValue(toolLoopResult);
+    vi.mocked(isOPFSSupported).mockReturnValue(true);
+    vi.mocked(createMediaBatchOp).mockRejectedValue(new Error("database degraded"));
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.mocked(isOPFSSupported).mockReset();
+    vi.mocked(createMediaBatchOp).mockReset();
+    clearEncryptionKey(walletAddress);
+    vi.clearAllMocks();
+  });
+
+  it("keeps an attached file on the stored message", async () => {
+    const hookDatabase = makeDatabase();
+    const backend = recordingBackend(makeDatabase());
+    const signMessage = vi.fn().mockRejectedValue(new Error("unused"));
+    const { result } = renderHook(() =>
+      useReactChatStorage({
+        database: hookDatabase,
+        chatBackend: backend.factory,
+        walletAddress,
+        signMessage,
+        getToken: () => Promise.resolve("token"),
+        autoEmbedMessages: false,
+      })
+    );
+    const { conversationId } = await act(async () =>
+      result.current.createConversation({ title: "With a file" })
+    );
+
+    const sent = await act(async () =>
+      result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "See attached" }] }],
+        model: "test-model",
+        conversationId,
+        files: [{ id: "upload-1", name: "notes.bin", type: "", size: 1, url: "data:;base64,eA==" }],
+      })
+    );
+
+    expect(sent.error).toBeNull();
+    const user = (await result.current.getMessages(conversationId)).find((m) => m.role === "user");
+    expect(user?.fileIds).toHaveLength(1);
+  });
 });

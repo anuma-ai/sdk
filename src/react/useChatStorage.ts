@@ -1948,7 +1948,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const deleted = await backend.deleteConversation(id);
       if (deleted) {
         await backend.clearMessages(id);
-        await deleteMediaByConversationOp(mediaCtx, id);
+        await deleteMediaByConversationOp(mediaCtx, id).catch((err) =>
+          getLogger().warn("[useChatStorage] Failed to delete conversation media:", err)
+        );
         await cleanupConversationSummary(backend, id);
         if (currentConversationId === id) {
           setCurrentConversationId(null);
@@ -2092,6 +2094,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const { extractAndStoreEncryptedMCPImages, storeUserFilesInOPFS } = useChatMedia({
     mediaCtx,
     mcpR2Domain,
+    keepFilesWithoutMediaRows: chatBackend !== undefined,
   });
 
   const toAssistantMessageFields = useCallback(
