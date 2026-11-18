@@ -2,7 +2,7 @@
 
 Defined in: [src/lib/chatStore/vaultCache.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultCache.ts#6)
 
-Stores sealed values at account and `<account>/chat-cache/<uuid>` keys; `set(key, null)` deletes only that key, and `keys(prefix)` lets the cache delete slots no index names.
+Stores sealed values at account and `<account>/chat-cache/<uuid>` keys; `set(key, null)` deletes only that key.
 
 ## Methods
 
@@ -47,7 +47,9 @@ Defined in: [src/lib/chatStore/vaultCache.ts:7](https://github.com/anuma-ai/sdk/
 
 > `optional` **keys**(`prefix`: `string`): `Promise`<`string`\[]>
 
-Defined in: [src/lib/chatStore/vaultCache.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultCache.ts#9)
+Defined in: [src/lib/chatStore/vaultCache.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultCache.ts#10)
+
+Lists the stored keys under `prefix` and returns none once a newer storage for the same account has opened, because the cache deletes every listed slot its index does not name.
 
 **Parameters**
 

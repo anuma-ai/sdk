@@ -2,10 +2,11 @@ import { v7 as uuidv7 } from "uuid";
 
 import type { ChatSnapshot } from "./types";
 
-/** Stores sealed values at account and `<account>/chat-cache/<uuid>` keys; `set(key, null)` deletes only that key, and `keys(prefix)` lets the cache delete slots no index names. */
+/** Stores sealed values at account and `<account>/chat-cache/<uuid>` keys; `set(key, null)` deletes only that key. */
 export interface ChatCacheStorage {
   get(key: string): Promise<string | null>;
   set(key: string, sealed: string | null): Promise<void>;
+  /** Lists the stored keys under `prefix` and returns none once a newer storage for the same account has opened, because the cache deletes every listed slot its index does not name. */
   keys?(prefix: string): Promise<string[]>;
 }
 
