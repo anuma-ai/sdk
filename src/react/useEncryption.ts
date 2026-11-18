@@ -1025,6 +1025,30 @@ export async function requestEncryptionKey(
     cryptoKeyCache.delete(`${walletAddress}:v3`);
     refreshCandidatesByAddress.delete(walletAddress);
     divergentDeriveAddresses.delete(walletAddress);
+    if (!getStoredKeyPair(walletAddress)) {
+      const persisted = await loadPersistedKeyPair(walletAddress).catch(() => null);
+      const keyPair =
+        persisted ??
+        (await deriveKeyPairFromSignature(signature, walletAddress).catch((error: unknown) => {
+          getLogger().warn(
+            `Failed to derive keypair: ${error instanceof Error ? error.message : String(error)}`
+          );
+          return null;
+        }));
+      if (keyPair && sessionEpoch === startEpoch && !getStoredKeyPair(walletAddress)) {
+        setStoredKeyPair(walletAddress, keyPair);
+        if (!persisted) {
+          await persistKeyPair(walletAddress, startEpoch).catch((error: unknown) =>
+            getLogger().warn(
+              `Failed to persist keypair: ${error instanceof Error ? error.message : String(error)}`
+            )
+          );
+        }
+      }
+    }
+    if (sessionEpoch !== startEpoch) {
+      return false;
+    }
 
     notifyKeyAvailable(walletAddress);
     return true;
@@ -1416,7 +1440,7 @@ async function loadOrCreateKeyPair(
   try {
     const persistedKeyPair = await loadPersistedKeyPair(walletAddress);
     if (persistedKeyPair) {
-      if (sessionEpoch !== startEpoch) return;
+      if (sessionEpoch !== startEpoch || getStoredKeyPair(walletAddress)) return;
       setStoredKeyPair(walletAddress, persistedKeyPair);
       return;
     }
@@ -1448,7 +1472,7 @@ async function loadOrCreateKeyPair(
 
   const keyPair = await deriveKeyPairFromSignature(signature, walletAddress);
 
-  if (sessionEpoch !== startEpoch) {
+  if (sessionEpoch !== startEpoch || getStoredKeyPair(walletAddress)) {
     return;
   }
 

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vite
 
 import {
   clearAllEncryptionState,
+  clearKeyPair,
   getEncryptionKey,
   requestEncryptionKey,
   type SignMessageFn,
@@ -23,6 +24,7 @@ function toHex(bytes: Uint8Array): string {
 async function walletHoldsVectorKey(): Promise<Mock<SignMessageFn>> {
   const signMessage = vi.fn<SignMessageFn>(() => Promise.resolve(signature));
   await requestEncryptionKey(walletAddress, signMessage);
+  clearKeyPair(walletAddress);
   const { d: _d, ...publicKey } = vector.recipient_private_jwk;
   const plaintext = new TextEncoder().encode(
     JSON.stringify({ privateKey: vector.recipient_private_jwk, publicKey })
