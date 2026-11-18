@@ -35,6 +35,8 @@ interface UseChatMediaOptions {
    * that should be pulled into encrypted OPFS storage.
    */
   mcpR2Domain: string;
+
+  keepFilesWithoutMediaRows?: boolean;
 }
 
 /**
@@ -109,7 +111,7 @@ function resolveMediaMeta(
  * @internal
  */
 export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
-  const { mediaCtx, mcpR2Domain } = options;
+  const { mediaCtx, mcpR2Domain, keepFilesWithoutMediaRows = false } = options;
 
   const getImageDimensions = useCallback(
     async (blob: Blob): Promise<{ width: number; height: number } | undefined> => {
@@ -254,6 +256,13 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
               "[extractAndStoreEncryptedMCPImages] Failed to create media records:",
               err
             );
+            if (keepFilesWithoutMediaRows) {
+              return {
+                fileIds: mediaOptions.flatMap((opt) => (opt.mediaId ? [opt.mediaId] : [])),
+                cleanedContent,
+                imageModel,
+              };
+            }
             for (const opt of mediaOptions) {
               if (opt.mediaId) {
                 try {
@@ -272,7 +281,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
         return { fileIds: [], cleanedContent: content, imageModel };
       }
     },
-    [mediaCtx, getImageDimensions, mcpR2Domain]
+    [mediaCtx, getImageDimensions, mcpR2Domain, keepFilesWithoutMediaRows]
   );
 
   const storeUserFilesInOPFS = useCallback(
@@ -294,6 +303,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
       }
 
       const mediaOptions: CreateMediaOptions[] = [];
+      const storedIds: string[] = [];
 
       for (const file of files) {
         if (!file.url) {
@@ -344,6 +354,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
             });
 
             storedInOPFS = true;
+            storedIds.push(mediaId);
           } catch {
             // Will fall back to sourceUrl below
           }
@@ -377,7 +388,9 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
       try {
         const createdMedia = await createMediaBatchOp(mediaCtx, mediaOptions);
         return createdMedia.map((m) => m.mediaId);
-      } catch {
+      } catch (err) {
+        getLogger().error("[storeUserFilesInOPFS] Failed to create media records:", err);
+        if (keepFilesWithoutMediaRows) return storedIds;
         for (const opt of mediaOptions) {
           if (opt.mediaId) {
             try {
@@ -390,7 +403,7 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
         return [];
       }
     },
-    [mediaCtx, getImageDimensions]
+    [mediaCtx, getImageDimensions, keepFilesWithoutMediaRows]
   );
 
   return {

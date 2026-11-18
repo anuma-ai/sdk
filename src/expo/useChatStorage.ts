@@ -1366,6 +1366,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         await deleteMediaByConversationOp(
           { database, walletAddress, signMessage, embeddedWalletSigner },
           id
+        ).catch((err) =>
+          getLogger().warn("[useChatStorage] Failed to delete conversation media:", err)
         );
         await cleanupConversationSummary(backend, id);
         if (currentConversationId === id) {
