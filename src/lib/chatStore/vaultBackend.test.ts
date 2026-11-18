@@ -1231,14 +1231,15 @@ describe.skipIf(conformance)("keyword search over vault", () => {
       "msg_2",
     ]);
     expect(searchTerms).toHaveBeenCalledTimes(1);
+    expect(searchTerms.mock.calls[0][1]).toMatchObject({ limit: 2 });
     expect(
       (await b.searchKeywords("coffee", { excludeConversationId: "conv_2" })).map((m) => m.uniqueId)
     ).toEqual(["msg_3", "msg_2", "msg_1"]);
     expect(searchTerms.mock.calls.slice(1).map(([q, o]) => [q, o])).toEqual([
-      ["coffee", { limit: 100, kinds: ["message"], excludeConversationId: "conv_2" }],
+      ["coffee", { limit: 50, kinds: ["message"], excludeConversationId: "conv_2" }],
       [
         "coffee",
-        { limit: 100, kinds: ["message"], excludeConversationId: "conv_2", cursor: "page_2" },
+        { limit: 48, kinds: ["message"], excludeConversationId: "conv_2", cursor: "page_2" },
       ],
     ]);
   });
@@ -1312,7 +1313,7 @@ describe.skipIf(conformance)("keyword search over vault", () => {
     }
   });
 
-  it("indexes records without terms page by page, 30 seconds after connecting and only while active", async () => {
+  it("indexes records without terms page by page, a second apart, 30 seconds after connecting and only while active", async () => {
     vi.useFakeTimers();
     try {
       const fake = await createChatStoreHarness();
@@ -1336,6 +1337,10 @@ describe.skipIf(conformance)("keyword search over vault", () => {
       await later.poll();
       await vi.advanceTimersByTimeAsync(29_999);
       expect(indexTermsPage).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(indexTermsPage.mock.calls.map(([cursor]) => cursor)).toEqual([undefined]);
+      await vi.advanceTimersByTimeAsync(999);
+      expect(indexTermsPage).toHaveBeenCalledTimes(1);
       await vi.advanceTimersByTimeAsync(1);
       expect(indexTermsPage.mock.calls.map(([cursor]) => cursor)).toEqual([undefined, "page_2"]);
       await vi.advanceTimersByTimeAsync(120_000);

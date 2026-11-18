@@ -151,6 +151,7 @@ export interface VaultChatBackend extends ChatBackend {
 const terminalCodes = new Set(["key_mismatch", "account_changed", "account_not_found"]);
 const cacheSaveDelayMs = 500;
 const termIndexDelayMs = 30_000;
+const termPagePauseMs = 1_000;
 const cachedMessageLimit = 200;
 
 function cursorRejected(error: unknown): boolean {
@@ -855,6 +856,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
           termsIndexed = true;
           return;
         }
+        await new Promise((resolve) => setTimeout(resolve, termPagePauseMs));
       }
     })()
       .catch(() => {
@@ -1373,7 +1375,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       let cursor: string | undefined;
       do {
         const page = await store.searchTerms(query, {
-          limit: 100,
+          limit: Math.min(100, Math.max(1, limit - found.length)),
           kinds: ["message"],
           ...(conversationId ? { conversationId } : {}),
           ...(excludeConversationId ? { excludeConversationId } : {}),

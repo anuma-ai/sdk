@@ -624,6 +624,7 @@ describe("keyword terms", () => {
     const cipher = memoryCipher(ring);
     const rows = new Map<string, WireSnapshot>();
     const posts: { path: string; body: Record<string, unknown> }[] = [];
+    const vault = { full: false };
     const respond = (input: RequestInfo | URL, init: RequestInit = {}) => {
       const url = new URL(input instanceof Request ? input.url : input);
       const path = url.pathname.replace("/api/private-chats", "");
@@ -637,6 +638,9 @@ describe("keyword terms", () => {
           })
         : undefined;
       if (body) posts.push({ path, body });
+      const items = (body?.writes ?? body?.records ?? []) as { terms?: string[] }[];
+      if (vault.full && items.some((item) => item.terms))
+        return Response.json({ code: "private_chat_term_limit_reached" }, { status: 413 });
       const keep = (record: WireSnapshot["record"], version: number) => {
         const row = { record, version, server_updated_at: "2026-11-18T00:00:00Z" };
         rows.set(`${record.kind}/${record.id}`, row);
@@ -666,7 +670,7 @@ describe("keyword terms", () => {
       ),
       ...options,
     });
-    return { store, posts, cipher };
+    return { store, posts, cipher, vault };
   }
 
   const message = (id: string, content: string): ChatRecord => ({
@@ -749,6 +753,27 @@ describe("keyword terms", () => {
     const page = await s.store.searchTerms!(words.join(" "));
     expect(page.items.map((i) => i.record.id)).toEqual(["m2"]);
     expect(s.posts.at(-1)!.body.terms).toHaveLength(32);
+  });
+
+  it("resends without terms once vault holds the account's limit, and stops indexing", async () => {
+    const s = await termSetup(true);
+    s.vault.full = true;
+    const writes = (body: Record<string, unknown>) =>
+      ((body.writes ?? body.records) as { terms?: string[] }[]).map((w) => w.terms);
+
+    const [saved] = await s.store.putMany([
+      { record: message("m1", "Coffee in Kyoto"), expectedVersion: 0 },
+    ]);
+    expect(saved.version).toBe(1);
+    expect(s.posts.map((p) => writes(p.body))).toEqual([
+      [expect.arrayContaining([expect.stringMatching(/^[0-9a-f]{16}$/)])],
+      [undefined],
+    ]);
+
+    await s.store.importRecords([{ record: message("m2", "Tea in Kyoto") }]);
+    expect(s.posts.slice(2).map((p) => writes(p.body))).toEqual([[undefined]]);
+    expect(await s.store.indexTermsPage!()).toEqual({ indexed: 0 });
+    expect(s.posts).toHaveLength(3);
   });
 
   it("indexes a page of records vault holds no terms for at the version it read", async () => {

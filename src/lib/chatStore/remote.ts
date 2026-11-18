@@ -384,9 +384,33 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
     return payload;
   };
 
+  let termsFull = false;
+
   const termFields = async (record: ChatRecord, payload: string) => {
-    const text = termHash && !record.isDeleted ? indexedText(record) : undefined;
+    const text = termHash && !termsFull && !record.isDeleted ? indexedText(record) : undefined;
     return text === undefined ? {} : { terms: await recordTerms(termHash!, text, payload.length) };
+  };
+
+  const postDroppingTermsWhenFull = async <T extends { terms?: string[] }>(
+    path: string,
+    body: (items: T[]) => object,
+    items: T[],
+    signal?: AbortSignal
+  ): Promise<unknown> => {
+    const send = (sent: T[]) =>
+      request(path, { method: "POST", body: JSON.stringify(body(sent)) }, signal);
+    try {
+      return await send(items);
+    } catch (error) {
+      if (
+        !(error instanceof ChatStoreError) ||
+        error.code !== "private_chat_term_limit_reached" ||
+        !items.some((item) => item.terms)
+      )
+        throw error;
+      termsFull = true;
+      return send(items.map((item) => ({ ...item, terms: undefined })));
+    }
   };
 
   const capture = <
@@ -436,12 +460,10 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         ...(await termFields(write.record, payload)),
       });
     }
-    const result = await request(
+    const result = await postDroppingTermsWhenFull(
       "/records/batch",
-      {
-        method: "POST",
-        body: JSON.stringify({ account_id: accountId, key_id: keyId, writes: prepared }),
-      },
+      (writes) => ({ account_id: accountId, key_id: keyId, writes }),
+      prepared,
       signal
     );
     if (!object(result) || !Array.isArray(result.items) || result.items.length !== prepared.length)
@@ -533,6 +555,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
 
   const indexTermsPage = async (cursor?: string, signal?: AbortSignal): Promise<ChatTermsPage> => {
     if (cursor !== undefined && (!text(cursor) || cursor.length > 2048)) invalid();
+    if (termsFull) return { indexed: 0 };
     const params = new URLSearchParams({ account_id: String(accountId), limit: "50" });
     if (cursor) params.set("cursor", cursor);
     const value = await request(`/terms/missing?${params}`, {}, signal);
@@ -707,12 +730,10 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
           ...(await termFields(item.record, payload)),
         });
       }
-      const value = await request(
+      const value = await postDroppingTermsWhenFull(
         "/import",
-        {
-          method: "POST",
-          body: JSON.stringify({ account_id: accountId, key_id: keyId, records: prepared }),
-        },
+        (records) => ({ account_id: accountId, key_id: keyId, records }),
+        prepared,
         signal
       );
       if (!object(value) || !integer(value.written) || value.written > prepared.length) invalid();
