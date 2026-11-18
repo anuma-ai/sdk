@@ -932,6 +932,8 @@ Defined in: [src/lib/storage/ChatBackend.ts:52](https://github.com/anuma-ai/sdk/
 
 Defined in: [src/lib/chatStore/vaultBackend.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#137)
 
+Copies imported conversations and messages into vault with their own ids, times and order, leaving ids vault already holds as they are.
+
 **Parameters**
 
 <table>
@@ -1116,7 +1118,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:54](https://github.com/anuma-ai/sdk/
 
 > **searchKeywords**(`query`: `string`, `options?`: [`ChatKeywordSearchOptions`](ChatKeywordSearchOptions.md)): `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#136)
+Defined in: [src/lib/chatStore/vaultBackend.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#135)
 
 Messages holding every word of `query` across this account's chats, newest first; empty when vault keeps no word hashes.
 

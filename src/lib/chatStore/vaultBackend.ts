@@ -131,9 +131,9 @@ export interface VaultChatBackend extends ChatBackend {
   flush(): Promise<void>;
   /** Applies changes other devices made since the last poll. */
   poll(): Promise<void>;
-  /** Copies imported conversations and messages into vault with their own ids, times and order, leaving ids vault already holds as they are. */
   /** Messages holding every word of `query` across this account's chats, newest first; empty when vault keeps no word hashes. */
   searchKeywords(query: string, options?: ChatKeywordSearchOptions): Promise<StoredMessage[]>;
+  /** Copies imported conversations and messages into vault with their own ids, times and order, leaving ids vault already holds as they are. */
   importChats(
     chats: readonly { conversation: StoredConversation; messages: readonly StoredMessage[] }[]
   ): Promise<{ conversations: number; messages: number }>;
