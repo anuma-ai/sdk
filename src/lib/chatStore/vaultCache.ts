@@ -6,6 +6,8 @@ import type { ChatSnapshot } from "./types";
 export interface ChatCacheStorage {
   get(key: string): Promise<string | null>;
   set(key: string, sealed: string | null): Promise<void>;
+  /** Lists the stored keys under `prefix` and returns none once a newer storage for the same account has opened, because the cache deletes every listed slot its index does not name. */
+  keys?(prefix: string): Promise<string[]>;
 }
 
 export interface ChatCacheSnapshot {
@@ -56,6 +58,15 @@ async function loadEntry(
   if (entry.account !== account || entry.key !== key || !Array.isArray(entry.records))
     return undefined;
   return entry.records;
+}
+
+async function storedSlots(storage: ChatCacheStorage, account: string): Promise<string[]> {
+  const prefix = `${account}/chat-cache/`;
+  try {
+    return (await storage.keys?.(prefix))?.filter((key) => key.startsWith(prefix)) ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function saveChatCache(
@@ -121,7 +132,10 @@ export async function saveChatCache(
     throw error;
   }
   const retained = new Set(entries.map(([, slot]) => slot));
-  const replaced = new Set(live?.values() ?? slots.values());
+  const replaced = new Set([
+    ...(live?.values() ?? slots.values()),
+    ...(await storedSlots(storage, snapshot.account)),
+  ]);
   await Promise.allSettled(
     [...replaced].filter((slot) => !retained.has(slot)).map((slot) => storage.set(slot, null))
   );
@@ -201,6 +215,7 @@ export async function clearChatCache(
 ): Promise<void> {
   const slots = new Set(previous?.entries?.map(([, slot]) => slot));
   for (const [, slot] of await storedChatCacheEntries(storage, account, decrypt)) slots.add(slot);
+  for (const slot of await storedSlots(storage, account)) slots.add(slot);
   await storage.set(account, null);
   await Promise.all([...slots].map((slot) => storage.set(slot, null)));
 }

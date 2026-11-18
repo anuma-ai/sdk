@@ -9,6 +9,7 @@ import { createVaultChatBackend, type VaultChatBackend, type VaultChatEvent } fr
 import {
   type ChatCacheSnapshot,
   type ChatCacheStorage,
+  clearChatCache,
   loadChatCache,
   saveChatCache,
   storedChatCacheEntries,
@@ -219,6 +220,60 @@ describe("vault chat cache", () => {
     expect(decrypt).toHaveBeenCalledTimes(502);
     storage.values.delete(saved.entries![500][1]);
     await expect(loadChatCache(storage, snapshot.account, decrypt)).resolves.toBeUndefined();
+  });
+
+  it("deletes slots an interrupted save left behind when the storage lists its keys", async () => {
+    const storage = cacheStorage();
+    const keys = vi.fn(() => Promise.resolve([...storage.values.keys()]));
+    const listed = Object.assign(storage, { keys });
+    const plain = (text: string) => Promise.resolve(text);
+    const snapshot = conversationCache(2);
+    const previous = await saveChatCache(listed, plain, snapshot);
+    await storage.set(`${snapshot.account}/chat-cache/orphan`, "sealed");
+    await storage.set("0xbbb/chat-cache/other", "sealed");
+    await storage.set("0xbbb", "sealed");
+
+    const next = { ...snapshot, cursor: "cursor_2" };
+    const saved = await saveChatCache(listed, plain, next, previous);
+
+    expect(keys).toHaveBeenCalledWith(`${snapshot.account}/chat-cache/`);
+    expect([...storage.values.keys()].sort()).toEqual(
+      ["0xbbb", "0xbbb/chat-cache/other", snapshot.account, saved.entries![0][1]].sort()
+    );
+    expect(await loadChatCache(storage, snapshot.account, plain)).toMatchObject(next);
+  });
+
+  it("still saves and deletes replaced slots when listing keys fails", async () => {
+    const storage = cacheStorage();
+    const listed = Object.assign(storage, {
+      keys: () => Promise.reject(new Error("storage unavailable")),
+    });
+    const plain = (text: string) => Promise.resolve(text);
+    const previous = await saveChatCache(listed, plain, conversationCache(2));
+    const changed = conversationCache(3);
+
+    const saved = await saveChatCache(listed, plain, changed, previous);
+
+    expect([...storage.values.keys()].sort()).toEqual(
+      [changed.account, saved.entries![0][1]].sort()
+    );
+    expect(await loadChatCache(storage, changed.account, plain)).toMatchObject(changed);
+  });
+
+  it("clears slots no index names", async () => {
+    const storage = cacheStorage();
+    const listed = Object.assign(storage, {
+      keys: () => Promise.resolve([...storage.values.keys()]),
+    });
+    const plain = (text: string) => Promise.resolve(text);
+    const snapshot = conversationCache(2);
+    const previous = await saveChatCache(listed, plain, snapshot);
+    await storage.set(`${snapshot.account}/chat-cache/orphan`, "sealed");
+    await storage.set("0xbbb", "sealed");
+
+    await clearChatCache(listed, snapshot.account, plain, previous);
+
+    expect([...storage.values.keys()]).toEqual(["0xbbb"]);
   });
 
   it("reuses sealed records when only the cache cursor changes", async () => {
