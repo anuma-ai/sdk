@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { getLogger, type Logger, setLogger } from "../logger";
+import rewardVector from "./fixtures/inboxRewardVector.json";
 import vector from "./fixtures/inboxSealVector.json";
-import { createVaultInbox, exportInboxPublicKey, openInboxItem } from "./inbox";
+import { createVaultInbox, exportInboxPublicKey, openInboxItem, openSealedText } from "./inbox";
 
 function fromBase64Url(value: string): Uint8Array {
   const padded = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -72,6 +74,96 @@ describe("openInboxItem", () => {
         await recipientKeyPair()
       )
     ).rejects.toThrow("Unsupported inbox envelope");
+  });
+});
+
+describe("openSealedText", () => {
+  function rewardEnvelope(): Record<string, unknown> {
+    return JSON.parse(rewardVector.sealed) as Record<string, unknown>;
+  }
+
+  it("opens portal's sealed reward code to its exact text", async () => {
+    expect(rewardVector.recipient_public_key).toBe(vector.recipient_public_key);
+    await expect(
+      openSealedText(rewardVector.sealed, rewardVector.seal_id, await recipientKeyPair())
+    ).resolves.toBe(rewardVector.plaintext);
+  });
+
+  it.each(["referral-reward-claim-43", "referral-reward-claim-4", "", vector.id])(
+    "rejects the envelope under the seal id %j",
+    async (sealId) => {
+      await expect(
+        openSealedText(rewardVector.sealed, sealId, await recipientKeyPair())
+      ).rejects.toThrow();
+    }
+  );
+
+  it.each([{ alg: "ECDH-ES+A256KW" }, { alg: undefined }, { v: 2 }, { v: "1" }])(
+    "rejects an envelope with %j",
+    async (change) => {
+      await expect(
+        openSealedText(
+          JSON.stringify({ ...rewardEnvelope(), ...change }),
+          rewardVector.seal_id,
+          await recipientKeyPair()
+        )
+      ).rejects.toThrow("Unsupported inbox envelope");
+    }
+  );
+
+  it.each([
+    ["not JSON", "{"],
+    ["null", "null"],
+    ["a short iv", JSON.stringify({ ...rewardEnvelope(), iv: "AAAA" })],
+    ["a non-base64url epk", JSON.stringify({ ...rewardEnvelope(), epk: "a+b/" })],
+  ])("rejects a malformed envelope: %s", async (_label, sealed) => {
+    await expect(
+      openSealedText(sealed, rewardVector.seal_id, await recipientKeyPair())
+    ).rejects.toThrow();
+  });
+
+  it("rejects a reward code sealed to another key", async () => {
+    const other = (await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+      "deriveBits",
+      "deriveKey",
+    ])) as CryptoKeyPair;
+    await expect(
+      openSealedText(rewardVector.sealed, rewardVector.seal_id, other)
+    ).rejects.toThrow();
+  });
+
+  it("puts no key material in a log line, a return value or an error", async () => {
+    const secrets = [
+      vector.recipient_private_key_hex,
+      vector.recipient_private_jwk.d,
+      vector.ephemeral_private_key_hex,
+    ];
+    const lines: unknown[] = [];
+    const record = (...args: unknown[]) => void lines.push(...args);
+    const capture: Logger = { debug: record, info: record, warn: record, error: record };
+    const previous = getLogger();
+    const consoleSpies = (["log", "info", "warn", "error", "debug"] as const).map((level) =>
+      vi.spyOn(console, level).mockImplementation(record)
+    );
+    setLogger(capture);
+    const outputs: string[] = [];
+    try {
+      const keyPair = await recipientKeyPair();
+      outputs.push(await openSealedText(rewardVector.sealed, rewardVector.seal_id, keyPair));
+      for (const sealId of ["referral-reward-claim-43", ""]) {
+        const failure = await openSealedText(rewardVector.sealed, sealId, keyPair).catch(
+          (err: unknown) => err
+        );
+        outputs.push(String(failure), JSON.stringify(failure));
+      }
+    } finally {
+      setLogger(previous);
+      for (const spy of consoleSpies) spy.mockRestore();
+    }
+    const seen = [...outputs, ...lines.map((line) => String(line))].join("\n");
+    expect(outputs[0]).toBe(rewardVector.plaintext);
+    for (const secret of secrets) expect(seen).not.toContain(secret);
+    expect(lines).toEqual([]);
   });
 });
 

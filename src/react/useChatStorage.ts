@@ -14,6 +14,7 @@ import {
   deliverInboxAnswers,
   exportInboxPublicKey,
   type InboxDeliveryResult,
+  openSealedText,
   type VaultInbox,
 } from "../lib/chat/inbox";
 import type {
@@ -994,6 +995,8 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
 
   /** Register the inbox public key, then store and remove every answer portal sealed into the inbox. */
   deliverInbox: () => Promise<InboxDeliveryResult[]>;
+  /** Open text that portal sealed to the inbox public key under `sealId`, such as a reward code. */
+  openSealedWithInboxKey: (sealed: string, sealId: string) => Promise<string>;
 }
 
 const NO_STORE_FOLDERS = "Folders are not supported with a memoryStore";
@@ -3257,6 +3260,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const detachedToolsRef = useRef(detachedTools);
   detachedToolsRef.current = detachedTools;
+  const openSealedWithInboxKey = useCallback(
+    async (sealed: string, sealId: string): Promise<string> => {
+      if (!walletAddress || !signMessage) {
+        throw new Error("No inbox key: set walletAddress and signMessage to open a sealed value");
+      }
+      const keyPair = await getKeyPair(walletAddress, signMessage, embeddedWalletSigner);
+      return openSealedText(sealed, sealId, keyPair);
+    },
+    [walletAddress, signMessage, embeddedWalletSigner]
+  );
+
   const registeredInboxKeyRef = useRef<{ inbox: VaultInbox; publicKey: string } | null>(null);
   const deliverInbox = useCallback(async (): Promise<InboxDeliveryResult[]> => {
     if (!inbox || !walletAddress || !signMessage) return [];
@@ -3337,6 +3351,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     stop,
     getActiveStreams,
     deliverInbox,
+    openSealedWithInboxKey,
     watchStream,
     conversationId: currentConversationId,
     setConversationId: setCurrentConversationId,

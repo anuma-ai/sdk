@@ -1,0 +1,7 @@
+{
+  "description": "Reward code envelope: portal inboxseal.Seal of plaintext to the inboxSealVector recipient key, with the inboxSealVector ephemeral key and iv, under the seal id referral-reward-claim-42.",
+  "recipient_public_key": "BK-v71V6zCq-i1z6Nb88cbcLGACwuC-SoKkNspBeOESsRuDreE8TvFrHMTTPuXBv8iZZ_IaRpt9X1djVA61bS_A",
+  "seal_id": "referral-reward-claim-42",
+  "plaintext": "TEST-REWARD-CODE-0000",
+  "sealed": "{\"v\":1,\"alg\":\"ECDH-ES+HKDF-SHA256+A256GCM\",\"epk\":\"BCw3TFljl-ZX_39Pu8pB6_lM8Bu6J7XzQ2pDo9cxU1SZvNOPn8wP3TYs2u9verXo8E3OLdDQRg5h1983jXwWL5s\",\"iv\":\"gU7xYDM0GV2e9qIi\",\"ct\":\"W6kIbKCVlkFFKNnrDpc9tqYHuy5ykb6KNPLi9g9Jyd-zrd-fKw\"}"
+}

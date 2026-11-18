@@ -95,12 +95,13 @@ export async function exportInboxPublicKey(publicKey: CryptoKey): Promise<string
   return toBase64Url(new Uint8Array(await crypto.subtle.exportKey("raw", publicKey)));
 }
 
-/** Decrypt a sealed inbox item with the account's ECDH key pair. */
-export async function openInboxItem(
-  item: Pick<InboxItem, "id" | "sealed">,
+async function openEnvelope(
+  sealed: string,
+  sealId: string,
   keyPair: CryptoKeyPair
-): Promise<InboxPlaintext> {
-  const envelope = JSON.parse(item.sealed) as Record<string, unknown>;
+): Promise<ArrayBuffer> {
+  const envelope = JSON.parse(sealed) as Record<string, unknown> | null;
+  if (!envelope || typeof envelope !== "object") throw new Error("Malformed inbox envelope");
   if (envelope.v !== 1 || envelope.alg !== ENVELOPE_ALG) {
     throw new Error("Unsupported inbox envelope");
   }
@@ -128,18 +129,34 @@ export async function openInboxItem(
 
   const ikm = await crypto.subtle.importKey("raw", shared, "HKDF", false, ["deriveKey"]);
   const key = await crypto.subtle.deriveKey(
-    { name: "HKDF", hash: "SHA-256", salt, info: encoder.encode(HKDF_INFO_PREFIX + item.id) },
+    { name: "HKDF", hash: "SHA-256", salt, info: encoder.encode(HKDF_INFO_PREFIX + sealId) },
     ikm,
     { name: "AES-GCM", length: 256 },
     false,
     ["decrypt"]
   );
-  const plaintext = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv, additionalData: encoder.encode(item.id) },
+  return crypto.subtle.decrypt(
+    { name: "AES-GCM", iv, additionalData: encoder.encode(sealId) },
     key,
     ciphertext
   );
+}
 
+/** Decrypt text that portal sealed to the account's inbox public key under a seal id. */
+export async function openSealedText(
+  sealed: string,
+  sealId: string,
+  keyPair: CryptoKeyPair
+): Promise<string> {
+  return new TextDecoder().decode(await openEnvelope(sealed, sealId, keyPair));
+}
+
+/** Decrypt a sealed inbox item with the account's ECDH key pair. */
+export async function openInboxItem(
+  item: Pick<InboxItem, "id" | "sealed">,
+  keyPair: CryptoKeyPair
+): Promise<InboxPlaintext> {
+  const plaintext = await openEnvelope(item.sealed, item.id, keyPair);
   const opened = JSON.parse(new TextDecoder().decode(plaintext)) as InboxPlaintext;
   if (opened.v !== 1 || opened.inference_id !== item.id || !opened.response) {
     throw new Error("Inbox item does not match its id");
