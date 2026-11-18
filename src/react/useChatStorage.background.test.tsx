@@ -19,13 +19,13 @@ vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../lib/memoryEngine/generate")>();
   return {
     ...orig,
-    generateEmbedding: async () => [0.1, 0.2, 0.3],
-    generateEmbeddings: async (texts: string[]) => texts.map(() => [0.1, 0.2, 0.3]),
+    generateEmbedding: () => Promise.resolve([0.1, 0.2, 0.3]),
+    generateEmbeddings: (texts: string[]) => Promise.resolve(texts.map(() => [0.1, 0.2, 0.3])),
   };
 });
 
 import { sealInboxItem, sealInboxText } from "../lib/chat/fixtures/sealInboxItem";
-import type { InboxItem, VaultInbox } from "../lib/chat/inbox";
+import { type InboxItem, openInboxSealedText, type VaultInbox } from "../lib/chat/inbox";
 import { listActiveStreams, resumeStream } from "../lib/chat/resumeStream";
 import { runToolLoop } from "../lib/chat/toolLoop";
 import { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
@@ -70,7 +70,7 @@ function renderStorage(options: { background?: boolean } = {}) {
     useChatStorage({
       database,
       conversationId: "conv_bg",
-      getToken: async () => "tok",
+      getToken: () => Promise.resolve("tok"),
       baseUrl: "https://portal.example",
       resumable: true,
       background: options.background ?? true,
@@ -84,10 +84,10 @@ describe("useChatStorage background turns", () => {
   });
 
   it("stores the live answer under the turn's reply id and tells portal both ids", async () => {
-    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+    vi.mocked(runToolLoop).mockImplementation((options) => {
       options.onStreamMeta?.({ inferenceId: "0xround0", round: 0 });
       options.onStreamMeta?.({ inferenceId: "0xround1", round: 1 });
-      return { data: answer("Final."), error: null } as never;
+      return Promise.resolve({ data: answer("Final."), error: null } as never);
     });
     const { result } = renderStorage();
 
@@ -118,9 +118,9 @@ describe("useChatStorage background turns", () => {
   });
 
   it("writes no assistant or error row when the turn detaches", async () => {
-    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+    vi.mocked(runToolLoop).mockImplementation((options) => {
       options.onStreamMeta?.({ inferenceId: "0xdetached", round: 0 });
-      return { data: null, error: "network error", connectionLost: true } as never;
+      return Promise.resolve({ data: null, error: "network error", connectionLost: true } as never);
     });
     const { result } = renderStorage();
 
@@ -140,9 +140,9 @@ describe("useChatStorage background turns", () => {
   });
 
   it("stores a provider error under the turn's reply id instead of detaching", async () => {
-    vi.mocked(runToolLoop).mockImplementation(async (options) => {
+    vi.mocked(runToolLoop).mockImplementation((options) => {
       options.onStreamMeta?.({ inferenceId: "0xprovider", round: 0 });
-      return { data: null, error: "Provider rate limited" } as never;
+      return Promise.resolve({ data: null, error: "Provider rate limited" } as never);
     });
     const { result } = renderStorage();
 
@@ -276,9 +276,10 @@ describe("useChatStorage background turns", () => {
       const removed: string[] = [];
       const registered: string[] = [];
       const inbox: VaultInbox = {
-        putPublicKey: async (key) => {
+        putPublicKey: (key) => {
           publicKey = key;
           registered.push(key);
+          return Promise.resolve();
         },
         list: async () => {
           const items: InboxItem[] = [];
@@ -292,14 +293,15 @@ describe("useChatStorage background turns", () => {
           }
           return items;
         },
-        remove: async (id) => {
+        remove: (id) => {
           removed.push(id);
+          return Promise.resolve();
         },
       };
       return { inbox, removed, registered };
     }
 
-    const walletSigner = vi.fn(async () => "0x" + "ab".repeat(65));
+    const walletSigner = vi.fn(() => Promise.resolve("0x" + "ab".repeat(65)));
 
     async function deviceWithTurn(...parents: string[]): Promise<Database> {
       const database = makeDatabase();
@@ -326,7 +328,7 @@ describe("useChatStorage background turns", () => {
         useChatStorage({
           database,
           conversationId: "conv_bg",
-          getToken: async () => "tok",
+          getToken: () => Promise.resolve("tok"),
           walletAddress: "0x1111111111111111111111111111111111111111",
           signMessage: walletSigner,
           resumable: true,
@@ -368,12 +370,36 @@ describe("useChatStorage background turns", () => {
         expect(await view.result.current.getMessages("conv_bg")).toEqual(before);
       });
 
+      it("opens an envelope to the same text as openInboxSealedText", async () => {
+        const database = await deviceWithTurn("msg_parent");
+        const { registered, view } = await registeredKey(database);
+        const sealed = await sealInboxText(
+          registered[0],
+          "referral-reward-claim-9",
+          "TEST-REWARD-CODE-0009"
+        );
+        const fromHook = await view.result.current.openSealedWithInboxKey(
+          sealed,
+          "referral-reward-claim-9"
+        );
+        const standalone = await openInboxSealedText(
+          {
+            walletAddress: "0x1111111111111111111111111111111111111111",
+            signMessage: walletSigner,
+          },
+          sealed,
+          "referral-reward-claim-9"
+        );
+        expect(fromHook).toBe("TEST-REWARD-CODE-0009");
+        expect(standalone).toBe(fromHook);
+      });
+
       it("throws a clear error before the inbox key exists", async () => {
         const { result } = renderHook(() =>
           useChatStorage({
             database: makeDatabase(),
             conversationId: "conv_bg",
-            getToken: async () => "tok",
+            getToken: () => Promise.resolve("tok"),
             inbox: fakeInbox([]).inbox,
           })
         );
@@ -384,7 +410,7 @@ describe("useChatStorage background turns", () => {
     });
 
     it("draws the card a detached turn ended on, from the device's own display tool", async () => {
-      const draw = vi.fn(async (args: Record<string, unknown>) => ({ chart: args.title }));
+      const draw = vi.fn((args: Record<string, unknown>) => Promise.resolve({ chart: args.title }));
       const response = answer("Here is the chart.");
       (response.output as unknown[]).push({
         type: "function_call",
@@ -425,7 +451,7 @@ describe("useChatStorage background turns", () => {
     });
 
     it("never saves a memory the portal left unanswered when the turn paused", async () => {
-      const save = vi.fn(async () => "Memory saved.");
+      const save = vi.fn(() => Promise.resolve("Memory saved."));
       const response = answer("Let me save that.");
       (response.output as unknown[]).push({
         type: "function_call",
@@ -463,7 +489,9 @@ describe("useChatStorage background turns", () => {
 
     it("keeps the item when the card's result cannot be saved, and saves it on the next delivery", async () => {
       let attempt = 0;
-      const draw = vi.fn(async () => (++attempt === 1 ? { size: BigInt(1) } : { chart: "Rain" }));
+      const draw = vi.fn(() =>
+        Promise.resolve(++attempt === 1 ? { size: BigInt(1) } : { chart: "Rain" })
+      );
       const response = answer("Here is the chart.");
       (response.output as unknown[]).push({
         type: "function_call",
@@ -555,7 +583,7 @@ describe("useChatStorage background turns", () => {
           useChatStorage({
             database,
             conversationId: "conv_bg",
-            getToken: async () => "tok",
+            getToken: () => Promise.resolve("tok"),
             walletAddress: "0x1111111111111111111111111111111111111111",
             signMessage: walletSigner,
             resumable: true,
@@ -756,11 +784,9 @@ describe("useChatStorage background turns", () => {
     });
 
     it("does nothing without a signed-in wallet", async () => {
-      const inbox: VaultInbox = {
-        putPublicKey: vi.fn(),
-        list: vi.fn(async () => []),
-        remove: vi.fn(),
-      };
+      const putPublicKey = vi.fn<VaultInbox["putPublicKey"]>();
+      const list = vi.fn<VaultInbox["list"]>(() => Promise.resolve([]));
+      const inbox: VaultInbox = { putPublicKey, list, remove: vi.fn() };
       const database = makeDatabase();
       const { result } = renderHook(() =>
         useChatStorage({ database, conversationId: "conv_bg", inbox })
@@ -772,8 +798,8 @@ describe("useChatStorage background turns", () => {
       });
 
       expect(delivered).toEqual([]);
-      expect(inbox.putPublicKey).not.toHaveBeenCalled();
-      expect(inbox.list).not.toHaveBeenCalled();
+      expect(putPublicKey).not.toHaveBeenCalled();
+      expect(list).not.toHaveBeenCalled();
     });
   });
 });

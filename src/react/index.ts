@@ -89,7 +89,12 @@ export {
   isAttachedFilesText,
 } from "../lib/chat/fileContext";
 export type { InboxDeliveryResult, InboxItem, InboxPlaintext, VaultInbox } from "../lib/chat/inbox";
-export { createVaultInbox, exportInboxPublicKey, openInboxItem } from "../lib/chat/inbox";
+export {
+  createVaultInbox,
+  exportInboxPublicKey,
+  openInboxItem,
+  openInboxSealedText,
+} from "../lib/chat/inbox";
 export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
 export type { ReservationReceipt } from "../lib/chat/reservationReceipts";
 export { extractReservationReceipts } from "../lib/chat/reservationReceipts";

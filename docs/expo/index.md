@@ -2002,6 +2002,12 @@ Re-exports [openInboxItem](../react/Internal/functions/openInboxItem.md)
 
 ***
 
+### openInboxSealedText
+
+Re-exports [openInboxSealedText](../react/Internal/functions/openInboxSealedText.md)
+
+***
+
 ### parseMedia
 
 Re-exports [parseMedia](../react/Internal/functions/parseMedia.md)

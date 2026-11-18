@@ -14,7 +14,7 @@ import {
   deliverInboxAnswers,
   exportInboxPublicKey,
   type InboxDeliveryResult,
-  openSealedText,
+  openInboxSealedText,
   type VaultInbox,
 } from "../lib/chat/inbox";
 import type {
@@ -3261,13 +3261,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const detachedToolsRef = useRef(detachedTools);
   detachedToolsRef.current = detachedTools;
   const openSealedWithInboxKey = useCallback(
-    async (sealed: string, sealId: string): Promise<string> => {
-      if (!walletAddress || !signMessage) {
-        throw new Error("No inbox key: set walletAddress and signMessage to open a sealed value");
-      }
-      const keyPair = await getKeyPair(walletAddress, signMessage, embeddedWalletSigner);
-      return openSealedText(sealed, sealId, keyPair);
-    },
+    (sealed: string, sealId: string): Promise<string> =>
+      openInboxSealedText(
+        { walletAddress: walletAddress ?? "", signMessage: signMessage!, embeddedWalletSigner },
+        sealed,
+        sealId
+      ),
     [walletAddress, signMessage, embeddedWalletSigner]
   );
 

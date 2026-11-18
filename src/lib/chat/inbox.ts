@@ -1,3 +1,8 @@
+import {
+  type EmbeddedWalletSignerFn,
+  getKeyPair,
+  type SignMessageFn,
+} from "../../react/useEncryption";
 import type { StoredMessage } from "../db/chat/types";
 import { createNearbyRequest } from "../memory/store/remotePersistence";
 import type { ChatBackend } from "../storage/ChatBackend";
@@ -149,6 +154,27 @@ export async function openSealedText(
   keyPair: CryptoKeyPair
 ): Promise<string> {
   return new TextDecoder().decode(await openEnvelope(sealed, sealId, keyPair));
+}
+
+/**
+ * Open text that portal sealed to the wallet's inbox key under a seal id.
+ * @public
+ */
+export async function openInboxSealedText(
+  options: {
+    walletAddress: string;
+    signMessage: SignMessageFn;
+    embeddedWalletSigner?: EmbeddedWalletSignerFn;
+  },
+  sealed: string,
+  sealId: string
+): Promise<string> {
+  const { walletAddress, signMessage, embeddedWalletSigner } = options;
+  if (!walletAddress || !signMessage) {
+    throw new Error("No inbox key: set walletAddress and signMessage to open a sealed value");
+  }
+  const keyPair = await getKeyPair(walletAddress, signMessage, embeddedWalletSigner);
+  return openSealedText(sealed, sealId, keyPair);
 }
 
 /** Decrypt a sealed inbox item with the account's ECDH key pair. */
