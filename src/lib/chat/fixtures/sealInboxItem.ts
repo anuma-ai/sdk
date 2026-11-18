@@ -19,6 +19,14 @@ export async function sealInboxItem(
   id: string,
   plaintext: unknown
 ): Promise<string> {
+  return sealInboxText(recipientPublicKey, id, JSON.stringify(plaintext));
+}
+
+export async function sealInboxText(
+  recipientPublicKey: string,
+  id: string,
+  plaintext: string
+): Promise<string> {
   const recipientRaw = fromBase64Url(recipientPublicKey);
   const recipient = await crypto.subtle.importKey(
     "raw",
@@ -50,7 +58,7 @@ export async function sealInboxItem(
     await crypto.subtle.encrypt(
       { name: "AES-GCM", iv, additionalData: encoder.encode(id) },
       key,
-      encoder.encode(JSON.stringify(plaintext))
+      encoder.encode(plaintext)
     )
   );
   return JSON.stringify({

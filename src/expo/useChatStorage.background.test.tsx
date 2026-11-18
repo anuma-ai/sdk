@@ -36,7 +36,7 @@ vi.mock("../lib/memoryEngine/generate", async (importOriginal) => {
   };
 });
 
-import { sealInboxItem } from "../lib/chat/fixtures/sealInboxItem";
+import { sealInboxItem, sealInboxText } from "../lib/chat/fixtures/sealInboxItem";
 import type { InboxItem, VaultInbox } from "../lib/chat/inbox";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { listActiveStreams, resumeStream, StreamExpiredError } from "../lib/chat/resumeStream";
@@ -497,6 +497,47 @@ describe("expo useChatStorage background turns", () => {
       });
       return database;
     }
+
+    describe("openSealedWithInboxKey", () => {
+      it("opens a reward code sealed to the key that deliverInbox registers", async () => {
+        let registered: string | null = null;
+        const { inbox } = fakeInbox([]);
+        const putPublicKey = inbox.putPublicKey;
+        inbox.putPublicKey = async (key) => {
+          registered = key;
+          await putPublicKey(key);
+        };
+        const { result } = renderStorage({
+          database: await deviceWithParent("msg_p"),
+          inbox,
+          withWallet: true,
+        });
+        await act(async () => {
+          await result.current.deliverInbox();
+        });
+        const sealedCode = await sealInboxText(
+          registered!,
+          "referral-reward-claim-7",
+          "TEST-REWARD-CODE-0007"
+        );
+        const before = await result.current.getMessages("conv_bg");
+
+        await expect(
+          result.current.openSealedWithInboxKey(sealedCode, "referral-reward-claim-7")
+        ).resolves.toBe("TEST-REWARD-CODE-0007");
+        await expect(
+          result.current.openSealedWithInboxKey(sealedCode, "referral-reward-claim-8")
+        ).rejects.toThrow();
+        expect(await result.current.getMessages("conv_bg")).toEqual(before);
+      });
+
+      it("throws a clear error before the inbox key exists", async () => {
+        const { result } = renderStorage({ inbox: fakeInbox([]).inbox });
+        await expect(
+          result.current.openSealedWithInboxKey("{}", "referral-reward-claim-7")
+        ).rejects.toThrow("No inbox key");
+      });
+    });
 
     it("draws the card a detached turn ended on when its answer arrives", async () => {
       const draw = vi.fn(async () => ({ chart: "Rain" }));

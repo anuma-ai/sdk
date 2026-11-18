@@ -13,6 +13,7 @@ import {
   deliverInboxAnswers,
   exportInboxPublicKey,
   type InboxDeliveryResult,
+  openSealedText,
   type VaultInbox,
 } from "../lib/chat/inbox";
 import type {
@@ -543,6 +544,8 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   watchStream: (stream: ActiveStream) => Promise<ResumeStreamResult>;
   /** Register the inbox public key, then store and remove every answer portal sealed into the inbox. */
   deliverInbox: () => Promise<InboxDeliveryResult[]>;
+  /** Open text that portal sealed to the inbox public key under `sealId`, such as a reward code. */
+  openSealedWithInboxKey: (sealed: string, sealId: string) => Promise<string>;
   /**
    * Create a memory engine tool for LLM to search past conversations.
    * The tool is pre-configured with the hook's storage context and auth.
@@ -2958,6 +2961,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     [baseResumeStream, replayRedactorFor, currentConversationId]
   );
 
+  const openSealedWithInboxKey = useCallback(
+    async (sealed: string, sealId: string): Promise<string> => {
+      if (!walletAddress || !signMessage) {
+        throw new Error("No inbox key: set walletAddress and signMessage to open a sealed value");
+      }
+      const keyPair = await getKeyPair(walletAddress, signMessage, embeddedWalletSigner);
+      return openSealedText(sealed, sealId, keyPair);
+    },
+    [walletAddress, signMessage, embeddedWalletSigner]
+  );
+
   const registeredInboxKeyRef = useRef<{ inbox: VaultInbox; publicKey: string } | null>(null);
   const deliverInbox = useCallback(async (): Promise<InboxDeliveryResult[]> => {
     if (!inbox || !walletAddress || !signMessage) return [];
@@ -3047,6 +3061,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     getActiveStreams,
     watchStream,
     deliverInbox,
+    openSealedWithInboxKey,
     conversationId: currentConversationId,
     setConversationId: setCurrentConversationId,
     createConversation,
