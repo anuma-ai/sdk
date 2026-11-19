@@ -444,6 +444,28 @@ describe("vault chat cache", () => {
     ]);
   });
 
+  it("returns cached files on an offline cold start", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("57");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const b = backend(fake.store, { cache });
+    await b.createConversation({ conversationId: "conv_a" });
+    await b.createMessage({
+      conversationId: "conv_a",
+      role: "user",
+      content: "with file",
+      uniqueId: "msg_a",
+      files: [{ id: "file_a", name: "a.txt", type: "text/plain", size: 1 }],
+    });
+    await b.flush();
+    await cached(storage, seal, cache.account, (c) => expect(ids(c)).toContain("msg_a"));
+    b.close();
+
+    const cold = backend(offline, { cache });
+    expect((await cold.getAllFiles()).map((file) => file.id)).toEqual(["file_a"]);
+  });
+
   it("caps cached messages and reloads the complete thread when vault answers", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");

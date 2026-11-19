@@ -724,6 +724,111 @@ describe("vault chat backend", () => {
     expect((await fake.row("message", "msg_long"))?.record.data.chunkOffsets).toHaveLength(16);
   });
 
+  it.each(["message", "conversation"] as const)(
+    "excludes a local %s deletion from vector search during rate-limit backoff",
+    async (kind) => {
+      const fake = await createChatStoreHarness();
+      const { b } = backend(fake);
+      await b.createConversation({ conversationId: "conv_1" });
+      await b.createConversation({ conversationId: "conv_2" });
+      for (const [id, conversationId] of [
+        ["msg_deleted", kind === "message" ? "conv_1" : "conv_2"],
+        ["msg_kept", "conv_1"],
+      ])
+        await b.createMessage({
+          conversationId,
+          role: "user",
+          content: id,
+          uniqueId: id,
+          vector: unit(1),
+        });
+      await b.flush();
+
+      fake.fail({
+        op: "putMany",
+        error: new ChatStoreError("busy", 429, "rate_limited", 60_000),
+        sticky: true,
+      });
+      if (kind === "message") await b.deleteMessage("msg_deleted");
+      else await b.deleteConversation("conv_2");
+      await b.flush();
+
+      expect(b.status().pending).toBeGreaterThan(0);
+      expect((await fake.row("message", "msg_deleted"))?.record.isDeleted).toBe(false);
+      expect(
+        (await b.getMessagesByIds(["msg_deleted", "msg_kept"])).map((m) => m.uniqueId)
+      ).toEqual(["msg_kept"]);
+      expect((await b.searchChunks(unit(1))).map((h) => h.message.uniqueId)).toEqual(["msg_kept"]);
+    }
+  );
+
+  it("returns a live match below a locally deleted top match when limit is 1", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1" });
+    const near = unit(1);
+    near[1] = 0.8;
+    near[2] = 0.6;
+    for (const [id, vector] of [
+      ["msg_deleted", unit(1)],
+      ["msg_kept", near],
+    ] as const)
+      await b.createMessage({
+        conversationId: "conv_1",
+        role: "user",
+        content: id,
+        uniqueId: id,
+        vector,
+      });
+    await b.flush();
+
+    fake.fail({
+      op: "putMany",
+      error: new ChatStoreError("busy", 429, "rate_limited", 60_000),
+      sticky: true,
+    });
+    await b.deleteMessage("msg_deleted");
+    await b.flush();
+
+    expect(b.status().pending).toBeGreaterThan(0);
+    const hits = await b.searchChunks(unit(1), { limit: 1 });
+    expect(hits.map((h) => h.message.uniqueId)).toEqual(["msg_kept"]);
+  });
+
+  it("applies local content and chunk offsets to vector hits during rate-limit backoff", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1" });
+    await b.createMessage({
+      conversationId: "conv_1",
+      role: "user",
+      content: "alpha beta gamma",
+      uniqueId: "msg_1",
+    });
+    await b.updateMessageChunks("msg_1", [{ vector: unit(1), startOffset: 6, endOffset: 10 }], "m");
+    await b.flush();
+
+    fake.fail({
+      op: "putMany",
+      error: new ChatStoreError("busy", 429, "rate_limited", 60_000),
+      sticky: true,
+    });
+    await b.upsertMessage({
+      conversationId: "conv_1",
+      role: "user",
+      content: "theta omega delta",
+      uniqueId: "msg_1",
+    });
+    await b.updateMessageChunks("msg_1", [{ vector: unit(1), startOffset: 6, endOffset: 11 }], "m");
+    await b.flush();
+
+    expect(b.status().pending).toBeGreaterThan(0);
+    expect((await fake.row("message", "msg_1"))?.record.data.content).toBe("alpha beta gamma");
+    expect(await b.searchChunks(unit(1))).toMatchObject([
+      { message: { uniqueId: "msg_1", content: "theta omega delta" }, chunkText: "omega" },
+    ]);
+  });
+
   it("skips vectors vault cannot index instead of failing the write", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake);
@@ -931,6 +1036,123 @@ describe("vault chat backend", () => {
     const list = vi.spyOn(fake.store, "list");
     expect(await b.getMessagesPage("conv_pages", { limit })).toEqual([]);
     expect(list).not.toHaveBeenCalled();
+  });
+
+  it("returns all files before a thread opens and after cache eviction", async () => {
+    const fake = await createChatStoreHarness();
+    let at = 100;
+    const writer = backend(fake, { now: () => at }).b;
+    await writer.createConversation({ conversationId: "conv_1" });
+    await writer.createConversation({ conversationId: "conv_2" });
+    for (const [conversationId, uniqueId] of [
+      ["conv_1", "msg_1"],
+      ["conv_2", "msg_2"],
+      ["conv_1", "msg_3"],
+    ]) {
+      at += 100;
+      await writer.createMessage({
+        conversationId,
+        uniqueId,
+        role: "user",
+        content: uniqueId,
+        files: [{ id: uniqueId, name: `${uniqueId}.txt`, type: "text/plain", size: 1 }],
+      });
+    }
+    await writer.flush();
+
+    const { b } = backend(fake, { threadCacheSize: 1 });
+    const original = fake.store.list.bind(fake.store);
+    const list = vi
+      .spyOn(fake.store, "list")
+      .mockImplementation((query) =>
+        original(query.kind === "message" ? { ...query, limit: 1 } : query)
+      );
+
+    expect((await b.getAllFiles()).map((file) => file.id)).toEqual(["msg_3", "msg_2", "msg_1"]);
+    expect(list.mock.calls.filter(([query]) => query.kind === "message")).toHaveLength(3);
+    expect(list.mock.calls.some(([query]) => query.cursor)).toBe(true);
+    expect(await b.getAllFiles({ limit: 1 })).toEqual([
+      {
+        id: "msg_3",
+        name: "msg_3.txt",
+        type: "text/plain",
+        size: 1,
+        conversationId: "conv_1",
+        createdAt: new Date(400),
+        messageRole: "user",
+      },
+    ]);
+    expect((await b.getAllFiles({ conversationId: "conv_1" })).map((file) => file.id)).toEqual([
+      "msg_3",
+      "msg_1",
+    ]);
+    await b.getMessages("conv_2");
+    expect((await b.getAllFiles()).map((file) => file.id)).toEqual(["msg_3", "msg_2", "msg_1"]);
+  });
+
+  it("applies local file edits and deletions before the global file limit", async () => {
+    const fake = await createChatStoreHarness();
+    let at = 100;
+    const writer = backend(fake, { now: () => at }).b;
+    for (const conversationId of ["conv_1", "conv_2", "conv_3"])
+      await writer.createConversation({ conversationId });
+    for (const [conversationId, uniqueId] of [
+      ["conv_1", "msg_edit"],
+      ["conv_3", "msg_stored"],
+      ["conv_1", "msg_delete"],
+      ["conv_2", "msg_hidden"],
+    ]) {
+      at += 100;
+      await writer.createMessage({
+        conversationId,
+        uniqueId,
+        role: "assistant",
+        content: uniqueId,
+        files: [{ id: uniqueId, name: `${uniqueId}.txt`, type: "text/plain", size: 1 }],
+      });
+    }
+    await writer.flush();
+
+    const { b } = backend(fake, { now: () => 600, threadCacheSize: 1 });
+    await b.upsertMessage({
+      conversationId: "conv_1",
+      uniqueId: "msg_edit",
+      role: "assistant",
+      content: "msg_edit",
+      files: [{ id: "edited", name: "edited.txt", type: "text/plain", size: 2 }],
+    });
+    await b.deleteMessage("msg_delete");
+    await b.deleteConversation("conv_2");
+    await b.createMessage({
+      conversationId: "conv_local",
+      uniqueId: "msg_local",
+      role: "user",
+      content: "local",
+      files: [{ id: "local", name: "local.txt", type: "text/plain", size: 3 }],
+    });
+
+    const expected = ["local", "msg_stored", "edited"];
+    expect((await b.getAllFiles()).map((file) => file.id)).toEqual(expected);
+    expect((await b.getAllFiles({ limit: 2 })).map((file) => file.id)).toEqual(
+      expected.slice(0, 2)
+    );
+
+    let release!: () => void;
+    const response = new Promise<void>((resolve) => (release = resolve));
+    const original = fake.store.putMany.bind(fake.store);
+    const putMany = vi.spyOn(fake.store, "putMany").mockImplementation(async (writes) => {
+      await response;
+      return original(writes);
+    });
+    const flushing = b.flush();
+    try {
+      await vi.waitFor(() => expect(putMany).toHaveBeenCalled());
+      expect((await b.getAllFiles()).map((file) => file.id)).toEqual(expected);
+    } finally {
+      release();
+      await flushing;
+    }
+    expect((await b.getAllFiles()).map((file) => file.id)).toEqual(expected);
   });
 
   it.each(["first", "later"])("discards an evicted thread load at its %s page", async (page) => {

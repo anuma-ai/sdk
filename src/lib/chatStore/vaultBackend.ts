@@ -702,7 +702,21 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
 
   const flush = (): Promise<void> => (Date.now() < heldUntil ? Promise.resolve() : startFlush());
 
+  const fileScans = new Set<Map<string, ChatSnapshot>>();
+
+  const hasFiles = (record: ChatRecord) =>
+    Array.isArray(record.data.files) && record.data.files.length > 0;
+
+  const holdForScan = (scan: Map<string, ChatSnapshot>, k: string, snapshot: ChatSnapshot) => {
+    const held = scan.get(k);
+    if (!held || held.version < snapshot.version) scan.set(k, snapshot);
+  };
+
   const forget = (k: string) => {
+    const known = confirmed.get(k);
+    if (known?.record.kind === "message")
+      for (const scan of fileScans)
+        if (scan.has(k) || hasFiles(known.record)) holdForScan(scan, k, known);
     confirmed.delete(k);
     checked.delete(k);
     saveCache();
@@ -1041,6 +1055,35 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         complete.add(conversationId);
       }
     });
+  };
+
+  const scanFiles = async () => {
+    const scan = new Map<string, ChatSnapshot>();
+    fileScans.add(scan);
+    try {
+      const source = await remote();
+      for (const conversation of all("conversation")) {
+        if (!confirmedLive(conversation.id)) continue;
+        let page: string | undefined;
+        do {
+          const result = await source.list({
+            kind: "message",
+            conversationId: conversation.id,
+            limit: 200,
+            ...(page ? { cursor: page } : {}),
+          });
+          for (const snapshot of result.items) {
+            const k = key("message", snapshot.record.id);
+            if (scan.has(k) || confirmed.has(k) || hasFiles(snapshot.record))
+              holdForScan(scan, k, snapshot);
+          }
+          page = result.nextCursor;
+        } while (page);
+      }
+      return scan;
+    } finally {
+      fileScans.delete(scan);
+    }
   };
 
   const thread = async (conversationId: string, wait = true): Promise<ChatRecord[]> => {
@@ -1485,8 +1528,19 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     async getAllFiles(query?: Parameters<typeof getAllFilesOp>[1]) {
       await available();
       if (query?.conversationId) await thread(query.conversationId);
+      const scanned =
+        !query?.conversationId && reachable ? await scanFiles() : new Map<string, ChatSnapshot>();
+      const records = new Map(all("message", query?.conversationId).map((r) => [r.id, r]));
+      for (const [k, snapshot] of scanned) {
+        const cached = confirmed.get(k);
+        const record = withLocalChanges(
+          cached && cached.version > snapshot.version ? cached.record : snapshot.record
+        );
+        if (record && !record.isDeleted) records.set(record.id, record);
+        else records.delete(snapshot.record.id);
+      }
       const files: StoredFileWithContext[] = [];
-      for (const record of all("message", query?.conversationId)) {
+      for (const record of records.values()) {
         if (!conversationLive(record.conversationId)) continue;
         const stored = toMessage(record);
         for (const file of stored.files ?? [])
@@ -1508,29 +1562,46 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       const vector = acceptedVector(queryVector);
       if (!vector) return [];
       await flush();
-      const hits = await (
-        await remote()
-      ).search(vector, {
-        limit: Math.min(50, limit),
-        kinds: ["message"],
-        ...(conversationId ? { conversationId } : {}),
-        ...(excludeConversationId ? { excludeConversationId } : {}),
-        ...(search.embeddingModel ? { embeddingModel: search.embeddingModel } : {}),
-      });
-      search.onStats?.({ rowsScanned: hits.length, rowsFetched: hits.length, cacheHits: 0 });
-      const results: ChunkSearchResult[] = [];
-      for (const hit of hits) {
-        if (hit.score < minSimilarity) continue;
-        const stored = toMessage(hit.record);
-        const span = chunkOffsets(hit.record)?.[hit.chunk];
-        results.push({
-          chunkText: span ? stored.content.slice(span[0], span[1]) : stored.content,
-          message: stored,
-          similarity: hit.score,
+      const store = await remote();
+      const searchCap = 50;
+      let requested = Math.min(searchCap, limit);
+      for (;;) {
+        const hits = await store.search(vector, {
+          limit: requested,
+          kinds: ["message"],
+          ...(conversationId ? { conversationId } : {}),
+          ...(excludeConversationId ? { excludeConversationId } : {}),
+          ...(search.embeddingModel ? { embeddingModel: search.embeddingModel } : {}),
         });
-        if (results.length >= limit) break;
+        const results: ChunkSearchResult[] = [];
+        let droppedByLocalState = false;
+        for (const hit of hits) {
+          if (hit.score < minSimilarity) continue;
+          const local = withLocalChanges(hit.record);
+          if (
+            !local ||
+            local.isDeleted ||
+            view(key("conversation", local.conversationId))?.isDeleted
+          ) {
+            droppedByLocalState = true;
+            continue;
+          }
+          const stored = toMessage(local);
+          const span = chunkOffsets(local)?.[hit.chunk];
+          results.push({
+            chunkText: span ? stored.content.slice(span[0], span[1]) : stored.content,
+            message: stored,
+            similarity: hit.score,
+          });
+          if (results.length >= limit) break;
+        }
+        const exhausted = hits.length < requested || requested >= searchCap;
+        if (results.length >= limit || !droppedByLocalState || exhausted) {
+          search.onStats?.({ rowsScanned: hits.length, rowsFetched: hits.length, cacheHits: 0 });
+          return results;
+        }
+        requested = searchCap;
       }
-      return results;
     },
     async searchKeywords(query, search = {}) {
       const { limit = 50, conversationId, excludeConversationId, signal } = search;
