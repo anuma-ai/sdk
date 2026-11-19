@@ -394,6 +394,37 @@ describe("migrateMemoriesToRemote", () => {
     expect(nearby.calls.filter((call) => call.includes("/recalled"))).toEqual([]);
   });
 
+  it("switches a memory off on nearby after repairing its stale copy", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const off = await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    await setVaultMemoryEnabledOp(ctx, off.uniqueId, false);
+    const nearby = fakeNearby();
+    await migrate(nearby, ctx);
+    nearby.account.state = "migrating";
+    nearby.enabled.set(off.uniqueId, true);
+    nearby.switches.length = 0;
+    await setMemoryVisibilityOp(ctx, off.uniqueId, { visibility: "public" });
+    const localUpdatedAt = (await ctx.vaultMemoryCollection.find(off.uniqueId)).updatedAt.getTime();
+    expect(nearby.rows.get(off.uniqueId)?.updated_at).toBe(localUpdatedAt);
+
+    const result = await migrate(nearby, ctx);
+
+    expect(result.state).toBe("active");
+    expect(nearby.rows.get(off.uniqueId)).toMatchObject({
+      visibility: "public",
+      updated_at: localUpdatedAt + 1,
+    });
+    expect(nearby.switches).toEqual([
+      {
+        memory_id: off.uniqueId,
+        expected_version: 2,
+        enabled: false,
+        updated_at: localUpdatedAt + 1,
+      },
+    ]);
+    expect(nearby.enabled.get(off.uniqueId)).toBe(false);
+  });
+
   it("fails the run when nearby has no route to switch a memory off", async () => {
     const ctx = vault(makeDatabase(), signatureA);
     const off = await createVaultMemoryOp(ctx, { content: "Likes green tea" });

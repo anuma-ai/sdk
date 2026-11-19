@@ -620,15 +620,26 @@ export async function migrateMemoriesToRemote(
         );
         const needsVector = (raw: RawRow, server: Record<string, unknown>) =>
           !!options.embeddingOptions && !embedding(raw, model) && server.embedding_model !== model;
-        const switches: { raw: RawRow; enabled: boolean; version: number }[] = [];
+        const switches: { raw: RawRow; enabled: boolean; version: number; updatedAt: number }[] =
+          [];
         for (const raw of candidates) {
           const item = remote.get(raw.id as string);
           const server = item?.memory;
-          if (!item || !server || server.updated_at !== raw.updated_at) continue;
-          if (!sameMetadata(raw, server, model) || needsVector(raw, server))
-            pending.set(raw.id as string, (raw.updated_at as number) + 1);
+          const local = raw.updated_at as number;
+          const updatedAt = num(server?.updated_at);
+          if (!item || !server || (updatedAt !== local && updatedAt !== local + 1)) continue;
+          if (
+            updatedAt === local &&
+            (!sameMetadata(raw, server, model) || needsVector(raw, server))
+          )
+            pending.set(raw.id as string, local + 1);
           else if (!bool(raw.is_deleted) && (bool(raw.enabled) ?? true) !== item.enabled)
-            switches.push({ raw, enabled: bool(raw.enabled) ?? true, version: item.version });
+            switches.push({
+              raw,
+              enabled: bool(raw.enabled) ?? true,
+              version: item.version,
+              updatedAt,
+            });
         }
         if (pending.size === 0 && switches.length > 0) {
           if (pass >= MAX_UPLOAD_PASSES)
@@ -637,15 +648,8 @@ export async function migrateMemoriesToRemote(
               409,
               "migration_incomplete"
             );
-          for (const { raw, enabled, version } of switches)
-            await applyEnabled(
-              request,
-              raw.id as string,
-              enabled,
-              version,
-              raw.updated_at as number,
-              signal
-            );
+          for (const { raw, enabled, version, updatedAt } of switches)
+            await applyEnabled(request, raw.id as string, enabled, version, updatedAt, signal);
           continue;
         }
       }

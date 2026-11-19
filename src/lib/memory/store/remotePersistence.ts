@@ -1140,6 +1140,8 @@ export async function createRemoteMemoryPersistence(
               memory: { content: _content, kind_value: _kindValue, topics, ...memory },
               version,
               server_updated_at,
+              enabled,
+              recall_count,
             } = memoryRecord(item);
             const plain =
               topics === undefined ? undefined : await codec.decodeTopics(topics).catch(() => null);
@@ -1147,6 +1149,8 @@ export async function createRemoteMemoryPersistence(
               memory: { ...memory, ...(typeof plain === "string" && { topics: plain }) },
               version,
               server_updated_at,
+              enabled,
+              recall_count,
             };
           })
         ),

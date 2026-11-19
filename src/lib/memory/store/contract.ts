@@ -661,6 +661,34 @@ export function runMemoryStoreContract(
       expect(await recalled("what is my dog named")).toContain(dog);
     });
 
+    it("fills a limited list with switched-on memories when asked to skip switched-off ones", async () => {
+      const store = await makeStore();
+      const start = Date.now();
+      const clock = vi.spyOn(Date, "now");
+      const ids: string[] = [];
+      try {
+        for (const [i, content] of ["a", "b", "c"].entries()) {
+          clock.mockReturnValue(start - 3000 + i * 1000);
+          ids.push((await store.create({ content })).uniqueId);
+        }
+      } finally {
+        clock.mockRestore();
+      }
+      const [oldest, middle, newest] = ids;
+      await store.setEnabled!(newest, false);
+      await store.setEnabled!(middle, false);
+
+      expect(
+        (await store.list({ limit: 1, excludeDisabled: true })).map((m) => m.uniqueId)
+      ).toEqual([oldest]);
+      expect(
+        (await store.listProjections({ limit: 1, excludeDisabled: true })).map((m) => m.uniqueId)
+      ).toEqual([oldest]);
+      expect((await store.list({ limit: 1 })).map((m) => [m.uniqueId, m.enabled])).toEqual([
+        [newest, false],
+      ]);
+    });
+
     it("merges a repeated fact into the switched-off memory", async () => {
       const store = await makeStore();
       const saved = await store.retain("Dog is named Mochi");

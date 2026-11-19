@@ -376,7 +376,8 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const pages = async <T extends Row>(
     read: (options: RemoteMemoryQueryOptions) => Promise<Page<T>>,
     filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit">,
-    max = Infinity
+    max = Infinity,
+    keep: (row: T) => boolean = () => true
   ) => {
     const records: T[] = [];
     let cursor: string | undefined;
@@ -387,7 +388,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         ...(cursor && { cursor }),
       });
       if (page.failed) warnFailed(page.failed);
-      records.push(...page.items);
+      records.push(...page.items.filter(keep));
       cursor = page.next_cursor;
     } while (cursor && records.length < max);
     return records.slice(0, max);
@@ -502,12 +503,13 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     read: (options: RemoteMemoryQueryOptions) => Promise<Page<T>>,
     ids: readonly string[],
     filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit" | "memory_ids">,
-    max = Infinity
+    max = Infinity,
+    keep?: (row: T) => boolean
   ) =>
     (
       await Promise.all(
         chunks([...new Set(ids)], MAX_REMOTE_MEMORY_IDS).map((memory_ids) =>
-          pages(read, { ...filters, memory_ids }, max)
+          pages(read, { ...filters, memory_ids }, max, keep)
         )
       )
     ).flat();
@@ -526,13 +528,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     filters: ListFilters,
     max: number
   ): Promise<T[]> => {
+    const keep = (row: T) => !listOptions.excludeDisabled || row.enabled !== false;
     const variants = bounded(filters, "scopes").flatMap((f) => bounded(f, "fact_types"));
-    if (!listOptions.memoryIds && variants.length === 1) return pages(read, filters, max);
+    if (!listOptions.memoryIds && variants.length === 1) return pages(read, filters, max, keep);
     const fetched = await Promise.all(
       variants.map((variant) =>
         listOptions.memoryIds
-          ? enumerateIds(read, listOptions.memoryIds, variant)
-          : pages(read, variant, max)
+          ? enumerateIds(read, listOptions.memoryIds, variant, Infinity, keep)
+          : pages(read, variant, max, keep)
       )
     );
     const time = (row: T) =>
@@ -1426,9 +1429,9 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     topicMaintenance,
     repairEmbeddings,
     list: async (listOptions = {}) =>
-      (await listRows(decrypted, listOptions, listFilters(listOptions), maxOf(listOptions)))
-        .map(stored)
-        .filter((m) => !listOptions.excludeDisabled || m.enabled !== false),
+      (await listRows(decrypted, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
+        stored
+      ),
     listProjections: async (listOptions = {}) =>
       (await listRows(metadata, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
         projection
