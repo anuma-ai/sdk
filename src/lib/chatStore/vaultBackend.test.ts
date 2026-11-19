@@ -2,13 +2,13 @@ import { webcrypto } from "node:crypto";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
 import {
   type ChatStoreHarness,
   conformance,
   createChatStoreHarness,
 } from "../../../test/chat/vaultHarness";
 import type { StoredConversation, StoredMessage } from "../db/chat/types";
+import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
 import { ANUMA_CONVERSATION_ID } from "./anuma";
 import { type ChatStore, ChatStoreError } from "./types";
 import { createVaultChatBackend, type VaultChatBackend, type VaultChatEvent } from "./vaultBackend";
@@ -50,11 +50,12 @@ function memoryStorage(): ChatOutboxStorage & { values: Map<string, string> } {
   const values = new Map<string, string>();
   return {
     values,
-    slots: async () => [...values.keys()],
-    get: async (slot) => values.get(slot) ?? null,
-    set: async (slot, sealed) => {
+    slots: () => Promise.resolve([...values.keys()]),
+    get: (slot) => Promise.resolve(values.get(slot) ?? null),
+    set: (slot, sealed) => {
       if (sealed === null) values.delete(slot);
       else values.set(slot, sealed);
+      return Promise.resolve();
     },
   };
 }
@@ -432,7 +433,7 @@ describe("vault chat backend", () => {
     expect(polled.items.map((s) => s.record.id)).not.toContain("conv_old");
   });
 
-  it("keeps a message from a poll when an older lookup returns no record", async () => {
+  it("keeps a polled message after an older empty lookup without another read", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake);
     await b.createConversation({ conversationId: "conv_1" });
@@ -444,7 +445,7 @@ describe("vault chat backend", () => {
     let started = () => {};
     const held = new Promise<void>((resolve) => (answer = resolve));
     const requested = new Promise<void>((resolve) => (started = resolve));
-    vi.spyOn(fake.store, "getMany").mockImplementationOnce(async (...args) => {
+    const reads = vi.spyOn(fake.store, "getMany").mockImplementationOnce(async (...args) => {
       const result = await getMany(...args);
       expect(result).toEqual([]);
       started();
@@ -454,6 +455,10 @@ describe("vault chat backend", () => {
 
     const lookup = b.getMessagesByIds(["msg_p", "msg_absent"]);
     await requested;
+    expect(reads).toHaveBeenCalledExactlyOnceWith([
+      { kind: "message", id: "msg_p" },
+      { kind: "message", id: "msg_absent" },
+    ]);
     const other = backend(fake).b;
     await other.createMessage({
       conversationId: "conv_1",
@@ -464,14 +469,20 @@ describe("vault chat backend", () => {
     await other.flush();
     await b.poll();
     expect((await b.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_p"]);
+    reads.mockClear();
 
     answer();
-    expect((await lookup).map((m) => m.uniqueId)).toEqual(["msg_p"]);
+    const result = await lookup;
     await b.poll();
+    expect(await fake.row("message", "msg_p")).toMatchObject({
+      record: { id: "msg_p", isDeleted: false, data: { content: "from phone" } },
+    });
     expect((await b.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_p"]);
+    expect(result.map((m) => m.uniqueId)).toEqual(["msg_p"]);
     expect((await b.getMessagesByIds(["msg_p", "msg_absent"])).map((m) => m.uniqueId)).toEqual([
       "msg_p",
     ]);
+    expect(reads).not.toHaveBeenCalled();
   });
 
   it("keeps unsent writes sealed across a reload and sends them on the next start", async () => {
@@ -1215,13 +1226,15 @@ describe("vault chat backend", () => {
     const changes = fake.store.changes.bind(fake.store);
     let release = () => {};
     const held = new Promise<void>((resolve) => (release = resolve));
-    vi.spyOn(fake.store, "changes").mockImplementationOnce(async (...args) => {
-      const page = await changes(...args);
-      await held;
-      return page;
-    });
+    const changeRequests = vi
+      .spyOn(fake.store, "changes")
+      .mockImplementationOnce(async (...args) => {
+        const page = await changes(...args);
+        await held;
+        return page;
+      });
     const polling = b.poll();
-    await vi.waitFor(() => expect(fake.store.changes).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(changeRequests).toHaveBeenCalledTimes(1));
     const other = backend(fake).b;
     await other.createConversation({ conversationId: "conv_late" });
     await other.flush();
@@ -1335,10 +1348,10 @@ describe.skipIf(conformance)("keyword search over vault", () => {
     try {
       const fake = await createChatStoreHarness();
       let calls = 0;
-      const indexTermsPage = vi.fn<NonNullable<ChatStore["indexTermsPage"]>>(async () => {
+      const indexTermsPage = vi.fn<NonNullable<ChatStore["indexTermsPage"]>>(() => {
         calls += 1;
-        if (calls === 1) throw new ChatStoreError("busy", 503, "unavailable");
-        return { indexed: 1 };
+        if (calls === 1) return Promise.reject(new ChatStoreError("busy", 503, "unavailable"));
+        return Promise.resolve({ indexed: 1 });
       });
       const { b } = backend({ ...fake, store: { ...fake.store, indexTermsPage } });
       await b.poll();
@@ -1360,8 +1373,8 @@ describe.skipIf(conformance)("keyword search over vault", () => {
     try {
       const fake = await createChatStoreHarness();
       let active = false;
-      const indexTermsPage = vi.fn<NonNullable<ChatStore["indexTermsPage"]>>(async (cursor) =>
-        cursor ? { indexed: 1 } : { indexed: 2, nextCursor: "page_2" }
+      const indexTermsPage = vi.fn<NonNullable<ChatStore["indexTermsPage"]>>((cursor) =>
+        Promise.resolve(cursor ? { indexed: 1 } : { indexed: 2, nextCursor: "page_2" })
       );
       const { b } = backend(
         { ...fake, store: { ...fake.store, indexTermsPage } },
