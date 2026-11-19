@@ -768,6 +768,56 @@ describe("vault chat backend", () => {
     }
   );
 
+  it("keeps only the newest thread cached after responses arrive in reverse order", async () => {
+    const fake = await createChatStoreHarness();
+    const writer = backend(fake).b;
+    const ids = ["1", "2", "3"];
+    for (const id of ids) {
+      await writer.createConversation({ conversationId: `conv_${id}` });
+      await writer.createMessage({
+        conversationId: `conv_${id}`,
+        role: "user",
+        content: id,
+        uniqueId: `msg_${id}`,
+      });
+    }
+    await writer.flush();
+
+    const { b } = backend(fake, { threadCacheSize: 1 });
+    await b.getConversations();
+    const releases = new Map<string, () => void>();
+    const original = fake.store.list.bind(fake.store);
+    const list = vi.spyOn(fake.store, "list").mockImplementation(async (query) => {
+      const result = await original(query);
+      if (query.kind === "message")
+        await new Promise<void>((resolve) => releases.set(query.conversationId!, resolve));
+      return result;
+    });
+    const loads: Promise<StoredMessage[]>[] = [];
+    for (const id of ids) {
+      loads.push(b.getMessages(`conv_${id}`));
+      await vi.waitFor(() => expect(releases.has(`conv_${id}`)).toBe(true));
+    }
+
+    for (const id of [...ids].reverse()) {
+      releases.get(`conv_${id}`)!();
+      expect((await loads[Number(id) - 1]).map((message) => message.uniqueId)).toEqual(
+        id === "3" ? ["msg_3"] : []
+      );
+    }
+    expect((await b.getMessages("conv_3")).map((message) => message.uniqueId)).toEqual(["msg_3"]);
+    expect(list).toHaveBeenCalledTimes(3);
+
+    const getMany = vi.spyOn(fake.store, "getMany");
+    expect(
+      (await b.getMessagesByIds(["msg_1", "msg_2"])).map((message) => message.uniqueId)
+    ).toEqual(["msg_1", "msg_2"]);
+    expect(getMany).toHaveBeenCalledWith([
+      { kind: "message", id: "msg_1" },
+      { kind: "message", id: "msg_2" },
+    ]);
+  });
+
   it("refetches a message from an evicted thread before editing it", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake, { threadCacheSize: 1 });
