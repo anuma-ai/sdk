@@ -7,7 +7,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCallEvent,
 } from "../../../../client";
-import type { DetachedToolClass, StreamAccumulator } from "../types";
+import type { AnswerSummary, DetachedToolClass, StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
 
 /**
@@ -103,6 +103,11 @@ export function getCreditsUsed(r: ApiResponse): number | undefined {
  */
 export function getCreditsExhausted(r: ApiResponse): boolean | undefined {
   return (r.usage as { credits_exhausted?: boolean } | undefined)?.credits_exhausted;
+}
+
+/** Portal summary of how long the answer took and which server tools fed it, on either response shape. */
+export function getAnswerSummary(r: ApiResponse): AnswerSummary | undefined {
+  return (r as { answer_summary?: AnswerSummary }).answer_summary;
 }
 
 /**

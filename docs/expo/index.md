@@ -106,6 +106,18 @@ Re-exports [addConversationMemoriesOp](../react/Internal/functions/addConversati
 
 ***
 
+### AnswerSource
+
+Re-exports [AnswerSource](../react/Internal/type-aliases/AnswerSource.md)
+
+***
+
+### AnswerSourceStatus
+
+Re-exports [AnswerSourceStatus](../react/Internal/type-aliases/AnswerSourceStatus.md)
+
+***
+
 ### ANUMA\_CONVERSATION\_ID
 
 Re-exports [ANUMA\_CONVERSATION\_ID](../react/Internal/variables/ANUMA_CONVERSATION_ID.md)
@@ -2767,6 +2779,12 @@ Re-exports [StockPriceClassification](../react/Internal/interfaces/StockPriceCla
 ### StockPricePreProcessorOptions
 
 Re-exports [StockPricePreProcessorOptions](../react/Internal/interfaces/StockPricePreProcessorOptions.md)
+
+***
+
+### StoredAnswerSummary
+
+Re-exports [StoredAnswerSummary](../react/Internal/interfaces/StoredAnswerSummary.md)
 
 ***
 

@@ -125,6 +125,7 @@ export type { StepFinishEvent, StreamMetaEvent, StreamResumeHandle } from "../li
 export { ProviderStreamError } from "../lib/chat/toolLoop";
 export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
+export type { AnswerSource, AnswerSourceStatus } from "../lib/chat/useChat/types";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export type {
   WeatherClassification,
@@ -275,6 +276,7 @@ export {
   type ServerToolsFilter,
   type ServerToolsFilterFn,
   type StorageOperationsContext,
+  type StoredAnswerSummary,
   type ChatCompletionUsage as StoredChatCompletionUsage,
   type StoredConversation,
   type StoredFileWithContext,

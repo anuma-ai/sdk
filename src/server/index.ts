@@ -99,7 +99,12 @@ export type {
 export { runToolLoop } from "../lib/chat/toolLoop";
 export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types";
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
-export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";
+export type {
+  AnswerSource,
+  AnswerSourceStatus,
+  ToolConfig,
+  ToolExecutor,
+} from "../lib/chat/useChat/types";
 export type { ServerToolCallEvent } from "../lib/chat/useChat/utils";
 export type {
   WeatherClassification,
@@ -174,6 +179,7 @@ export {
   type MessageFeedback,
   type MessageOrigin,
   type SearchSource,
+  type StoredAnswerSummary,
   type StoredConversation,
   type StoredConversationSummary,
   type StoredFileWithContext,

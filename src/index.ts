@@ -761,11 +761,13 @@ export { extractReservationReceipts } from "./lib/chat/reservationReceipts";
 export { TOOL_RESULT_ORIGIN } from "./lib/chat/toolResults";
 export type { ApiResponse } from "./lib/chat/useChat/strategies/types";
 export {
+  getAnswerSummary,
   getCostMicroUsd,
   getCreditsUsed,
   getImageModel,
   getToolCallEvents,
 } from "./lib/chat/useChat/strategies/types";
+export type { AnswerSource, AnswerSourceStatus, AnswerSummary } from "./lib/chat/useChat/types";
 export {
   ANUMA_CONVERSATION_ID,
   anumaLastReadSortKey,
@@ -820,7 +822,7 @@ export {
   seedAppFilesToVault,
   type Setting,
 } from "./lib/chatStore";
-export type { LazyStoredConversation } from "./lib/db/chat";
+export type { LazyStoredConversation, StoredAnswerSummary } from "./lib/db/chat";
 export { clearLazyTitleCache, decryptConversationTitle } from "./lib/db/chat";
 export type { Logger } from "./lib/logger";
 export { consoleLogger, getLogger, noopLogger, setLogger } from "./lib/logger";

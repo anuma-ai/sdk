@@ -1,7 +1,12 @@
 import type { LlmapiResponseResponse } from "../../../../client";
 import type { AccumulatedToolCall, StreamAccumulator, StreamingChunk } from "../types";
 import type { ProcessChunkResult } from "../utils";
-import { getInStreamErrorMessage, parseReasoningTags, ProviderStreamError } from "../utils";
+import {
+  getInStreamErrorMessage,
+  mergeAnswerSummary,
+  parseReasoningTags,
+  ProviderStreamError,
+} from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
 import { mergeXaiInlineParameterTags } from "./xaiToolFormat";
 
@@ -364,6 +369,12 @@ export class ResponsesStrategy implements ApiStrategy {
         ...typedChunk.usage,
       };
     }
+    if (typedChunk.answer_summary) {
+      accumulator.answerSummary = mergeAnswerSummary(
+        accumulator.answerSummary,
+        typedChunk.answer_summary
+      );
+    }
 
     if (
       typedChunk.type === "response.reasoning.delta" ||
@@ -618,6 +629,7 @@ export class ResponsesStrategy implements ApiStrategy {
       ...(accumulator.incompleteReason !== undefined && {
         incomplete_details: { reason: accumulator.incompleteReason },
       }),
+      ...(accumulator.answerSummary && { answer_summary: accumulator.answerSummary }),
     };
   }
 }

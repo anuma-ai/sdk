@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AccumulatedToolCall } from "./types";
-import { executeToolCall, getInStreamErrorMessage } from "./utils";
+import type { AccumulatedToolCall, AnswerSummary } from "./types";
+import { executeToolCall, getInStreamErrorMessage, mergeAnswerSummary } from "./utils";
 
 function makeToolCall(args: string): AccumulatedToolCall {
   return {
@@ -173,5 +173,60 @@ describe("executeToolCall abort handling", () => {
     const executor = vi.fn().mockResolvedValue("ok");
     await executeToolCall(makeToolCall("{}"), executor, Infinity, controller.signal);
     expect(executor).toHaveBeenCalledWith({}, controller.signal);
+  });
+});
+
+describe("mergeAnswerSummary", () => {
+  const summary = (durationMs: number, sources: AnswerSummary["sources"]): AnswerSummary => ({
+    duration_ms: durationMs,
+    source_count: sources.filter((s) => s.status === "ok").length,
+    sources,
+  });
+
+  it("keeps the best status per source name", () => {
+    const merged = mergeAnswerSummary(
+      summary(1, [
+        { name: "a", status: "canceled" },
+        { name: "b", status: "ok" },
+        { name: "c", status: "failed" },
+      ]),
+      summary(2, [
+        { name: "a", status: "rejected" },
+        { name: "b", status: "failed" },
+        { name: "c", status: "ok" },
+      ])
+    );
+    expect(merged?.sources).toEqual([
+      { name: "a", status: "rejected" },
+      { name: "b", status: "ok" },
+      { name: "c", status: "ok" },
+    ]);
+  });
+
+  it("sorts the union by name, sums durations and recounts ok sources", () => {
+    const merged = mergeAnswerSummary(
+      summary(1000, [{ name: "web", status: "ok" }]),
+      summary(250, [
+        { name: "web", status: "ok" },
+        { name: "maps", status: "failed" },
+        { name: "calendar", status: "ok" },
+      ])
+    );
+    expect(merged).toEqual({
+      duration_ms: 1250,
+      source_count: 2,
+      sources: [
+        { name: "calendar", status: "ok" },
+        { name: "maps", status: "failed" },
+        { name: "web", status: "ok" },
+      ],
+    });
+  });
+
+  it("returns the other side unchanged when one side is undefined", () => {
+    const only = summary(5, [{ name: "web", status: "ok" }]);
+    expect(mergeAnswerSummary(undefined, only)).toBe(only);
+    expect(mergeAnswerSummary(only, undefined)).toBe(only);
+    expect(mergeAnswerSummary(undefined, undefined)).toBeUndefined();
   });
 });

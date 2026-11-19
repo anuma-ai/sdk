@@ -155,6 +155,7 @@ export {
 export type { StreamMetaEvent, StreamResumeHandle } from "../lib/chat/toolLoop";
 export { TOOL_RESULT_ORIGIN } from "../lib/chat/toolResults";
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
+export type { AnswerSource, AnswerSourceStatus } from "../lib/chat/useChat/types";
 export type {
   WeatherClassification,
   WeatherPreProcessorOptions,
@@ -282,6 +283,7 @@ export {
   type MessageSkeleton,
   sealLegacyMessageEmbeddingsOp,
   type SearchSource,
+  type StoredAnswerSummary,
   type ChatCompletionUsage as StoredChatCompletionUsage,
   type StoredConversation,
   type StoredMessage,

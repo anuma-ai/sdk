@@ -68,6 +68,7 @@ export {
   type SearchSource,
   type ServerToolsFilter,
   type ServerToolsFilterFn,
+  type StoredAnswerSummary,
   type StoredConversation,
   type StoredConversationSummary,
   type StoredFileWithContext,

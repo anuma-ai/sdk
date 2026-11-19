@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sseModule from "../../client/core/serverSentEvents.gen";
 import type { LlmapiMessage } from "../../client";
 import * as embeddingsModule from "../memoryEngine/embeddings";
 import type { ModelCallStartEvent } from "./runHooks";
 import { runToolLoop } from "./toolLoop";
+import { getAnswerSummary } from "./useChat/strategies/types";
+import type { AnswerSummary } from "./useChat/types";
 
 vi.mock("../../client/core/serverSentEvents.gen", async (importOriginal) => {
   const orig = await importOriginal<typeof sseModule>();
@@ -25,6 +27,7 @@ function makeClientToolStream(opts: {
   callId: string;
   name: string;
   toolCallEvents: ToolCallEvent[];
+  answerSummary?: AnswerSummary;
 }) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
@@ -44,6 +47,7 @@ function makeClientToolStream(opts: {
       call_id: opts.callId,
       arguments: "{}",
     };
+    if (opts.answerSummary) yield { usage: {}, answer_summary: opts.answerSummary };
     yield {
       type: "response.completed",
       response: {
@@ -54,10 +58,11 @@ function makeClientToolStream(opts: {
   })();
 }
 
-function makeTextStream(text: string) {
+function makeTextStream(text: string, answerSummary?: AnswerSummary) {
   return (async function* () {
     yield { type: "response.created", response: { id: "r", model: "m" } };
     yield { type: "response.output_text.delta", delta: { OfString: text } };
+    if (answerSummary) yield { usage: {}, answer_summary: answerSummary };
     yield {
       type: "response.completed",
       response: { usage: { input_tokens: 1, output_tokens: 1 } },
@@ -238,5 +243,72 @@ describe("runToolLoop continuation keeps server-executed tool results", () => {
     expect(countResults("s2")).toBe(1);
     expect(toolResultIndex(last, "c1")).toBeLessThan(toolCallIndex(last, "s2"));
     expect(toolResultIndex(last, "s2")).toBeLessThan(toolCallIndex(last, "c2"));
+  });
+});
+
+describe("runToolLoop answer_summary across continuation rounds", () => {
+  const searchSource = { name: "AnumaSearchMCP-anuma_text_search", status: "ok" } as const;
+  const firstRound: AnswerSummary = { duration_ms: 1000, source_count: 1, sources: [searchSource] };
+  const secondRound: AnswerSummary = { duration_ms: 500, source_count: 0, sources: [] };
+  const clientToolRound = () =>
+    makeClientToolStream({
+      callId: "c1",
+      name: "prompt_user_confirm",
+      toolCallEvents: [{ id: "c1", name: "prompt_user_confirm", arguments: "{}" }],
+      answerSummary: firstRound,
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    mockGenerateEmbedding.mockResolvedValue([0.1]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function runBooking(onStreamRetry?: () => void) {
+    const promise = runToolLoop({
+      messages: [{ role: "user", content: [{ type: "text", text: "book sushi for two" }] }],
+      model: "test-model",
+      token: "token",
+      tools: [confirmTool],
+      onStreamRetry,
+    });
+    await vi.runAllTimersAsync();
+    const result = await promise;
+    expect(result.error).toBeNull();
+    return getAnswerSummary(result.data!);
+  }
+
+  it("keeps an earlier round's sources and sums durations", async () => {
+    mockCreateSseClient
+      .mockReturnValueOnce({ stream: clientToolRound() } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("booked", secondRound) } as never);
+
+    expect(await runBooking()).toEqual({
+      duration_ms: 1500,
+      source_count: 1,
+      sources: [searchSource],
+    });
+  });
+
+  it("counts a retried round's duration once", async () => {
+    const failedAttempt = (async function* () {
+      yield { type: "response.created", response: { id: "r", model: "m" } };
+      yield { usage: {}, answer_summary: secondRound };
+      throw new Error("terminated");
+    })();
+    mockCreateSseClient
+      .mockReturnValueOnce({ stream: clientToolRound() } as never)
+      .mockReturnValueOnce({ stream: failedAttempt } as never)
+      .mockReturnValueOnce({ stream: makeTextStream("booked", secondRound) } as never);
+    const onStreamRetry = vi.fn();
+
+    const summary = await runBooking(onStreamRetry);
+
+    expect(onStreamRetry).toHaveBeenCalledTimes(1);
+    expect(summary?.duration_ms).toBe(1500);
   });
 });

@@ -118,6 +118,48 @@ describe("convertUsageToStored", () => {
     expect(convertUsageToStored(res)?.creditsExhausted).toBe(true);
   });
 
+  const answerSummary = {
+    duration_ms: 9123,
+    source_count: 1,
+    sources: [{ name: "AnumaSearchMCP-anuma_text_search", status: "ok" as const }],
+  };
+  const storedAnswerSummary = {
+    durationMs: 9123,
+    sourceCount: 1,
+    sources: [{ name: "AnumaSearchMCP-anuma_text_search", status: "ok" }],
+  };
+
+  it("stores answer_summary from a Chat Completions response", () => {
+    const res = {
+      id: "r1",
+      object: "chat.completion",
+      choices: [],
+      answer_summary: answerSummary,
+    } as LlmapiChatCompletionResponse;
+    expect(convertUsageToStored(res)?.answerSummary).toEqual(storedAnswerSummary);
+  });
+
+  it("stores answer_summary from a Responses API response", () => {
+    const res = {
+      id: "r1",
+      object: "response",
+      output: [],
+      usage: { prompt_tokens: 8, completion_tokens: 4, total_tokens: 12 },
+      answer_summary: answerSummary,
+    } as LlmapiResponseResponse;
+    expect(convertUsageToStored(res)?.answerSummary).toEqual(storedAnswerSummary);
+  });
+
+  it("omits answerSummary when the response has none", () => {
+    const res: LlmapiResponseResponse = {
+      id: "r1",
+      object: "response",
+      output: [],
+      usage: { prompt_tokens: 8, completion_tokens: 4, total_tokens: 12 },
+    };
+    expect(convertUsageToStored(res)).not.toHaveProperty("answerSummary");
+  });
+
   it("omits creditsExhausted when absent (unchanged credits_used behavior)", () => {
     const res: LlmapiChatCompletionResponse = {
       id: "r1",
