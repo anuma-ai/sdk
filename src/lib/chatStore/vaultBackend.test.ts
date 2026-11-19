@@ -656,6 +656,23 @@ describe("vault chat backend", () => {
     }
   });
 
+  it("delivers a write after its outbox save fails", async () => {
+    const fake = await createChatStoreHarness();
+    const seal = memoryCipher(await deriveMemoryKeyRing("0x" + "5a".repeat(65)));
+    const storage = memoryStorage();
+    const { b } = backend(fake, { outbox: { storage, seal } });
+    await b.getConversations();
+    vi.spyOn(storage, "set").mockRejectedValueOnce(new Error("quota exceeded"));
+
+    await expect(b.createConversation({ conversationId: "conv_1" })).rejects.toThrow(
+      "quota exceeded"
+    );
+
+    await vi.waitFor(() => expect(b.status().pending).toBe(0));
+    const reader = backend(fake).b;
+    expect((await reader.getConversations()).map((c) => c.conversationId)).toEqual(["conv_1"]);
+  });
+
   it("keeps each tab's unsent writes and leaves a live tab's queue to that tab", async () => {
     const seal = memoryCipher(await deriveMemoryKeyRing("0x" + "57".repeat(65)));
     const storage = memoryStorage();

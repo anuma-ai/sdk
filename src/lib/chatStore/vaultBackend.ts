@@ -457,8 +457,11 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       pending.set(k, existing ? mergePatch(existing, full) : full);
     }
     reportOutbox();
-    await persist();
-    scheduleFlush();
+    try {
+      await persist();
+    } finally {
+      scheduleFlush();
+    }
   };
 
   const enqueue = (patch: Omit<ChatPatch, "seq" | "updatedAt">) => enqueueMany([patch]);
