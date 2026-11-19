@@ -464,6 +464,83 @@ describe("vault chat backend", () => {
     expect(polled.items.map((s) => s.record.id)).not.toContain("conv_old");
   });
 
+  it.each([
+    { records: 100, pages: 1 },
+    { records: 250, pages: 2 },
+  ])(
+    "announces each changed thread once per page for $records records",
+    async ({ records, pages }) => {
+      const fake = await createChatStoreHarness();
+      const { b, events } = backend(fake);
+      for (const conversationId of ["conv_1", "conv_2", "conv_3"])
+        await b.createConversation({ conversationId });
+      await b.flush();
+      await b.poll();
+
+      const observers = [vi.fn(), vi.fn(), vi.fn()];
+      const reads = vi.spyOn(b, "getMessages");
+      const subscriptions = observers.map((next, i) =>
+        b.observeMessages(`conv_${i + 1}`).subscribe({ next })
+      );
+      await vi.waitFor(() => {
+        for (const observer of observers) expect(observer).toHaveBeenCalledExactlyOnceWith([]);
+      });
+      observers.forEach((observer) => observer.mockClear());
+      reads.mockClear();
+      events.length = 0;
+
+      const writes = Array.from({ length: records }, (_, i) => ({
+        record: {
+          kind: "message" as const,
+          id: `msg_${i}`,
+          conversationId: `conv_${(i % 2) + 1}`,
+          sortKey: i,
+          createdAt: 1,
+          updatedAt: 2,
+          isDeleted: false,
+          data: { role: "user", content: `remote ${i}` },
+        },
+        expectedVersion: 0,
+      }));
+      for (let offset = 0; offset < writes.length; offset += 25)
+        await fake.write(writes.slice(offset, offset + 25));
+
+      await b.poll();
+      await vi.waitFor(() => {
+        expect(observers[0]).toHaveBeenCalledTimes(pages);
+        expect(observers[1]).toHaveBeenCalledTimes(pages);
+      });
+      expect(observers[2]).not.toHaveBeenCalled();
+      expect(reads).toHaveBeenCalledTimes(pages * 2);
+      for (let i = 0; i < 2; i++) {
+        const conversationId = `conv_${i + 1}`;
+        expect(
+          events.filter((e) => e.type === "messages" && e.conversationId === conversationId)
+        ).toEqual(
+          Array.from({ length: pages }, () => ({
+            type: "messages",
+            conversationId,
+            origin: "remote",
+          }))
+        );
+        expect(observers[i].mock.lastCall?.[0]).toMatchObject(
+          writes
+            .filter((write) => write.record.conversationId === conversationId)
+            .map(({ record }) => ({ uniqueId: record.id, content: record.data.content }))
+        );
+      }
+
+      observers.forEach((observer) => observer.mockClear());
+      reads.mockClear();
+      events.length = 0;
+      await b.poll();
+      expect(events).toEqual([]);
+      expect(reads).not.toHaveBeenCalled();
+      for (const observer of observers) expect(observer).not.toHaveBeenCalled();
+      subscriptions.forEach((subscription) => subscription.unsubscribe());
+    }
+  );
+
   it("keeps a polled message after an older empty lookup without another read", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake);
@@ -814,6 +891,37 @@ describe("vault chat backend", () => {
     await b.poll();
     const messages = await b.getMessagesPage("conv_pages", { limit: 2, beforeMessageId: 3 });
     expect(messages.map((message) => message.uniqueId)).toEqual(["msg_0", "msg_1"]);
+  });
+
+  it("announces a changed message page once and reads the new records", async () => {
+    const fake = await pageHistory([1, 2, 3, 4]);
+    const { b, events } = backend(fake);
+    await b.getMessagesPage("conv_pages", { limit: 2 });
+    events.length = 0;
+
+    const snapshots = await Promise.all([
+      fake.row("message", "msg_2"),
+      fake.row("message", "msg_3"),
+    ]);
+    await fake.write(
+      snapshots.map((snapshot) => ({
+        record: {
+          ...snapshot!.record,
+          data: { ...snapshot!.record.data, content: `remote ${snapshot!.record.id}` },
+        },
+        expectedVersion: snapshot!.version,
+      }))
+    );
+    await b.poll();
+
+    expect(events).toEqual([{ type: "messages", conversationId: "conv_pages", origin: "remote" }]);
+    const list = vi.spyOn(fake.store, "list");
+    expect(
+      (await b.getMessagesPage("conv_pages", { limit: 2 })).map((message) => message.content)
+    ).toEqual(["remote msg_2", "remote msg_3"]);
+    expect(list.mock.calls.map(([query]) => query)).toEqual([
+      { kind: "message", conversationId: "conv_pages", limit: 2 },
+    ]);
   });
 
   it.each([0, -1, NaN, Infinity, -Infinity])("rejects the message page limit %s", async (limit) => {
