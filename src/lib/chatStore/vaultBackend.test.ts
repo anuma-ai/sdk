@@ -671,6 +671,194 @@ describe("vault chat backend", () => {
     expect((await backend(fake).b.getSummary("conv_1"))?.summary).toBe("second");
   });
 
+  it.each(["first", "later"])("discards an evicted thread load at its %s page", async (page) => {
+    const fake = await createChatStoreHarness();
+    const writer = backend(fake).b;
+    await writer.createConversation({ conversationId: "conv_1" });
+    await writer.createConversation({ conversationId: "conv_2" });
+    for (const uniqueId of ["msg_1", "msg_2"])
+      await writer.createMessage({
+        conversationId: "conv_1",
+        role: "user",
+        content: uniqueId,
+        uniqueId,
+      });
+    await writer.flush();
+
+    const { b } = backend(fake, { threadCacheSize: 1 });
+    await b.getConversations();
+    let release!: () => void;
+    const response = new Promise<void>((resolve) => (release = resolve));
+    let waiting = false;
+    const original = fake.store.list.bind(fake.store);
+    const list = vi.spyOn(fake.store, "list").mockImplementation(async (query) => {
+      if (query.kind !== "message" || query.conversationId !== "conv_1") return original(query);
+      const result = await original({ ...query, limit: 1 });
+      if ((query.cursor ? "later" : "first") === page) {
+        waiting = true;
+        await response;
+      }
+      return result;
+    });
+
+    const loading = b.getMessages("conv_1");
+    await vi.waitFor(() => expect(waiting).toBe(true));
+    await b.getMessages("conv_2");
+    release();
+
+    expect(await loading).toEqual([]);
+    expect(list.mock.calls.filter(([query]) => query.conversationId === "conv_1")).toHaveLength(
+      page === "first" ? 1 : 2
+    );
+    const getMany = vi.spyOn(fake.store, "getMany");
+    expect((await b.getMessagesByIds(["msg_1", "msg_2"])).map((m) => m.uniqueId)).toEqual([
+      "msg_1",
+      "msg_2",
+    ]);
+    expect(getMany).toHaveBeenCalledWith([
+      { kind: "message", id: "msg_1" },
+      { kind: "message", id: "msg_2" },
+    ]);
+    expect((await b.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_1", "msg_2"]);
+  });
+
+  it("reloads an evicted thread before clearing its messages", async () => {
+    const fake = await createChatStoreHarness();
+    const writer = backend(fake).b;
+    await writer.createConversation({ conversationId: "conv_1" });
+    await writer.createConversation({ conversationId: "conv_2" });
+    for (const uniqueId of ["msg_1", "msg_2"])
+      await writer.createMessage({
+        conversationId: "conv_1",
+        role: "user",
+        content: uniqueId,
+        uniqueId,
+      });
+    await writer.flush();
+
+    const { b } = backend(fake, { threadCacheSize: 1 });
+    await b.getConversations();
+    let release!: () => void;
+    const response = new Promise<void>((resolve) => (release = resolve));
+    let waiting = false;
+    const original = fake.store.list.bind(fake.store);
+    vi.spyOn(fake.store, "list").mockImplementation(async (query) => {
+      if (query.kind !== "message" || query.conversationId !== "conv_1" || query.cursor)
+        return original(query);
+      const result = await original(query);
+      waiting = true;
+      await response;
+      return result;
+    });
+
+    const loading = b.getMessages("conv_1");
+    await vi.waitFor(() => expect(waiting).toBe(true));
+    await b.getMessages("conv_2");
+    release();
+    expect(await loading).toEqual([]);
+
+    await b.clearMessages("conv_1");
+    await b.flush();
+    expect((await fake.row("message", "msg_1"))?.record.isDeleted).toBe(true);
+    expect((await fake.row("message", "msg_2"))?.record.isDeleted).toBe(true);
+  });
+
+  it.each(["response", "error"])(
+    "keeps a replacement thread load after a stale %s",
+    async (outcome) => {
+      const fake = await createChatStoreHarness();
+      const writer = backend(fake).b;
+      await writer.createConversation({ conversationId: "conv_1" });
+      await writer.createConversation({ conversationId: "conv_2" });
+      await writer.createMessage({
+        conversationId: "conv_1",
+        role: "user",
+        content: "old",
+        uniqueId: "msg_1",
+      });
+      await writer.flush();
+
+      const { b } = backend(fake, { threadCacheSize: 1 });
+      await b.getConversations();
+      let release!: () => void;
+      const response = new Promise<void>((resolve) => (release = resolve));
+      const error = new Error("Thread request failed");
+      let waiting = false;
+      const original = fake.store.list.bind(fake.store);
+      const list = vi.spyOn(fake.store, "list").mockImplementationOnce(async (query) => {
+        const result = await original(query);
+        waiting = true;
+        await response;
+        if (outcome === "error") throw error;
+        return result;
+      });
+
+      const loading = b.getMessages("conv_1").catch((error: unknown) => error);
+      await vi.waitFor(() => expect(waiting).toBe(true));
+      await b.getMessages("conv_2");
+      await writer.deleteMessage("msg_1");
+      await writer.flush();
+      expect(await b.getMessages("conv_1")).toEqual([]);
+      const calls = list.mock.calls.length;
+      release();
+
+      if (outcome === "error") expect(await loading).toBe(error);
+      else expect(await loading).toEqual([]);
+      expect(await b.getMessages("conv_1")).toEqual([]);
+      expect(list).toHaveBeenCalledTimes(calls);
+    }
+  );
+
+  it("keeps only the newest thread cached after responses arrive in reverse order", async () => {
+    const fake = await createChatStoreHarness();
+    const writer = backend(fake).b;
+    const ids = ["1", "2", "3"];
+    for (const id of ids) {
+      await writer.createConversation({ conversationId: `conv_${id}` });
+      await writer.createMessage({
+        conversationId: `conv_${id}`,
+        role: "user",
+        content: id,
+        uniqueId: `msg_${id}`,
+      });
+    }
+    await writer.flush();
+
+    const { b } = backend(fake, { threadCacheSize: 1 });
+    await b.getConversations();
+    const releases = new Map<string, () => void>();
+    const original = fake.store.list.bind(fake.store);
+    const list = vi.spyOn(fake.store, "list").mockImplementation(async (query) => {
+      const result = await original(query);
+      if (query.kind === "message")
+        await new Promise<void>((resolve) => releases.set(query.conversationId!, resolve));
+      return result;
+    });
+    const loads: Promise<StoredMessage[]>[] = [];
+    for (const id of ids) {
+      loads.push(b.getMessages(`conv_${id}`));
+      await vi.waitFor(() => expect(releases.has(`conv_${id}`)).toBe(true));
+    }
+
+    for (const id of [...ids].reverse()) {
+      releases.get(`conv_${id}`)!();
+      expect((await loads[Number(id) - 1]).map((message) => message.uniqueId)).toEqual(
+        id === "3" ? ["msg_3"] : []
+      );
+    }
+    expect((await b.getMessages("conv_3")).map((message) => message.uniqueId)).toEqual(["msg_3"]);
+    expect(list).toHaveBeenCalledTimes(3);
+
+    const getMany = vi.spyOn(fake.store, "getMany");
+    expect(
+      (await b.getMessagesByIds(["msg_1", "msg_2"])).map((message) => message.uniqueId)
+    ).toEqual(["msg_1", "msg_2"]);
+    expect(getMany).toHaveBeenCalledWith([
+      { kind: "message", id: "msg_1" },
+      { kind: "message", id: "msg_2" },
+    ]);
+  });
+
   it("refetches a message from an evicted thread before editing it", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake, { threadCacheSize: 1 });

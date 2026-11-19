@@ -714,7 +714,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       threads.set(conversationId, known);
       return known;
     }
-    const loading = (async () => {
+    const loading = Promise.resolve().then(async () => {
       if (!confirmedLive(conversationId)) return;
       const source = await remote();
       let page: string | undefined;
@@ -725,10 +725,15 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
           limit: 200,
           ...(page ? { cursor: page } : {}),
         });
+        if (threads.get(conversationId) !== loading) {
+          if (!threads.has(conversationId) && confirmedLive(conversationId))
+            partial.add(conversationId);
+          return;
+        }
         result.items.forEach(merge);
         page = result.nextCursor;
       } while (page);
-    })();
+    });
     void loading.then(
       () => {
         if (threads.get(conversationId) !== loading) return;
@@ -737,7 +742,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         saveCache();
         if (wasPartial) emit({ type: "messages", conversationId, origin: "remote" });
       },
-      () => threads.delete(conversationId)
+      () => {
+        if (threads.get(conversationId) === loading) threads.delete(conversationId);
+      }
     );
     complete.delete(conversationId);
     threads.set(conversationId, loading);
