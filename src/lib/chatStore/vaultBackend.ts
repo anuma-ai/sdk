@@ -677,7 +677,21 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
 
   const flush = (): Promise<void> => (Date.now() < heldUntil ? Promise.resolve() : startFlush());
 
+  const fileScans = new Set<Map<string, ChatSnapshot>>();
+
+  const hasFiles = (record: ChatRecord) =>
+    Array.isArray(record.data.files) && record.data.files.length > 0;
+
+  const holdForScan = (scan: Map<string, ChatSnapshot>, k: string, snapshot: ChatSnapshot) => {
+    const held = scan.get(k);
+    if (!held || held.version < snapshot.version) scan.set(k, snapshot);
+  };
+
   const forget = (k: string) => {
+    const known = confirmed.get(k);
+    if (known?.record.kind === "message")
+      for (const scan of fileScans)
+        if (scan.has(k) || hasFiles(known.record)) holdForScan(scan, k, known);
     confirmed.delete(k);
     checked.delete(k);
     saveCache();
@@ -1010,6 +1024,35 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         complete.add(conversationId);
       }
     });
+  };
+
+  const scanFiles = async () => {
+    const scan = new Map<string, ChatSnapshot>();
+    fileScans.add(scan);
+    try {
+      const source = await remote();
+      for (const conversation of all("conversation")) {
+        if (!confirmedLive(conversation.id)) continue;
+        let page: string | undefined;
+        do {
+          const result = await source.list({
+            kind: "message",
+            conversationId: conversation.id,
+            limit: 200,
+            ...(page ? { cursor: page } : {}),
+          });
+          for (const snapshot of result.items) {
+            const k = key("message", snapshot.record.id);
+            if (scan.has(k) || confirmed.has(k) || hasFiles(snapshot.record))
+              holdForScan(scan, k, snapshot);
+          }
+          page = result.nextCursor;
+        } while (page);
+      }
+      return scan;
+    } finally {
+      fileScans.delete(scan);
+    }
   };
 
   const thread = async (conversationId: string, wait = true): Promise<ChatRecord[]> => {
@@ -1349,28 +1392,12 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     },
     async getAllFiles(query?: Parameters<typeof getAllFilesOp>[1]) {
       await available();
-      const messages = new Map<string, ChatSnapshot>();
       if (query?.conversationId) await thread(query.conversationId);
-      else {
-        const source = await remote();
-        for (const conversation of all("conversation")) {
-          if (!confirmedLive(conversation.id)) continue;
-          let cursor: string | undefined;
-          do {
-            const page = await source.list({
-              kind: "message",
-              conversationId: conversation.id,
-              limit: 200,
-              ...(cursor ? { cursor } : {}),
-            });
-            for (const snapshot of page.items) messages.set(snapshot.record.id, snapshot);
-            cursor = page.nextCursor;
-          } while (cursor);
-        }
-      }
+      const scanned =
+        !query?.conversationId && reachable ? await scanFiles() : new Map<string, ChatSnapshot>();
       const records = new Map(all("message", query?.conversationId).map((r) => [r.id, r]));
-      for (const snapshot of messages.values()) {
-        const cached = confirmed.get(key("message", snapshot.record.id));
+      for (const [k, snapshot] of scanned) {
+        const cached = confirmed.get(k);
         const record = withLocalChanges(
           cached && cached.version > snapshot.version ? cached.record : snapshot.record
         );
