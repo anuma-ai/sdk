@@ -18,7 +18,7 @@ Everything `useChatStorage` reads and writes for chats, so a hook can run on loc
 
 > **addMemoryLinks**(`conversationId`: `string`, `items`: [`ConversationMemoryInput`](ConversationMemoryInput.md)\[]): `Promise`<`void`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#78)
+Defined in: [src/lib/storage/ChatBackend.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#80)
 
 Records the memories a turn drew on in recall order, moving already-linked ones to this turn with their new score.
 
@@ -69,7 +69,7 @@ Records the memories a turn drew on in recall order, moving already-linked ones 
 
 > **clearMemoryLinks**(`conversationId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#79)
+Defined in: [src/lib/storage/ChatBackend.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#81)
 
 **Parameters**
 
@@ -142,6 +142,45 @@ Clears all messages in a conversation (used for the "clear chat" action).
 **Inherited from**
 
 [`ChatStorageAdapter`](ChatStorageAdapter.md).[`clearMessages`](ChatStorageAdapter.md#clearmessages)
+
+***
+
+### confirmMessagePersisted()?
+
+> `optional` **confirmMessagePersisted**(`message`: [`StoredMessage`](StoredMessage.md)): `Promise`<`void`>
+
+Defined in: [src/lib/storage/ChatBackend.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#55)
+
+Confirms the message data in persistent storage; rejects if the write fails or remains in the queue.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`message`
+
+</td>
+<td>
+
+[`StoredMessage`](StoredMessage.md)
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`void`>
 
 ***
 
@@ -286,7 +325,7 @@ Soft delete. Implementations are responsible for cascading to messages/media.
 
 > **deleteMessage**(`uniqueId`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#75)
+Defined in: [src/lib/storage/ChatBackend.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#77)
 
 **Parameters**
 
@@ -323,7 +362,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:75](https://github.com/anuma-ai/sdk/
 
 > **deleteSummary**(`conversationId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#74)
+Defined in: [src/lib/storage/ChatBackend.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#76)
 
 **Parameters**
 
@@ -523,7 +562,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:50](https://github.com/anuma-
 
 > **getMemoryLinks**(`conversationId`: `string`): `Promise`<[`StoredConversationMemory`](StoredConversationMemory.md)\[]>
 
-Defined in: [src/lib/storage/ChatBackend.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#76)
+Defined in: [src/lib/storage/ChatBackend.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#78)
 
 **Parameters**
 
@@ -788,7 +827,7 @@ rationale as [updateMessageFileIds](ChatStorageAdapter.md#updatemessagefileids))
 
 > **getSummary**(`conversationId`: `string`): `Promise`<`StoredConversationSummary` | `null`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#67)
+Defined in: [src/lib/storage/ChatBackend.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#69)
 
 **Parameters**
 
@@ -944,7 +983,7 @@ Defined in: [src/lib/storage/ChatStorageAdapter.ts:127](https://github.com/anuma
 
 > **searchChunks**(`queryVector`: `number`\[], `options?`: [`ChatChunkSearchOptions`](ChatChunkSearchOptions.md)): `Promise`<[`ChunkSearchResult`](ChunkSearchResult.md)\[]>
 
-Defined in: [src/lib/storage/ChatBackend.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#54)
+Defined in: [src/lib/storage/ChatBackend.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#56)
 
 **Parameters**
 
@@ -993,7 +1032,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:54](https://github.com/anuma-ai/sdk/
 
 > `optional` **searchKeywords**(`query`: `string`, `options?`: [`ChatKeywordSearchOptions`](ChatKeywordSearchOptions.md)): `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/storage/ChatBackend.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#59)
+Defined in: [src/lib/storage/ChatBackend.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#61)
 
 Messages holding every word of `query` across the account's chats, newest first, for backends that keep a word index.
 
@@ -1541,7 +1580,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:53](https://github.com/anuma-ai/sdk/
 
 > **upsertSummary**(`conversationId`: `string`, `summary`: `string`, `summarizedUpTo`: `string`, `tokenCount`: `number`): `Promise`<`StoredConversationSummary`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#68)
+Defined in: [src/lib/storage/ChatBackend.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#70)
 
 **Parameters**
 
@@ -1614,7 +1653,7 @@ Defined in: [src/lib/storage/ChatBackend.ts:68](https://github.com/anuma-ai/sdk/
 
 > `optional` **warmChunkCache**(`options`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/storage/ChatBackend.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#61)
+Defined in: [src/lib/storage/ChatBackend.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#63)
 
 Fills a chunk vector cache ahead of the first search, for backends that score on the device.
 

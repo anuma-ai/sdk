@@ -2,7 +2,7 @@
 
 > **ChatBackendFactory** = (`signer`: [`ChatBackendSigner`](../interfaces/ChatBackendSigner.md)) => [`ChatBackend`](../interfaces/ChatBackend.md)
 
-Defined in: [src/lib/storage/ChatBackend.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#89)
+Defined in: [src/lib/storage/ChatBackend.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatBackend.ts#91)
 
 Builds the chat backend for a signer; `useChatStorage` calls it for live writes and for queued writes replayed later.
 
