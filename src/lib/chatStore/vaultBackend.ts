@@ -227,6 +227,13 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     string,
     { records: ChatRecord[]; nextCursor?: string; boundary?: number; boundaryIds: string[] }
   >();
+  const pageChanged = new Map<string, number>();
+  let pageTick = 0;
+  let pagesReset = 0;
+  const dropPage = (conversationId: string) => {
+    pageChanged.set(conversationId, ++pageTick);
+    return messagePages.delete(conversationId);
+  };
   const listeners = new Set<(event: VaultChatEvent) => void>();
   let seq = 0;
   let stopped: string | undefined;
@@ -453,7 +460,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
 
   const enqueue = (patch: Omit<ChatPatch, "seq" | "updatedAt">) => {
     if (stopped) throw new ChatStoreError("Chat storage stopped", 409, stopped);
-    if (patch.kind === "message") messagePages.delete(patch.conversationId);
+    if (patch.kind === "message") dropPage(patch.conversationId);
     const full: ChatPatch = { ...patch, seq: ++seq, updatedAt: now() };
     const k = patchKey(full);
     const existing = pending.get(k);
@@ -689,7 +696,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   };
 
   const forgetConversation = (conversationId: string) => {
-    messagePages.delete(conversationId);
+    dropPage(conversationId);
     threads.delete(conversationId);
     partial.delete(conversationId);
     for (const [k, snapshot] of confirmed)
@@ -772,7 +779,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       threads.has(record.conversationId) ||
       confirmed.has(k) ||
       (checked.has(k) && record.kind !== "message");
-    const paged = record.kind === "message" && messagePages.delete(record.conversationId);
+    const paged = record.kind === "message" && dropPage(record.conversationId);
     if (relevant && merge(snapshot)) announce([record]);
     else if (paged) announce([record]);
   };
@@ -811,6 +818,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     checked.clear();
     threads.clear();
     messagePages.clear();
+    pageChanged.clear();
+    pagesReset = ++pageTick;
     complete.clear();
     partial.clear();
     cursor = account.changesCursor ?? "";
@@ -1195,9 +1204,10 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
           )
           .slice(-limit);
       const cached = messagePages.get(conversationId);
-      const local = () =>
+      const started = pageTick;
+      const local = (held = cached) =>
         new Map([
-          ...(cached?.records ?? []).map((r) => [r.id, withLocalChanges(r) ?? r] as const),
+          ...(held?.records ?? []).map((r) => [r.id, withLocalChanges(r) ?? r] as const),
           ...all("message", conversationId, true).map((r) => [r.id, r] as const),
         ]);
       if (
@@ -1246,11 +1256,13 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
             nextCursor = result.nextCursor;
           } while (nextCursor && records.size < limit);
         if (!conversationLive(conversationId)) return [];
-        const combined = local();
+        const changed = Math.max(pagesReset, pageChanged.get(conversationId) ?? 0) > started;
+        const combined = local(changed ? undefined : cached);
         for (const [id, snapshot] of records)
           combined.set(id, visible(snapshot) ?? snapshot.record);
         const selected = select(combined.values());
-        if (!closed && conversationLive(conversationId)) {
+        if (changed) emit({ type: "messages", conversationId, origin: "remote" });
+        else if (!closed && conversationLive(conversationId)) {
           messagePages.delete(conversationId);
           messagePages.set(conversationId, {
             records: selected,
@@ -1269,7 +1281,12 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
           .catch(() => undefined);
         return select(local().values()).map(toMessage);
       }
-      return load();
+      return load().catch((error: unknown) => {
+        const held = messagePages.get(conversationId);
+        const records = held ? select(local(held).values()) : [];
+        if (held && (records.length >= limit || !held.nextCursor)) return records.map(toMessage);
+        throw error;
+      });
     },
     async getMessageSkeletons(conversationId): Promise<MessageSkeleton[]> {
       return toSkeletons(await thread(conversationId, false));
@@ -1619,7 +1636,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         );
         for (const { record } of conversations) {
           threads.delete(record.id);
-          messagePages.delete(record.id);
+          dropPage(record.id);
         }
         channel?.postMessage("changed");
         emit({ type: "conversations", origin: "local" });
