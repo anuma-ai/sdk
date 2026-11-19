@@ -2,7 +2,7 @@
 
 > **EncryptionKeyVersion** = `"v2"` | `"v3"`
 
-Defined in: [src/react/useEncryption.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#16)
+Defined in: [src/react/useEncryption.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#18)
 
 Encryption key version type.
 

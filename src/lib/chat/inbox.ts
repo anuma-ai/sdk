@@ -1,6 +1,7 @@
 import {
   type EmbeddedWalletSignerFn,
   getKeyPair,
+  getStoredKeyPair,
   type SignMessageFn,
 } from "../../react/useEncryption";
 import type { StoredMessage } from "../db/chat/types";
@@ -163,17 +164,21 @@ export async function openSealedText(
 export async function openInboxSealedText(
   options: {
     walletAddress: string;
-    signMessage: SignMessageFn;
+    signMessage?: SignMessageFn;
     embeddedWalletSigner?: EmbeddedWalletSignerFn;
   },
   sealed: string,
   sealId: string
 ): Promise<string> {
   const { walletAddress, signMessage, embeddedWalletSigner } = options;
-  if (!walletAddress || !signMessage) {
+  const keyPair = !walletAddress
+    ? null
+    : signMessage
+      ? await getKeyPair(walletAddress, signMessage, embeddedWalletSigner)
+      : getStoredKeyPair(walletAddress);
+  if (!keyPair) {
     throw new Error("No inbox key: set walletAddress and signMessage to open a sealed value");
   }
-  const keyPair = await getKeyPair(walletAddress, signMessage, embeddedWalletSigner);
   return openSealedText(sealed, sealId, keyPair);
 }
 

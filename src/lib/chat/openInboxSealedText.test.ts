@@ -64,6 +64,27 @@ describe("openInboxSealedText", () => {
     expect(signMessage).toHaveBeenCalled();
   });
 
+  it("opens with the key pair the encryption-key unlock holds when there is no signMessage", async () => {
+    const signMessage = await walletHoldsVectorKey();
+    const persisted = localStorage.getItem(`ecdh_keypair_${walletAddress}`);
+    clearAllEncryptionState();
+    localStorage.setItem(`ecdh_keypair_${walletAddress}`, persisted!);
+    await requestEncryptionKey(walletAddress, signMessage);
+
+    await expect(
+      openInboxSealedText({ walletAddress }, rewardVector.sealed, rewardVector.seal_id)
+    ).resolves.toBe(rewardVector.plaintext);
+  });
+
+  it("throws a clear error without signMessage before the unlock", async () => {
+    await walletHoldsVectorKey();
+    clearAllEncryptionState();
+
+    await expect(
+      openInboxSealedText({ walletAddress }, rewardVector.sealed, rewardVector.seal_id)
+    ).rejects.toThrow("No inbox key: set walletAddress and signMessage");
+  });
+
   it.each(["referral-reward-claim-43", "", vector.id])(
     "rejects the envelope under the seal id %j",
     async (sealId) => {

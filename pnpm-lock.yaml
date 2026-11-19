@@ -70,6 +70,9 @@ importers:
       '@babel/types':
         specifier: ^7.29.0
         version: 7.29.0
+      '@noble/curves':
+        specifier: ^1.9.7
+        version: 1.9.7
       ai:
         specifier: 6.0.300
         version: 6.0.300(zod@4.6.7)
