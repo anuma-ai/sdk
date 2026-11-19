@@ -447,16 +447,24 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     }, delay);
   };
 
-  const enqueue = (patch: Omit<ChatPatch, "seq" | "updatedAt">) => {
+  const enqueueMany = async (patches: readonly Omit<ChatPatch, "seq" | "updatedAt">[]) => {
+    if (patches.length === 0) return;
     if (stopped) throw new ChatStoreError("Chat storage stopped", 409, stopped);
-    const full: ChatPatch = { ...patch, seq: ++seq, updatedAt: now() };
-    const k = patchKey(full);
-    const existing = pending.get(k);
-    pending.set(k, existing ? mergePatch(existing, full) : full);
-    scheduleFlush();
+    for (const patch of patches) {
+      const full: ChatPatch = { ...patch, seq: ++seq, updatedAt: now() };
+      const k = patchKey(full);
+      const existing = pending.get(k);
+      pending.set(k, existing ? mergePatch(existing, full) : full);
+    }
     reportOutbox();
-    return persist();
+    try {
+      await persist();
+    } finally {
+      scheduleFlush();
+    }
   };
+
+  const enqueue = (patch: Omit<ChatPatch, "seq" | "updatedAt">) => enqueueMany([patch]);
 
   const restore = (batch: readonly ChatPatch[]) => {
     const front = new Map<string, ChatPatch>();
@@ -1367,8 +1375,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       if (partial.has(conversationId))
         throw new ChatStoreError("Chat history is not fully loaded", 0, "history_incomplete");
       await invalidateSummary(conversationId);
-      for (const record of records)
-        await enqueue({ kind: "message", id: record.id, conversationId, delete: true });
+      await enqueueMany(
+        records.map((record) => ({ kind: "message", id: record.id, conversationId, delete: true }))
+      );
       emit({ type: "messages", conversationId, origin: "local" });
     },
     async deleteMessage(uniqueId) {
