@@ -39,6 +39,6 @@ Defined in: [src/lib/processors/types.ts:146](https://github.com/anuma-ai/sdk/bl
 
 ### status
 
-> **status**: `"truncated"` | `"extracted"` | `"rendered_as_images"` | `"skipped"` | `"failed"`
+> **status**: `"failed"` | `"truncated"` | `"extracted"` | `"rendered_as_images"` | `"skipped"`
 
 Defined in: [src/lib/processors/types.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#145)

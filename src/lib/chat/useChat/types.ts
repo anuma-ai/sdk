@@ -25,6 +25,19 @@ import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "./utils";
  */
 export type ResponseUsage = LlmapiResponseUsage & { credits_exhausted?: boolean };
 
+/** Outcome of one server tool the portal ran for an answer. */
+export type AnswerSourceStatus = "ok" | "failed" | "rejected" | "canceled";
+
+/** One server tool the portal ran for an answer, with its best outcome. */
+export type AnswerSource = { name: string; status: AnswerSourceStatus };
+
+/** Portal summary of an answer; `duration_ms` is portal server time summed across tool-loop rounds, not wall-clock time. */
+export type AnswerSummary = {
+  duration_ms: number;
+  source_count: number;
+  sources: AnswerSource[];
+};
+
 /**
  * Streaming chunk structure received from SSE events (Responses API format)
  */
@@ -57,6 +70,7 @@ export type StreamingChunk = {
   };
   /** Checksum of tools used to generate this response (top-level for some APIs) */
   tools_checksum?: string;
+  answer_summary?: AnswerSummary;
   /** Tool call events from server-side tool execution (top-level for some APIs) */
   tool_call_events?: Array<{
     id?: string;
@@ -446,4 +460,5 @@ export type StreamAccumulator = {
     arguments: string;
     output: string;
   }>;
+  answerSummary?: AnswerSummary;
 };

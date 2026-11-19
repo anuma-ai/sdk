@@ -14,11 +14,13 @@ import type { PromptPreProcessor } from "../../chat/preProcessor";
 import type { RunHooks } from "../../chat/runHooks";
 import {
   type ApiResponse,
+  getAnswerSummary,
   getCostMicroUsd,
   getCreditsExhausted,
   getCreditsUsed,
 } from "../../chat/useChat/strategies/types";
 import type { StreamSmoothingConfig } from "../../chat/useChat/StreamSmoother";
+import type { AnswerSource } from "../../chat/useChat/types";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
 import type { ChatJson } from "../../chatStore/types";
 import type { MemoryStore } from "../../memory/store/types";
@@ -164,6 +166,14 @@ export interface ChatCompletionUsage {
    *  via the mid-loop wrap-up. Passed through like creditsUsed (not summed) so
    *  it reaches message.usage for the out-of-credits UX. */
   creditsExhausted?: boolean;
+  answerSummary?: StoredAnswerSummary;
+}
+
+/** Stored form of the portal's answer summary, with `durationMs` summed across tool-loop rounds. */
+export interface StoredAnswerSummary {
+  durationMs: number;
+  sourceCount: number;
+  sources: AnswerSource[];
 }
 
 export interface SearchSource {
@@ -1146,11 +1156,13 @@ export function convertUsageToStored(
   const costMicroUsd = getCostMicroUsd(response);
   const creditsUsed = getCreditsUsed(response);
   const creditsExhausted = getCreditsExhausted(response);
+  const answerSummary = getAnswerSummary(response);
   if (
     !usage &&
     costMicroUsd === undefined &&
     creditsUsed === undefined &&
-    creditsExhausted === undefined
+    creditsExhausted === undefined &&
+    !answerSummary
   ) {
     return undefined;
   }
@@ -1161,6 +1173,13 @@ export function convertUsageToStored(
     costMicroUsd,
     creditsUsed,
     ...(creditsExhausted !== undefined && { creditsExhausted }),
+    ...(answerSummary && {
+      answerSummary: {
+        durationMs: answerSummary.duration_ms,
+        sourceCount: answerSummary.source_count,
+        sources: answerSummary.sources,
+      },
+    }),
   };
 }
 

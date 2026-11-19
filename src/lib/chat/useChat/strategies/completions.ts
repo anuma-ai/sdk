@@ -1,7 +1,12 @@
 import type { LlmapiChatCompletionResponse } from "../../../../client";
-import type { StreamAccumulator } from "../types";
+import type { AnswerSummary, StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
-import { getInStreamErrorMessage, parseReasoningTags, ProviderStreamError } from "../utils";
+import {
+  getInStreamErrorMessage,
+  mergeAnswerSummary,
+  parseReasoningTags,
+  ProviderStreamError,
+} from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
 import { mergeXaiInlineParameterTags } from "./xaiToolFormat";
 
@@ -126,6 +131,7 @@ type CompletionsStreamingChunk = {
      *  Terminal boolean — passed through as-is, never summed. */
     credits_exhausted?: boolean;
   };
+  answer_summary?: AnswerSummary;
 };
 
 function legacyMirrorCarriers(chunk: CompletionsStreamingChunk): LegacyMirrorCarrier[] {
@@ -278,6 +284,12 @@ export class CompletionsStrategy implements ApiStrategy {
           credits_exhausted: typedChunk.usage.credits_exhausted,
         }),
       };
+    }
+    if (typedChunk.answer_summary) {
+      accumulator.answerSummary = mergeAnswerSummary(
+        accumulator.answerSummary,
+        typedChunk.answer_summary
+      );
     }
     const portalImageModel = firstPortalField(portalEnvs, (c) => c.image_model || undefined);
     if (portalImageModel && !accumulator.imageModel) {
@@ -568,6 +580,7 @@ export class CompletionsStrategy implements ApiStrategy {
         tool_call_events: accumulator.toolCallEvents,
       }),
       ...stringField("image_model", accumulator.imageModel),
+      ...(accumulator.answerSummary && { answer_summary: accumulator.answerSummary }),
     };
   }
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { CompletionsStrategy } from "./completions";
-import type { StreamAccumulator } from "../types";
+import type { AnswerSummary, StreamAccumulator } from "../types";
+import { getAnswerSummary } from "./types";
 
 function createAccumulator(): StreamAccumulator {
   return {
@@ -187,5 +188,32 @@ describe("CompletionsStrategy finish_reason passthrough", () => {
   it("falls back to the derived value when the stream carried no finish_reason", () => {
     const acc = createAccumulator();
     expect(strategy.buildFinalResponse(acc).choices?.[0]?.finish_reason).toBe("stop");
+  });
+});
+
+describe("CompletionsStrategy - answer_summary pass-through", () => {
+  const strategy = new CompletionsStrategy();
+  const usage = { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 };
+  const answerSummary: AnswerSummary = {
+    duration_ms: 9123,
+    source_count: 1,
+    sources: [{ name: "AnumaSearchMCP-anuma_text_search", status: "ok" }],
+  };
+
+  it("passes the usage chunk's answer_summary through to the final response", () => {
+    const acc = createAccumulator();
+    strategy.processStreamChunk({ choices: [], usage, answer_summary: answerSummary }, acc);
+
+    const final = strategy.buildFinalResponse(acc);
+    expect(getAnswerSummary(final)).toEqual(answerSummary);
+  });
+
+  it("adds no answer_summary key when the stream carries none", () => {
+    const acc = createAccumulator();
+    strategy.processStreamChunk({ choices: [], usage }, acc);
+
+    const final = strategy.buildFinalResponse(acc);
+    expect(final).not.toHaveProperty("answer_summary");
+    expect(getAnswerSummary(final)).toBeUndefined();
   });
 });

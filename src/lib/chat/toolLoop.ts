@@ -1857,6 +1857,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         } satisfies ModelCallStartEvent)
       );
 
+      const prevAnswerSummary = currentAccumulator.answerSummary;
       for (let attempt = 0; attempt < STREAM_RETRY_MAX_ATTEMPTS; attempt++) {
         sseError = null;
 
@@ -1908,6 +1909,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         });
 
         currentAccumulator = createStreamAccumulator(model || undefined);
+        currentAccumulator.answerSummary = prevAnswerSummary;
         streamingAccumulator = currentAccumulator;
         contContentSmoother = new StreamSmoother((text) => {
           if (emitData) emitData(text);

@@ -4,6 +4,8 @@ import type { LlmapiChatCompletionTool, LlmapiMessage } from "../../../client";
 import { getLogger } from "../../logger";
 import type {
   AccumulatedToolCall,
+  AnswerSourceStatus,
+  AnswerSummary,
   StreamAccumulator,
   ToolConfig,
   ToolExecutionContext,
@@ -367,6 +369,30 @@ export function createStreamAccumulator(initialModel?: string): StreamAccumulato
     partialReasoningTag: "",
     insideReasoning: implicitReasoning,
     implicitReasoningStart: implicitReasoning ? true : undefined,
+  };
+}
+
+const ANSWER_SOURCE_RANK: AnswerSourceStatus[] = ["canceled", "rejected", "failed", "ok"];
+
+export function mergeAnswerSummary(
+  prev?: AnswerSummary,
+  next?: AnswerSummary
+): AnswerSummary | undefined {
+  if (!prev || !next) return prev ?? next;
+  const best = new Map<string, AnswerSourceStatus>();
+  for (const { name, status } of [...prev.sources, ...next.sources]) {
+    const current = best.get(name);
+    if (!current || ANSWER_SOURCE_RANK.indexOf(status) > ANSWER_SOURCE_RANK.indexOf(current)) {
+      best.set(name, status);
+    }
+  }
+  const sources = Array.from(best, ([name, status]) => ({ name, status })).sort((a, b) =>
+    a.name < b.name ? -1 : 1
+  );
+  return {
+    duration_ms: prev.duration_ms + next.duration_ms,
+    source_count: sources.filter((s) => s.status === "ok").length,
+    sources,
   };
 }
 
