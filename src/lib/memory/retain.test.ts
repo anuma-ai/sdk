@@ -485,6 +485,40 @@ describe("retain", () => {
     expect(updateArgs).not.toHaveProperty("factType");
   });
 
+  it("retypes a merged row as an instruction when the incoming fact is one", async () => {
+    mockVaultMatches([{ uniqueId: "id1", content: "Foo", similarity: 0.92 }]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "id1",
+      content: "Foo",
+      factType: "preference",
+      sourceChunkIds: [],
+      proofCount: 1,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ uniqueId: "id1", proofCount: 2 } as never);
+
+    await retain("Foo", ctx, { factType: "instruction" });
+
+    expect(vi.mocked(updateVaultMemoryOp).mock.calls[0][2]).toMatchObject({
+      factType: "instruction",
+    });
+  });
+
+  it("keeps an instruction row typed as one when a plain fact merges into it", async () => {
+    mockVaultMatches([{ uniqueId: "id1", content: "Foo", similarity: 0.92 }]);
+    vi.mocked(getVaultMemoryOp).mockResolvedValue({
+      uniqueId: "id1",
+      content: "Foo",
+      factType: "instruction",
+      sourceChunkIds: [],
+      proofCount: 1,
+    } as never);
+    vi.mocked(updateVaultMemoryOp).mockResolvedValue({ uniqueId: "id1", proofCount: 2 } as never);
+
+    await retain("Foo", ctx, { factType: "preference" });
+
+    expect(vi.mocked(updateVaultMemoryOp).mock.calls[0][2]).not.toHaveProperty("factType");
+  });
+
   it("dedupes source chunk ids on merge (no duplicates if already present)", async () => {
     mockVaultMatches([{ uniqueId: "id1", content: "Foo", similarity: 0.9 }]);
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
