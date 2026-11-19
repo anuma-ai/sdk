@@ -1257,6 +1257,28 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         ...(vector && upsert.embeddingModel ? { embeddingModel: upsert.embeddingModel } : {}),
       }))!;
     },
+    async confirmMessagePersisted(message) {
+      const expected = messageRecord(message).record;
+      const k = key("message", message.uniqueId);
+      await flush();
+      const record = confirmed.get(k)?.record;
+      if (
+        closed ||
+        stopped ||
+        pending.has(k) ||
+        inflight.has(k) ||
+        !record ||
+        record.isDeleted ||
+        record.conversationId !== expected.conversationId ||
+        Boolean(record.data.wasStopped) !== Boolean(message.wasStopped) ||
+        (record.data.error || "") !== (message.error || "") ||
+        Object.entries(expected.data).some(
+          ([field, value]) => JSON.stringify(record.data[field]) !== JSON.stringify(value)
+        )
+      ) {
+        throw new Error("Message persistence is not confirmed");
+      }
+    },
     async updateMessageEmbedding(uniqueId, vector, embeddingModel) {
       const embedding = acceptedVector(vector);
       if (!embedding) return storedMessage(uniqueId);

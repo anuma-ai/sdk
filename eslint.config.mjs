@@ -49,6 +49,7 @@ const checkedTestFiles = [
   "src/lib/memory/synthesizeProfile.test.ts",
   "src/lib/backup/icloud/api.test.ts",
   "src/lib/backup/icloud/backup.test.ts",
+  "src/lib/chat/inbox.test.ts",
   "src/lib/chat/openInboxSealedText.test.ts",
   "src/lib/chat/resumeStream.test.ts",
   "src/lib/chat/toolLoop.detach.test.ts",
