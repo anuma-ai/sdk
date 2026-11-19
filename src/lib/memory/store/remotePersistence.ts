@@ -201,6 +201,16 @@ export interface RemoteMemoryPersistence
     expectedVersion: number | RemoteMemoryRecord,
     signal?: AbortSignal
   ): Promise<RemoteMemoryRecord>;
+  /** Switch a memory on or off for answers; `expectedVersion` is the item version this write replaces. */
+  setEnabled(
+    memoryId: string,
+    enabled: boolean,
+    expectedVersion: number,
+    updatedAt: number,
+    signal?: AbortSignal
+  ): Promise<RemoteMemoryRecord>;
+  /** Count one answer for each distinct id, in requests of at most 100 ids. */
+  recordRecalls(memoryIds: readonly string[], signal?: AbortSignal): Promise<void>;
   /** 1–50 writes in one server transaction; never split or replay a batch. */
   putMany(
     writes: { memory: RemoteMemoryRow; expectedVersion: number | RemoteMemoryRecord }[],
@@ -272,6 +282,7 @@ const memoryFields = {
 } satisfies Record<keyof RemoteMemoryRow, boolean>;
 
 export const MAX_REMOTE_MEMORY_IDS = 1000;
+const MAX_RECALLED_IDS = 100;
 
 const candidateListLimits = [
   ["scopes", 20],
@@ -395,6 +406,7 @@ export function createNearbyRequest(
       return path === "/topics" ? "private-memory-import" : "private-memory-write";
     if (method === "POST" && ["/import", "/memories/batch", "/topics/import"].includes(path))
       return "private-memory-import";
+    if (method === "POST" && path === "/memories/recalled") return "private-memory-write";
     return "private-memory-read";
   };
   const request = async (
@@ -1053,6 +1065,33 @@ export async function createRemoteMemoryPersistence(
         ),
         write
       );
+    },
+    setEnabled: async (id, enabled, expectedVersion, updatedAt, signal) =>
+      decode(
+        await request(
+          memoryPath(id) + "/enabled",
+          {
+            method: "PUT",
+            body: JSON.stringify({
+              expected_version: expectedVersion,
+              enabled,
+              updated_at: updatedAt,
+            }),
+          },
+          signal
+        )
+      ),
+    recordRecalls: async (memoryIds, signal) => {
+      const unique = [...new Set(memoryIds)];
+      for (let i = 0; i < unique.length; i += MAX_RECALLED_IDS)
+        await request(
+          "/memories/recalled",
+          {
+            method: "POST",
+            body: JSON.stringify({ memory_ids: unique.slice(i, i + MAX_RECALLED_IDS) }),
+          },
+          signal
+        );
     },
     putMany: async (writes, signal, leaseToken) => {
       if (

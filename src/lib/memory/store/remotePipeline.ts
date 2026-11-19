@@ -381,6 +381,25 @@ export function createRemoteMemoryPipeline(
         twin_opt_in: false,
       };
     };
+    const switchOff = async (id: string): Promise<StoredVaultMemory> => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const current = attempt === 0 ? snapshots.get(id)! : await persistence.get(id, signal);
+          if (!current) throw new Error(`Memory ${id} vanished before it could be switched off`);
+          return remember([
+            await persistence.setEnabled(
+              id,
+              false,
+              current.version,
+              current.memory.updated_at,
+              signal
+            ),
+          ])[0];
+        } catch (error) {
+          if (attempt > 0) throw error;
+        }
+      }
+    };
     const write = async (memory: RemoteMemoryRow, snapshot: RemoteMemoryRecord | 0) => {
       await assertWrite();
       return remember([await persistence.put(memory, snapshot, signal)])[0];
@@ -511,7 +530,10 @@ export function createRemoteMemoryPipeline(
             signal
           )
         );
-        return { created: rows[0], retired: true };
+        return {
+          created: input.enabled === false ? await switchOff(successor.memory_id) : rows[0],
+          retired: true,
+        };
       },
     };
     return { prepare, port };

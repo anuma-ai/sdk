@@ -457,13 +457,19 @@ async function missingIds(
   return missing;
 }
 
+interface RemoteItem {
+  memory: Record<string, unknown>;
+  version: number;
+  enabled: boolean;
+}
+
 async function remoteMetadata(
   request: NearbyRequest,
   codec: TopicCodec,
   ids: string[],
   signal?: AbortSignal
-): Promise<Map<string, Record<string, unknown>>> {
-  const rows = new Map<string, Record<string, unknown>>();
+): Promise<Map<string, RemoteItem>> {
+  const rows = new Map<string, RemoteItem>();
   for (const batch of chunks(ids, QUERY_IDS)) {
     let cursor: string | undefined;
     do {
@@ -484,18 +490,57 @@ async function remoteMetadata(
         signal
       )) as { items?: unknown; next_cursor?: unknown };
       if (!Array.isArray(page.items)) throw new Error("Invalid nearby private-memory page");
-      for (const item of page.items as { memory?: Record<string, unknown> }[])
+      for (const item of page.items as {
+        memory?: Record<string, unknown>;
+        version?: unknown;
+        enabled?: unknown;
+      }[])
         if (item.memory && typeof item.memory.memory_id === "string")
           rows.set(item.memory.memory_id, {
-            ...item.memory,
-            ...(typeof item.memory.topics === "string" && {
-              topics: await codec.decodeTopics(item.memory.topics).catch(() => null),
-            }),
+            memory: {
+              ...item.memory,
+              ...(typeof item.memory.topics === "string" && {
+                topics: await codec.decodeTopics(item.memory.topics).catch(() => null),
+              }),
+            },
+            version: num(item.version) ?? 0,
+            enabled: item.enabled !== false,
           });
       cursor = typeof page.next_cursor === "string" ? page.next_cursor : undefined;
     } while (cursor);
   }
   return rows;
+}
+
+async function applyEnabled(
+  request: NearbyRequest,
+  id: string,
+  enabled: boolean,
+  version: number,
+  updatedAt: number,
+  signal?: AbortSignal
+): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await request(
+        `/memories/${encodeURIComponent(id)}/enabled`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ expected_version: version, enabled, updated_at: updatedAt }),
+        },
+        signal
+      );
+      return;
+    } catch (error) {
+      if (
+        !(error instanceof RemoteMemoryError) ||
+        error.status !== 429 ||
+        attempt >= MAX_RATE_LIMIT_WAITS
+      )
+        throw error;
+      await wait(error.retryAfterMs ?? DEFAULT_RATE_LIMIT_WAIT_MS, signal);
+    }
+  }
 }
 
 async function backfillTopics(ctx: VaultMemoryOperationsContext): Promise<void> {
@@ -575,14 +620,33 @@ export async function migrateMemoriesToRemote(
         );
         const needsVector = (raw: RawRow, server: Record<string, unknown>) =>
           !!options.embeddingOptions && !embedding(raw, model) && server.embedding_model !== model;
+        const switches: { raw: RawRow; enabled: boolean; version: number }[] = [];
         for (const raw of candidates) {
-          const server = remote.get(raw.id as string);
-          if (
-            server &&
-            server.updated_at === raw.updated_at &&
-            (!sameMetadata(raw, server, model) || needsVector(raw, server))
-          )
+          const item = remote.get(raw.id as string);
+          const server = item?.memory;
+          if (!item || !server || server.updated_at !== raw.updated_at) continue;
+          if (!sameMetadata(raw, server, model) || needsVector(raw, server))
             pending.set(raw.id as string, (raw.updated_at as number) + 1);
+          else if (!bool(raw.is_deleted) && (bool(raw.enabled) ?? true) !== item.enabled)
+            switches.push({ raw, enabled: bool(raw.enabled) ?? true, version: item.version });
+        }
+        if (pending.size === 0 && switches.length > 0) {
+          if (pass >= MAX_UPLOAD_PASSES)
+            throw new RemoteMemoryError(
+              "Nearby still disagrees with this device about which memories are switched on",
+              409,
+              "migration_incomplete"
+            );
+          for (const { raw, enabled, version } of switches)
+            await applyEnabled(
+              request,
+              raw.id as string,
+              enabled,
+              version,
+              raw.updated_at as number,
+              signal
+            );
+          continue;
         }
       }
 

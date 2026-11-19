@@ -360,6 +360,8 @@ export interface CreateVaultMemoryOptions {
   publishedAt?: number | null;
   /** Coarse geohash for location-tagged memory sources (landmarks/Trail). */
   geohash?: string;
+  /** `false` creates the memory switched off. */
+  enabled?: boolean;
 }
 
 export interface UpdateVaultMemoryOptions {

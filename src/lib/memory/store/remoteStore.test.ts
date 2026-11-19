@@ -35,8 +35,9 @@ import {
 } from "../../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "../queryTemporal";
+import { type ProfileDoc, type ProfileFacet, synthesizeProfile } from "../synthesizeProfile";
 import type { RecallDiagnostics } from "../types";
-import { fakeTopicLlm, runMemoryStoreContract } from "./contract";
+import { fakeTopicLlm, runMemoryStoreContract, supersedeOptions } from "./contract";
 import { deriveMemoryKeyRing, memoryCipher, type MemoryKeyRing } from "./memoryKeys";
 import { createRemoteMemoryPersistence, type RemoteMemoryRecord } from "./remotePersistence";
 import {
@@ -53,6 +54,8 @@ interface Stored {
   version: number;
   server_updated_at: string;
   seq?: number;
+  enabled?: boolean;
+  recall_count?: number;
 }
 
 function requestUrl(input: RequestInfo | URL): string {
@@ -123,7 +126,10 @@ const TOMBSTONE_FIELDS = [
   "last_observed_at",
 ];
 
-function fakeNearby(keyId: string, { scrubTombstones = false, candidateLanes = false } = {}) {
+function fakeNearby(
+  keyId: string,
+  { scrubTombstones = false, candidateLanes = false, switchRoutes = true } = {}
+) {
   const rows = new Map<string, Stored>();
   const laneForces: string[][] = [];
   const catalog = new Map<
@@ -192,10 +198,16 @@ function fakeNearby(keyId: string, { scrubTombstones = false, candidateLanes = f
       version: (current?.version ?? 0) + 1,
       server_updated_at: new Date().toISOString(),
       seq: ++writes,
+      ...(switchRoutes && {
+        enabled: current?.enabled ?? true,
+        recall_count: current?.recall_count ?? 0,
+      }),
     };
     rows.set(memory.memory_id, saved);
     return saved;
   };
+  const carriesItemFields = (writes: { memory: Row }[]) =>
+    writes.some((w) => "enabled" in w.memory || "recall_count" in w.memory);
   const cosine = (a: number[], b: number[]) => a.reduce((sum, v, i) => sum + v * b[i], 0);
 
   const read = async (path: string, payload: Record<string, unknown>) =>
@@ -436,9 +448,40 @@ function fakeNearby(keyId: string, { scrubTombstones = false, candidateLanes = f
         return problem(409, "work_lease_expired");
 
       const writes = body.writes as { expected_version: number; memory: Row }[];
+      if (carriesItemFields(writes)) return problem(422, "unknown_field");
       if (body.key_id !== keyId) return problem(409, "key_mismatch");
       if (conflicting(writes)) return problem(409, "version_conflict");
       return json(200, { items: writes.map(apply).map((s) => out(s)) });
+    }
+    const enabledRoute = path.match(/^\/memories\/(.+)\/enabled$/);
+    if (switchRoutes && enabledRoute && method === "PUT") {
+      const id = decodeURIComponent(enabledRoute[1]);
+      const current = rows.get(id);
+      if (!current || current.memory.is_deleted) return problem(404, "not_found");
+      if (current.version !== body.expected_version) return problem(409, "version_conflict");
+      const saved: Stored = {
+        ...current,
+        memory: { ...current.memory, updated_at: body.updated_at as number },
+        enabled: body.enabled as boolean,
+        version: current.version + 1,
+        server_updated_at: new Date().toISOString(),
+        seq: ++writes,
+      };
+      rows.set(id, saved);
+      return json(200, out(saved));
+    }
+    if (switchRoutes && path === "/memories/recalled" && method === "POST") {
+      const ids = body.memory_ids as string[];
+      if (ids.length < 1 || ids.length > 100 || new Set(ids).size !== ids.length)
+        return problem(422, "invalid_memory_ids");
+      let updated = 0;
+      for (const id of ids) {
+        const current = rows.get(id);
+        if (!current || current.memory.is_deleted) continue;
+        rows.set(id, { ...current, recall_count: (current.recall_count ?? 0) + 1 });
+        updated++;
+      }
+      return json(200, { updated });
     }
     const single = path.match(/^\/memories\/(.+)$/);
     if (single) {
@@ -448,6 +491,8 @@ function fakeNearby(keyId: string, { scrubTombstones = false, candidateLanes = f
         return stored ? json(200, out(stored)) : problem(404, "not_found");
       }
       const write = body as unknown as { expected_version: number; memory: Row; key_id: string };
+      if (!write.memory) return problem(404, "no_route");
+      if (carriesItemFields([write])) return problem(422, "unknown_field");
       if (write.key_id !== keyId) return problem(409, "key_mismatch");
       if (conflicting([write])) return problem(409, "version_conflict");
       return json(200, out(apply(write)));
@@ -512,6 +557,16 @@ function fakeNearby(keyId: string, { scrubTombstones = false, candidateLanes = f
   return { rows, catalog, leases, fetch, touch, laneForces };
 }
 
+function rowWriteBodies(server: ReturnType<typeof fakeNearby>): string[] {
+  return server.fetch.mock.calls.flatMap(([input, init]) => {
+    const path = new URL(requestUrl(input)).pathname;
+    const rowWrite =
+      path.endsWith("/memories/batch") ||
+      (init?.method === "PUT" && /\/memories\/[^/]+$/.test(path));
+    return rowWrite && typeof init?.body === "string" ? [init.body] : [];
+  });
+}
+
 async function remoteStore(
   nearby?: ReturnType<typeof fakeNearby>,
   ring?: MemoryKeyRing,
@@ -560,8 +615,6 @@ describe("remote MemoryStore", () => {
     const { store, server } = await remoteStore();
     const saved = await store.retain("Dog is named Mochi");
     await store.retain("Works at Anuma as an engineer");
-    expect("setEnabled" in store).toBe(false);
-    expect("recordRecalls" in store).toBe(false);
     const row = server.rows.get(saved.memoryId)!;
     server.rows.set(saved.memoryId, { ...row, enabled: false, recall_count: 3 } as typeof row);
 
@@ -581,10 +634,173 @@ describe("remote MemoryStore", () => {
     expect(again).toMatchObject({ action: "merge", targetId: saved.memoryId });
     expect(await store.list()).toHaveLength(2);
 
-    const bodies = server.fetch.mock.calls.map(([, init]) =>
-      typeof init?.body === "string" ? init.body : ""
+    expect(rowWriteBodies(server).some((body) => /"enabled"|"recall_count"/.test(body))).toBe(
+      false
     );
-    expect(bodies.some((body) => /"enabled"|"recall_count"/.test(body))).toBe(false);
+  });
+
+  it("keeps a switch across a whole-row edit and a fresh store, and never puts it in the row", async () => {
+    const { store, server, keys } = await remoteStore();
+    const m = await store.create({ content: "Likes green tea", embedding: axis(0) });
+    const onChange = vi.fn();
+    const unsubscribe = store.subscribe(onChange);
+    try {
+      expect(await store.setEnabled!(m.uniqueId, false)).toMatchObject({ enabled: false });
+      expect(onChange).toHaveBeenCalled();
+    } finally {
+      unsubscribe();
+    }
+
+    expect(await store.update(m.uniqueId, { content: "Likes oolong tea" })).toMatchObject({
+      content: "Likes oolong tea",
+      enabled: false,
+    });
+    const fresh = (await remoteStore(server, keys)).store;
+    expect(await fresh.get(m.uniqueId)).toMatchObject({ enabled: false });
+    expect(rowWriteBodies(server).length).toBeGreaterThan(0);
+    expect(rowWriteBodies(server).some((body) => /"enabled"|"recall_count"/.test(body))).toBe(
+      false
+    );
+  });
+
+  it("sends the switch with the read version and retries a stale one once", async () => {
+    const { store, server } = await remoteStore();
+    const m = await store.create({ content: "Likes green tea", embedding: axis(0) });
+    const switchCalls = () =>
+      server.fetch.mock.calls.filter(([input]) => requestUrl(input).endsWith("/enabled"));
+    const original = server.fetch.getMockImplementation()!;
+
+    const before = Date.now();
+    await store.setEnabled!(m.uniqueId, false);
+    const [[, init]] = switchCalls();
+    const body = JSON.parse(init!.body as string) as Record<string, number | boolean>;
+    expect(init!.method).toBe("PUT");
+    expect(body).toMatchObject({ expected_version: 1, enabled: false });
+    expect(body.updated_at).toBeGreaterThanOrEqual(before);
+    expect(Object.keys(body).sort()).toEqual(["enabled", "expected_version", "updated_at"]);
+
+    server.fetch.mockClear();
+    server.fetch.mockImplementation((input, init) => {
+      if (requestUrl(input).endsWith("/enabled") && switchCalls().length === 1)
+        return Promise.resolve(
+          new Response(JSON.stringify({ code: "version_conflict" }), { status: 409 })
+        );
+      return original(input, init);
+    });
+    expect(await store.setEnabled!(m.uniqueId, true)).toMatchObject({ enabled: true });
+    expect(switchCalls()).toHaveLength(2);
+
+    server.fetch.mockImplementation((input, init) =>
+      requestUrl(input).endsWith("/enabled")
+        ? Promise.resolve(
+            new Response(JSON.stringify({ code: "version_conflict" }), { status: 409 })
+          )
+        : original(input, init)
+    );
+    await expect(store.setEnabled!(m.uniqueId, false)).rejects.toMatchObject({
+      code: "version_conflict",
+    });
+    server.fetch.mockImplementation(original);
+  });
+
+  it("rejects a switch and a recall count on a vault without the routes", async () => {
+    const keys = await deriveMemoryKeyRing(`0x${"c3".repeat(65)}`);
+    const { store } = await remoteStore(fakeNearby(keys.keyId, { switchRoutes: false }), keys);
+    const m = await store.create({ content: "Likes green tea", embedding: axis(0) });
+
+    expect(await store.get(m.uniqueId)).toMatchObject({ enabled: true, recallCount: 0 });
+    await expect(store.setEnabled!(m.uniqueId, false)).rejects.toMatchObject({ status: 404 });
+    await expect(store.recordRecalls!([m.uniqueId])).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("posts recall counts deduplicated in requests of at most 100 ids", async () => {
+    const { store, server } = await remoteStore();
+    const ids = Array.from({ length: 150 }, (_, i) => `memory-${i}`);
+    const recalled = () =>
+      server.fetch.mock.calls.filter(([input]) => requestUrl(input).endsWith("/memories/recalled"));
+
+    await store.recordRecalls!([]);
+    expect(recalled()).toEqual([]);
+
+    await store.recordRecalls!([...ids, ...ids.slice(0, 20)]);
+    const bodies = recalled().map(([, init]) => {
+      expect(init!.method).toBe("POST");
+      return (JSON.parse(init!.body as string) as { memory_ids: string[] }).memory_ids;
+    });
+    expect(bodies.map((b) => b.length)).toEqual([100, 50]);
+    expect(bodies.flat()).toEqual(ids);
+  });
+
+  it("switches the replacement off after a supersede, retrying once and then rejecting", async () => {
+    const { store, server } = await remoteStore();
+    const original = server.fetch.getMockImplementation()!;
+    const failSwitches = (times: number) => {
+      let left = times;
+      server.fetch.mockImplementation((input, init) => {
+        if (requestUrl(input).endsWith("/enabled") && left > 0) {
+          left--;
+          return Promise.resolve(new Response(JSON.stringify({ code: "boom" }), { status: 500 }));
+        }
+        return original(input, init);
+      });
+    };
+    const keep = async (content: string) =>
+      (await store.retain(content, { enableAutoMerge: false })).memoryId;
+    const supersede = (content: string, target: string) =>
+      store.retain(content, {
+        consolidateThreshold: 0,
+        consolidateOptions: supersedeOptions([target], content),
+      });
+    const city = await keep("Lives in Portland");
+    const pet = await keep("Has a dog named Rex");
+    await store.setEnabled!(city, false);
+    await store.setEnabled!(pet, false);
+
+    failSwitches(1);
+    const moved = await supersede("Lives in Seattle", city);
+    expect(await store.get(moved.memoryId)).toMatchObject({ enabled: false });
+
+    failSwitches(2);
+    await expect(supersede("Has a dog named Max", pet)).rejects.toMatchObject({ status: 500 });
+    server.fetch.mockImplementation(original);
+  });
+
+  it("rebuilds a profile section without a memory switched off on the vault", async () => {
+    const { store } = await remoteStore();
+    const answer = JSON.stringify({ summary: "Works in software", hasEvidence: true });
+    const fetchFn = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({ output_text: answer, choices: [{ message: { content: answer } }] }),
+      })
+    ) as unknown as typeof fetch;
+    const facets: ProfileFacet[] = [
+      { key: "work_role", label: "Work & Role", query: "where does the user work", guidance: "g" },
+    ];
+    const job = await store.retain("The user does work at Anuma as an engineer");
+    await store.retain("The user does work on weekends at a bakery");
+    const synthesize = (previous?: ProfileDoc) =>
+      synthesizeProfile(
+        { embeddingOptions: { apiKey: "test-key" } },
+        { apiKey: "k", facets, store, fetchFn, ...(previous && { previous }) }
+      );
+
+    const first = await synthesize();
+    expect(first.sections[0].sourceMemoryIds).toContain(job.memoryId);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 1000);
+    try {
+      await store.setEnabled!(job.memoryId, false);
+    } finally {
+      clock.mockRestore();
+    }
+    vi.mocked(fetchFn).mockClear();
+    const second = await synthesize(first);
+
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(second.sections[0].sourceMemoryIds).not.toContain(job.memoryId);
+    expect(second.sections[0].sourceMemoryIds.length).toBeGreaterThan(0);
   });
 
   it("shares concurrent memory pages without sharing different filters", async () => {

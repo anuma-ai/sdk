@@ -223,7 +223,7 @@ interface SubscriptionState {
   fingerprint?: string;
 }
 
-function subscriptionState({ memory, version }: RemoteMemoryRecord): SubscriptionState {
+function subscriptionState({ memory, version, enabled }: RemoteMemoryRecord): SubscriptionState {
   const membership = memory.trust_tier === "quarantined" ? undefined : String(!!memory.is_deleted);
   const hidden =
     membership === undefined ||
@@ -253,6 +253,7 @@ function subscriptionState({ memory, version }: RemoteMemoryRecord): Subscriptio
             memory.topics_user_managed,
             memory.media,
             memory.source,
+            enabled !== false,
           ]),
           uuidv5.URL
         ),
@@ -1653,6 +1654,27 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           return memory;
         })
       ),
+
+    setEnabled: (id, enabled) =>
+      serialized(id, async () => {
+        for (let attempt = 0; ; attempt++) {
+          const record = await live(id);
+          if (!record) return null;
+          try {
+            const saved = await persistence.setEnabled(id, enabled, record.version, Date.now());
+            notify("edit", [saved]);
+            return stored(saved);
+          } catch (error) {
+            if (!(error instanceof RemoteMemoryError)) throw error;
+            if (error.status === 404 && !(await live(id))) return null;
+            if (error.code !== "version_conflict" || attempt > 0) throw error;
+          }
+        }
+      }),
+    recordRecalls: async (memoryIds) => {
+      await persistence.recordRecalls(memoryIds);
+      invalidateReads();
+    },
 
     recall: (query, recallOptions) => pipeline.recall(query, recallOptions),
     factSource: pipeline.factSource,

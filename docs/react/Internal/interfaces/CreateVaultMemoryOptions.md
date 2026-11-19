@@ -33,6 +33,16 @@ model change can detect and re-embed stale vectors.
 
 ***
 
+### enabled?
+
+> `optional` **enabled**: `boolean`
+
+Defined in: [src/lib/db/memoryVault/types.ts:364](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#364)
+
+`false` creates the memory switched off.
+
+***
+
 ### eventTime?
 
 > `optional` **eventTime**: `object`

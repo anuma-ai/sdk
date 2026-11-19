@@ -17,7 +17,7 @@ Migration must have activated the account under the canonical key before constru
 
 > **candidates**(`embedding`: `number`\[], `options?`: [`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md)): `Promise`<{ `failed`: [`RemoteMemoryDecodeFailure`](RemoteMemoryDecodeFailure.md)\[]; `items`: [`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]; `lanes?`: { `event_time`: `string`\[]; `topic`: `string`\[]; }; }>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#221)
+Defined in: [src/lib/memory/store/remotePersistence.ts:231](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#231)
 
 Nearby ranks ciphertext using a query vector and metadata; returned winners decrypt on-device.
 
@@ -68,7 +68,7 @@ Nearby ranks ciphertext using a query vector and metadata; returned winners decr
 
 > **candidateSet**(`embedding`: `number`\[], `options?`: [`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md)): `Promise`<{ `failed`: [`RemoteMemoryDecodeFailure`](RemoteMemoryDecodeFailure.md)\[]; `items`: [`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]; `total_count`: `number`; `unavailable_count`: `number`; }>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#211)
+Defined in: [src/lib/memory/store/remotePersistence.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#221)
 
 Candidate window plus counts for distinguishing empty storage from unavailable vectors.
 
@@ -400,7 +400,7 @@ Whole-row write. Pass a returned snapshot to avoid GET; a number retains the rea
 
 > **putMany**(`writes`: `object`\[], `signal?`: `AbortSignal`, `leaseToken?`: `string`): `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#205)
+Defined in: [src/lib/memory/store/remotePersistence.ts:215](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#215)
 
 1–50 writes in one server transaction; never split or replay a batch.
 
@@ -588,6 +588,57 @@ Same page as `query`, with content and kind\_value dropped instead of decrypted.
 
 ***
 
+### recordRecalls()
+
+> **recordRecalls**(`memoryIds`: readonly `string`\[], `signal?`: `AbortSignal`): `Promise`<`void`>
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:213](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#213)
+
+Count one answer for each distinct id, in requests of at most 100 ids.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`memoryIds`
+
+</td>
+<td>
+
+readonly `string`\[]
+
+</td>
+</tr>
+<tr>
+<td>
+
+`signal?`
+
+</td>
+<td>
+
+`AbortSignal`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`void`>
+
+***
+
 ### releaseWork()
 
 > **releaseWork**(`kind`: [`RemoteMemoryWorkKind`](../type-aliases/RemoteMemoryWorkKind.md), `token`: `string`): `Promise`<`void`>
@@ -638,6 +689,93 @@ Defined in: [src/lib/memory/store/remoteWork.ts:22](https://github.com/anuma-ai/
 **Inherited from**
 
 [`RemoteMemoryWorkPersistence`](RemoteMemoryWorkPersistence.md).[`releaseWork`](RemoteMemoryWorkPersistence.md#releasework)
+
+***
+
+### setEnabled()
+
+> **setEnabled**(`memoryId`: `string`, `enabled`: `boolean`, `expectedVersion`: `number`, `updatedAt`: `number`, `signal?`: `AbortSignal`): `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)>
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#205)
+
+Switch a memory on or off for answers; `expectedVersion` is the item version this write replaces.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`memoryId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`enabled`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`expectedVersion`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`updatedAt`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`signal?`
+
+</td>
+<td>
+
+`AbortSignal`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)>
 
 ***
 

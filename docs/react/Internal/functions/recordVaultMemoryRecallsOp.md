@@ -2,7 +2,7 @@
 
 > **recordVaultMemoryRecallsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `ids`: readonly `string`\[]): `Promise`<`void`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1511](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1511)
+Defined in: [src/lib/db/memoryVault/operations.ts:1512](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1512)
 
 Add one to the recall count of each live, owned memory in `ids`, without moving `updated_at`.
 

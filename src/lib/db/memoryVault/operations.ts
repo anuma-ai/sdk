@@ -311,6 +311,7 @@ function populateNewVaultMemory(
   if (opts.geohash !== undefined) {
     record._setRaw("geohash", opts.geohash);
   }
+  if (opts.enabled === false) record._setRaw("enabled", false);
 }
 
 /** @deprecated App code: use `MemoryStore.create` (`createLocalMemoryStore`). */

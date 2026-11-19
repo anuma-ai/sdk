@@ -2,7 +2,7 @@
 
 > **getDecayCandidatesRawOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)): `Promise`<[`DecayCandidateRaw`](../interfaces/DecayCandidateRaw.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:2237](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2237)
+Defined in: [src/lib/db/memoryVault/operations.ts:2238](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#2238)
 
 Return the projected plaintext fields for the decay sweep within the required vault scope.
 
