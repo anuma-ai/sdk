@@ -226,3 +226,21 @@ describe("userPreferences external_wallets (v49)", () => {
     expect(column.isOptional).toBe(true);
   });
 });
+
+describe("memory_vault enabled / recall_count (v50)", () => {
+  it("adds both by migration AND declares them on the table as optional", () => {
+    const added = sdkMigrations.sortedMigrations
+      .filter((migration) => migration.toVersion === 50)
+      .flatMap((migration) => migration.steps)
+      .flatMap((step) =>
+        step.type === "add_columns" && step.table === "memory_vault"
+          ? step.columns.map((c) => c.name)
+          : []
+      );
+    expect(added).toEqual(["enabled", "recall_count"]);
+
+    const columns = sdkSchema.tables.memory_vault.columns;
+    expect(columns.enabled).toMatchObject({ type: "boolean", isOptional: true });
+    expect(columns.recall_count).toMatchObject({ type: "number", isOptional: true });
+  });
+});

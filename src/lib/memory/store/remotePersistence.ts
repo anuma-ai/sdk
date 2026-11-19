@@ -57,6 +57,8 @@ export interface RemoteMemoryRecord {
   version: number;
   server_updated_at: string;
   score?: number;
+  enabled?: boolean;
+  recall_count?: number;
 }
 
 export interface RemoteMemoryReadFilters {
@@ -112,6 +114,8 @@ export interface RemoteMemoryMetadataRecord {
   memory: Omit<RemoteMemoryRow, "content" | "kind_value">;
   version: number;
   server_updated_at: string;
+  enabled?: boolean;
+  recall_count?: number;
 }
 
 export interface RemoteMemoryMetadataPage {

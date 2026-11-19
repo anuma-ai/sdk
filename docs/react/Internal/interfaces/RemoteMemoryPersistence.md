@@ -1,6 +1,6 @@
 # RemoteMemoryPersistence
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#179)
+Defined in: [src/lib/memory/store/remotePersistence.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#183)
 
 Remote persistence foundation for MemoryStore, not yet its recall/retain implementation.
 Nearby is authoritative: every read reaches it and writes use explicit server versions.
@@ -17,7 +17,7 @@ Migration must have activated the account under the canonical key before constru
 
 > **candidates**(`embedding`: `number`\[], `options?`: [`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md)): `Promise`<{ `failed`: [`RemoteMemoryDecodeFailure`](RemoteMemoryDecodeFailure.md)\[]; `items`: [`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]; `lanes?`: { `event_time`: `string`\[]; `topic`: `string`\[]; }; }>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:217](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#217)
+Defined in: [src/lib/memory/store/remotePersistence.ts:221](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#221)
 
 Nearby ranks ciphertext using a query vector and metadata; returned winners decrypt on-device.
 
@@ -68,7 +68,7 @@ Nearby ranks ciphertext using a query vector and metadata; returned winners decr
 
 > **candidateSet**(`embedding`: `number`\[], `options?`: [`RemoteMemoryCandidateOptions`](RemoteMemoryCandidateOptions.md)): `Promise`<{ `failed`: [`RemoteMemoryDecodeFailure`](RemoteMemoryDecodeFailure.md)\[]; `items`: [`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]; `total_count`: `number`; `unavailable_count`: `number`; }>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#207)
+Defined in: [src/lib/memory/store/remotePersistence.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#211)
 
 Candidate window plus counts for distinguishing empty storage from unavailable vectors.
 
@@ -184,7 +184,7 @@ Defined in: [src/lib/memory/store/remoteWork.ts:17](https://github.com/anuma-ai/
 
 > **counts**(): `Promise`<[`MemoryCounts`](MemoryCounts.md)>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#182)
+Defined in: [src/lib/memory/store/remotePersistence.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#186)
 
 **Returns**
 
@@ -196,7 +196,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:182](https://github.com/a
 
 > **get**(`memoryId`: `string`, `signal?`: `AbortSignal`): `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md) | `null`>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#184)
+Defined in: [src/lib/memory/store/remotePersistence.ts:188](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#188)
 
 **Parameters**
 
@@ -298,7 +298,7 @@ readonly `object`\[]
 
 > **list**(`options?`: [`RemoteMemoryListOptions`](RemoteMemoryListOptions.md)): `Promise`<[`RemoteMemoryPage`](RemoteMemoryPage.md)>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#186)
+Defined in: [src/lib/memory/store/remotePersistence.ts:190](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#190)
 
 One stable memory-id page; follow next\_cursor to enumerate. Embeddings are opt-in.
 
@@ -337,7 +337,7 @@ One stable memory-id page; follow next\_cursor to enumerate. Embeddings are opt-
 
 > **put**(`memory`: [`RemoteMemoryRow`](RemoteMemoryRow.md), `expectedVersion`: `number` | [`RemoteMemoryRecord`](RemoteMemoryRecord.md), `signal?`: `AbortSignal`): `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#195)
+Defined in: [src/lib/memory/store/remotePersistence.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#199)
 
 Whole-row write. Pass a returned snapshot to avoid GET; a number retains the read-before-write path. Version 0 creates. is\_deleted writes a tombstone.
 
@@ -400,7 +400,7 @@ Whole-row write. Pass a returned snapshot to avoid GET; a number retains the rea
 
 > **putMany**(`writes`: `object`\[], `signal?`: `AbortSignal`, `leaseToken?`: `string`): `Promise`<[`RemoteMemoryRecord`](RemoteMemoryRecord.md)\[]>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#201)
+Defined in: [src/lib/memory/store/remotePersistence.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#205)
 
 1–50 writes in one server transaction; never split or replay a batch.
 
@@ -516,7 +516,7 @@ Defined in: [src/lib/memory/store/remoteTopics.ts:19](https://github.com/anuma-a
 
 > **query**(`options?`: [`RemoteMemoryQueryOptions`](RemoteMemoryQueryOptions.md)): `Promise`<[`RemoteMemoryQueryPage`](RemoteMemoryQueryPage.md)>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#187)
+Defined in: [src/lib/memory/store/remotePersistence.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#191)
 
 **Parameters**
 
@@ -553,7 +553,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:187](https://github.com/a
 
 > **queryMetadata**(`options?`: `Omit`<[`RemoteMemoryQueryOptions`](RemoteMemoryQueryOptions.md), `"order"`> & `object`): `Promise`<[`RemoteMemoryMetadataPage`](RemoteMemoryMetadataPage.md)>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#189)
+Defined in: [src/lib/memory/store/remotePersistence.ts:193](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#193)
 
 Same page as `query`, with content and kind\_value dropped instead of decrypted.
 
@@ -645,7 +645,7 @@ Defined in: [src/lib/memory/store/remoteWork.ts:22](https://github.com/anuma-ai/
 
 > `optional` **supportsCandidateLanes**(): `boolean`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#181)
+Defined in: [src/lib/memory/store/remotePersistence.ts:185](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#185)
 
 **Returns**
 
@@ -657,7 +657,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:181](https://github.com/a
 
 > **temporal**(`window`: `object`, `limit?`: `number`): `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#183)
+Defined in: [src/lib/memory/store/remotePersistence.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#187)
 
 **Parameters**
 

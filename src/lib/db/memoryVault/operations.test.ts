@@ -16,6 +16,7 @@ import type { VaultMemoryOperationsContext } from "./operations";
 import {
   archiveVaultMemoryOp,
   clearMemoryTopicsOverrideOp,
+  createSupersedingMemoryOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   deleteAllVaultMemoriesForUserOp,
@@ -27,9 +28,12 @@ import {
   getVaultEmbeddingsByIdsOp,
   getVaultMemoriesByIdsOp,
   getVaultMemoryOp,
+  getVaultMemoryProjectionsOp,
   getVaultRankingProjectionsOp,
+  recordVaultMemoryRecallsOp,
   setMemoryEntitiesOp,
   setMemoryVisibilityOp,
+  setVaultMemoryEnabledOp,
   stampTopicsExtractedAtOp,
   supersedeVaultMemoryOp,
   TOPICS_EXTRACTION_VERSION,
@@ -2140,6 +2144,23 @@ describe("getVaultCandidateKeysOp", () => {
     expect(sqlQueryArg.values).toEqual(["private", "shared"]);
   });
 
+  it("adds the switched-off clause to the projected SQL only for recall reads", async () => {
+    const queryFn = vi.fn((..._c: QueryClause[]) => ({
+      unsafeFetchRaw: vi.fn(() => Promise.resolve([])),
+      fetch: vi.fn(),
+    }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as unknown as Collection<VaultMemory>,
+    });
+
+    await getVaultCandidateKeysOp(ctx, { excludeDisabled: true });
+    await getVaultCandidateKeysOp(ctx);
+
+    const [recallSql, listSql] = queryFn.mock.calls.map((call) => (call[0] as { sql: string }).sql);
+    expect(recallSql).toContain('"enabled" is not 0');
+    expect(listSql).not.toContain('"enabled"');
+  });
+
   it("enforces user_id scoping on both the SQL path and the Loki fallback path", async () => {
     const rows = [
       {
@@ -2956,5 +2977,138 @@ describe("visibility — batch create + raw mapper", () => {
       expect(stored.twinOptIn).toBe(false);
       expect(stored.publishedAt).toBe(null);
     }
+  });
+});
+
+describe("per-memory enabled switch and recall count (in-memory LokiJS)", () => {
+  let db: Database;
+  let ctx: VaultMemoryOperationsContext;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db = new Database({
+      adapter: new LokiJSAdapter({
+        schema: sdkSchema,
+        migrations: sdkMigrations,
+        useWebWorker: false,
+        useIncrementalIndexedDB: false,
+        dbName: `ops-enabled-test-${Math.random().toString(36).slice(2)}`,
+      }),
+      modelClasses: sdkModelClasses,
+    });
+    ctx = { database: db, vaultMemoryCollection: db.get<VaultMemory>("memory_vault") };
+  });
+
+  const recallCounts = async () =>
+    Object.fromEntries((await getAllVaultMemoriesOp(ctx)).map((m) => [m.content, m.recallCount]));
+
+  it("reads a row written without the columns as on with no recalls", async () => {
+    const m = await createVaultMemoryOp(ctx, { content: "legacy fact" });
+    expect(m).toMatchObject({ enabled: true, recallCount: 0 });
+    expect((await getAllVaultMemoriesOp(ctx))[0]).toMatchObject({ enabled: true, recallCount: 0 });
+    expect((await getVaultMemoryProjectionsOp(ctx))[0]).toMatchObject({
+      enabled: true,
+      recallCount: 0,
+    });
+  });
+
+  it("switches off and back on, moving updated_at each time", async () => {
+    const m = await createVaultMemoryOp(ctx, { content: "fact" });
+    let clock = m.updatedAt.getTime();
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => ++clock);
+    try {
+      const off = await setVaultMemoryEnabledOp(ctx, m.uniqueId, false);
+      expect(off?.enabled).toBe(false);
+      expect(off!.updatedAt.getTime()).toBeGreaterThan(m.updatedAt.getTime());
+      expect((await getVaultMemoryOp(ctx, m.uniqueId))?.enabled).toBe(false);
+
+      const on = await setVaultMemoryEnabledOp(ctx, m.uniqueId, true);
+      expect(on?.enabled).toBe(true);
+      expect(on!.updatedAt.getTime()).toBeGreaterThan(off!.updatedAt.getTime());
+      const raw = (await ctx.vaultMemoryCollection.find(m.uniqueId))._raw as Record<
+        string,
+        unknown
+      >;
+      expect(raw.enabled).toBe(true);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("returns null for a missing, deleted or foreign memory", async () => {
+    const deleted = await createVaultMemoryOp(ctx, { content: "gone" });
+    await deleteVaultMemoryOp(ctx, deleted.uniqueId);
+    const foreign = await createVaultMemoryOp({ ...ctx, userId: "other" }, { content: "theirs" });
+
+    expect(await setVaultMemoryEnabledOp(ctx, "missing", false)).toBeNull();
+    expect(await setVaultMemoryEnabledOp(ctx, deleted.uniqueId, false)).toBeNull();
+    expect(
+      await setVaultMemoryEnabledOp({ ...ctx, userId: "me" }, foreign.uniqueId, false)
+    ).toBeNull();
+    expect((await getAllVaultMemoriesOp({ ...ctx, userId: "other" }))[0].enabled).toBe(true);
+  });
+
+  it("counts each memory once per call and leaves updated_at alone", async () => {
+    const a = await createVaultMemoryOp(ctx, { content: "a" });
+    const b = await createVaultMemoryOp(ctx, { content: "b" });
+    let clock = Math.max(a.updatedAt.getTime(), b.updatedAt.getTime());
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => ++clock);
+    try {
+      await recordVaultMemoryRecallsOp(ctx, [a.uniqueId, a.uniqueId, b.uniqueId]);
+      expect(await recallCounts()).toEqual({ a: 1, b: 1 });
+      await recordVaultMemoryRecallsOp(ctx, [a.uniqueId]);
+      expect(await recallCounts()).toEqual({ a: 2, b: 1 });
+    } finally {
+      nowSpy.mockRestore();
+    }
+    const after = await getAllVaultMemoriesOp(ctx);
+    expect(Object.fromEntries(after.map((m) => [m.content, m.updatedAt.getTime()]))).toEqual({
+      a: a.updatedAt.getTime(),
+      b: b.updatedAt.getTime(),
+    });
+  });
+
+  it("skips deleted, foreign and unknown ids when counting", async () => {
+    const live = await createVaultMemoryOp(ctx, { content: "live" });
+    const deleted = await createVaultMemoryOp(ctx, { content: "deleted" });
+    await deleteVaultMemoryOp(ctx, deleted.uniqueId);
+    const foreign = await createVaultMemoryOp({ ...ctx, userId: "other" }, { content: "foreign" });
+
+    await recordVaultMemoryRecallsOp(ctx, []);
+    await recordVaultMemoryRecallsOp(ctx, ["unknown", live.uniqueId]);
+    await recordVaultMemoryRecallsOp({ ...ctx, userId: "me" }, [foreign.uniqueId]);
+    await recordVaultMemoryRecallsOp(ctx, [deleted.uniqueId]);
+
+    const rows = await getAllVaultMemoriesOp(ctx, { includeDeleted: true });
+    expect(Object.fromEntries(rows.map((m) => [m.content, m.recallCount]))).toEqual({
+      live: 1,
+      deleted: 0,
+      foreign: 0,
+    });
+  });
+
+  it("keeps a switched-off memory in list reads and drops it from recall reads", async () => {
+    const off = await createVaultMemoryOp(ctx, { content: "off" });
+    await createVaultMemoryOp(ctx, { content: "on" });
+    await setVaultMemoryEnabledOp(ctx, off.uniqueId, false);
+
+    const names = (rows: { uniqueId: string }[]) =>
+      rows.map((r) => (r.uniqueId === off.uniqueId ? "off" : "on")).sort();
+    expect(names(await getAllVaultMemoriesOp(ctx))).toEqual(["off", "on"]);
+    expect(names(await getAllVaultMemoriesOp(ctx, { excludeDisabled: true }))).toEqual(["on"]);
+    expect(names(await getVaultCandidateKeysOp(ctx))).toEqual(["off", "on"]);
+    expect(names(await getVaultCandidateKeysOp(ctx, { excludeDisabled: true }))).toEqual(["on"]);
+  });
+
+  it("creates the successor switched off when it retires a switched-off memory", async () => {
+    const off = await createVaultMemoryOp(ctx, { content: "Lives in Portland" });
+    await setVaultMemoryEnabledOp(ctx, off.uniqueId, false);
+    const on = await createVaultMemoryOp(ctx, { content: "Works at Acme" });
+
+    const fromOff = await createSupersedingMemoryOp(ctx, { content: "Lives in SF" }, off.uniqueId);
+    const fromOn = await createSupersedingMemoryOp(ctx, { content: "Works at Anuma" }, on.uniqueId);
+
+    expect(fromOff).toMatchObject({ retired: true, created: { enabled: false } });
+    expect(fromOn).toMatchObject({ retired: true, created: { enabled: true } });
   });
 });

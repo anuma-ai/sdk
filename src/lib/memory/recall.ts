@@ -343,6 +343,7 @@ export async function recall(
         limit: types.includes("chunk") ? Math.max(limit * 2, 16) : limit,
         minSimilarity: vaultMinScore,
         useFusion: true,
+        excludeDisabled: true,
         rerank: flags.rerank,
         ...(options.rerankTopN !== undefined && { rerankTopN: options.rerankTopN }),
         ...(options.ceWeight !== undefined && { ceWeight: options.ceWeight }),

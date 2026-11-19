@@ -8,6 +8,16 @@ hidden by default and has its own opt-in flag.
 
 ## Properties
 
+### excludeDisabled?
+
+> `optional` **excludeDisabled**: `boolean`
+
+Defined in: [src/lib/memory/store/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#46)
+
+Leave out memories the user switched off.
+
+***
+
 ### factTypes?
 
 > `optional` **factTypes**: `string`\[]

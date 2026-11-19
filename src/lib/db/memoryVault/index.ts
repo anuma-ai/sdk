@@ -20,10 +20,12 @@ export {
   getVaultRankingProjectionsOp,
   hardDeleteDecayedOp,
   type MemoriesNeedingTopicExtraction,
+  recordVaultMemoryRecallsOp,
   relinkMemoryTopicsOp,
   restoreVaultMemoryOp,
   setMemoryEntitiesOp,
   setMemoryVisibilityOp,
+  setVaultMemoryEnabledOp,
   stampTopicsExtractedAtOp,
   supersedeVaultMemoryOp,
   TOPICS_EXTRACTION_VERSION,
@@ -40,6 +42,7 @@ export {
 } from "./photoIngest";
 export {
   type CreateVaultMemoryOptions,
+  isRecallableMemory,
   MEMORY_KINDS,
   MEMORY_LEVELS,
   type MemoryLevel,

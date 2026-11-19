@@ -2,7 +2,7 @@
 
 > **clearMemoryTopicsOverrideOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryId`: `string`, `options?`: `object`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1371](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1371)
+Defined in: [src/lib/db/memoryVault/operations.ts:1391](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1391)
 
 Reset a memory's topics to automatic: clear the `topics_user_managed` flag so
 auto-extraction resumes owning its links. Invalidates `topics_extracted_version`

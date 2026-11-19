@@ -151,6 +151,33 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
     }
   });
 
+  it("notifies on a switch and stays quiet on recall counting", async () => {
+    const { store } = setup();
+    const m = await store.create({ content: "Plays chess", embedding: "[1,0]" });
+    const onChange = vi.fn();
+    const unsubscribe = store.subscribe(onChange);
+    try {
+      await store.recordRecalls!([m.uniqueId]);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(onChange).not.toHaveBeenCalled();
+      await store.setEnabled!(m.uniqueId, false);
+      await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("keeps the switch and the count across a fresh store over the same database", async () => {
+    const database = makeDatabase();
+    const first = createLocalMemoryStore({ database, embeddingOptions, singleTenant: true });
+    const m = await first.create({ content: "Plays chess", embedding: "[1,0]" });
+    await first.setEnabled!(m.uniqueId, false);
+    await first.recordRecalls!([m.uniqueId]);
+
+    const second = createLocalMemoryStore({ database, embeddingOptions, singleTenant: true });
+    expect(await second.get(m.uniqueId)).toMatchObject({ enabled: false, recallCount: 1 });
+  });
+
   it.each([
     { twinOptIn: true, embeddings: false },
     { twinOptIn: false, embeddings: false },

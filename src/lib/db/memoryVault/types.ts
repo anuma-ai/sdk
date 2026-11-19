@@ -201,9 +201,30 @@ export interface StoredVaultMemory {
   publishedAt: number | null;
   /** Reserved coarse-geohash slot for landmark/Trail memories. */
   geohash: string | null;
+  /** False when the user switched this memory off for answers; absent reads as on. */
+  enabled?: boolean;
+  /** How many answers this memory was used in; absent reads as 0. */
+  recallCount?: number;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
+}
+
+/**
+ * True when a memory may reach an answer: live, not archived, superseded or quarantined, and switched on.
+ *
+ * @public
+ */
+export function isRecallableMemory(
+  m: Pick<StoredVaultMemory, "isDeleted" | "archivedAt" | "supersededBy" | "trustTier" | "enabled">
+): boolean {
+  return (
+    !m.isDeleted &&
+    !m.archivedAt &&
+    !m.supersededBy &&
+    m.trustTier !== "quarantined" &&
+    m.enabled !== false
+  );
 }
 
 /**
@@ -248,6 +269,10 @@ export interface RankableVaultMemory {
 /** @public */
 export interface VaultMemoryProjection extends RankableVaultMemory {
   topicsUserManaged: boolean;
+  /** See {@link StoredVaultMemory.enabled}. */
+  enabled?: boolean;
+  /** See {@link StoredVaultMemory.recallCount}. */
+  recallCount?: number;
 }
 
 /**

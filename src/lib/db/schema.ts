@@ -134,8 +134,9 @@ import { VaultFolder } from "./vaultFolders/models";
  *   nullable, no backfill: NULL reads as "never failed"
  * - v48: Added kind, kind_value (encrypted) and level to memory_vault; level is
  *   backfilled from scope where SQL steps run
+ * - v50: Added enabled and recall_count to memory_vault; NULL reads as on and 0
  */
-export const SDK_SCHEMA_VERSION = 49;
+export const SDK_SCHEMA_VERSION = 50;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -294,6 +295,8 @@ export const sdkSchema = appSchema({
         { name: "twin_opt_in", type: "boolean", isOptional: true },
         { name: "published_at", type: "number", isOptional: true },
         { name: "geohash", type: "string", isOptional: true },
+        { name: "enabled", type: "boolean", isOptional: true },
+        { name: "recall_count", type: "number", isOptional: true },
       ],
     }),
     tableSchema({
@@ -1020,6 +1023,18 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "userPreferences",
           columns: [{ name: "external_wallets", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    {
+      toVersion: 50,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "enabled", type: "boolean", isOptional: true },
+            { name: "recall_count", type: "number", isOptional: true },
+          ],
         }),
       ],
     },

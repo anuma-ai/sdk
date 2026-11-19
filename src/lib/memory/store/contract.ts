@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { primaryTopic, topicWeight } from "../../db/entities/types";
 import { generateEmbedding, generateEmbeddings } from "../../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../../memoryEngine/types";
+import { createRecallTool } from "../recallTool";
+import type { RecallContext } from "../types";
 import type { MemoryStore } from "./types";
 
 interface MemoryStoreContractFixtures {
@@ -587,6 +589,90 @@ export function runMemoryStoreContract(
         )
       ).toEqual([m.uniqueId]);
       expect(await unstamped()).toEqual([]);
+    });
+
+    it("reads a new memory as switched on with no recalls", async () => {
+      const store = await makeStore();
+      const created = await store.create({ content: "Likes green tea" });
+
+      expect(created).toMatchObject({ enabled: true, recallCount: 0 });
+      expect(await store.get(created.uniqueId)).toMatchObject({ enabled: true, recallCount: 0 });
+    });
+
+    it("keeps a switched-off memory listed but out of every recall lane", async (test) => {
+      const store = await makeStore();
+      if (!store.setEnabled) return test.skip();
+      const now = Date.now();
+      const dog = (await store.retain("Dog is named Mochi")).memoryId;
+      const work = (await store.retain("Works at Anuma as an engineer")).memoryId;
+      const hike = await store.create({
+        content: "Went hiking at Mt Hood",
+        eventTime: { start: now - 24 * 60 * 60 * 1000, end: null, kind: "point" },
+      });
+      await store.setTopics(dog, [{ name: "Mochi" }]);
+      const recalled = async (query: string, options?: Parameters<MemoryStore["recall"]>[1]) =>
+        (await store.recall(query, options)).memories.map((m) => m.id);
+      const recent = async () =>
+        createRecallTool({ embeddingOptions: {} } as RecallContext, {
+          types: ["fact"],
+          memoryStore: store,
+        }).executor!({ query: "latest", sort: "recent", limit: 10 }) as Promise<string>;
+
+      expect(await recalled("what is my dog named")).toContain(dog);
+      expect(await recalled("what did I do yesterday", { now })).toContain(hike.uniqueId);
+      expect(await recent()).toContain(`id: ${dog}`);
+
+      expect(await store.setEnabled(dog, false)).toMatchObject({ uniqueId: dog, enabled: false });
+      await store.setEnabled(hike.uniqueId, false);
+
+      expect(await recalled("what is my dog named")).not.toContain(dog);
+      expect(await recalled("mochi")).not.toContain(dog);
+      expect(await recalled("dog", { memoryIds: [dog] })).toEqual([]);
+      expect(await recalled("what did I do yesterday", { now })).not.toContain(hike.uniqueId);
+      const facts = await store.factSource.search("what is my dog named", { limit: 3 });
+      expect(facts.results.map((r) => r.uniqueId)).not.toContain(dog);
+      const recentOut = await recent();
+      expect(recentOut).not.toContain(`id: ${dog}`);
+      expect(recentOut).toContain(`id: ${work}`);
+      expect(
+        (await store.list()).map((m) => [m.uniqueId, m.enabled]).filter(([id]) => id === dog)
+      ).toEqual([[dog, false]]);
+
+      await store.setEnabled(dog, true);
+      expect(await recalled("what is my dog named")).toContain(dog);
+    });
+
+    it("merges a repeated fact into the switched-off memory", async (test) => {
+      const store = await makeStore();
+      if (!store.setEnabled) return test.skip();
+      const saved = await store.retain("Dog is named Mochi");
+      await store.setEnabled(saved.memoryId, false);
+
+      const again = await store.retain("Dog is named Mochi");
+
+      expect(again).toMatchObject({ action: "merge", targetId: saved.memoryId });
+      expect((await store.list()).map((m) => [m.uniqueId, m.enabled])).toEqual([
+        [saved.memoryId, false],
+      ]);
+    });
+
+    it("resolves null when switching a missing memory", async (test) => {
+      const store = await makeStore();
+      if (!store.setEnabled) return test.skip();
+      expect(await store.setEnabled("missing", false)).toBeNull();
+    });
+
+    it("counts each memory once per call", async (test) => {
+      const store = await makeStore();
+      if (!store.recordRecalls) return test.skip();
+      const [a, b] = await store.createMany([{ content: "a" }, { content: "b" }]);
+      const counts = async () =>
+        Object.fromEntries((await store.list()).map((m) => [m.content, m.recallCount]));
+
+      await store.recordRecalls([a.uniqueId, a.uniqueId, b.uniqueId, "missing"]);
+      expect(await counts()).toEqual({ a: 1, b: 1 });
+      await store.recordRecalls([a.uniqueId]);
+      expect(await counts()).toEqual({ a: 2, b: 1 });
     });
 
     it("embeds through the store's maskInput on every write and search", async () => {

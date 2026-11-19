@@ -556,6 +556,37 @@ runMemoryStoreContract(
 );
 
 describe("remote MemoryStore", () => {
+  it("leaves a server item switched off out of recall and keeps it for list and retain", async () => {
+    const { store, server } = await remoteStore();
+    const saved = await store.retain("Dog is named Mochi");
+    await store.retain("Works at Anuma as an engineer");
+    expect("setEnabled" in store).toBe(false);
+    expect("recordRecalls" in store).toBe(false);
+    const row = server.rows.get(saved.memoryId)!;
+    server.rows.set(saved.memoryId, { ...row, enabled: false, recall_count: 3 } as typeof row);
+
+    const recalled = await store.recall("what is my dog named");
+    expect(recalled.memories.map((m) => m.id)).not.toContain(saved.memoryId);
+    const facts = await store.factSource.search("what is my dog named", { limit: 3 });
+    expect(facts.results.map((r) => r.uniqueId)).not.toContain(saved.memoryId);
+    expect(
+      (await store.list()).filter((m) => m.uniqueId === saved.memoryId).map((m) => m.enabled)
+    ).toEqual([false]);
+    expect(await store.get(saved.memoryId)).toMatchObject({ enabled: false, recallCount: 3 });
+    expect((await store.list({ excludeDisabled: true })).map((m) => m.uniqueId)).not.toContain(
+      saved.memoryId
+    );
+
+    const again = await store.retain("Dog is named Mochi");
+    expect(again).toMatchObject({ action: "merge", targetId: saved.memoryId });
+    expect(await store.list()).toHaveLength(2);
+
+    const bodies = server.fetch.mock.calls.map(([, init]) =>
+      typeof init?.body === "string" ? init.body : ""
+    );
+    expect(bodies.some((body) => /"enabled"|"recall_count"/.test(body))).toBe(false);
+  });
+
   it("shares concurrent memory pages without sharing different filters", async () => {
     const { store, server } = await remoteStore();
     await store.createMany(

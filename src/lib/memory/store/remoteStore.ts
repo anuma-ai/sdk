@@ -102,7 +102,11 @@ type ListFilters = Omit<RemoteMemoryQueryOptions, "cursor" | "limit" | "order"> 
   order: "created" | "updated" | "archived";
 };
 
-function projection({ memory }: RemoteMemoryMetadataRecord): VaultMemoryProjection {
+function projection({
+  memory,
+  enabled,
+  recall_count,
+}: RemoteMemoryMetadataRecord): VaultMemoryProjection {
   return {
     uniqueId: memory.memory_id,
     scope: memory.scope,
@@ -113,6 +117,8 @@ function projection({ memory }: RemoteMemoryMetadataRecord): VaultMemoryProjecti
     updatedAt: new Date(memory.updated_at),
     lastObservedAt: memory.last_observed_at ?? null,
     topicsUserManaged: memory.topics_user_managed ?? false,
+    enabled: enabled !== false,
+    recallCount: recall_count ?? 0,
   };
 }
 
@@ -756,9 +762,9 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const created = (records: RemoteMemoryRecord[], inputs: MemoryCreate[]) => {
     embedInBackground(records.filter((_, i) => inputs[i].embedding === undefined));
     notify("membership", records);
-    return records.map((record) => stored(record.memory));
+    return records.map(stored);
   };
-  const asStored = (record: RemoteMemoryRecord | null) => (record ? stored(record.memory) : null);
+  const asStored = (record: RemoteMemoryRecord | null) => (record ? stored(record) : null);
   const knownKinds = async (topics: readonly StoredTopic[], signal?: AbortSignal) => {
     const unkinded = [
       ...new Set(topics.filter((t) => !t.kind).map((t) => normalizeTopicName(t.name))),
@@ -1419,9 +1425,9 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     topicMaintenance,
     repairEmbeddings,
     list: async (listOptions = {}) =>
-      (await listRows(decrypted, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
-        (r) => stored(r.memory)
-      ),
+      (await listRows(decrypted, listOptions, listFilters(listOptions), maxOf(listOptions)))
+        .map(stored)
+        .filter((m) => !listOptions.excludeDisabled || m.enabled !== false),
     listProjections: async (listOptions = {}) =>
       (await listRows(metadata, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
         projection
@@ -1477,7 +1483,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     get: async (id) => asStored(await live(id)),
     listArchived: async () =>
       (await enumerate({ archived_only: true, order: "archived", include_embeddings: true })).map(
-        (record) => stored(record.memory)
+        stored
       ),
     memoriesByTopics,
     topicsByMemories: async (memoryIds) => {

@@ -1558,6 +1558,12 @@ Re-exports [isEncrypted](../react/Internal/functions/isEncrypted.md)
 
 ***
 
+### isRecallableMemory
+
+Re-exports [isRecallableMemory](../react/Internal/functions/isRecallableMemory.md)
+
+***
+
 ### isRerankerAvailable
 
 Re-exports [isRerankerAvailable](../react/Internal/functions/isRerankerAvailable.md)
@@ -2302,6 +2308,12 @@ Re-exports [RecencyOptions](../react/Internal/interfaces/RecencyOptions.md)
 
 ***
 
+### recordVaultMemoryRecallsOp
+
+Re-exports [recordVaultMemoryRecallsOp](../react/Internal/functions/recordVaultMemoryRecallsOp.md)
+
+***
+
 ### reencryptMemoryField
 
 Re-exports [reencryptMemoryField](../react/Internal/functions/reencryptMemoryField.md)
@@ -2725,6 +2737,12 @@ Re-exports [setMemoryVisibilityOp](../react/Internal/functions/setMemoryVisibili
 ### Setting
 
 Re-exports [Setting](../react/Internal/interfaces/Setting.md)
+
+***
+
+### setVaultMemoryEnabledOp
+
+Re-exports [setVaultMemoryEnabledOp](../react/Internal/functions/setVaultMemoryEnabledOp.md)
 
 ***
 

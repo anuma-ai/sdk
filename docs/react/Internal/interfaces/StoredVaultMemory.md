@@ -28,7 +28,7 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:204](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#204)
+Defined in: [src/lib/db/memoryVault/types.ts:208](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#208)
 
 ***
 
@@ -50,6 +50,16 @@ Defined in: [src/lib/db/memoryVault/types.ts:135](https://github.com/anuma-ai/sd
 
 Model that produced `embedding`. Null on legacy rows (grandfathered as
 compatible with the current model).
+
+***
+
+### enabled?
+
+> `optional` **enabled**: `boolean`
+
+Defined in: [src/lib/db/memoryVault/types.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#205)
+
+False when the user switched this memory off for answers; absent reads as on.
 
 ***
 
@@ -119,7 +129,7 @@ Reserved coarse-geohash slot for landmark/Trail memories.
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:206](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#206)
+Defined in: [src/lib/db/memoryVault/types.ts:210](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#210)
 
 ***
 
@@ -199,6 +209,16 @@ Times this fact has been re-observed (for ranking + UX badges).
 Defined in: [src/lib/db/memoryVault/types.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#201)
 
 Unix ms when visibility last became non-private; null while private.
+
+***
+
+### recallCount?
+
+> `optional` **recallCount**: `number`
+
+Defined in: [src/lib/db/memoryVault/types.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#207)
+
+How many answers this memory was used in; absent reads as 0.
 
 ***
 
@@ -349,7 +369,7 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#205)
+Defined in: [src/lib/db/memoryVault/types.ts:209](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#209)
 
 ***
 

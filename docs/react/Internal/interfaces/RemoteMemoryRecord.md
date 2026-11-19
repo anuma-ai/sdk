@@ -6,11 +6,27 @@ A server snapshot. Pass its version back when writing; device timestamps are not
 
 ## Properties
 
+### enabled?
+
+> `optional` **enabled**: `boolean`
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#60)
+
+***
+
 ### memory
 
 > **memory**: [`RemoteMemoryRow`](RemoteMemoryRow.md)
 
 Defined in: [src/lib/memory/store/remotePersistence.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#56)
+
+***
+
+### recall\_count?
+
+> `optional` **recall\_count**: `number`
+
+Defined in: [src/lib/memory/store/remotePersistence.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#61)
 
 ***
 

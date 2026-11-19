@@ -471,7 +471,10 @@ describe("recall — filters and pass-through", () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m2", M2)]);
     vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "other", 0.99)]);
     const result = await recall(QUERY, makeCtx(), { memoryIds: ["m2"], types: ["fact", "chunk"] });
-    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(vaultCtx, { memoryIds: ["m2"] });
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(vaultCtx, {
+      memoryIds: ["m2"],
+      excludeDisabled: true,
+    });
     expect(searchChunksOp).not.toHaveBeenCalled();
     expect(result.memories.map((m) => m.id)).toEqual(["m2"]);
   });
@@ -496,6 +499,7 @@ describe("recall — filters and pass-through", () => {
     expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(vaultCtx, {
       scopes: ["work"],
       folderId: null,
+      excludeDisabled: true,
     });
   });
 

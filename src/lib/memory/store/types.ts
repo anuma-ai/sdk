@@ -42,6 +42,8 @@ export interface MemoryListOptions {
   includeSuperseded?: boolean;
   /** `false` lets a remote store skip downloading vectors; its rows then carry a null `embedding`. */
   withEmbeddings?: boolean;
+  /** Leave out memories the user switched off. */
+  excludeDisabled?: boolean;
 }
 
 /**
@@ -325,6 +327,10 @@ export interface MemoryStore {
     visibility: VaultMemoryVisibility,
     options?: { twinOptIn?: boolean }
   ): Promise<StoredVaultMemory | null>;
+  /** Switch a memory on or off for answers; a switched-off memory stays listed but is never recalled. */
+  setEnabled?(id: string, enabled: boolean): Promise<StoredVaultMemory | null>;
+  /** Count one answer for each memory in `memoryIds`; call once per answer. */
+  recordRecalls?(memoryIds: readonly string[]): Promise<void>;
 
   recall(query: string, options?: MemoryRecallOptions): Promise<RecallResult>;
   retain(content: string, options?: MemoryRetainOptions): Promise<RetainResult>;

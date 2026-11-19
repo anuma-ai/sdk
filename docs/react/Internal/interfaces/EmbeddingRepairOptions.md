@@ -1,6 +1,6 @@
 # EmbeddingRepairOptions
 
-Defined in: [src/lib/memory/store/types.ts:239](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#239)
+Defined in: [src/lib/memory/store/types.ts:241](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#241)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/types.ts:239](https://github.com/anuma-ai/sdk/
 
 > `optional` **cursor**: `string`
 
-Defined in: [src/lib/memory/store/types.ts:245](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#245)
+Defined in: [src/lib/memory/store/types.ts:247](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#247)
 
 Where to resume the scan, from a previous result. Defaults to where this store's last run stopped.
 
@@ -18,7 +18,7 @@ Where to resume the scan, from a previous result. Defaults to where this store's
 
 > `optional` **maxRows**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:241](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#241)
+Defined in: [src/lib/memory/store/types.ts:243](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#243)
 
 Most memories one run re-embeds. Default 50.
 
@@ -28,6 +28,6 @@ Most memories one run re-embeds. Default 50.
 
 > `optional` **maxScan**: `number`
 
-Defined in: [src/lib/memory/store/types.ts:243](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#243)
+Defined in: [src/lib/memory/store/types.ts:245](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#245)
 
 Most memories one run inspects. Default 2000.
