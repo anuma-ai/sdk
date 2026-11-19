@@ -731,6 +731,73 @@ describe("remote MemoryStore", () => {
     expect(bodies.flat()).toEqual(ids);
   });
 
+  it("counts a recall in the warm reads instead of dropping them", async () => {
+    const { store, server } = await remoteStore();
+    const used = await store.create({ content: "Likes green tea", embedding: axis(0) });
+    const other = await store.create({ content: "Has a dog", embedding: axis(1) });
+    const stop = store.subscribe(vi.fn(), { topics: true });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const warm = () =>
+        Promise.all([
+          store.list({ withEmbeddings: false }),
+          store.listProjections({ withEmbeddings: false }),
+          store.listTopics(),
+        ]);
+      await warm();
+      server.fetch.mockClear();
+
+      await store.recordRecalls!([used.uniqueId]);
+      const count = (rows: { uniqueId: string; recallCount?: number }[], id: string) =>
+        rows.find((row) => row.uniqueId === id)?.recallCount;
+      const [rows, projections] = await warm();
+      expect(count(rows, used.uniqueId)).toBe(1);
+      expect(count(rows, other.uniqueId)).toBe(0);
+      expect(count(projections, used.uniqueId)).toBe(1);
+      expect(server.fetch.mock.calls.map(([input]) => requestUrl(input))).toEqual([
+        expect.stringMatching(/\/memories\/recalled$/),
+      ]);
+    } finally {
+      stop();
+    }
+  });
+
+  it("re-reads a page that was in flight while a recall was counted", async () => {
+    const { store, server } = await remoteStore();
+    const used = await store.create({ content: "Likes green tea", embedding: axis(0) });
+    const stop = store.subscribe(vi.fn());
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const original = server.fetch.getMockImplementation()!;
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      server.fetch.mockImplementation(async (input, init) => {
+        if (requestUrl(input).endsWith("/memories/query")) await gate;
+        return original(input, init);
+      });
+      const called = (pathname: string) =>
+        vi.waitFor(() =>
+          expect(
+            server.fetch.mock.calls.some(([input]) => requestUrl(input).endsWith(pathname))
+          ).toBe(true)
+        );
+      server.fetch.mockClear();
+      const inflight = store.list({ withEmbeddings: false });
+      await called("/memories/query");
+      const recorded = store.recordRecalls!([used.uniqueId]);
+      await called("/memories/recalled");
+      server.fetch.mockImplementation(original);
+      release();
+      await Promise.all([inflight, recorded]);
+      expect((await inflight)[0].recallCount).toBe(1);
+      expect((await store.list({ withEmbeddings: false }))[0].recallCount).toBe(1);
+    } finally {
+      stop();
+    }
+  });
+
   it("switches the replacement off after a supersede, retrying once and then rejecting", async () => {
     const { store, server } = await remoteStore();
     const original = server.fetch.getMockImplementation()!;

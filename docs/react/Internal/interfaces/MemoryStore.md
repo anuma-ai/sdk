@@ -653,7 +653,7 @@ Defined in: [src/lib/memory/store/types.ts:335](https://github.com/anuma-ai/sdk/
 
 Defined in: [src/lib/memory/store/types.ts:333](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#333)
 
-Count one answer for each memory in `memoryIds`; call once per answer.
+Count one answer for each memory in `memoryIds`; call it once after the answer finishes, with the pre-retrieved ids plus any the memory tool recalled during it, so stopped and failed answers are not counted.
 
 **Parameters**
 

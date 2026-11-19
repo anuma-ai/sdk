@@ -329,7 +329,7 @@ export interface MemoryStore {
   ): Promise<StoredVaultMemory | null>;
   /** Switch a memory on or off for answers; a switched-off memory stays listed but is never recalled. */
   setEnabled?(id: string, enabled: boolean): Promise<StoredVaultMemory | null>;
-  /** Count one answer for each memory in `memoryIds`; call once per answer. */
+  /** Count one answer for each memory in `memoryIds`; call it once after the answer finishes, with the pre-retrieved ids plus any the memory tool recalled during it, so stopped and failed answers are not counted. */
   recordRecalls?(memoryIds: readonly string[]): Promise<void>;
 
   recall(query: string, options?: MemoryRecallOptions): Promise<RecallResult>;
