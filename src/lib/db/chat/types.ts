@@ -172,6 +172,7 @@ export interface ChatCompletionUsage {
 /** Stored form of the portal's answer summary, with `durationMs` summed across tool-loop rounds. */
 export interface StoredAnswerSummary {
   durationMs: number;
+  /** Number of distinct server tools that returned ok, not cited pages; show `StoredMessage.sources` for a citation count. */
   sourceCount: number;
   sources: AnswerSource[];
 }

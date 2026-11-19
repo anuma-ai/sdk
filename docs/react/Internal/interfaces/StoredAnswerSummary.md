@@ -18,7 +18,9 @@ Defined in: [src/lib/db/chat/types.ts:174](https://github.com/anuma-ai/sdk/blob/
 
 > **sourceCount**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#175)
+Defined in: [src/lib/db/chat/types.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#176)
+
+Number of distinct server tools that returned ok, not cited pages; show `StoredMessage.sources` for a citation count.
 
 ***
 
@@ -26,4 +28,4 @@ Defined in: [src/lib/db/chat/types.ts:175](https://github.com/anuma-ai/sdk/blob/
 
 > **sources**: [`AnswerSource`](../type-aliases/AnswerSource.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#176)
+Defined in: [src/lib/db/chat/types.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#177)

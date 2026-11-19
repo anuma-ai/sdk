@@ -34,6 +34,7 @@ export type AnswerSource = { name: string; status: AnswerSourceStatus };
 /** Portal summary of an answer; `duration_ms` is portal server time summed across tool-loop rounds, not wall-clock time. */
 export type AnswerSummary = {
   duration_ms: number;
+  /** Number of distinct server tools that returned ok, not cited pages; show `StoredMessage.sources` for a citation count. */
   source_count: number;
   sources: AnswerSource[];
 };
