@@ -704,8 +704,9 @@ describe("expo useChatStorage background turns", () => {
         await requestEncryptionKey(wallet, walletSigner);
         let registered: string | null = null;
         const { inbox } = fakeInbox([]);
-        inbox.putPublicKey = async (key) => {
+        inbox.putPublicKey = (key) => {
           registered = key;
+          return Promise.resolve();
         };
         const { result } = renderStorage({ inbox, walletOnly: true });
         await act(async () => {
