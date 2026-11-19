@@ -1427,32 +1427,46 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       const vector = acceptedVector(queryVector);
       if (!vector) return [];
       await flush();
-      const hits = await (
-        await remote()
-      ).search(vector, {
-        limit: Math.min(50, limit),
-        kinds: ["message"],
-        ...(conversationId ? { conversationId } : {}),
-        ...(excludeConversationId ? { excludeConversationId } : {}),
-        ...(search.embeddingModel ? { embeddingModel: search.embeddingModel } : {}),
-      });
-      search.onStats?.({ rowsScanned: hits.length, rowsFetched: hits.length, cacheHits: 0 });
-      const results: ChunkSearchResult[] = [];
-      for (const hit of hits) {
-        if (hit.score < minSimilarity) continue;
-        const local = withLocalChanges(hit.record);
-        if (!local || local.isDeleted) continue;
-        if (view(key("conversation", local.conversationId))?.isDeleted) continue;
-        const stored = toMessage(local);
-        const span = chunkOffsets(local)?.[hit.chunk];
-        results.push({
-          chunkText: span ? stored.content.slice(span[0], span[1]) : stored.content,
-          message: stored,
-          similarity: hit.score,
+      const store = await remote();
+      const searchCap = 50;
+      let requested = Math.min(searchCap, limit);
+      for (;;) {
+        const hits = await store.search(vector, {
+          limit: requested,
+          kinds: ["message"],
+          ...(conversationId ? { conversationId } : {}),
+          ...(excludeConversationId ? { excludeConversationId } : {}),
+          ...(search.embeddingModel ? { embeddingModel: search.embeddingModel } : {}),
         });
-        if (results.length >= limit) break;
+        const results: ChunkSearchResult[] = [];
+        let droppedByLocalState = false;
+        for (const hit of hits) {
+          if (hit.score < minSimilarity) continue;
+          const local = withLocalChanges(hit.record);
+          if (
+            !local ||
+            local.isDeleted ||
+            view(key("conversation", local.conversationId))?.isDeleted
+          ) {
+            droppedByLocalState = true;
+            continue;
+          }
+          const stored = toMessage(local);
+          const span = chunkOffsets(local)?.[hit.chunk];
+          results.push({
+            chunkText: span ? stored.content.slice(span[0], span[1]) : stored.content,
+            message: stored,
+            similarity: hit.score,
+          });
+          if (results.length >= limit) break;
+        }
+        const exhausted = hits.length < requested || requested >= searchCap;
+        if (results.length >= limit || !droppedByLocalState || exhausted) {
+          search.onStats?.({ rowsScanned: hits.length, rowsFetched: hits.length, cacheHits: 0 });
+          return results;
+        }
+        requested = searchCap;
       }
-      return results;
     },
     async searchKeywords(query, search = {}) {
       const { limit = 50, conversationId, excludeConversationId, signal } = search;

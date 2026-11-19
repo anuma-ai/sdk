@@ -731,6 +731,39 @@ describe("vault chat backend", () => {
     }
   );
 
+  it("returns a live match below a locally deleted top match when limit is 1", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1" });
+    const near = unit(1);
+    near[1] = 0.8;
+    near[2] = 0.6;
+    for (const [id, vector] of [
+      ["msg_deleted", unit(1)],
+      ["msg_kept", near],
+    ] as const)
+      await b.createMessage({
+        conversationId: "conv_1",
+        role: "user",
+        content: id,
+        uniqueId: id,
+        vector,
+      });
+    await b.flush();
+
+    fake.fail({
+      op: "putMany",
+      error: new ChatStoreError("busy", 429, "rate_limited", 60_000),
+      sticky: true,
+    });
+    await b.deleteMessage("msg_deleted");
+    await b.flush();
+
+    expect(b.status().pending).toBeGreaterThan(0);
+    const hits = await b.searchChunks(unit(1), { limit: 1 });
+    expect(hits.map((h) => h.message.uniqueId)).toEqual(["msg_kept"]);
+  });
+
   it("applies local content and chunk offsets to vector hits during rate-limit backoff", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake);
