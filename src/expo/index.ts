@@ -210,6 +210,8 @@ export {
   type ChatSnapshot,
   type ChatStore,
   ChatStoreError,
+  type ChatTermSearchOptions,
+  type ChatTermsPage,
   type ChatWrite,
   countUnreadAnumaTurns,
   createAppFileIndex,
@@ -660,6 +662,7 @@ export type {
   ChatBackendFactory,
   ChatBackendSigner,
   ChatChunkSearchOptions,
+  ChatKeywordSearchOptions,
 } from "../lib/storage/ChatBackend";
 export { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
 export type { CachedServerTools, ServerToolsOptions, ServerToolsResponse } from "../lib/tools";

@@ -304,6 +304,12 @@ Re-exports [ChatJson](../react/Internal/type-aliases/ChatJson.md)
 
 ***
 
+### ChatKeywordSearchOptions
+
+Re-exports [ChatKeywordSearchOptions](../react/Internal/interfaces/ChatKeywordSearchOptions.md)
+
+***
+
 ### ChatListOptions
 
 Re-exports [ChatListOptions](../react/Internal/interfaces/ChatListOptions.md)
@@ -433,6 +439,18 @@ Re-exports [ChatStore](../react/Internal/interfaces/ChatStore.md)
 ### ChatStoreError
 
 Re-exports [ChatStoreError](../react/Internal/classes/ChatStoreError.md)
+
+***
+
+### ChatTermSearchOptions
+
+Re-exports [ChatTermSearchOptions](../react/Internal/interfaces/ChatTermSearchOptions.md)
+
+***
+
+### ChatTermsPage
+
+Re-exports [ChatTermsPage](../react/Internal/interfaces/ChatTermsPage.md)
 
 ***
 

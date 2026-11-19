@@ -617,3 +617,182 @@ describe("app files and saved tools through the encrypted remote ChatStore", () 
     expect((await loadSavedTools(store)).map((t) => t.html)).toEqual(["<main>secret</main>"]);
   });
 });
+
+describe("keyword terms", () => {
+  async function termSetup(termSearch: boolean, options: Partial<RemoteChatStoreOptions> = {}) {
+    const ring = await deriveMemoryKeyRing("0x" + "56".repeat(65));
+    const cipher = memoryCipher(ring);
+    const rows = new Map<string, WireSnapshot>();
+    const posts: { path: string; body: Record<string, unknown> }[] = [];
+    const vault = { full: false };
+    const respond = (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const path = url.pathname.replace("/api/private-chats", "");
+      if (path === "/account")
+        return Response.json({ account_id: 8801, key_id: "", term_search: termSearch });
+      const body = init.body
+        ? (JSON.parse(init.body as string) as Record<string, unknown> & {
+            writes?: { record: WireSnapshot["record"]; expected_version: number }[];
+            records?: { record: WireSnapshot["record"] }[];
+            items?: unknown[];
+          })
+        : undefined;
+      if (body) posts.push({ path, body });
+      const items = (body?.writes ?? body?.records ?? []) as { terms?: string[] }[];
+      if (vault.full && items.some((item) => item.terms))
+        return Response.json({ code: "private_chat_term_limit_reached" }, { status: 413 });
+      const keep = (record: WireSnapshot["record"], version: number) => {
+        const row = { record, version, server_updated_at: "2026-11-18T00:00:00Z" };
+        rows.set(`${record.kind}/${record.id}`, row);
+        return row;
+      };
+      if (path === "/records/batch")
+        return Response.json({
+          items: body!.writes!.map((w) => keep(w.record, w.expected_version + 1)),
+        });
+      if (path === "/import") {
+        body!.records!.forEach((r) => keep(r.record, 1));
+        return Response.json({ written: body!.records!.length });
+      }
+      const children = [...rows.values()].filter((r) => r.record.kind === "message");
+      if (path === "/terms/search") return Response.json({ items: children, next_cursor: "next" });
+      if (path === "/terms/missing") return Response.json({ items: children });
+      if (path === "/terms") return Response.json({ indexed: body!.items!.length });
+      throw new Error(`unexpected ${init.method ?? "GET"} ${path}`);
+    };
+    const store = await createRemoteChatStore({
+      baseUrl: "https://vault.test",
+      getToken: () => Promise.resolve("token"),
+      keyId: ring.keyId,
+      ...cipher,
+      fetch: vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+        Promise.resolve(respond(input, init))
+      ),
+      ...options,
+    });
+    return { store, posts, cipher, vault };
+  }
+
+  const message = (id: string, content: string): ChatRecord => ({
+    kind: "message",
+    id,
+    conversationId: "chat",
+    sortKey: 1,
+    createdAt: 1,
+    updatedAt: 1,
+    isDeleted: false,
+    data: { content },
+  });
+
+  it("sends the keyed hashes of a message's words only when vault keeps them", async () => {
+    const on = await termSetup(true);
+    const expected = await Promise.all(
+      ["coffee", "in", "kyoto"].map(async (w) =>
+        (await on.cipher.hashTopic(`chat-term\u0000${w}`)).slice(0, 16)
+      )
+    );
+    await on.store.putMany([
+      { record: conversation(), expectedVersion: 0 },
+      { record: message("m1", "Coffee in Kyoto, coffee!"), expectedVersion: 0 },
+    ]);
+    await on.store.importRecords([{ record: message("m2", "Coffee in Kyoto") }]);
+    const [batch, imported] = on.posts as {
+      path: string;
+      body: { writes?: { terms?: string[] }[]; records?: { terms?: string[] }[] };
+    }[];
+    expect(batch.body.writes![0].terms).toBeUndefined();
+    expect(batch.body.writes![1].terms).toEqual(expected);
+    expect(imported.body.records![0].terms).toEqual(expected);
+    expect(JSON.stringify(on.posts)).not.toMatch(/coffee|kyoto/i);
+
+    await on.store.putMany([
+      { record: { ...message("m1", ""), isDeleted: true, updatedAt: 2 }, expectedVersion: 1 },
+    ]);
+    expect((on.posts[2].body.writes as { terms?: string[] }[])[0].terms).toBeUndefined();
+
+    for (const off of [await termSetup(false), await termSetup(true, { hashTopic: undefined })]) {
+      await off.store.putMany([{ record: message("m1", "Coffee"), expectedVersion: 0 }]);
+      expect((off.posts[0].body.writes as { terms?: string[] }[])[0].terms).toBeUndefined();
+      expect("searchTerms" in off.store).toBe(false);
+      expect("indexTermsPage" in off.store).toBe(false);
+    }
+  });
+
+  it("searches by the query's hashed words and drops records that do not hold every word", async () => {
+    const s = await termSetup(true);
+    await s.store.putMany([
+      { record: message("m1", "Coffee in Kyoto"), expectedVersion: 0 },
+      { record: message("m2", "Tea in Kyoto"), expectedVersion: 0 },
+    ]);
+    const page = await s.store.searchTerms!("KYOTO coffee", { conversationId: "chat" });
+    expect(page.items.map((i) => i.record.id)).toEqual(["m1"]);
+    expect(page.nextCursor).toBe("next");
+    const query = s.posts.at(-1)!;
+    expect(query.path).toBe("/terms/search");
+    expect(query.body).toMatchObject({ account_id: 8801, limit: 50, conversation_id: "chat" });
+    expect(query.body.terms).toEqual(
+      await Promise.all(
+        ["kyoto", "coffee"].map(async (w) =>
+          (await s.cipher.hashTopic(`chat-term\u0000${w}`)).slice(0, 16)
+        )
+      )
+    );
+
+    const before = s.posts.length;
+    expect((await s.store.searchTerms!(" ,.!? ")).items).toEqual([]);
+    expect(s.posts).toHaveLength(before);
+  });
+
+  it("checks every word of a long query on the device though vault gets only 32", async () => {
+    const s = await termSetup(true);
+    const words = Array.from({ length: 40 }, (_, i) => `w${i}`);
+    await s.store.putMany([
+      { record: message("m1", words.slice(0, 32).join(" ")), expectedVersion: 0 },
+      { record: message("m2", words.join(" ")), expectedVersion: 0 },
+    ]);
+    const page = await s.store.searchTerms!(words.join(" "));
+    expect(page.items.map((i) => i.record.id)).toEqual(["m2"]);
+    expect(s.posts.at(-1)!.body.terms).toHaveLength(32);
+  });
+
+  it("resends without terms once vault holds the account's limit, and stops indexing", async () => {
+    const s = await termSetup(true);
+    s.vault.full = true;
+    const writes = (body: Record<string, unknown>) =>
+      ((body.writes ?? body.records) as { terms?: string[] }[]).map((w) => w.terms);
+
+    const [saved] = await s.store.putMany([
+      { record: message("m1", "Coffee in Kyoto"), expectedVersion: 0 },
+    ]);
+    expect(saved.version).toBe(1);
+    expect(s.posts.map((p) => writes(p.body))).toEqual([
+      [expect.arrayContaining([expect.stringMatching(/^[0-9a-f]{16}$/)])],
+      [undefined],
+    ]);
+
+    await s.store.importRecords([{ record: message("m2", "Tea in Kyoto") }]);
+    expect(s.posts.slice(2).map((p) => writes(p.body))).toEqual([[undefined]]);
+    expect(await s.store.indexTermsPage!()).toEqual({ indexed: 0 });
+    expect(s.posts).toHaveLength(3);
+  });
+
+  it("indexes a page of records vault holds no terms for at the version it read", async () => {
+    const s = await termSetup(true);
+    await s.store.putMany([{ record: message("m1", "Coffee in Kyoto"), expectedVersion: 0 }]);
+    const page = await s.store.indexTermsPage!();
+    expect(page).toEqual({ indexed: 1 });
+    const post = s.posts.at(-1)!;
+    expect(post.path).toBe("/terms");
+    expect(post.body).toEqual({
+      account_id: 8801,
+      items: [
+        {
+          kind: "message",
+          id: "m1",
+          version: 1,
+          terms: (s.posts[0].body.writes as { terms: string[] }[])[0].terms,
+        },
+      ],
+    });
+  });
+});

@@ -56,6 +56,8 @@ export {
   type ChatSnapshot,
   type ChatStore,
   ChatStoreError,
+  type ChatTermSearchOptions,
+  type ChatTermsPage,
   type ChatWrite,
   type RemoteChatStoreOptions,
 } from "./types.js";

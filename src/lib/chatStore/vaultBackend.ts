@@ -18,6 +18,7 @@ import type {
   ChatBackend,
   ChatBackendFactory,
   ChatChunkSearchOptions,
+  ChatKeywordSearchOptions,
 } from "../storage/ChatBackend";
 import type {
   ChatStorageAdapter,
@@ -26,6 +27,7 @@ import type {
 } from "../storage/ChatStorageAdapter";
 import { ANUMA_CONVERSATION_ID } from "./anuma";
 import { batches, conversationRecord, messageRecord } from "./chatImports";
+import { chatTermTokens, holdsEveryToken } from "./chatTerms";
 import { validChatId } from "./remote";
 import {
   type ChatJson,
@@ -129,6 +131,8 @@ export interface VaultChatBackend extends ChatBackend {
   flush(): Promise<void>;
   /** Applies changes other devices made since the last poll. */
   poll(): Promise<void>;
+  /** Messages holding every word of `query` across this account's chats, newest first; empty when vault keeps no word hashes. */
+  searchKeywords(query: string, options?: ChatKeywordSearchOptions): Promise<StoredMessage[]>;
   /** Copies imported conversations and messages into vault with their own ids, times and order, leaving ids vault already holds as they are. */
   importChats(
     chats: readonly { conversation: StoredConversation; messages: readonly StoredMessage[] }[]
@@ -146,6 +150,8 @@ export interface VaultChatBackend extends ChatBackend {
 
 const terminalCodes = new Set(["key_mismatch", "account_changed", "account_not_found"]);
 const cacheSaveDelayMs = 500;
+const termIndexDelayMs = 30_000;
+const termPagePauseMs = 1_000;
 const cachedMessageLimit = 200;
 
 function cursorRejected(error: unknown): boolean {
@@ -229,6 +235,11 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   let heldUntil = 0;
   let flushTimer: ReturnType<typeof setTimeout> | undefined;
   let pollTimer: ReturnType<typeof setTimeout> | undefined;
+  let termTimer: ReturnType<typeof setTimeout> | undefined;
+  let termCursor: string | undefined;
+  let termsIndexed = false;
+  let termFailures = 0;
+  let indexing: Promise<void> | null = null;
   let polling: Promise<void> | null = null;
   let pollFailures = 0;
   let pollAgain = false;
@@ -274,6 +285,15 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       if (patch) record = applyPatch(record, patch) ?? record;
     }
     return record;
+  };
+
+  const withLocalChanges = (record: ChatRecord): ChatRecord | undefined => {
+    const k = key(record.kind, record.id);
+    let out: ChatRecord | undefined = record;
+    for (const patch of [inflight.get(k), pending.get(k)]) {
+      if (patch) out = applyPatch(out, patch);
+    }
+    return out;
   };
 
   const conversationLive = (conversationId: string) => {
@@ -825,6 +845,37 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     else void poll();
   };
 
+  const indexTerms = () => {
+    const store = connected;
+    if (termsIndexed || indexing || closed || !store?.indexTermsPage) return;
+    indexing = (async () => {
+      while (!closed && activity.isActive()) {
+        termCursor = (await store.indexTermsPage!(termCursor)).nextCursor;
+        termFailures = 0;
+        if (!termCursor) {
+          termsIndexed = true;
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, termPagePauseMs));
+      }
+    })()
+      .catch(() => {
+        termFailures += 1;
+        scheduleTermIndex(termIndexDelayMs * 2 ** Math.min(termFailures, 4));
+      })
+      .finally(() => {
+        indexing = null;
+      });
+  };
+
+  const scheduleTermIndex = (delay = termIndexDelayMs) => {
+    if (termTimer || termsIndexed || closed) return;
+    termTimer = setTimeout(() => {
+      termTimer = undefined;
+      indexTerms();
+    }, delay);
+  };
+
   const ready = (): Promise<void> => {
     readyPromise ??= (async () => {
       await seeding;
@@ -840,6 +891,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       if (options.subscribeChanges && !stopChanges && !closed)
         stopChanges = options.subscribeChanges(onChanges);
       schedulePoll();
+      scheduleTermIndex();
     })();
     readyPromise.catch((error) => {
       readyPromise = null;
@@ -891,6 +943,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   const unsubscribeActivity = activity.subscribe(() => {
     if (!activity.isActive()) return;
     if (readyPromise) void readyPromise.then(adopt).catch(() => undefined);
+    if (reachable) scheduleTermIndex();
     void poll();
     if (pending.size && !flushing && Date.now() >= heldUntil) {
       clearTimeout(retryTimer);
@@ -1312,6 +1365,34 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       }
       return results;
     },
+    async searchKeywords(query, search = {}) {
+      const { limit = 50, conversationId, excludeConversationId, signal } = search;
+      await flush();
+      const store = await remote();
+      if (!store.searchTerms) return [];
+      const tokens = chatTermTokens(query);
+      const found: StoredMessage[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await store.searchTerms(query, {
+          limit: Math.min(100, Math.max(1, limit - found.length)),
+          kinds: ["message"],
+          ...(conversationId ? { conversationId } : {}),
+          ...(excludeConversationId ? { excludeConversationId } : {}),
+          ...(cursor ? { cursor } : {}),
+          ...(signal ? { signal } : {}),
+        });
+        for (const { record } of page.items) {
+          const local = withLocalChanges(record);
+          if (!local || local.isDeleted) continue;
+          if (view(key("conversation", local.conversationId))?.isDeleted) continue;
+          if (local !== record && !holdsEveryToken(local, tokens)) continue;
+          found.push(toMessage(local));
+        }
+        cursor = page.nextCursor;
+      } while (cursor && found.length < limit);
+      return found.slice(0, limit);
+    },
     async getSummary(conversationId): Promise<StoredConversationSummary | null> {
       const record = await child("summary", conversationId);
       return record && !record.isDeleted && record.data.summarizedUpTo ? toSummary(record) : null;
@@ -1427,6 +1508,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       clearTimeout(flushTimer);
       clearTimeout(retryTimer);
       clearTimeout(pollTimer);
+      clearTimeout(termTimer);
       stopChanges?.();
       unsubscribeActivity();
       releaseSlot?.();

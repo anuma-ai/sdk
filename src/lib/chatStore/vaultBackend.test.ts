@@ -10,7 +10,7 @@ import {
 } from "../../../test/chat/vaultHarness";
 import type { StoredConversation, StoredMessage } from "../db/chat/types";
 import { ANUMA_CONVERSATION_ID } from "./anuma";
-import { ChatStoreError } from "./types";
+import { type ChatStore, ChatStoreError } from "./types";
 import { createVaultChatBackend, type VaultChatBackend, type VaultChatEvent } from "./vaultBackend";
 import type { ChatOutboxLocks, ChatOutboxStorage } from "./vaultOutbox";
 
@@ -1207,5 +1207,146 @@ describe("vault chat backend", () => {
       }
     );
     expect((await reader.getConversations()).map((c) => c.title)).toEqual(["From another tab"]);
+  });
+});
+
+describe.skipIf(conformance)("keyword search over vault", () => {
+  it("pages vault's word matches into messages up to the limit", async () => {
+    const fake = await createChatStoreHarness();
+    const searchTerms = vi.fn<NonNullable<ChatStore["searchTerms"]>>();
+    const { b } = backend({ ...fake, store: { ...fake.store, searchTerms } });
+    await b.createConversation({ conversationId: "conv_1" });
+    for (const id of ["msg_1", "msg_2", "msg_3"])
+      await b.createMessage({ conversationId: "conv_1", role: "user", content: id, uniqueId: id });
+    await b.flush();
+    const row = async (id: string) => (await fake.row("message", id))!;
+    searchTerms.mockImplementation(async (_query, options) =>
+      options?.cursor
+        ? { items: [await row("msg_1")] }
+        : { items: [await row("msg_3"), await row("msg_2")], nextCursor: "page_2" }
+    );
+
+    expect((await b.searchKeywords("coffee", { limit: 2 })).map((m) => m.uniqueId)).toEqual([
+      "msg_3",
+      "msg_2",
+    ]);
+    expect(searchTerms).toHaveBeenCalledTimes(1);
+    expect(searchTerms.mock.calls[0][1]).toMatchObject({ limit: 2 });
+    expect(
+      (await b.searchKeywords("coffee", { excludeConversationId: "conv_2" })).map((m) => m.uniqueId)
+    ).toEqual(["msg_3", "msg_2", "msg_1"]);
+    expect(searchTerms.mock.calls.slice(1).map(([q, o]) => [q, o])).toEqual([
+      ["coffee", { limit: 50, kinds: ["message"], excludeConversationId: "conv_2" }],
+      [
+        "coffee",
+        { limit: 48, kinds: ["message"], excludeConversationId: "conv_2", cursor: "page_2" },
+      ],
+    ]);
+  });
+
+  it("applies writes still waiting to be sent before returning vault's matches", async () => {
+    const fake = await createChatStoreHarness();
+    const searchTerms = vi.fn<NonNullable<ChatStore["searchTerms"]>>();
+    const { b } = backend({ ...fake, store: { ...fake.store, searchTerms } });
+    await b.createConversation({ conversationId: "conv_1" });
+    await b.createConversation({ conversationId: "conv_2" });
+    for (const [id, conversationId] of [
+      ["msg_deleted", "conv_1"],
+      ["msg_edited", "conv_1"],
+      ["msg_kept", "conv_1"],
+      ["msg_in_deleted_chat", "conv_2"],
+    ])
+      await b.createMessage({ conversationId, role: "user", content: "coffee", uniqueId: id });
+    await b.flush();
+    const rows = await Promise.all(
+      ["msg_deleted", "msg_edited", "msg_kept", "msg_in_deleted_chat"].map(
+        async (id) => (await fake.row("message", id))!
+      )
+    );
+    searchTerms.mockResolvedValue({ items: rows });
+
+    fake.fail({
+      op: "putMany",
+      error: new ChatStoreError("busy", 429, "rate_limited", 60_000),
+      sticky: true,
+    });
+    await b.deleteMessage("msg_deleted");
+    await b.upsertMessage({
+      conversationId: "conv_1",
+      role: "user",
+      content: "tea",
+      uniqueId: "msg_edited",
+    });
+    await b.deleteConversation("conv_2");
+
+    expect((await b.searchKeywords("coffee")).map((m) => m.uniqueId)).toEqual(["msg_kept"]);
+  });
+
+  it("finds nothing when vault keeps no word hashes", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    expect(await b.searchKeywords("coffee")).toEqual([]);
+  });
+
+  it("retries indexing with backoff after a failed page, from the same cursor", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = await createChatStoreHarness();
+      let calls = 0;
+      const indexTermsPage = vi.fn<NonNullable<ChatStore["indexTermsPage"]>>(async () => {
+        calls += 1;
+        if (calls === 1) throw new ChatStoreError("busy", 503, "unavailable");
+        return { indexed: 1 };
+      });
+      const { b } = backend({ ...fake, store: { ...fake.store, indexTermsPage } });
+      await b.poll();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(indexTermsPage).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(59_999);
+      expect(indexTermsPage).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(indexTermsPage.mock.calls.map(([cursor]) => cursor)).toEqual([undefined, undefined]);
+      await vi.advanceTimersByTimeAsync(600_000);
+      expect(indexTermsPage).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("indexes records without terms page by page, a second apart, 30 seconds after connecting and only while active", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = await createChatStoreHarness();
+      let active = false;
+      const indexTermsPage = vi.fn<NonNullable<ChatStore["indexTermsPage"]>>(async (cursor) =>
+        cursor ? { indexed: 1 } : { indexed: 2, nextCursor: "page_2" }
+      );
+      const { b } = backend(
+        { ...fake, store: { ...fake.store, indexTermsPage } },
+        { activity: { isActive: () => active, subscribe: () => () => {} } }
+      );
+      await b.poll();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(indexTermsPage).not.toHaveBeenCalled();
+
+      active = true;
+      const { b: later } = backend(
+        { ...fake, store: { ...fake.store, indexTermsPage } },
+        { activity: { isActive: () => active, subscribe: () => () => {} } }
+      );
+      await later.poll();
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(indexTermsPage).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(indexTermsPage.mock.calls.map(([cursor]) => cursor)).toEqual([undefined]);
+      await vi.advanceTimersByTimeAsync(999);
+      expect(indexTermsPage).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(indexTermsPage.mock.calls.map(([cursor]) => cursor)).toEqual([undefined, "page_2"]);
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(indexTermsPage).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

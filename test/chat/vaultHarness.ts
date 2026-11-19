@@ -6,6 +6,7 @@ import type {
   ChatSnapshot,
   ChatStore,
   ChatWrite,
+  RemoteChatStoreOptions,
 } from "../../src/lib/chatStore/types";
 
 /** A chat store for tests plus the controls they need: fault injection, a call log and a second device. */
@@ -19,7 +20,7 @@ export interface ChatStoreHarness {
   /** Stored vectors; only the in-memory fake can show them. */
   vectors?(kind: ChatRecordKind, id: string): number[][] | undefined;
   /** The real vault's base URL and a token for this account; absent on the in-memory fake. */
-  vault?: { baseUrl: string; getToken(): Promise<string> };
+  vault?: { baseUrl: string; getToken(): Promise<string>; options: RemoteChatStoreOptions };
 }
 
 const env = typeof process === "undefined" ? {} : process.env;
@@ -103,6 +104,8 @@ function withFaults(store: ChatStore, calls: string[], faults: FakeChatStoreFaul
       store.deleteAll(...a)
     ),
     ...(store.sealedId ? { sealedId: (value: string) => store.sealedId!(value) } : {}),
+    ...(store.searchTerms ? { searchTerms: store.searchTerms } : {}),
+    ...(store.indexTermsPage ? { indexTermsPage: store.indexTermsPage } : {}),
     attachments: store.attachments,
   };
 }
@@ -134,7 +137,7 @@ async function realVault(): Promise<ChatStoreHarness> {
     },
     row: async (kind, id) => (await direct.get(kind, id)) ?? undefined,
     write: (writes) => direct.putMany(writes),
-    vault: { baseUrl: env.VAULT_CONFORMANCE_URL!, getToken: () => privyToken(did) },
+    vault: { baseUrl: env.VAULT_CONFORMANCE_URL!, getToken: () => privyToken(did), options },
   };
 }
 

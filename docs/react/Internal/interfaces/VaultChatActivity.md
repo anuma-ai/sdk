@@ -1,6 +1,6 @@
 # VaultChatActivity
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#89)
+Defined in: [src/lib/chatStore/vaultBackend.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#91)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/vaultBackend.ts:89](https://github.com/anuma-ai/s
 
 > **isActive**(): `boolean`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#90)
+Defined in: [src/lib/chatStore/vaultBackend.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#92)
 
 **Returns**
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/chatStore/vaultBackend.ts:90](https://github.com/anuma-ai/s
 
 > **subscribe**(`onChange`: () => `void`): () => `void`
 
-Defined in: [src/lib/chatStore/vaultBackend.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#91)
+Defined in: [src/lib/chatStore/vaultBackend.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultBackend.ts#93)
 
 **Parameters**
 
