@@ -2,7 +2,7 @@
 
 > **seedEncryptionKeys**(`address`: `string`, `keys`: `object`): `void`
 
-Defined in: [src/react/useEncryption.ts:718](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#718)
+Defined in: [src/react/useEncryption.ts:684](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#684)
 
 Seed (or merge) raw key hex into the in-memory store without signing.
 

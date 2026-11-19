@@ -3,7 +3,7 @@
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 
@@ -43,6 +43,7 @@ import { runToolLoop } from "../lib/chat/toolLoop";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { PiiRedactor } from "../lib/pii/redactor";
 import { localChatBackend } from "../lib/storage/WatermelonChatStorageAdapter";
+import { clearAllEncryptionState, requestEncryptionKey } from "../react/useEncryption";
 import { useChatStorage } from "./useChatStorage";
 
 function makeDatabase(): Database {
@@ -106,6 +107,7 @@ function renderStorage(options: {
   inbox?: VaultInbox;
   onStreamMeta?: (meta: unknown) => void;
   withWallet?: boolean;
+  walletOnly?: boolean;
   piiRedaction?: boolean;
   detachedTools?: ToolConfig[];
 }) {
@@ -122,6 +124,7 @@ function renderStorage(options: {
       piiRedaction: options.piiRedaction,
       detachedTools: options.detachedTools,
       ...(options.withWallet ? { walletAddress: wallet, signMessage: walletSigner } : {}),
+      ...(options.walletOnly ? { walletAddress: wallet } : {}),
     })
   );
 }
@@ -663,6 +666,60 @@ describe("expo useChatStorage background turns", () => {
         },
       ]);
       expect(removed).toEqual(["0xin"]);
+    });
+
+    describe("without signMessage, as the mobile app passes it", () => {
+      beforeEach(() => {
+        clearAllEncryptionState();
+      });
+
+      afterEach(() => {
+        clearAllEncryptionState();
+      });
+
+      it("delivers with the key pair the encryption-key unlock holds", async () => {
+        await requestEncryptionKey(wallet, walletSigner);
+        const { inbox, removed } = fakeInbox([
+          { id: "0xunlocked", plaintext: sealed("0xunlocked", "msg_unlocked") },
+        ]);
+        const { result } = renderStorage({
+          inbox,
+          walletOnly: true,
+          database: await deviceWithParent("msg_unlocked"),
+        });
+
+        let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+        await act(async () => {
+          delivered = await result.current.deliverInbox();
+        });
+
+        expect(delivered).toMatchObject([
+          { status: "stored", assistantMessage: { uniqueId: "msg_reply_0xunlocked" } },
+        ]);
+        expect(removed).toEqual(["0xunlocked"]);
+        expect(walletSigner).toHaveBeenCalledTimes(1);
+      });
+
+      it("registers no key and delivers nothing before the unlock", async () => {
+        const { inbox, removed } = fakeInbox([
+          { id: "0xearly", plaintext: sealed("0xearly", "msg_early") },
+        ]);
+        const putPublicKey = vi.spyOn(inbox, "putPublicKey");
+        const { result } = renderStorage({
+          inbox,
+          walletOnly: true,
+          database: await deviceWithParent("msg_early"),
+        });
+
+        let delivered: Awaited<ReturnType<typeof result.current.deliverInbox>> | undefined;
+        await act(async () => {
+          delivered = await result.current.deliverInbox();
+        });
+
+        expect(delivered).toEqual([]);
+        expect(putPublicKey).not.toHaveBeenCalled();
+        expect(removed).toEqual([]);
+      });
     });
 
     it("restores PII placeholders with the turn's conversation redactor", async () => {

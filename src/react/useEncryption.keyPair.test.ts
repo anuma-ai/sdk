@@ -1,3 +1,5 @@
+import { createECDH, createHash, hkdfSync } from "node:crypto";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -186,7 +188,9 @@ describe("requestEncryptionKey and the key pair", () => {
   });
 
   it("reports no key when the session ends while the key pair is being derived", async () => {
-    const exportKey = crypto.subtle.exportKey.bind(crypto.subtle);
+    const importKey = crypto.subtle.importKey.bind(crypto.subtle) as (
+      ...args: unknown[]
+    ) => Promise<CryptoKey>;
     let release: () => void = () => undefined;
     const held = new Promise<void>((resolve) => {
       release = resolve;
@@ -195,15 +199,13 @@ describe("requestEncryptionKey and the key pair", () => {
     const deriving = new Promise<void>((resolve) => {
       reached = resolve;
     });
-    vi.spyOn(crypto.subtle, "exportKey").mockImplementation((async (
-      ...args: Parameters<typeof crypto.subtle.exportKey>
-    ) => {
+    vi.spyOn(crypto.subtle, "importKey").mockImplementation((async (...args: unknown[]) => {
       if (args[0] === "jwk") {
         reached();
         await held;
       }
-      return exportKey(...args);
-    }) as typeof crypto.subtle.exportKey);
+      return importKey(...args);
+    }) as typeof crypto.subtle.importKey);
     const ready = vi.fn();
     onKeyAvailable(ADDRESS, ready);
 
@@ -227,13 +229,13 @@ describe("requestEncryptionKey and the key pair", () => {
   });
 
   it("still unlocks the encryption keys when the key pair cannot be derived", async () => {
-    const exportKey = crypto.subtle.exportKey.bind(crypto.subtle);
-    vi.spyOn(crypto.subtle, "exportKey").mockImplementation((async (
-      ...args: Parameters<typeof crypto.subtle.exportKey>
-    ) => {
-      if (args[0] === "jwk") throw new Error("JWK export unsupported");
-      return exportKey(...args);
-    }) as typeof crypto.subtle.exportKey);
+    const importKey = crypto.subtle.importKey.bind(crypto.subtle) as (
+      ...args: unknown[]
+    ) => Promise<CryptoKey>;
+    vi.spyOn(crypto.subtle, "importKey").mockImplementation((async (...args: unknown[]) => {
+      if (args[0] === "jwk") throw new Error("JWK import unsupported");
+      return importKey(...args);
+    }) as typeof crypto.subtle.importKey);
 
     expect(
       await requestEncryptionKey(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE))
@@ -249,5 +251,80 @@ describe("requestEncryptionKey and the key pair", () => {
     await requestEncryptionKey(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE));
 
     expect(await exportPublicKey(ADDRESS, vi.fn<SignMessageFn>())).toBe(existing);
+  });
+});
+
+describe("the derived key pair", () => {
+  const algorithm = { name: "ECDH", namedCurve: "P-256" };
+
+  beforeEach(() => {
+    clearAllEncryptionState();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearAllEncryptionState();
+  });
+
+  function standardPublicPoint(signature: string, address: string): string {
+    const seed = createHash("sha256")
+      .update(Buffer.from(signature.slice(2), "hex"))
+      .digest();
+    const scalar = hkdfSync("sha256", seed, address.toLowerCase(), "ECDH-P256-KeyPair", 32);
+    const ecdh = createECDH("prime256v1");
+    ecdh.setPrivateKey(Buffer.from(scalar));
+    return ecdh.getPublicKey("hex");
+  }
+
+  async function rawPublicKey(keyPair: CryptoKeyPair): Promise<string> {
+    return Buffer.from(await crypto.subtle.exportKey("raw", keyPair.publicKey)).toString("hex");
+  }
+
+  it("is the standard P-256 key of the signature's HKDF scalar", async () => {
+    const keyPair = await getKeyPair(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE));
+
+    expect(await rawPublicKey(keyPair)).toBe(standardPublicPoint(SIGNATURE, ADDRESS));
+  });
+
+  it("agrees on the ECDH secret with a peer", async () => {
+    const keyPair = await getKeyPair(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE));
+    const peer = createECDH("prime256v1");
+    peer.generateKeys();
+    const peerPublic = await crypto.subtle.importKey(
+      "raw",
+      peer.getPublicKey(),
+      algorithm,
+      false,
+      []
+    );
+
+    const secret = await crypto.subtle.deriveBits(
+      { name: "ECDH", public: peerPublic },
+      keyPair.privateKey,
+      256
+    );
+
+    expect(Buffer.from(secret).toString("hex")).toBe(
+      peer.computeSecret(Buffer.from(await rawPublicKey(keyPair), "hex")).toString("hex")
+    );
+  });
+
+  it("is derived without a PKCS#8 import, which WebKit refuses without the public key", async () => {
+    const importKey = crypto.subtle.importKey.bind(crypto.subtle) as (
+      ...args: unknown[]
+    ) => Promise<CryptoKey>;
+    vi.spyOn(crypto.subtle, "importKey").mockImplementation(((...args: unknown[]) =>
+      args[0] === "pkcs8"
+        ? Promise.reject(
+            new DOMException(
+              "Data provided to an operation does not meet requirements",
+              "DataError"
+            )
+          )
+        : importKey(...args)) as typeof crypto.subtle.importKey);
+
+    const keyPair = await getKeyPair(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE));
+
+    expect(await rawPublicKey(keyPair)).toBe(standardPublicPoint(SIGNATURE, ADDRESS));
   });
 });
