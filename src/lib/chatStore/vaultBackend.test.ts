@@ -748,6 +748,123 @@ describe("vault chat backend", () => {
     expect((await backend(fake).b.getSummary("conv_1"))?.summary).toBe("second");
   });
 
+  it("returns all files before a thread opens and after cache eviction", async () => {
+    const fake = await createChatStoreHarness();
+    let at = 100;
+    const writer = backend(fake, { now: () => at }).b;
+    await writer.createConversation({ conversationId: "conv_1" });
+    await writer.createConversation({ conversationId: "conv_2" });
+    for (const [conversationId, uniqueId] of [
+      ["conv_1", "msg_1"],
+      ["conv_2", "msg_2"],
+      ["conv_1", "msg_3"],
+    ]) {
+      at += 100;
+      await writer.createMessage({
+        conversationId,
+        uniqueId,
+        role: "user",
+        content: uniqueId,
+        files: [{ id: uniqueId, name: `${uniqueId}.txt`, type: "text/plain", size: 1 }],
+      });
+    }
+    await writer.flush();
+
+    const { b } = backend(fake, { threadCacheSize: 1 });
+    const original = fake.store.list.bind(fake.store);
+    const list = vi
+      .spyOn(fake.store, "list")
+      .mockImplementation((query) =>
+        original(query.kind === "message" ? { ...query, limit: 1 } : query)
+      );
+
+    expect((await b.getAllFiles()).map((file) => file.id)).toEqual(["msg_3", "msg_2", "msg_1"]);
+    expect(list.mock.calls.filter(([query]) => query.kind === "message")).toHaveLength(3);
+    expect(list.mock.calls.some(([query]) => query.cursor)).toBe(true);
+    expect(await b.getAllFiles({ limit: 1 })).toEqual([
+      {
+        id: "msg_3",
+        name: "msg_3.txt",
+        type: "text/plain",
+        size: 1,
+        conversationId: "conv_1",
+        createdAt: new Date(400),
+        messageRole: "user",
+      },
+    ]);
+    expect((await b.getAllFiles({ conversationId: "conv_1" })).map((file) => file.id)).toEqual([
+      "msg_3",
+      "msg_1",
+    ]);
+    await b.getMessages("conv_2");
+    expect((await b.getAllFiles()).map((file) => file.id)).toEqual(["msg_3", "msg_2", "msg_1"]);
+  });
+
+  it("applies local file edits and deletions before the global file limit", async () => {
+    const fake = await createChatStoreHarness();
+    let at = 100;
+    const writer = backend(fake, { now: () => at }).b;
+    for (const conversationId of ["conv_1", "conv_2", "conv_3"])
+      await writer.createConversation({ conversationId });
+    for (const [conversationId, uniqueId] of [
+      ["conv_1", "msg_edit"],
+      ["conv_3", "msg_stored"],
+      ["conv_1", "msg_delete"],
+      ["conv_2", "msg_hidden"],
+    ]) {
+      at += 100;
+      await writer.createMessage({
+        conversationId,
+        uniqueId,
+        role: "assistant",
+        content: uniqueId,
+        files: [{ id: uniqueId, name: `${uniqueId}.txt`, type: "text/plain", size: 1 }],
+      });
+    }
+    await writer.flush();
+
+    const { b } = backend(fake, { now: () => 600, threadCacheSize: 1 });
+    await b.upsertMessage({
+      conversationId: "conv_1",
+      uniqueId: "msg_edit",
+      role: "assistant",
+      content: "msg_edit",
+      files: [{ id: "edited", name: "edited.txt", type: "text/plain", size: 2 }],
+    });
+    await b.deleteMessage("msg_delete");
+    await b.deleteConversation("conv_2");
+    await b.createMessage({
+      conversationId: "conv_local",
+      uniqueId: "msg_local",
+      role: "user",
+      content: "local",
+      files: [{ id: "local", name: "local.txt", type: "text/plain", size: 3 }],
+    });
+
+    const expected = ["local", "msg_stored", "edited"];
+    expect((await b.getAllFiles()).map((file) => file.id)).toEqual(expected);
+    expect((await b.getAllFiles({ limit: 2 })).map((file) => file.id)).toEqual(
+      expected.slice(0, 2)
+    );
+
+    let release!: () => void;
+    const response = new Promise<void>((resolve) => (release = resolve));
+    const original = fake.store.putMany.bind(fake.store);
+    const putMany = vi.spyOn(fake.store, "putMany").mockImplementation(async (writes) => {
+      await response;
+      return original(writes);
+    });
+    const flushing = b.flush();
+    try {
+      await vi.waitFor(() => expect(putMany).toHaveBeenCalled());
+      expect((await b.getAllFiles()).map((file) => file.id)).toEqual(expected);
+    } finally {
+      release();
+      await flushing;
+    }
+    expect((await b.getAllFiles()).map((file) => file.id)).toEqual(expected);
+  });
+
   it.each(["first", "later"])("discards an evicted thread load at its %s page", async (page) => {
     const fake = await createChatStoreHarness();
     const writer = backend(fake).b;

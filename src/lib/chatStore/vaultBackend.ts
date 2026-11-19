@@ -1349,9 +1349,36 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     },
     async getAllFiles(query?: Parameters<typeof getAllFilesOp>[1]) {
       await available();
+      const messages = new Map<string, ChatSnapshot>();
       if (query?.conversationId) await thread(query.conversationId);
+      else {
+        const source = await remote();
+        for (const conversation of all("conversation")) {
+          if (!confirmedLive(conversation.id)) continue;
+          let cursor: string | undefined;
+          do {
+            const page = await source.list({
+              kind: "message",
+              conversationId: conversation.id,
+              limit: 200,
+              ...(cursor ? { cursor } : {}),
+            });
+            for (const snapshot of page.items) messages.set(snapshot.record.id, snapshot);
+            cursor = page.nextCursor;
+          } while (cursor);
+        }
+      }
+      const records = new Map(all("message", query?.conversationId).map((r) => [r.id, r]));
+      for (const snapshot of messages.values()) {
+        const cached = confirmed.get(key("message", snapshot.record.id));
+        const record = withLocalChanges(
+          cached && cached.version > snapshot.version ? cached.record : snapshot.record
+        );
+        if (record && !record.isDeleted) records.set(record.id, record);
+        else records.delete(snapshot.record.id);
+      }
       const files: StoredFileWithContext[] = [];
-      for (const record of all("message", query?.conversationId)) {
+      for (const record of records.values()) {
         if (!conversationLive(record.conversationId)) continue;
         const stored = toMessage(record);
         for (const file of stored.files ?? [])
