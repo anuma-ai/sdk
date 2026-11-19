@@ -1440,8 +1440,11 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       const results: ChunkSearchResult[] = [];
       for (const hit of hits) {
         if (hit.score < minSimilarity) continue;
-        const stored = toMessage(hit.record);
-        const span = chunkOffsets(hit.record)?.[hit.chunk];
+        const local = withLocalChanges(hit.record);
+        if (!local || local.isDeleted) continue;
+        if (view(key("conversation", local.conversationId))?.isDeleted) continue;
+        const stored = toMessage(local);
+        const span = chunkOffsets(local)?.[hit.chunk];
         results.push({
           chunkText: span ? stored.content.slice(span[0], span[1]) : stored.content,
           message: stored,

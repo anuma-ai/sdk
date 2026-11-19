@@ -693,6 +693,78 @@ describe("vault chat backend", () => {
     expect((await fake.row("message", "msg_long"))?.record.data.chunkOffsets).toHaveLength(16);
   });
 
+  it.each(["message", "conversation"] as const)(
+    "excludes a local %s deletion from vector search during rate-limit backoff",
+    async (kind) => {
+      const fake = await createChatStoreHarness();
+      const { b } = backend(fake);
+      await b.createConversation({ conversationId: "conv_1" });
+      await b.createConversation({ conversationId: "conv_2" });
+      for (const [id, conversationId] of [
+        ["msg_deleted", kind === "message" ? "conv_1" : "conv_2"],
+        ["msg_kept", "conv_1"],
+      ])
+        await b.createMessage({
+          conversationId,
+          role: "user",
+          content: id,
+          uniqueId: id,
+          vector: unit(1),
+        });
+      await b.flush();
+
+      fake.fail({
+        op: "putMany",
+        error: new ChatStoreError("busy", 429, "rate_limited", 60_000),
+        sticky: true,
+      });
+      if (kind === "message") await b.deleteMessage("msg_deleted");
+      else await b.deleteConversation("conv_2");
+      await b.flush();
+
+      expect(b.status().pending).toBeGreaterThan(0);
+      expect((await fake.row("message", "msg_deleted"))?.record.isDeleted).toBe(false);
+      expect(
+        (await b.getMessagesByIds(["msg_deleted", "msg_kept"])).map((m) => m.uniqueId)
+      ).toEqual(["msg_kept"]);
+      expect((await b.searchChunks(unit(1))).map((h) => h.message.uniqueId)).toEqual(["msg_kept"]);
+    }
+  );
+
+  it("applies local content and chunk offsets to vector hits during rate-limit backoff", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1" });
+    await b.createMessage({
+      conversationId: "conv_1",
+      role: "user",
+      content: "alpha beta gamma",
+      uniqueId: "msg_1",
+    });
+    await b.updateMessageChunks("msg_1", [{ vector: unit(1), startOffset: 6, endOffset: 10 }], "m");
+    await b.flush();
+
+    fake.fail({
+      op: "putMany",
+      error: new ChatStoreError("busy", 429, "rate_limited", 60_000),
+      sticky: true,
+    });
+    await b.upsertMessage({
+      conversationId: "conv_1",
+      role: "user",
+      content: "theta omega delta",
+      uniqueId: "msg_1",
+    });
+    await b.updateMessageChunks("msg_1", [{ vector: unit(1), startOffset: 6, endOffset: 11 }], "m");
+    await b.flush();
+
+    expect(b.status().pending).toBeGreaterThan(0);
+    expect((await fake.row("message", "msg_1"))?.record.data.content).toBe("alpha beta gamma");
+    expect(await b.searchChunks(unit(1))).toMatchObject([
+      { message: { uniqueId: "msg_1", content: "theta omega delta" }, chunkText: "omega" },
+    ]);
+  });
+
   it("skips vectors vault cannot index instead of failing the write", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake);
