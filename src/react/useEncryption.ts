@@ -1037,13 +1037,6 @@ export async function requestEncryptionKey(
         }));
       if (keyPair && sessionEpoch === startEpoch && !getStoredKeyPair(walletAddress)) {
         setStoredKeyPair(walletAddress, keyPair);
-        if (!persisted) {
-          await persistKeyPair(walletAddress, startEpoch).catch((error: unknown) =>
-            getLogger().warn(
-              `Failed to persist keypair: ${error instanceof Error ? error.message : String(error)}`
-            )
-          );
-        }
       }
     }
     if (sessionEpoch !== startEpoch) {
