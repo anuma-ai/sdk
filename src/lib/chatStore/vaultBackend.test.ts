@@ -722,6 +722,47 @@ describe("vault chat backend", () => {
     expect((await b.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_1", "msg_2"]);
   });
 
+  it("reloads an evicted thread before clearing its messages", async () => {
+    const fake = await createChatStoreHarness();
+    const writer = backend(fake).b;
+    await writer.createConversation({ conversationId: "conv_1" });
+    await writer.createConversation({ conversationId: "conv_2" });
+    for (const uniqueId of ["msg_1", "msg_2"])
+      await writer.createMessage({
+        conversationId: "conv_1",
+        role: "user",
+        content: uniqueId,
+        uniqueId,
+      });
+    await writer.flush();
+
+    const { b } = backend(fake, { threadCacheSize: 1 });
+    await b.getConversations();
+    let release!: () => void;
+    const response = new Promise<void>((resolve) => (release = resolve));
+    let waiting = false;
+    const original = fake.store.list.bind(fake.store);
+    vi.spyOn(fake.store, "list").mockImplementation(async (query) => {
+      if (query.kind !== "message" || query.conversationId !== "conv_1" || query.cursor)
+        return original(query);
+      const result = await original(query);
+      waiting = true;
+      await response;
+      return result;
+    });
+
+    const loading = b.getMessages("conv_1");
+    await vi.waitFor(() => expect(waiting).toBe(true));
+    await b.getMessages("conv_2");
+    release();
+    expect(await loading).toEqual([]);
+
+    await b.clearMessages("conv_1");
+    await b.flush();
+    expect((await fake.row("message", "msg_1"))?.record.isDeleted).toBe(true);
+    expect((await fake.row("message", "msg_2"))?.record.isDeleted).toBe(true);
+  });
+
   it.each(["response", "error"])(
     "keeps a replacement thread load after a stale %s",
     async (outcome) => {

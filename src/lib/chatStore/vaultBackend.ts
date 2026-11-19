@@ -725,7 +725,11 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
           limit: 200,
           ...(page ? { cursor: page } : {}),
         });
-        if (threads.get(conversationId) !== loading) return;
+        if (threads.get(conversationId) !== loading) {
+          if (!threads.has(conversationId) && confirmedLive(conversationId))
+            partial.add(conversationId);
+          return;
+        }
         result.items.forEach(merge);
         page = result.nextCursor;
       } while (page);
