@@ -51,6 +51,8 @@ export interface ChatBackend extends ChatStorageAdapter {
   getMessageCount(conversationId: string): Promise<number>;
   getToolCallEventIds(conversationId: string): Promise<Set<string>>;
   upsertMessage(options: CreateMessageOptions & { uniqueId: string }): Promise<StoredMessage>;
+  /** Confirms the message data in persistent storage; rejects if the write fails or remains in the queue. */
+  confirmMessagePersisted?(message: StoredMessage): Promise<void>;
   searchChunks(
     queryVector: number[],
     options?: ChatChunkSearchOptions

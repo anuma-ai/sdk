@@ -224,7 +224,7 @@ export async function clearTurnErrors(
 export async function deliverInboxAnswers(options: {
   inbox: VaultInbox;
   keyPair: CryptoKeyPair;
-  backend: Pick<ChatBackend, "getMessagesByIds" | "getConversation">;
+  backend: Pick<ChatBackend, "getMessagesByIds" | "getConversation" | "confirmMessagePersisted">;
   store: (opened: InboxPlaintext, messageId: string) => Promise<StoredMessage>;
   complete?: (opened: InboxPlaintext, answer: StoredMessage) => Promise<void>;
 }): Promise<InboxDeliveryResult[]> {
@@ -260,6 +260,7 @@ export async function deliverInboxAnswers(options: {
         }
       }
       const stored = existing ?? (await store(opened, messageId));
+      await backend.confirmMessagePersisted?.(stored);
       if (complete) await complete(opened, stored);
       await inbox.remove(item.id);
       results.push({

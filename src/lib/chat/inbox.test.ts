@@ -1,9 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createChatStoreHarness } from "../../../test/chat/vaultHarness";
+import { ChatStoreError } from "../chatStore/types";
+import { createVaultChatBackend, type VaultChatBackend } from "../chatStore/vaultBackend";
 import { getLogger, type Logger, setLogger } from "../logger";
 import rewardVector from "./fixtures/inboxRewardVector.json";
 import vector from "./fixtures/inboxSealVector.json";
-import { createVaultInbox, exportInboxPublicKey, openInboxItem, openSealedText } from "./inbox";
+import {
+  createVaultInbox,
+  deliverInboxAnswers,
+  exportInboxPublicKey,
+  type InboxPlaintext,
+  openInboxItem,
+  openSealedText,
+} from "./inbox";
 
 function fromBase64Url(value: string): Uint8Array {
   const padded = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -208,5 +218,119 @@ describe("createVaultInbox", () => {
     ]);
     expect(JSON.parse(String(calls[0][1].body))).toEqual({ public_key: "k" });
     expect(calls[0][1].headers).toMatchObject({ Authorization: "Bearer tok" });
+  });
+});
+
+describe("inbox persistence", () => {
+  const backends: VaultChatBackend[] = [];
+  afterEach(() => backends.splice(0).forEach((backend) => backend.close()));
+
+  async function setup(previous?: { content: string; wasStopped?: boolean; error?: string }) {
+    const fake = await createChatStoreHarness();
+    const backend = createVaultChatBackend({
+      store: fake.store,
+      pollIntervalMs: 0,
+      activity: { isActive: () => true, subscribe: () => () => {} },
+    });
+    backends.push(backend);
+    const opened = JSON.parse(vector.plaintext) as InboxPlaintext;
+    const messageId = `msg_bg_${opened.inference_id}`;
+    await backend.createMessage({
+      uniqueId: opened.parent_message_id!,
+      conversationId: opened.conversation_id,
+      role: "user",
+      content: "hello",
+    });
+    if (previous) {
+      await backend.createMessage({
+        uniqueId: messageId,
+        conversationId: opened.conversation_id,
+        role: "assistant",
+        ...previous,
+      });
+    }
+    await backend.flush();
+    const items = [{ id: vector.id, sealed: vector.sealed, created_at: opened.finished_at }];
+    const inbox = {
+      putPublicKey: vi.fn(async () => {}),
+      list: () => Promise.resolve(items),
+      remove: vi.fn(() => {
+        items.splice(0);
+        return Promise.resolve();
+      }),
+    };
+    const store = vi.fn(async () =>
+      backend.upsertMessage({
+        uniqueId: messageId,
+        conversationId: opened.conversation_id,
+        parentMessageId: opened.parent_message_id!,
+        role: "assistant",
+        content: "Saved answer",
+        wasStopped: false,
+        error: "",
+      })
+    );
+    const complete = vi.fn(async () => {});
+    const keyPair = await recipientKeyPair();
+    const deliver = () => deliverInboxAnswers({ inbox, keyPair, backend, store, complete });
+    return { fake, backend, inbox, store, complete, deliver, messageId };
+  }
+
+  it.each([
+    undefined,
+    { content: "Partial answer", wasStopped: true },
+    { content: "Saved answer", wasStopped: true },
+    { content: "Failed answer", error: "Request failed" },
+  ])("retains the item after a quota rejection with previous message %j", async (previous) => {
+    const { fake, inbox, store, complete, deliver, messageId } = await setup(previous);
+    fake.fail({
+      op: "putMany",
+      error: new ChatStoreError("Storage limit reached", 413, "private_chat_storage_limit_reached"),
+      sticky: true,
+      when: (writes) => writes.some(({ record }) => record.id === messageId),
+    });
+
+    expect(await deliver()).toMatchObject([{ status: "retry", assistantMessage: null }]);
+    expect(inbox.remove).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+    expect((await fake.row("message", messageId))?.record.data.content).toBe(previous?.content);
+
+    fake.heal();
+    expect(await deliver()).toMatchObject([{ status: "stored" }]);
+    expect(store).toHaveBeenCalledTimes(2);
+    expect(inbox.remove).toHaveBeenCalledTimes(1);
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    new ChatStoreError("Service unavailable", 503),
+    new ChatStoreError("Rate limit reached", 429, undefined, 60_000),
+    new ChatStoreError("Account changed", 409, "account_changed"),
+  ])("retains a new or cached answer when vault defers the write: %s", async (error) => {
+    const { fake, inbox, store, complete, deliver, messageId } = await setup();
+    fake.fail({
+      op: "putMany",
+      error,
+      sticky: true,
+      when: (writes) => writes.some(({ record }) => record.id === messageId),
+    });
+
+    expect(await deliver()).toMatchObject([{ status: "retry", assistantMessage: null }]);
+    expect(await deliver()).toMatchObject([{ status: "retry", assistantMessage: null }]);
+    expect(store).toHaveBeenCalledTimes(1);
+    expect(inbox.remove).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+    expect(await fake.row("message", messageId)).toBeUndefined();
+  });
+
+  it("confirms persistence before completion and inbox removal", async () => {
+    const { fake, inbox, complete, deliver, messageId } = await setup();
+    complete.mockImplementation(async () => {
+      expect((await fake.row("message", messageId))?.record.data.content).toBe("Saved answer");
+    });
+
+    expect(await deliver()).toMatchObject([{ status: "stored" }]);
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(inbox.remove).toHaveBeenCalledTimes(1);
   });
 });
