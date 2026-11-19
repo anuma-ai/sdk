@@ -170,6 +170,7 @@ function baseVaultConditions(
     includeArchived?: boolean;
     includeQuarantined?: boolean;
     includeSuperseded?: boolean;
+    excludeDisabled?: boolean;
   }
 ) {
   return [
@@ -178,6 +179,7 @@ function baseVaultConditions(
     ...(options?.includeArchived ? [] : [Q.where("archived_at", Q.eq(null))]),
     ...(options?.includeQuarantined ? [] : [Q.where("trust_tier", Q.notEq("quarantined"))]),
     ...(options?.includeSuperseded ? [] : [Q.where("superseded_by", null)]),
+    ...(options?.excludeDisabled ? [Q.where("enabled", Q.notEq(false))] : []),
     ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
     ...(options?.since ? [Q.where("updated_at", Q.gt(options.since.getTime()))] : []),
   ];
@@ -244,6 +246,8 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     twinOptIn: memory.twinOptIn ?? false,
     publishedAt: memory.publishedAt ?? null,
     geohash: memory.geohash ?? null,
+    enabled: memory.enabled !== false,
+    recallCount: memory.recallCount ?? 0,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -307,6 +311,7 @@ function populateNewVaultMemory(
   if (opts.geohash !== undefined) {
     record._setRaw("geohash", opts.geohash);
   }
+  if (opts.enabled === false) record._setRaw("enabled", false);
 }
 
 /** @deprecated App code: use `MemoryStore.create` (`createLocalMemoryStore`). */
@@ -383,9 +388,10 @@ export async function createSupersedingMemoryOp(
     )
       return;
 
-    createdRecord = await ctx.vaultMemoryCollection.create((record) =>
-      populateNewVaultMemory(record, ctx, opts, encryptedContent, encryptedKindValue)
-    );
+    createdRecord = await ctx.vaultMemoryCollection.create((record) => {
+      populateNewVaultMemory(record, ctx, opts, encryptedContent, encryptedKindValue);
+      if (target.enabled === false) record._setRaw("enabled", false);
+    });
     await target.update((r) => {
       r._setRaw("superseded_by", createdRecord!.id);
       r._setRaw("superseded_at", Date.now());
@@ -544,6 +550,10 @@ export async function getVaultMemoryOp(
   }
 }
 
+function rawEnabled(raw: Record<string, unknown>): boolean {
+  return raw.enabled !== false && raw.enabled !== 0;
+}
+
 function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMemory {
   let sourceChunkIds: string[] | null = null;
   const rawChunks = raw.source_chunk_ids;
@@ -590,6 +600,8 @@ function vaultMemoryRawToStoredRaw(raw: Record<string, unknown>): StoredVaultMem
     twinOptIn: raw.twin_opt_in === true || raw.twin_opt_in === 1,
     publishedAt: (raw.published_at as number | null) ?? null,
     geohash: (raw.geohash as string | null) ?? null,
+    enabled: rawEnabled(raw),
+    recallCount: (raw.recall_count as number | null) ?? 0,
     createdAt: new Date(raw.created_at as number),
     updatedAt: new Date(raw.updated_at as number),
     isDeleted: raw.is_deleted === true || raw.is_deleted === 1,
@@ -648,6 +660,8 @@ export async function getAllVaultMemoriesOp(
     /** Restrict to these profile kinds. */
     kinds?: string[];
     withEmbeddings?: boolean;
+    /** Leave out memories the user switched off. */
+    excludeDisabled?: boolean;
   }
 ): Promise<StoredVaultMemory[]> {
   const results = (await ctx.vaultMemoryCollection
@@ -715,6 +729,8 @@ export async function getVaultMemoryProjectionsOp(
   return results.map((raw) => ({
     ...vaultMemoryRawToRankable(raw),
     topicsUserManaged: raw.topics_user_managed === true || raw.topics_user_managed === 1,
+    enabled: rawEnabled(raw),
+    recallCount: (raw.recall_count as number | null) ?? 0,
   }));
 }
 
@@ -787,6 +803,7 @@ function baseVaultSql(
     includeQuarantined?: boolean;
     includeDeleted?: boolean;
     includeSuperseded?: boolean;
+    excludeDisabled?: boolean;
   }
 ): {
   sql: string;
@@ -798,6 +815,7 @@ function baseVaultSql(
     ...(options?.includeArchived ? [] : ['"archived_at" is null']),
     ...(options?.includeQuarantined ? [] : [`"trust_tier" is not 'quarantined'`]),
     ...(options?.includeSuperseded ? [] : ['"superseded_by" is null']),
+    ...(options?.excludeDisabled ? ['"enabled" is not 0'] : []),
   ];
   const args: Array<string | number | boolean | null> = [];
   if (ctx.userId !== undefined) {
@@ -888,6 +906,7 @@ export async function getVaultCandidateKeysOp(
     memoryIds?: string[];
     /** Include archived (decayed) memories. Default `false`, as elsewhere. */
     includeArchived?: boolean;
+    excludeDisabled?: boolean;
   }
 ): Promise<VaultCandidateKey[]> {
   const mapRaw = (raw: Record<string, unknown>): VaultCandidateKey => ({
@@ -901,6 +920,7 @@ export async function getVaultCandidateKeysOp(
   try {
     const base = baseVaultSql(ctx, {
       ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+      excludeDisabled: options?.excludeDisabled,
     });
     const clauses = [base.sql];
     const args = [...base.args];
@@ -937,6 +957,7 @@ export async function getVaultCandidateKeysOp(
       ...baseVaultConditions(ctx, {
         memoryIds: options?.memoryIds,
         ...(options?.includeArchived !== undefined && { includeArchived: options.includeArchived }),
+        excludeDisabled: options?.excludeDisabled,
       }),
       ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
       ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
@@ -1455,6 +1476,64 @@ export async function setMemoryVisibilityOp(
   if (stale) return null;
 
   return vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
+/** Switch a memory on or off for answers; the write moves `updated_at` so other devices pick it up. */
+export async function setVaultMemoryEnabledOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string,
+  enabled: boolean
+): Promise<StoredVaultMemory | null> {
+  let record: VaultMemory;
+  try {
+    record = await ctx.vaultMemoryCollection.find(id);
+  } catch {
+    return null;
+  }
+  if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
+
+  let stale = false;
+  await ctx.database.write(async () => {
+    await assertCanWrite(ctx);
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) {
+      stale = true;
+      return;
+    }
+    await record.update((r) => {
+      r._setRaw("enabled", enabled);
+    });
+  });
+  if (stale) return null;
+
+  return vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
+/** Add one to the recall count of each live, owned memory in `ids`, without moving `updated_at`. */
+export async function recordVaultMemoryRecallsOp(
+  ctx: VaultMemoryOperationsContext,
+  ids: readonly string[]
+): Promise<void> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return;
+  await ctx.database.write(async () => {
+    await assertCanWrite(ctx);
+    const records = await ctx.vaultMemoryCollection
+      .query(
+        Q.where("id", Q.oneOf(unique)),
+        Q.where("is_deleted", false),
+        ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : [])
+      )
+      .fetch();
+    await ctx.database.batch(
+      ...records.map((record) => {
+        const updatedAt = record.updatedAt.getTime();
+        return record.prepareUpdate((r) => {
+          r._setRaw("recall_count", (record.recallCount ?? 0) + 1);
+          r._setRaw("updated_at", updatedAt);
+        });
+      })
+    );
+  });
 }
 
 /** @deprecated App code: use `MemoryStore.delete` (`createLocalMemoryStore`). */

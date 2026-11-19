@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v49**
+Current version: **v50**
 
 ```mermaid
 graph LR
@@ -154,6 +154,8 @@ graph LR
 | `twin_opt_in` | boolean |  | ✓ |
 | `published_at` | number |  | ✓ |
 | `geohash` | string |  | ✓ |
+| `enabled` | boolean |  | ✓ |
+| `recall_count` | number |  | ✓ |
 
 ## entity
 
@@ -255,6 +257,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v50 | Added `enabled`, `recall_count` to `memory_vault` |
 | v49 | Added `external_wallets` to `userPreferences` |
 | v48 | Added `kind`, `kind_value`, `level` to `memory_vault`; `UPDATE memory_vault SET level = CASE WHEN scope IN ('shared', 'public') THEN 'matching' ELSE 'private' END WHERE level IS NULL;` |
 | v47 | Added `failed_sessions`, `failed_head`, `failed_at` to `memory_extraction_jobs` |

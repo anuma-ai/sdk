@@ -2,7 +2,7 @@
 
 > **MemoryUpdate** = `Pick`<[`UpdateVaultMemoryOptions`](../interfaces/UpdateVaultMemoryOptions.md), `"scope"` | `"factType"` | `"eventTime"` | `"embedding"` | `"embeddingModel"` | `"kind"` | `"kindValue"` | `"level"`> & `object`
 
-Defined in: [src/lib/memory/store/types.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#84)
+Defined in: [src/lib/memory/store/types.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/types.ts#86)
 
 The edits an app makes to an existing memory. Deliberately narrower than
 [UpdateVaultMemoryOptions](../interfaces/UpdateVaultMemoryOptions.md): the re-observation knobs (`proofCountIncrement`,

@@ -68,6 +68,8 @@ export class VaultMemory extends Model {
   @field("published_at") publishedAt!: number | null;
   /** Reserved coarse-geohash slot for landmark/Trail memories. */
   @field("geohash") geohash!: string | null;
+  @field("enabled") enabled!: boolean | null;
+  @field("recall_count") recallCount!: number | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

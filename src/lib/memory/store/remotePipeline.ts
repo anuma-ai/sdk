@@ -86,7 +86,11 @@ function sourceIds(value?: string): string[] {
 function isMemoryLevel(value: string | undefined): value is MemoryLevel {
   return (MEMORY_LEVELS as readonly (string | undefined)[]).includes(value);
 }
-export function stored(row: RemoteMemoryRow): StoredVaultMemory {
+export function stored({
+  memory: row,
+  enabled,
+  recall_count,
+}: Pick<RemoteMemoryRecord, "memory" | "enabled" | "recall_count">): StoredVaultMemory {
   return {
     uniqueId: row.memory_id,
     content: row.content,
@@ -120,6 +124,8 @@ export function stored(row: RemoteMemoryRow): StoredVaultMemory {
     twinOptIn: row.twin_opt_in ?? false,
     publishedAt: row.published_at ?? null,
     geohash: row.geohash ?? null,
+    enabled: enabled !== false,
+    recallCount: recall_count ?? 0,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
     isDeleted: row.is_deleted,
@@ -169,14 +175,14 @@ export function createRemoteMemoryPipeline(
     const snapshots = new Map<string, RemoteMemoryRecord>();
     const remember = (items: RemoteMemoryRecord[]) => {
       items.forEach((item) => snapshots.set(item.memory.memory_id, item));
-      return items.map((item) => stored(item.memory));
+      return items.map(stored);
     };
     const get = async (id: string) => {
       const snapshot =
         snapshots.get(id) ?? (await (signal ? persistence.get(id, signal) : persistence.get(id)));
       if (!snapshot || snapshot.memory.is_deleted || snapshot.memory.superseded_by) return null;
       snapshots.set(id, snapshot);
-      return stored(snapshot.memory);
+      return stored(snapshot);
     };
     const prepare = async (
       query: string,
@@ -302,7 +308,9 @@ export function createRemoteMemoryPipeline(
           windows.flatMap((window) => window.items).map((item) => [item.memory.memory_id, item])
         ).values(),
       ];
-      const memories = remember(items);
+      const memories = remember(
+        mode === "retain" ? items : items.filter((item) => item.enabled !== false)
+      );
       return {
         memories,
         embeddedItems: memories.map((memory) => ({
@@ -373,6 +381,25 @@ export function createRemoteMemoryPipeline(
         twin_opt_in: false,
       };
     };
+    const switchOff = async (id: string): Promise<StoredVaultMemory> => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const current = attempt === 0 ? snapshots.get(id)! : await persistence.get(id, signal);
+          if (!current) throw new Error(`Memory ${id} vanished before it could be switched off`);
+          return remember([
+            await persistence.setEnabled(
+              id,
+              false,
+              current.version,
+              current.memory.updated_at,
+              signal
+            ),
+          ])[0];
+        } catch (error) {
+          if (attempt > 0) throw error;
+        }
+      }
+    };
     const write = async (memory: RemoteMemoryRow, snapshot: RemoteMemoryRecord | 0) => {
       await assertWrite();
       return remember([await persistence.put(memory, snapshot, signal)])[0];
@@ -383,7 +410,7 @@ export function createRemoteMemoryPipeline(
       getFresh: async (id) => {
         const current = await (signal ? persistence.get(id, signal) : persistence.get(id));
         return current && !current.memory.is_deleted && !current.memory.superseded_by
-          ? stored(current.memory)
+          ? stored(current)
           : null;
       },
       tombstones: async (embedding, embeddingModel, scope, folderId) => {
@@ -503,7 +530,10 @@ export function createRemoteMemoryPipeline(
             signal
           )
         );
-        return { created: rows[0], retired: true };
+        return {
+          created: input.enabled === false ? await switchOff(successor.memory_id) : rows[0],
+          retired: true,
+        };
       },
     };
     return { prepare, port };

@@ -237,6 +237,8 @@ describe("recall embedding cache through a remote fact source", () => {
       };
       const persistence: RemoteMemoryPersistence = {
         claimWork: vi.fn(),
+        setEnabled: vi.fn(),
+        recordRecalls: vi.fn(),
         releaseWork: vi.fn(),
         topics: vi.fn(async () => []),
         putTopic: vi.fn(),

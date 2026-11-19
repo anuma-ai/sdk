@@ -2,7 +2,7 @@
 
 > **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:613](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#613)
+Defined in: [src/lib/db/memoryVault/operations.ts:625](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#625)
 
 ## Parameters
 
@@ -46,6 +46,23 @@ Defined in: [src/lib/db/memoryVault/operations.ts:613](https://github.com/anuma-
 <td>
 
 ‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.excludeDisabled?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Leave out memories the user switched off.
 
 </td>
 </tr>

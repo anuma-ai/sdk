@@ -144,6 +144,7 @@ export function createMemoryVaultSearchTool(
             limit: requestLimit,
             minSimilarity,
             useFusion: false,
+            excludeDisabled: true,
             ...tuningForward,
             ...(folderId !== undefined && { folderId }),
             ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),

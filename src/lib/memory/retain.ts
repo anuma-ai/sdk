@@ -309,8 +309,11 @@ export async function retainWithPersistence(
 
   if (supersedeTargetIds.length > 0) {
     const [primaryTargetId, ...restTargetIds] = supersedeTargetIds;
+    const retiresDisabled = prepared?.memories.some(
+      (m) => m.enabled === false && supersedeTargetIds.includes(m.uniqueId)
+    );
     const { created, retired } = await ctx.persistence.createSuperseding(
-      createOpts,
+      retiresDisabled ? { ...createOpts, enabled: false } : createOpts,
       primaryTargetId
     );
     if (created && retired) {

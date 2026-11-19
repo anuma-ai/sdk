@@ -23,10 +23,12 @@ import {
   getVaultMemoryCountsOp,
   getVaultMemoryOp,
   getVaultMemoryProjectionsOp,
+  recordVaultMemoryRecallsOp,
   relinkMemoryTopicsOp,
   restoreVaultMemoryOp,
   setMemoryEntitiesOp,
   setMemoryVisibilityOp,
+  setVaultMemoryEnabledOp,
   stampTopicsExtractedAtOp,
   supersedeVaultMemoryOp,
   updateVaultMemoryOp,
@@ -166,6 +168,7 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
     "topics_user_managed",
     "media",
     "source",
+    "enabled",
   ];
   const embedInBackground = (memory: StoredVaultMemory) => {
     eagerEmbedContent(
@@ -315,6 +318,9 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
       visibility: VaultMemoryVisibility,
       visibilityOptions?: { twinOptIn?: boolean }
     ) => setMemoryVisibilityOp(vaultCtx, id, { visibility, ...visibilityOptions }),
+    setEnabled: (id: string, enabled: boolean) => setVaultMemoryEnabledOp(vaultCtx, id, enabled),
+    recordRecalls: (memoryIds: readonly string[]) =>
+      recordVaultMemoryRecallsOp(vaultCtx, memoryIds),
 
     recall: (query: string, recallOptions?: MemoryRecallOptions) =>
       recall(
@@ -355,7 +361,7 @@ export function createLocalMemoryStore(options: LocalMemoryStoreOptions): Memory
               }),
           },
           vaultCache,
-          searchOptions
+          { ...searchOptions, excludeDisabled: true }
         ),
       graphRanking: (query, traverse, recallOptions) =>
         buildGraphLaneRanking(

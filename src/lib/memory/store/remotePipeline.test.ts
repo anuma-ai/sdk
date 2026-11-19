@@ -128,6 +128,8 @@ function setup({ candidateLanes }: Pick<RemoteMemoryPipelineOptions, "candidateL
     .mockRejectedValue(new Error("The test must not enumerate the vault."));
   const persistence: RemoteMemoryPersistence = {
     claimWork: vi.fn(),
+    setEnabled: vi.fn(),
+    recordRecalls: vi.fn(),
     releaseWork: vi.fn(),
     topics: vi.fn(() => Promise.resolve([])),
     putTopic: vi.fn(),

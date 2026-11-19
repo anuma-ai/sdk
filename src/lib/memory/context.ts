@@ -1,5 +1,5 @@
 import type { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
-import type { StoredVaultMemory } from "../db/memoryVault/types.js";
+import { isRecallableMemory, type StoredVaultMemory } from "../db/memoryVault/types.js";
 import type { RecallOptions, RecallResult } from "./types.js";
 
 export type MemoryContextLane = "profile" | "fact" | "episode" | "session";
@@ -103,11 +103,7 @@ export async function assembleMemoryContext(
     }),
   };
   const active = (m: StoredVaultMemory) =>
-    !m.isDeleted &&
-    !m.archivedAt &&
-    !m.supersededBy &&
-    m.trustTier !== "quarantined" &&
-    (!allowed || allowed.has(m.uniqueId));
+    isRecallableMemory(m) && (!allowed || allowed.has(m.uniqueId));
   const asItem = (m: StoredVaultMemory, lane: MemoryContextLane, score = 1): MemoryContextItem => ({
     id: m.uniqueId,
     content: m.content,
@@ -155,6 +151,7 @@ export async function assembleMemoryContext(
                 factTypes: ["identity", "preference", "constraint", "relationship"],
                 limit: 8,
                 withEmbeddings: false,
+                excludeDisabled: true,
               }),
               loadFacts({
                 ...filters,
@@ -162,6 +159,7 @@ export async function assembleMemoryContext(
                 factTypes: ["ongoing_context", "plan"],
                 limit: 4,
                 withEmbeddings: false,
+                excludeDisabled: true,
               }),
             ]);
             return [...stable, ...dynamic].filter(active).map((m) => asItem(m, "profile"));

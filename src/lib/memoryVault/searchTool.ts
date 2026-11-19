@@ -125,6 +125,8 @@ export interface MemoryVaultSearchOptions {
    * archived row instead of creating a fresh duplicate.
    */
   includeArchived?: boolean;
+  /** Leave out memories the user switched off; recall sets it, retain's dedup does not. */
+  excludeDisabled?: boolean;
   /**
    * Use the hybrid fusion ranker (cosine + BM25 + RRF + recency) instead of
    * cosine-only. Default true — new W1 pipeline. Pass false to fall back
@@ -1399,6 +1401,7 @@ export async function buildProjectedCorpus(
     factTypes?: string[];
     memoryIds?: string[];
     includeArchived?: boolean;
+    excludeDisabled?: boolean;
   },
   opts: {
     limit: number;
@@ -1862,12 +1865,14 @@ export async function prepareVaultCandidates(
     factTypes?: string[];
     memoryIds?: string[];
     includeArchived?: boolean;
+    excludeDisabled?: boolean;
   } = {};
   if (searchOptions?.memoryIds !== undefined) queryOpts.memoryIds = searchOptions.memoryIds;
   if (scopes?.length) queryOpts.scopes = scopes;
   if (folderId !== undefined) queryOpts.folderId = folderId;
   if (searchOptions?.factTypes?.length) queryOpts.factTypes = searchOptions.factTypes;
   if (searchOptions?.includeArchived) queryOpts.includeArchived = true;
+  if (searchOptions?.excludeDisabled) queryOpts.excludeDisabled = true;
 
   const ADMIT_FACTOR = searchOptions?.admitFactor ?? 3;
   const ADMIT_FLOOR = searchOptions?.admitFloor ?? 30;
