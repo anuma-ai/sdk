@@ -752,21 +752,20 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     return loading;
   };
 
-  const applyRemote = (snapshot: ChatSnapshot) => {
+  const applyRemote = (snapshot: ChatSnapshot): ChatRecord | undefined => {
     const { record } = snapshot;
     const k = key(record.kind, record.id);
     if (record.kind === "conversation") {
       if (!merge(snapshot)) return;
       if (record.isDeleted) forgetConversation(record.id);
-      announce([record]);
-      return;
+      return record;
     }
     if (record.kind === "project") return;
     const relevant =
       threads.has(record.conversationId) ||
       confirmed.has(k) ||
       (checked.has(k) && record.kind !== "message");
-    if (relevant && merge(snapshot)) announce([record]);
+    if (relevant && merge(snapshot)) return record;
   };
 
   const listIndex = async (source: ChatStore) => {
@@ -788,7 +787,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     let next = cursor ?? "";
     for (;;) {
       const page = await source.changes(next || undefined, { limit: 200 });
-      page.items.forEach(applyRemote);
+      announce(page.items.map(applyRemote).filter((record) => record !== undefined));
       next = page.nextCursor ?? page.changesCursor;
       if (!page.nextCursor) break;
     }
