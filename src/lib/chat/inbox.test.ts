@@ -69,10 +69,10 @@ describe("openInboxItem", () => {
   });
 
   it("rejects an item sealed to someone else", async () => {
-    const other = (await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+    const other = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
       "deriveBits",
       "deriveKey",
-    ])) as CryptoKeyPair;
+    ]);
     await expect(openInboxItem({ id: vector.id, sealed: vector.sealed }, other)).rejects.toThrow();
   });
 
@@ -133,10 +133,10 @@ describe("openSealedText", () => {
   });
 
   it("rejects a reward code sealed to another key", async () => {
-    const other = (await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+    const other = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
       "deriveBits",
       "deriveKey",
-    ])) as CryptoKeyPair;
+    ]);
     await expect(
       openSealedText(rewardVector.sealed, rewardVector.seal_id, other)
     ).rejects.toThrow();
@@ -186,7 +186,7 @@ describe("exportInboxPublicKey", () => {
 
 describe("createVaultInbox", () => {
   function fakeFetch(responses: Array<Response>) {
-    return vi.fn(async () => responses.shift() ?? new Response(null, { status: 204 }));
+    return vi.fn(() => Promise.resolve(responses.shift() ?? new Response(null, { status: 204 })));
   }
 
   it("registers the key, lists items and deletes them under /api/private-chats", async () => {
@@ -202,7 +202,7 @@ describe("createVaultInbox", () => {
     ]);
     const inbox = createVaultInbox({
       baseUrl: "https://vault.example",
-      getToken: async () => "tok",
+      getToken: () => Promise.resolve("tok"),
       fetch,
     });
 
@@ -216,7 +216,7 @@ describe("createVaultInbox", () => {
       "GET https://vault.example/api/private-chats/inbox",
       "DELETE https://vault.example/api/private-chats/inbox/0x%20a",
     ]);
-    expect(JSON.parse(String(calls[0][1].body))).toEqual({ public_key: "k" });
+    expect(calls[0][1].body).toBe(JSON.stringify({ public_key: "k" }));
     expect(calls[0][1].headers).toMatchObject({ Authorization: "Bearer tok" });
   });
 });
