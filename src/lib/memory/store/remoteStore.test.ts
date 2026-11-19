@@ -731,7 +731,29 @@ describe("remote MemoryStore", () => {
     expect(bodies.flat()).toEqual(ids);
   });
 
-  it("counts a recall in the warm reads instead of dropping them", async () => {
+  it("re-reads the server count after a recall another device also counted", async () => {
+    const { store, server } = await remoteStore();
+    const used = await store.create({ content: "Likes green tea", embedding: axis(0) });
+    const stop = store.subscribe(vi.fn());
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const warm = () =>
+        Promise.all([
+          store.list({ withEmbeddings: false }),
+          store.listProjections({ withEmbeddings: false }),
+        ]);
+      expect((await warm()).map(([row]) => row.recallCount)).toEqual([0, 0]);
+      const row = server.rows.get(used.uniqueId)!;
+      server.rows.set(used.uniqueId, { ...row, recall_count: 1 });
+
+      await store.recordRecalls!([used.uniqueId]);
+      expect((await warm()).map(([row]) => row.recallCount)).toEqual([2, 2]);
+    } finally {
+      stop();
+    }
+  });
+
+  it("keeps warm the reads that hold none of the recalled memories", async () => {
     const { store, server } = await remoteStore();
     const used = await store.create({ content: "Likes green tea", embedding: axis(0) });
     const other = await store.create({ content: "Has a dog", embedding: axis(1) });
@@ -740,22 +762,24 @@ describe("remote MemoryStore", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const warm = () =>
         Promise.all([
-          store.list({ withEmbeddings: false }),
-          store.listProjections({ withEmbeddings: false }),
+          store.list({ withEmbeddings: false, memoryIds: [used.uniqueId] }),
+          store.list({ withEmbeddings: false, memoryIds: [other.uniqueId] }),
           store.listTopics(),
         ]);
       await warm();
       server.fetch.mockClear();
 
       await store.recordRecalls!([used.uniqueId]);
-      const count = (rows: { uniqueId: string; recallCount?: number }[], id: string) =>
-        rows.find((row) => row.uniqueId === id)?.recallCount;
-      const [rows, projections] = await warm();
-      expect(count(rows, used.uniqueId)).toBe(1);
-      expect(count(rows, other.uniqueId)).toBe(0);
-      expect(count(projections, used.uniqueId)).toBe(1);
-      expect(server.fetch.mock.calls.map(([input]) => requestUrl(input))).toEqual([
-        expect.stringMatching(/\/memories\/recalled$/),
+      const [[usedRow], [otherRow]] = await warm();
+      expect([usedRow.recallCount, otherRow.recallCount]).toEqual([1, 0]);
+      expect(
+        server.fetch.mock.calls.map(([input, init]) => [
+          new URL(requestUrl(input)).pathname.split("/").slice(-2).join("/"),
+          init?.body ? parseBody<{ memory_ids?: string[] }>(init.body).memory_ids : undefined,
+        ])
+      ).toEqual([
+        ["memories/recalled", [used.uniqueId]],
+        ["memories/query", [used.uniqueId]],
       ]);
     } finally {
       stop();

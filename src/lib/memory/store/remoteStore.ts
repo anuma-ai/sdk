@@ -348,7 +348,6 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const seen = new Map<string, SubscriptionState>();
   const reads = new Map<string, ReturnType<RemoteMemoryPersistence["query"]>>();
   const metadataReads = new Map<string, ReturnType<RemoteMemoryPersistence["queryMetadata"]>>();
-  const settledReads = new WeakSet<Promise<unknown>>();
   let topicSnapshot: Promise<MemoryTopic[]> | undefined;
   let topicCatalog: ReturnType<RemoteMemoryPersistence["topics"]> | undefined;
   const invalidateReads = () => {
@@ -413,7 +412,6 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
       if (inflight.get(key) === pending) inflight.delete(key);
     };
     void pending.then(() => {
-      settledReads.add(pending);
       if (options.include_embeddings === true || !retainReads()) clear();
     }, clear);
     return pending;
@@ -1677,19 +1675,20 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         }
       }),
     recordRecalls: async (memoryIds) => {
-      const cached = [...reads.values(), ...metadataReads.values()].filter((read) =>
-        settledReads.has(read)
-      );
       await persistence.recordRecalls(memoryIds);
       const recalled = new Set(memoryIds);
-      for (const inflight of [reads, metadataReads])
-        for (const [key, read] of inflight) if (!cached.includes(read)) inflight.delete(key);
-      for (const read of cached)
-        void read.then(({ items }) => {
-          for (const item of items)
-            if (recalled.has(item.memory.memory_id))
-              item.recall_count = (item.recall_count ?? 0) + 1;
-        });
+      for (const cache of [reads, metadataReads])
+        for (const [key, read] of cache)
+          void read.then(
+            ({ items }) => {
+              if (
+                cache.get(key) === read &&
+                items.some((item) => recalled.has(item.memory.memory_id))
+              )
+                cache.delete(key);
+            },
+            () => undefined
+          );
     },
 
     recall: (query, recallOptions) => pipeline.recall(query, recallOptions),

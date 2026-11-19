@@ -134,7 +134,6 @@ import { VaultFolder } from "./vaultFolders/models";
  *   nullable, no backfill: NULL reads as "never failed"
  * - v48: Added kind, kind_value (encrypted) and level to memory_vault; level is
  *   backfilled from scope where SQL steps run
- * - v50: Added enabled and recall_count to memory_vault; NULL reads as on and 0
  */
 export const SDK_SCHEMA_VERSION = 50;
 

@@ -2,7 +2,7 @@
 
 > `const` **SDK\_SCHEMA\_VERSION**: `50` = `50`
 
-Defined in: [src/lib/db/schema.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#139)
+Defined in: [src/lib/db/schema.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#138)
 
 Current combined schema version for all SDK storage modules.
 
@@ -117,4 +117,3 @@ Version history:
   nullable, no backfill: NULL reads as "never failed"
 * v48: Added kind, kind\_value (encrypted) and level to memory\_vault; level is
   backfilled from scope where SQL steps run
-* v50: Added enabled and recall\_count to memory\_vault; NULL reads as on and 0
