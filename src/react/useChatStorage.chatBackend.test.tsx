@@ -284,6 +284,12 @@ describe("useChatStorage with a chat backend when media records cannot be writte
     vi.mocked(runToolLoop).mockResolvedValue(toolLoopResult);
     vi.mocked(isOPFSSupported).mockReturnValue(true);
     vi.mocked(createMediaBatchOp).mockRejectedValue(new Error("database degraded"));
+    const realFetch = globalThis.fetch.bind(globalThis);
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) =>
+      String(input instanceof Request ? input.url : input).startsWith("data:")
+        ? realFetch(input, init)
+        : Promise.reject(new Error("Network unavailable"))
+    );
   });
 
   afterEach(() => {
@@ -291,6 +297,7 @@ describe("useChatStorage with a chat backend when media records cannot be writte
     vi.mocked(isOPFSSupported).mockReset();
     vi.mocked(createMediaBatchOp).mockReset();
     clearEncryptionKey(walletAddress);
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 

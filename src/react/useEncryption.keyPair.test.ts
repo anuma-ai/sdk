@@ -185,23 +185,25 @@ describe("requestEncryptionKey and the key pair", () => {
     expect(await exportPublicKey(ADDRESS, vi.fn<SignMessageFn>())).toBe(installed);
   });
 
-  it("reports no key when the session ends while the key pair is being saved", async () => {
-    const encrypt = crypto.subtle.encrypt.bind(crypto.subtle);
+  it("reports no key when the session ends while the key pair is being derived", async () => {
+    const exportKey = crypto.subtle.exportKey.bind(crypto.subtle);
     let release: () => void = () => undefined;
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
     let reached: () => void = () => undefined;
-    const saving = new Promise<void>((resolve) => {
+    const deriving = new Promise<void>((resolve) => {
       reached = resolve;
     });
-    vi.spyOn(crypto.subtle, "encrypt").mockImplementation((async (
-      ...args: Parameters<typeof crypto.subtle.encrypt>
+    vi.spyOn(crypto.subtle, "exportKey").mockImplementation((async (
+      ...args: Parameters<typeof crypto.subtle.exportKey>
     ) => {
-      reached();
-      await held;
-      return encrypt(...args);
-    }) as typeof crypto.subtle.encrypt);
+      if (args[0] === "jwk") {
+        reached();
+        await held;
+      }
+      return exportKey(...args);
+    }) as typeof crypto.subtle.exportKey);
     const ready = vi.fn();
     onKeyAvailable(ADDRESS, ready);
 
@@ -209,12 +211,19 @@ describe("requestEncryptionKey and the key pair", () => {
       ADDRESS,
       vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE)
     );
-    await saving;
+    await deriving;
     clearAllEncryptionState();
     release();
 
     expect(await request).toBe(false);
     expect(ready).not.toHaveBeenCalled();
+  });
+
+  it("keeps the key pair it derives in memory only", async () => {
+    await requestEncryptionKey(ADDRESS, vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE));
+
+    expect(hasKeyPair(ADDRESS)).toBe(true);
+    expect(localStorage.getItem(`ecdh_keypair_${ADDRESS}`)).toBeNull();
   });
 
   it("still unlocks the encryption keys when the key pair cannot be derived", async () => {
