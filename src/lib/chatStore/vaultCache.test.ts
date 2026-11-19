@@ -902,6 +902,55 @@ describe("vault chat cache", () => {
     expect((await cold.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_1", "msg_2"]);
   });
 
+  it("caches a page-only read as a partial thread for an offline reload", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const record = { sortKey: 0, createdAt: 1, updatedAt: 1, isDeleted: false };
+    await fake.write([
+      {
+        record: {
+          ...record,
+          kind: "conversation",
+          id: "conv_pages",
+          conversationId: "",
+          data: { title: "Paged" },
+        },
+        expectedVersion: 0,
+      },
+    ]);
+    await fake.write(
+      Array.from({ length: 30 }, (_, index) => ({
+        record: {
+          ...record,
+          kind: "message" as const,
+          id: `msg_${index}`,
+          conversationId: "conv_pages",
+          sortKey: index,
+          data: { role: "user", content: `Message ${index}` },
+        },
+        expectedVersion: 0,
+      }))
+    );
+    const page = Array.from({ length: 10 }, (_, index) => `msg_${20 + index}`);
+    const b = backend(fake.store, { cache });
+    const newest = await b.getMessagesPage("conv_pages", { limit: 10 });
+    expect(newest.map((m) => m.uniqueId)).toEqual(page);
+    const saved = await cached(storage, seal, cache.account, (c) =>
+      expect(ids(c)).toContain("msg_29")
+    );
+    expect(saved.threads).toEqual(["conv_pages"]);
+    expect(saved.partial).toEqual(["conv_pages"]);
+    const messages = saved.records.filter((s) => s.record.kind === "message");
+    expect(messages.map((s) => s.record.id)).toEqual(page);
+    b.close();
+
+    const cold = backend(offline, { cache });
+    const offlinePage = await cold.getMessagesPage("conv_pages", { limit: 5 });
+    expect(offlinePage.map((m) => m.uniqueId)).toEqual(page.slice(-5));
+  });
+
   it("resumes from the cached cursor and pulls only later changes", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");

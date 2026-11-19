@@ -225,7 +225,13 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   const threads = new Map<string, Promise<void>>();
   const messagePages = new Map<
     string,
-    { records: ChatRecord[]; nextCursor?: string; boundary?: number; boundaryIds: string[] }
+    {
+      records: ChatRecord[];
+      snapshots: ChatSnapshot[];
+      nextCursor?: string;
+      boundary?: number;
+      boundaryIds: string[];
+    }
   >();
   const pageChanged = new Map<string, number>();
   let pageTick = 0;
@@ -327,23 +333,30 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
 
   const cacheSnapshot = () => {
     const kept = [...threads.keys()].filter((id) => complete.has(id) && confirmedLive(id));
-    const keep = new Set(kept);
+    const full = new Set(kept);
+    const paged = [...messagePages.keys()].filter((id) => !full.has(id) && confirmedLive(id));
+    const keep = new Set([...paged, ...kept]);
     const records: ChatSnapshot[] = [];
-    const messages = new Map<string, ChatSnapshot[]>();
-    const truncated = new Set(kept.filter((id) => partial.has(id)));
+    const messages = new Map<string, Map<string, ChatSnapshot>>();
+    const truncated = new Set([...paged, ...kept.filter((id) => partial.has(id))]);
+    const addMessage = (snapshot: ChatSnapshot) => {
+      const { record } = snapshot;
+      const group = messages.get(record.conversationId) ?? new Map<string, ChatSnapshot>();
+      const known = group.get(record.id);
+      if (!known || known.version <= snapshot.version) group.set(record.id, snapshot);
+      messages.set(record.conversationId, group);
+    };
+    for (const id of paged) messagePages.get(id)!.snapshots.forEach(addMessage);
     for (const snapshot of confirmed.values()) {
       const { record } = snapshot;
       if (record.kind === "conversation") records.push(snapshot);
       else if (record.kind !== "project" && keep.has(record.conversationId)) {
         if (record.kind !== "message") records.push(snapshot);
-        else if (!record.isDeleted) {
-          const group = messages.get(record.conversationId) ?? [];
-          group.push(snapshot);
-          messages.set(record.conversationId, group);
-        }
+        else addMessage(snapshot);
       }
     }
-    for (const [id, group] of messages) {
+    for (const [id, found] of messages) {
+      const group = [...found.values()].filter((snapshot) => !snapshot.record.isDeleted);
       group.sort(
         (a, b) =>
           a.record.sortKey - b.record.sortKey ||
@@ -357,7 +370,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       account: cache!.account,
       cursor: cursor ?? "",
       records,
-      threads: kept,
+      threads: [...paged, ...kept],
       partial: [...truncated],
       absent: [...checked].filter((k) => {
         const [kind, ...rest] = k.split("/");
@@ -1263,15 +1276,28 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         const selected = select(combined.values());
         if (changed) emit({ type: "messages", conversationId, origin: "remote" });
         else if (!closed && conversationLive(conversationId)) {
+          const snapshots = new Map(
+            (cached?.snapshots ?? []).map((snapshot) => [snapshot.record.id, snapshot] as const)
+          );
+          for (const [id, snapshot] of records) snapshots.set(id, snapshot);
           messagePages.delete(conversationId);
           messagePages.set(conversationId, {
             records: selected,
+            snapshots: [...snapshots.values()]
+              .sort(
+                (a, b) =>
+                  a.record.sortKey - b.record.sortKey ||
+                  a.record.createdAt - b.record.createdAt ||
+                  (a.record.id < b.record.id ? -1 : 1)
+              )
+              .slice(-cachedMessageLimit),
             nextCursor,
             boundary,
             boundaryIds,
           });
           while (messagePages.size > Math.max(0, threadLimit))
             messagePages.delete(messagePages.keys().next().value!);
+          saveCache();
         }
         return selected.map(toMessage);
       };
