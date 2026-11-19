@@ -700,6 +700,28 @@ describe("expo useChatStorage background turns", () => {
         expect(walletSigner).toHaveBeenCalledTimes(1);
       });
 
+      it("opens a sealed code with the key pair the encryption-key unlock holds", async () => {
+        await requestEncryptionKey(wallet, walletSigner);
+        let registered: string | null = null;
+        const { inbox } = fakeInbox([]);
+        inbox.putPublicKey = async (key) => {
+          registered = key;
+        };
+        const { result } = renderStorage({ inbox, walletOnly: true });
+        await act(async () => {
+          await result.current.deliverInbox();
+        });
+        const sealedCode = await sealInboxText(
+          registered!,
+          "referral-reward-claim-9",
+          "TEST-REWARD-CODE-0009"
+        );
+
+        await expect(
+          result.current.openSealedWithInboxKey(sealedCode, "referral-reward-claim-9")
+        ).resolves.toBe("TEST-REWARD-CODE-0009");
+      });
+
       it("registers no key and delivers nothing before the unlock", async () => {
         const { inbox, removed } = fakeInbox([
           { id: "0xearly", plaintext: sealed("0xearly", "msg_early") },
