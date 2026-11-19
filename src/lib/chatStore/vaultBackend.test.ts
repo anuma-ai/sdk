@@ -12,7 +12,7 @@ import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
 import { ANUMA_CONVERSATION_ID } from "./anuma";
 import { type ChatStore, ChatStoreError } from "./types";
 import { createVaultChatBackend, type VaultChatBackend, type VaultChatEvent } from "./vaultBackend";
-import type { ChatOutboxLocks, ChatOutboxStorage } from "./vaultOutbox";
+import type { ChatOutboxLocks, ChatOutboxStorage, ChatPatch } from "./vaultOutbox";
 
 beforeAll(() => {
   vi.stubGlobal("crypto", webcrypto);
@@ -586,6 +586,74 @@ describe("vault chat backend", () => {
     await reloaded.flush();
     expect((await fake.row("conversation", "conv_1"))?.record.data.title).toBe("Secret plans");
     expect(storage.values.size).toBe(0);
+  });
+
+  it("saves all message deletions once and restores them after a reload", async () => {
+    const fake = await createChatStoreHarness();
+    const writer = backend(fake).b;
+    const conversation = await writer.createConversation({ conversationId: "conv_1" });
+    await writer.flush();
+    const messages: StoredMessage[] = Array.from({ length: 1_000 }, (_, i) => ({
+      uniqueId: `msg_${i}`,
+      messageId: i + 1,
+      conversationId: "conv_1",
+      role: "user",
+      content: `Message ${i}`,
+      createdAt: new Date(1_000 + i),
+      updatedAt: new Date(1_000 + i),
+    }));
+    await writer.importChats([{ conversation, messages }]);
+    writer.close();
+
+    const seal = memoryCipher(await deriveMemoryKeyRing("0x" + "59".repeat(65)));
+    const encrypt = vi.spyOn(seal, "encrypt");
+    const storage = memoryStorage();
+    const saves = vi.spyOn(storage, "set");
+    const { b, events } = backend(fake, { outbox: { storage, seal } });
+    await b.getConversations();
+    expect(await b.getMessages("conv_1")).toHaveLength(messages.length);
+    await b.flush();
+    saves.mockClear();
+    encrypt.mockClear();
+    events.length = 0;
+    fake.fail({ op: "putMany", error: new TypeError("offline"), sticky: true });
+    fake.fail({ op: "getMany", error: new TypeError("offline"), sticky: true });
+
+    vi.useFakeTimers();
+    try {
+      await b.clearMessages("conv_1");
+
+      expect(saves).toHaveBeenCalledTimes(1);
+      expect(encrypt).toHaveBeenCalledTimes(1);
+      const [sealed] = [...storage.values.values()];
+      const saved = JSON.parse(await seal.decrypt(sealed)) as { patches: ChatPatch[] };
+      expect(saved.patches).toMatchObject(
+        messages.map(({ uniqueId }) => ({
+          kind: "message",
+          id: uniqueId,
+          conversationId: "conv_1",
+          delete: true,
+        }))
+      );
+      expect(b.status().pending).toBe(messages.length);
+      expect(await b.getMessages("conv_1")).toEqual([]);
+      expect(events.filter((event) => event.type === "outbox")).toEqual([
+        { type: "outbox", pending: messages.length },
+      ]);
+      b.close();
+
+      fake.heal();
+      const reloaded = backend(fake, { outbox: { storage, seal } }).b;
+      await reloaded.flush();
+      expect(reloaded.status().pending).toBe(0);
+      expect(storage.values.size).toBe(0);
+      const reader = backend(fake).b;
+      await reader.getConversations();
+      expect(await reader.getMessages("conv_1")).toEqual([]);
+    } finally {
+      open.forEach((b) => b.close());
+      vi.useRealTimers();
+    }
   });
 
   it("keeps each tab's unsent writes and leaves a live tab's queue to that tab", async () => {
