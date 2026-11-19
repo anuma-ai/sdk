@@ -432,6 +432,48 @@ describe("vault chat backend", () => {
     expect(polled.items.map((s) => s.record.id)).not.toContain("conv_old");
   });
 
+  it("keeps a message from a poll when an older lookup returns no record", async () => {
+    const fake = await createChatStoreHarness();
+    const { b } = backend(fake);
+    await b.createConversation({ conversationId: "conv_1" });
+    await b.flush();
+    expect(await b.getMessages("conv_1")).toEqual([]);
+
+    const getMany = fake.store.getMany.bind(fake.store);
+    let answer = () => {};
+    let started = () => {};
+    const held = new Promise<void>((resolve) => (answer = resolve));
+    const requested = new Promise<void>((resolve) => (started = resolve));
+    vi.spyOn(fake.store, "getMany").mockImplementationOnce(async (...args) => {
+      const result = await getMany(...args);
+      expect(result).toEqual([]);
+      started();
+      await held;
+      return result;
+    });
+
+    const lookup = b.getMessagesByIds(["msg_p", "msg_absent"]);
+    await requested;
+    const other = backend(fake).b;
+    await other.createMessage({
+      conversationId: "conv_1",
+      role: "user",
+      content: "from phone",
+      uniqueId: "msg_p",
+    });
+    await other.flush();
+    await b.poll();
+    expect((await b.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_p"]);
+
+    answer();
+    expect((await lookup).map((m) => m.uniqueId)).toEqual(["msg_p"]);
+    await b.poll();
+    expect((await b.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_p"]);
+    expect((await b.getMessagesByIds(["msg_p", "msg_absent"])).map((m) => m.uniqueId)).toEqual([
+      "msg_p",
+    ]);
+  });
+
   it("keeps unsent writes sealed across a reload and sends them on the next start", async () => {
     const ring = await deriveMemoryKeyRing("0x" + "56".repeat(65));
     const seal = memoryCipher(ring);

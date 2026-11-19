@@ -473,7 +473,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   };
 
   const refresh = async (keys: Iterable<string>) => {
-    const refs = [...new Set(keys)].map((k) => {
+    const before = new Map([...keys].map((k) => [k, confirmed.get(k)]));
+    const refs = [...before.keys()].map((k) => {
       const [kind, ...rest] = k.split("/");
       return { kind: kind as ChatRecordKind, id: rest.join("/") };
     });
@@ -483,7 +484,10 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     for (const snapshot of found) merge(snapshot);
     for (const ref of refs) {
       const k = key(ref.kind, ref.id);
-      if (!seen.has(k)) confirmed.delete(k);
+      if (!seen.has(k)) {
+        if (confirmed.get(k) !== before.get(k)) continue;
+        confirmed.delete(k);
+      }
       checked.add(k);
     }
     saveCache();
