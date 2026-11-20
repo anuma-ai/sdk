@@ -46,8 +46,14 @@ async function observe(c: OutcomeCase): Promise<Observed> {
   return {
     outcome,
     action: result.action,
-    incomingStored: live.some((m) => m.content !== c.existing),
+    incomingStored: live.some((m) => holds(m.content, c)),
   };
+}
+
+function holds(content: string, c: OutcomeCase): boolean {
+  if (!c.detail?.length) return content === c.incoming;
+  const text = content.toLowerCase();
+  return c.detail.every((part) => text.includes(part.toLowerCase()));
 }
 
 function correct(c: OutcomeCase, seen: Observed): boolean {

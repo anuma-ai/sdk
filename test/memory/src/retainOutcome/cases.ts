@@ -5,25 +5,44 @@ export interface OutcomeCase {
   existing: string;
   incoming: string;
   expect: Expected;
+  detail?: string[];
 }
 
-const keep = (group: string, existing: string, incoming: string): OutcomeCase => ({
+const keep = (
+  group: string,
+  existing: string,
+  incoming: string,
+  ...detail: string[]
+): OutcomeCase => ({
   group,
   existing,
   incoming,
   expect: "keep-both",
+  detail,
 });
-const one = (group: string, existing: string, incoming: string): OutcomeCase => ({
+const one = (
+  group: string,
+  existing: string,
+  incoming: string,
+  ...detail: string[]
+): OutcomeCase => ({
   group,
   existing,
   incoming,
   expect: "one-memory",
+  detail,
 });
-const replace = (group: string, existing: string, incoming: string): OutcomeCase => ({
+const replace = (
+  group: string,
+  existing: string,
+  incoming: string,
+  ...detail: string[]
+): OutcomeCase => ({
   group,
   existing,
   incoming,
   expect: "replace",
+  detail,
 });
 
 export const OUTCOME_CASES: OutcomeCase[] = [
@@ -85,31 +104,55 @@ export const OUTCOME_CASES: OutcomeCase[] = [
   ),
   keep("separate-event", "User had a migraine on Tuesday.", "User had a migraine on Saturday."),
 
-  keep("other-facet", "User's dog is named Biscuit.", "User's dog is a golden retriever."),
-  keep("other-facet", "User shops at Zara.", "User returned a sweater to Zara last week."),
-  keep("other-facet", "User likes Thai food.", "User likes Vietnamese food."),
-  keep("other-facet", "User's favorite band is Radiohead.", "User's favorite film is Stalker."),
-  keep("other-facet", "User is learning Spanish.", "User is learning Japanese."),
-  keep("other-facet", "User takes vitamin D every morning.", "User takes magnesium every evening."),
+  keep(
+    "other-facet",
+    "User's dog is named Biscuit.",
+    "User's dog is a golden retriever.",
+    "golden retriever"
+  ),
+  keep(
+    "other-facet",
+    "User shops at Zara.",
+    "User returned a sweater to Zara last week.",
+    "sweater"
+  ),
+  keep("other-facet", "User likes Thai food.", "User likes Vietnamese food.", "Vietnamese"),
+  keep(
+    "other-facet",
+    "User's favorite band is Radiohead.",
+    "User's favorite film is Stalker.",
+    "Stalker"
+  ),
+  keep("other-facet", "User is learning Spanish.", "User is learning Japanese.", "Japanese"),
+  keep(
+    "other-facet",
+    "User takes vitamin D every morning.",
+    "User takes magnesium every evening.",
+    "magnesium"
+  ),
   keep(
     "other-facet",
     "User holds ETH as a long-term position.",
-    "User holds SOL as a long-term position."
+    "User holds SOL as a long-term position.",
+    "SOL"
   ),
   keep(
     "other-facet",
     "User never uses more than 3x leverage on perps.",
-    "User never risks more than 2% of the account on one trade."
+    "User never risks more than 2% of the account on one trade.",
+    "2%"
   ),
   keep(
     "other-facet",
     "User's sister Ana lives in Paris.",
-    "User's sister Ana works as an architect."
+    "User's sister Ana works as an architect.",
+    "architect"
   ),
   keep(
     "other-facet",
     "User prefers morning meetings.",
-    "User prefers written updates over meetings."
+    "User prefers written updates over meetings.",
+    "written updates"
   ),
 
   one("same-fact", "User has a dog named Biscuit.", "User has a dog named Biscuit."),
@@ -133,53 +176,83 @@ export const OUTCOME_CASES: OutcomeCase[] = [
   ),
   one("same-fact", "User drinks oat milk in coffee.", "User takes their coffee with oat milk."),
 
-  one("adds-detail", "User has a dog named Biscuit.", "User's dog Biscuit is a golden retriever."),
-  one("adds-detail", "User has a cat named Mochi.", "User's cat Mochi is four years old."),
-  one("adds-detail", "User's sister is called Ana.", "User's sister Ana lives in Paris."),
+  one(
+    "adds-detail",
+    "User has a dog named Biscuit.",
+    "User's dog Biscuit is a golden retriever.",
+    "golden retriever"
+  ),
+  one("adds-detail", "User has a cat named Mochi.", "User's cat Mochi is four years old.", "four"),
+  one("adds-detail", "User's sister is called Ana.", "User's sister Ana lives in Paris.", "Paris"),
   one(
     "adds-detail",
     "User is training for a marathon.",
-    "User is training for the Berlin marathon in September."
+    "User is training for the Berlin marathon in September.",
+    "Berlin",
+    "September"
   ),
-  one("adds-detail", "User works at Riverbend.", "User works at Riverbend as a staff engineer."),
+  one(
+    "adds-detail",
+    "User works at Riverbend.",
+    "User works at Riverbend as a staff engineer.",
+    "staff engineer"
+  ),
   one(
     "adds-detail",
     "User is learning Spanish.",
-    "User is learning Spanish with a tutor twice a week."
+    "User is learning Spanish with a tutor twice a week.",
+    "tutor",
+    "twice a week"
   ),
 
-  replace("changed-value", "User lives in Portland.", "User lives in San Francisco."),
-  replace("changed-value", "User works at Google.", "User works at Riverbend."),
+  replace(
+    "changed-value",
+    "User lives in Portland.",
+    "User lives in San Francisco.",
+    "San Francisco"
+  ),
+  replace("changed-value", "User works at Google.", "User works at Riverbend.", "Riverbend"),
   replace(
     "changed-value",
     "User prefers dark mode in every app.",
-    "User prefers light mode in every app."
+    "User prefers light mode in every app.",
+    "light mode"
   ),
-  replace("changed-value", "User eats meat a few times a week.", "User is vegetarian."),
-  replace("changed-value", "User is engaged to Sam.", "User and Sam broke up."),
+  replace(
+    "changed-value",
+    "User eats meat a few times a week.",
+    "User is vegetarian.",
+    "vegetarian"
+  ),
+  replace("changed-value", "User is engaged to Sam.", "User and Sam broke up.", "broke up"),
   replace(
     "changed-value",
     "User never uses more than 3x leverage on perps.",
-    "User never uses more than 5x leverage on perps."
+    "User never uses more than 5x leverage on perps.",
+    "5x"
   ),
   replace(
     "changed-value",
     "User drives a Tesla Model 3.",
-    "User sold the Tesla and now drives a Rivian R2."
+    "User sold the Tesla and now drives a Rivian R2.",
+    "Rivian"
   ),
   replace(
     "changed-value",
     "User's sister Ana lives in Paris.",
-    "User's sister Ana lives in London."
+    "User's sister Ana lives in London.",
+    "London"
   ),
   replace(
     "changed-value",
     "User is renting a flat in Lisbon.",
-    "User bought a house in Porto and moved there."
+    "User bought a house in Porto and moved there.",
+    "Porto"
   ),
   replace(
     "changed-value",
     "User's main exchange is Binance.",
-    "User's main exchange is Hyperliquid."
+    "User's main exchange is Hyperliquid.",
+    "Hyperliquid"
   ),
 ];

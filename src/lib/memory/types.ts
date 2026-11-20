@@ -729,13 +729,6 @@ export interface RetainResult {
   /**
    * What the consolidation LLM decided for this candidate, when consolidation
    * ran — see {@link ConsolidationAction}.
-   *
-   * A `create` here is final: the memory is written as its own row and the
-   * cosine merge is skipped, however similar an existing memory is. Absent when
-   * consolidation did not run, and absent on a fallback create (`onFallback`
-   * owns that signal). A failed consolidation call still falls through to the
-   * cosine merge; a refused cross-subject supersede (`subject_mismatch`) is
-   * written as its own row.
    */
   consolidation?: ConsolidationAction;
 }

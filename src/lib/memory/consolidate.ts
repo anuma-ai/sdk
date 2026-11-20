@@ -84,10 +84,6 @@ interface ConsolidationResult {
    * decision (LLM failure or schema-violating response). Distinguishes
    * "the model chose create" from "we couldn't get a usable answer" —
    * the latter accumulates duplicates if it happens persistently.
-   *
-   * retain() reads it to tell a decided create (written as its own row) from a
-   * failed call (falls through to the cosine merge) and a refused cross-subject
-   * supersede (written as its own row).
    */
   fallbackReason?: ConsolidationFallbackReason;
 }

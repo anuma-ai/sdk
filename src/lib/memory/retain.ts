@@ -516,9 +516,6 @@ function resurrectFields(existing: {
  * - `{ supersede }` — the new fact retires an existing one whose value changed;
  *   retain() creates the new fact fresh, then stamps `superseded_by` on the
  *   stale `supersede` id. `content` is the refined new fact from the consolidator.
- * - `{ create }` — the new fact is its own memory and skips the strict merge:
- *   `decided` when the model chose it, `refused` when its supersede named a
- *   different subject.
  * - `null` — no consolidation decision; fall through to strict merge / create.
  */
 type ConsolidateOutcome =
