@@ -155,6 +155,7 @@ export async function retainWithPersistence(
 
   let supersedeTargetIds: string[] = [];
   let consolidationDecidedCreate = false;
+  let keepSeparate = false;
   let supersedeContent: string | undefined;
   let prepared: PreparedVaultCandidates | undefined;
   let queryEmbedding: number[] = [];
@@ -202,7 +203,8 @@ export async function retainWithPersistence(
       if (outcome) {
         if ("done" in outcome) return outcome.done;
         if ("create" in outcome) {
-          consolidationDecidedCreate = true;
+          keepSeparate = true;
+          consolidationDecidedCreate = outcome.create === "decided";
         } else {
           supersedeTargetIds = outcome.supersede;
           supersedeContent = outcome.content;
@@ -210,7 +212,7 @@ export async function retainWithPersistence(
       }
     }
 
-    if (supersedeTargetIds.length === 0) {
+    if (supersedeTargetIds.length === 0 && !keepSeparate) {
       const { results: matches } = await rankPreparedVaultCandidates(
         trimmed,
         prepared,
@@ -250,7 +252,6 @@ export async function retainWithPersistence(
               targetId,
               proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
               similarity: matches[0].similarity,
-              ...(consolidationDecidedCreate && { consolidation: "create" as const }),
             };
           }
           await assertMergeTargetGoneOrThrow(ctx, targetId);
@@ -515,13 +516,15 @@ function resurrectFields(existing: {
  * - `{ supersede }` — the new fact retires an existing one whose value changed;
  *   retain() creates the new fact fresh, then stamps `superseded_by` on the
  *   stale `supersede` id. `content` is the refined new fact from the consolidator.
+ * - `{ create }` — the new fact is its own memory and skips the strict merge:
+ *   `decided` when the model chose it, `refused` when its supersede named a
+ *   different subject.
  * - `null` — no consolidation decision; fall through to strict merge / create.
  */
 type ConsolidateOutcome =
   | { done: RetainResult }
   | { supersede: string[]; content: string }
-  /** The LLM explicitly chose `create` — not a fallback, which returns null. */
-  | { create: true }
+  | { create: "decided" | "refused" }
   | null;
 
 function abandonToRace(options: RetainOptions, detail: string): null {
@@ -562,7 +565,10 @@ async function tryConsolidate(
   const { consolidateMemory: doConsolidate } = await import("./consolidate.js");
   const decision = await doConsolidate(trimmed, candidates, consolidateOptions);
 
-  if (decision.action === "create") return decision.fallbackReason ? null : { create: true };
+  if (decision.action === "create") {
+    if (!decision.fallbackReason) return { create: "decided" };
+    return decision.fallbackReason === "subject_mismatch" ? { create: "refused" } : null;
+  }
 
   if (decision.action === "supersede" && decision.content) {
     const requestedIds = decision.targetIds?.length

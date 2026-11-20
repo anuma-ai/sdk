@@ -16,16 +16,17 @@ Defined in: [src/lib/memory/types.ts:693](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **consolidation**: [`ConsolidationAction`](../type-aliases/ConsolidationAction.md)
 
-Defined in: [src/lib/memory/types.ts:739](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#739)
+Defined in: [src/lib/memory/types.ts:740](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#740)
 
 What the consolidation LLM decided for this candidate, when consolidation
 ran — see [ConsolidationAction](../type-aliases/ConsolidationAction.md).
 
-Reported for the DECISION, not for what the write ended up doing, so the
-two can disagree and be read as such: a `merge` carrying
-`consolidation: "create"` is the model saying "new fact" and the strict
-cosine stage merging anyway. Absent when consolidation did not run, and
-absent on a degraded fallback create (`onFallback` owns that signal).
+A `create` here is final: the memory is written as its own row and the
+cosine merge is skipped, however similar an existing memory is. Absent when
+consolidation did not run, and absent on a fallback create (`onFallback`
+owns that signal). A failed consolidation call still falls through to the
+cosine merge; a refused cross-subject supersede (`subject_mismatch`) is
+written as its own row.
 
 ***
 

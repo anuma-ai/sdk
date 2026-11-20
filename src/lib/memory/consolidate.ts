@@ -85,10 +85,9 @@ interface ConsolidationResult {
    * "the model chose create" from "we couldn't get a usable answer" —
    * the latter accumulates duplicates if it happens persistently.
    *
-   * Note: retain()'s consolidation path drops the result on "create"
-   * (fallback or real), so this field only reaches direct
-   * consolidateMemory() callers and tests — `onFallback` is the live
-   * observability channel.
+   * retain() reads it to tell a decided create (written as its own row) from a
+   * failed call (falls through to the cosine merge) and a refused cross-subject
+   * supersede (written as its own row).
    */
   fallbackReason?: ConsolidationFallbackReason;
 }
