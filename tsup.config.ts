@@ -22,6 +22,17 @@ export default defineConfig([
     },
   },
   {
+    entry: ["src/attachments/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/attachments",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
+  {
     entry: ["src/constants/index.ts"],
     format: ["esm", "cjs"],
     dts: true,

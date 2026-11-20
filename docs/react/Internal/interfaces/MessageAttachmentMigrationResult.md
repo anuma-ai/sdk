@@ -1,6 +1,6 @@
 # MessageAttachmentMigrationResult
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:606](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#606)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:572](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#572)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:606](https://github.com/anuma
 
 > **deferred**: `string`\[]
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:612](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#612)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:578](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#578)
 
 File ids another run may still be uploading; rerun after 16 minutes.
 
@@ -18,7 +18,7 @@ File ids another run may still be uploading; rerun after 16 minutes.
 
 > **missing**: `string`\[]
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:609](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#609)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:575](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#575)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:609](https://github.com/anuma
 
 > **oversized**: `string`\[]
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:610](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#610)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:576](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#576)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:610](https://github.com/anuma
 
 > **refs**: [`VaultAttachmentRef`](VaultAttachmentRef.md)\[]
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:607](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#607)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:573](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#573)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:607](https://github.com/anuma
 
 > **uploaded**: `number`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:608](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#608)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:574](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#574)
