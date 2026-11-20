@@ -128,7 +128,7 @@ const TOMBSTONE_FIELDS = [
 
 function fakeNearby(
   keyId: string,
-  { scrubTombstones = false, candidateLanes = false, switchRoutes = true } = {}
+  { scrubTombstones = false, candidateLanes = false, switchRoutes = true, memoryDecay = false } = {}
 ) {
   const rows = new Map<string, Stored>();
   const laneForces: string[][] = [];
@@ -266,6 +266,7 @@ function fakeNearby(
         key_id: keyId,
         realtime_changes: true,
         ...(candidateLanes && { candidate_lanes: true }),
+        ...(memoryDecay && { memory_decay: true }),
       });
     if (path === "/work/claim") {
       const kind = String(body.kind);
@@ -3661,9 +3662,9 @@ describe("repairEmbeddings", () => {
 
 describe("remote decay", () => {
   const DAY = 24 * 60 * 60 * 1000;
-  async function decayStore() {
+  async function decayStore(serverOptions: { memoryDecay?: boolean } = {}) {
     const keys = await deriveMemoryKeyRing(`0x${"d4".repeat(65)}`);
-    const server = fakeNearby(keys.keyId);
+    const server = fakeNearby(keys.keyId, serverOptions);
     const cipher = memoryCipher(keys);
     const decrypt = vi.fn(cipher.decrypt);
     let afterScan: (() => void) | undefined;
@@ -3695,7 +3696,7 @@ describe("remote decay", () => {
     const onAfterScan = (run: () => void) => {
       afterScan = run;
     };
-    return { store, server, decrypt, onAfterScan };
+    return { store, server, decrypt, onAfterScan, fetch };
   }
   const aged = (server: ReturnType<typeof fakeNearby>, id: string, fields = {}) =>
     Object.assign(server.rows.get(id)!.memory, {
@@ -3724,6 +3725,19 @@ describe("remote decay", () => {
     expect(server.rows.get(durable.uniqueId)!.memory.archived_at).toBeUndefined();
     expect(server.rows.get(manual.uniqueId)!.memory.archived_at).toBeUndefined();
     expect(decrypt.mock.calls.some(([value]) => untouched.has(value))).toBe(false);
+  });
+
+  it("leaves decay to a server that runs it, without scanning", async () => {
+    const { store, server, fetch } = await decayStore({ memoryDecay: true });
+    const stale = await store.create({ content: "Was into crosswords", embedding: axis(0) });
+    aged(server, stale.uniqueId);
+    fetch.mockClear();
+
+    const result = await store.decay!.createDecaySweeper().runSweep();
+
+    expect(result).toMatchObject({ archived: 0, deleted: 0, scanned: 0 });
+    expect(server.rows.get(stale.uniqueId)!.memory.archived_at).toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("advances a restored memory past its topic extraction timestamp", async () => {
