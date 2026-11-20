@@ -1,6 +1,6 @@
 # VaultMediaLibraryOptions
 
-Defined in: src/lib/chatStore/media.ts:43
+Defined in: [src/lib/chatStore/media.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#43)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/chatStore/media.ts:43
 
 > **attachments**: [`VaultAttachments`](VaultAttachments.md)
 
-Defined in: src/lib/chatStore/media.ts:45
+Defined in: [src/lib/chatStore/media.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#45)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/chatStore/media.ts:45
 
 > `optional` **now**: () => `number`
 
-Defined in: src/lib/chatStore/media.ts:48
+Defined in: [src/lib/chatStore/media.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#48)
 
 **Returns**
 
@@ -28,7 +28,7 @@ Defined in: src/lib/chatStore/media.ts:48
 
 > **store**: [`ChatStore`](ChatStore.md)
 
-Defined in: src/lib/chatStore/media.ts:44
+Defined in: [src/lib/chatStore/media.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#44)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: src/lib/chatStore/media.ts:44
 
 > `optional` **subscribeChanges**: (`onChange`: (`connected`: `boolean`) => `void`) => () => `void`
 
-Defined in: src/lib/chatStore/media.ts:47
+Defined in: [src/lib/chatStore/media.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#47)
 
 A `createVaultRealtime` source for `private_chats`; each report catches up and tells subscribers about remote changes.
 

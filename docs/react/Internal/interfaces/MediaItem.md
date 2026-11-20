@@ -1,6 +1,6 @@
 # MediaItem
 
-Defined in: src/lib/chatStore/media.ts:30
+Defined in: [src/lib/chatStore/media.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#30)
 
 A library file whose encrypted bytes vault holds as an attachment.
 
@@ -10,7 +10,7 @@ A library file whose encrypted bytes vault holds as an attachment.
 
 > **attachmentId**: `string`
 
-Defined in: src/lib/chatStore/media.ts:38
+Defined in: [src/lib/chatStore/media.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#38)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: src/lib/chatStore/media.ts:38
 
 > **createdAt**: `number`
 
-Defined in: src/lib/chatStore/media.ts:39
+Defined in: [src/lib/chatStore/media.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#39)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: src/lib/chatStore/media.ts:39
 
 > **id**: `string`
 
-Defined in: src/lib/chatStore/media.ts:31
+Defined in: [src/lib/chatStore/media.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#31)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: src/lib/chatStore/media.ts:31
 
 > **localId**: `string`
 
-Defined in: src/lib/chatStore/media.ts:32
+Defined in: [src/lib/chatStore/media.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#32)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: src/lib/chatStore/media.ts:32
 
 > `optional` **metadata**: `object`
 
-Defined in: src/lib/chatStore/media.ts:37
+Defined in: [src/lib/chatStore/media.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#37)
 
 **Index Signature**
 
@@ -54,7 +54,7 @@ Defined in: src/lib/chatStore/media.ts:37
 
 > **mimeType**: `string`
 
-Defined in: src/lib/chatStore/media.ts:34
+Defined in: [src/lib/chatStore/media.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#34)
 
 ***
 
@@ -62,7 +62,7 @@ Defined in: src/lib/chatStore/media.ts:34
 
 > **name**: `string`
 
-Defined in: src/lib/chatStore/media.ts:33
+Defined in: [src/lib/chatStore/media.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#33)
 
 ***
 
@@ -70,7 +70,7 @@ Defined in: src/lib/chatStore/media.ts:33
 
 > **size**: `number`
 
-Defined in: src/lib/chatStore/media.ts:35
+Defined in: [src/lib/chatStore/media.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#35)
 
 ***
 
@@ -78,7 +78,7 @@ Defined in: src/lib/chatStore/media.ts:35
 
 > **source**: `string`
 
-Defined in: src/lib/chatStore/media.ts:36
+Defined in: [src/lib/chatStore/media.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#36)
 
 ***
 
@@ -86,4 +86,4 @@ Defined in: src/lib/chatStore/media.ts:36
 
 > **updatedAt**: `number`
 
-Defined in: src/lib/chatStore/media.ts:40
+Defined in: [src/lib/chatStore/media.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#40)

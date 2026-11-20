@@ -1,6 +1,6 @@
 # MediaItemInput
 
-Defined in: src/lib/chatStore/media.ts:18
+Defined in: [src/lib/chatStore/media.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#18)
 
 ## Extended by
 
@@ -12,7 +12,7 @@ Defined in: src/lib/chatStore/media.ts:18
 
 > `optional` **createdAt**: `number`
 
-Defined in: src/lib/chatStore/media.ts:25
+Defined in: [src/lib/chatStore/media.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#25)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: src/lib/chatStore/media.ts:25
 
 > **localId**: `string`
 
-Defined in: src/lib/chatStore/media.ts:20
+Defined in: [src/lib/chatStore/media.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#20)
 
 The device's id for the file, such as `StoredMedia.mediaId`; the vault id is derived from it.
 
@@ -30,7 +30,7 @@ The device's id for the file, such as `StoredMedia.mediaId`; the vault id is der
 
 > `optional` **metadata**: `object`
 
-Defined in: src/lib/chatStore/media.ts:26
+Defined in: [src/lib/chatStore/media.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#26)
 
 **Index Signature**
 
@@ -42,7 +42,7 @@ Defined in: src/lib/chatStore/media.ts:26
 
 > **mimeType**: `string`
 
-Defined in: src/lib/chatStore/media.ts:22
+Defined in: [src/lib/chatStore/media.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#22)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: src/lib/chatStore/media.ts:22
 
 > **name**: `string`
 
-Defined in: src/lib/chatStore/media.ts:21
+Defined in: [src/lib/chatStore/media.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#21)
 
 ***
 
@@ -58,6 +58,6 @@ Defined in: src/lib/chatStore/media.ts:21
 
 > **source**: `string`
 
-Defined in: src/lib/chatStore/media.ts:24
+Defined in: [src/lib/chatStore/media.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#24)
 
 The feature that made the file, such as `upload`, `studio` or `voice`.
