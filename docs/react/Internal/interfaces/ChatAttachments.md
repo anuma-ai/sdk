@@ -1,6 +1,16 @@
 # ChatAttachments
 
-Defined in: [src/lib/chatStore/types.ts:125](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#125)
+Defined in: [src/lib/chatStore/types.ts:145](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#145)
+
+## Properties
+
+### multipart?
+
+> `optional` **multipart**: [`ChatMultipartAttachments`](ChatMultipartAttachments.md)
+
+Defined in: [src/lib/chatStore/types.ts:151](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#151)
+
+Present when vault takes attachments over 50 MiB in parts.
 
 ## Methods
 
@@ -8,7 +18,7 @@ Defined in: [src/lib/chatStore/types.ts:125](https://github.com/anuma-ai/sdk/blo
 
 > **commit**(`attachmentId`: `string`, `owner`: `object`, `signal?`: `AbortSignal`): `Promise`<[`ChatAttachment`](ChatAttachment.md)>
 
-Defined in: [src/lib/chatStore/types.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#130)
+Defined in: [src/lib/chatStore/types.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#152)
 
 **Parameters**
 
@@ -93,7 +103,7 @@ Defined in: [src/lib/chatStore/types.ts:130](https://github.com/anuma-ai/sdk/blo
 
 > **create**(`sizeBytes`: `number`, `signal?`: `AbortSignal`): `Promise`<{ `attachment`: [`ChatAttachment`](ChatAttachment.md); `upload`: [`ChatPresignedUrl`](ChatPresignedUrl.md); }>
 
-Defined in: [src/lib/chatStore/types.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#126)
+Defined in: [src/lib/chatStore/types.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#146)
 
 **Parameters**
 
@@ -142,7 +152,7 @@ Defined in: [src/lib/chatStore/types.ts:126](https://github.com/anuma-ai/sdk/blo
 
 > **delete**(`attachmentId`: `string`, `signal?`: `AbortSignal`): `Promise`<`void`>
 
-Defined in: [src/lib/chatStore/types.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#139)
+Defined in: [src/lib/chatStore/types.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#161)
 
 **Parameters**
 
@@ -191,7 +201,7 @@ Defined in: [src/lib/chatStore/types.ts:139](https://github.com/anuma-ai/sdk/blo
 
 > **get**(`attachmentId`: `string`, `signal?`: `AbortSignal`): `Promise`<{ `attachment`: [`ChatAttachment`](ChatAttachment.md); `download?`: [`ChatPresignedUrl`](ChatPresignedUrl.md); } | `null`>
 
-Defined in: [src/lib/chatStore/types.ts:135](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#135)
+Defined in: [src/lib/chatStore/types.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#157)
 
 **Parameters**
 

@@ -1,6 +1,6 @@
 # ChatStore
 
-Defined in: [src/lib/chatStore/types.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#158)
+Defined in: [src/lib/chatStore/types.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#180)
 
 Explicit versions protect edits; ambiguous writes are never replayed automatically.
 
@@ -10,7 +10,7 @@ Explicit versions protect edits; ambiguous writes are never replayed automatical
 
 > **attachments**: [`ChatAttachments`](ChatAttachments.md)
 
-Defined in: [src/lib/chatStore/types.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#183)
+Defined in: [src/lib/chatStore/types.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#205)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/chatStore/types.ts:183](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **mediaAttachments**: `boolean`
 
-Defined in: [src/lib/chatStore/types.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#182)
+Defined in: [src/lib/chatStore/types.ts:204](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#204)
 
 True when vault stores `media` records and attachments owned by `media` and `app_file` records.
 
@@ -28,7 +28,7 @@ True when vault stores `media` records and attachments owned by `media` and `app
 
 > **account**(`signal?`: `AbortSignal`): `Promise`<[`ChatAccount`](ChatAccount.md)>
 
-Defined in: [src/lib/chatStore/types.ts:163](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#163)
+Defined in: [src/lib/chatStore/types.ts:185](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#185)
 
 **Parameters**
 
@@ -65,7 +65,7 @@ Defined in: [src/lib/chatStore/types.ts:163](https://github.com/anuma-ai/sdk/blo
 
 > **activate**(`signal?`: `AbortSignal`): `Promise`<`boolean`>
 
-Defined in: [src/lib/chatStore/types.ts:167](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#167)
+Defined in: [src/lib/chatStore/types.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#189)
 
 **Parameters**
 
@@ -102,7 +102,7 @@ Defined in: [src/lib/chatStore/types.ts:167](https://github.com/anuma-ai/sdk/blo
 
 > **changes**(`cursor?`: `string`, `options?`: `object`): `Promise`<[`ChatChanges`](ChatChanges.md)>
 
-Defined in: [src/lib/chatStore/types.ts:169](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#169)
+Defined in: [src/lib/chatStore/types.ts:191](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#191)
 
 Without `kinds`, vault returns every kind except `setting`.
 
@@ -189,7 +189,7 @@ readonly [`ChatRecordKind`](../type-aliases/ChatRecordKind.md)\[]
 
 > **deleteAll**(`signal?`: `AbortSignal`): `Promise`<`number`>
 
-Defined in: [src/lib/chatStore/types.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#178)
+Defined in: [src/lib/chatStore/types.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#200)
 
 **Parameters**
 
@@ -226,7 +226,7 @@ Defined in: [src/lib/chatStore/types.ts:178](https://github.com/anuma-ai/sdk/blo
 
 > **get**(`kind`: [`ChatRecordKind`](../type-aliases/ChatRecordKind.md), `id`: `string`, `signal?`: `AbortSignal`): `Promise`<[`ChatSnapshot`](ChatSnapshot.md) | `null`>
 
-Defined in: [src/lib/chatStore/types.ts:159](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#159)
+Defined in: [src/lib/chatStore/types.ts:181](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#181)
 
 **Parameters**
 
@@ -287,7 +287,7 @@ Defined in: [src/lib/chatStore/types.ts:159](https://github.com/anuma-ai/sdk/blo
 
 > **getMany**(`refs`: readonly [`ChatRef`](ChatRef.md)\[], `signal?`: `AbortSignal`): `Promise`<[`ChatSnapshot`](ChatSnapshot.md)\[]>
 
-Defined in: [src/lib/chatStore/types.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#162)
+Defined in: [src/lib/chatStore/types.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#184)
 
 **Parameters**
 
@@ -336,7 +336,7 @@ readonly [`ChatRef`](ChatRef.md)\[]
 
 > **importRecords**(`records`: readonly [`ChatImport`](ChatImport.md)\[], `signal?`: `AbortSignal`): `Promise`<`number`>
 
-Defined in: [src/lib/chatStore/types.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#165)
+Defined in: [src/lib/chatStore/types.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#187)
 
 **Parameters**
 
@@ -385,7 +385,7 @@ readonly [`ChatImport`](ChatImport.md)\[]
 
 > `optional` **indexTermsPage**(`cursor?`: `string`, `signal?`: `AbortSignal`): `Promise`<[`ChatTermsPage`](ChatTermsPage.md)>
 
-Defined in: [src/lib/chatStore/types.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#177)
+Defined in: [src/lib/chatStore/types.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#199)
 
 Stores word hashes for one page of records vault has none for; call again with `nextCursor` until it is absent.
 
@@ -436,7 +436,7 @@ Stores word hashes for one page of records vault has none for; call again with `
 
 > **list**(`options`: [`ChatListOptions`](ChatListOptions.md)): `Promise`<[`ChatPage`](ChatPage.md)>
 
-Defined in: [src/lib/chatStore/types.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#160)
+Defined in: [src/lib/chatStore/types.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#182)
 
 **Parameters**
 
@@ -473,7 +473,7 @@ Defined in: [src/lib/chatStore/types.ts:160](https://github.com/anuma-ai/sdk/blo
 
 > **putMany**(`writes`: readonly [`ChatWrite`](ChatWrite.md)\[], `signal?`: `AbortSignal`): `Promise`<[`ChatSnapshot`](ChatSnapshot.md)\[]>
 
-Defined in: [src/lib/chatStore/types.ts:161](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#161)
+Defined in: [src/lib/chatStore/types.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#183)
 
 **Parameters**
 
@@ -522,7 +522,7 @@ readonly [`ChatWrite`](ChatWrite.md)\[]
 
 > `optional` **sealedId**(`value`: `string`): `Promise`<`string`>
 
-Defined in: [src/lib/chatStore/types.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#180)
+Defined in: [src/lib/chatStore/types.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#202)
 
 A keyed hash vault cannot reproduce, for record ids derived from private names.
 
@@ -561,7 +561,7 @@ A keyed hash vault cannot reproduce, for record ids derived from private names.
 
 > **search**(`embedding`: readonly `number`\[], `options?`: [`ChatSearchOptions`](ChatSearchOptions.md)): `Promise`<[`ChatSearchHit`](ChatSearchHit.md)\[]>
 
-Defined in: [src/lib/chatStore/types.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#173)
+Defined in: [src/lib/chatStore/types.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#195)
 
 **Parameters**
 
@@ -610,7 +610,7 @@ readonly `number`\[]
 
 > `optional` **searchTerms**(`query`: `string`, `options?`: [`ChatTermSearchOptions`](ChatTermSearchOptions.md)): `Promise`<[`ChatPage`](ChatPage.md)>
 
-Defined in: [src/lib/chatStore/types.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#175)
+Defined in: [src/lib/chatStore/types.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#197)
 
 Messages and summaries holding every word of `query`, newest first; present when vault keeps keyed word hashes.
 
@@ -661,7 +661,7 @@ Messages and summaries holding every word of `query`, newest first; present when
 
 > `optional` **takeConnectedAccount**(): [`ChatAccount`](ChatAccount.md) | `undefined`
 
-Defined in: [src/lib/chatStore/types.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#164)
+Defined in: [src/lib/chatStore/types.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#186)
 
 **Returns**
 
@@ -673,7 +673,7 @@ Defined in: [src/lib/chatStore/types.ts:164](https://github.com/anuma-ai/sdk/blo
 
 > **verify**(`revisions`: readonly [`ChatRevision`](ChatRevision.md)\[], `signal?`: `AbortSignal`): `Promise`<[`ChatRef`](ChatRef.md)\[]>
 
-Defined in: [src/lib/chatStore/types.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#166)
+Defined in: [src/lib/chatStore/types.ts:188](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#188)
 
 **Parameters**
 

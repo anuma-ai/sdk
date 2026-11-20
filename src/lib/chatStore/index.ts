@@ -58,7 +58,9 @@ export {
   type ChatImport,
   type ChatJson,
   type ChatListOptions,
+  type ChatMultipartAttachments,
   type ChatPage,
+  type ChatPresignedPart,
   type ChatPresignedUrl,
   type ChatRecord,
   type ChatRecordKind,
@@ -86,7 +88,9 @@ export {
   type VaultAttachmentOwner,
   vaultAttachmentRefs,
   type VaultAttachments,
+  type VaultAttachmentSink,
   type VaultAttachmentsOptions,
+  type VaultAttachmentSource,
   type VaultAttachmentUploadOptions,
 } from "./vaultAttachments.js";
 export {

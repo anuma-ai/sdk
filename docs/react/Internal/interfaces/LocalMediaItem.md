@@ -1,6 +1,6 @@
 # LocalMediaItem
 
-Defined in: [src/lib/chatStore/media.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#67)
+Defined in: [src/lib/chatStore/media.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#72)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/chatStore/media.ts:67](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **createdAt**: `number`
 
-Defined in: [src/lib/chatStore/media.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#25)
+Defined in: [src/lib/chatStore/media.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#26)
 
 **Inherited from**
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/chatStore/media.ts:25](https://github.com/anuma-ai/sdk/blob
 
 > **localId**: `string`
 
-Defined in: [src/lib/chatStore/media.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#20)
+Defined in: [src/lib/chatStore/media.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#21)
 
 The device's id for the file, such as `StoredMedia.mediaId`; the vault id is derived from it.
 
@@ -38,7 +38,7 @@ The device's id for the file, such as `StoredMedia.mediaId`; the vault id is der
 
 > `optional` **metadata**: `object`
 
-Defined in: [src/lib/chatStore/media.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#26)
+Defined in: [src/lib/chatStore/media.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#27)
 
 **Index Signature**
 
@@ -54,7 +54,7 @@ Defined in: [src/lib/chatStore/media.ts:26](https://github.com/anuma-ai/sdk/blob
 
 > **mimeType**: `string`
 
-Defined in: [src/lib/chatStore/media.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#22)
+Defined in: [src/lib/chatStore/media.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#23)
 
 **Inherited from**
 
@@ -66,7 +66,7 @@ Defined in: [src/lib/chatStore/media.ts:22](https://github.com/anuma-ai/sdk/blob
 
 > **name**: `string`
 
-Defined in: [src/lib/chatStore/media.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#21)
+Defined in: [src/lib/chatStore/media.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#22)
 
 **Inherited from**
 
@@ -78,7 +78,7 @@ Defined in: [src/lib/chatStore/media.ts:21](https://github.com/anuma-ai/sdk/blob
 
 > **source**: `string`
 
-Defined in: [src/lib/chatStore/media.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#24)
+Defined in: [src/lib/chatStore/media.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#25)
 
 The feature that made the file, such as `upload`, `studio` or `voice`.
 
@@ -90,10 +90,10 @@ The feature that made the file, such as `upload`, `studio` or `voice`.
 
 ### read()
 
-> **read**(): `Promise`<`Blob` | `Uint8Array`<`ArrayBufferLike`> | `null`>
+> **read**(): `Promise`<`Blob` | `Uint8Array`<`ArrayBufferLike`> | [`VaultAttachmentSource`](VaultAttachmentSource.md) | `null`>
 
-Defined in: [src/lib/chatStore/media.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#68)
+Defined in: [src/lib/chatStore/media.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#73)
 
 **Returns**
 
-`Promise`<`Blob` | `Uint8Array`<`ArrayBufferLike`> | `null`>
+`Promise`<`Blob` | `Uint8Array`<`ArrayBufferLike`> | [`VaultAttachmentSource`](VaultAttachmentSource.md) | `null`>

@@ -1,6 +1,6 @@
 # VaultAttachmentJournal
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:318](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#318)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:577](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#577)
 
 Where a migration run keeps the reservation it is working on, so a rerun resumes it instead of uploading again.
 
@@ -10,7 +10,7 @@ Where a migration run keeps the reservation it is working on, so a rerun resumes
 
 > **get**(`key`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#319)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:578](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#578)
 
 **Parameters**
 
@@ -47,7 +47,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:319](https://github.com/anuma
 
 > **set**(`key`: `string`, `attachmentId`: `string` | `null`): `Promise`<`void`>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:320](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#320)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:579](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#579)
 
 **Parameters**
 

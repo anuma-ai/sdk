@@ -13,6 +13,7 @@ import {
   type ChatAttachmentOwnerKind,
   type ChatImport,
   type ChatJson,
+  type ChatMultipartAttachments,
   type ChatPage,
   type ChatPresignedUrl,
   type ChatRecord,
@@ -51,6 +52,7 @@ const maxVerifyRevisions = 1000;
 const maxChunksPerRecord = 16;
 const maxChunksPerRequest = 200;
 const maxAttachmentBytes = 50 * 1024 * 1024;
+const maxPartsPerRequest = 100;
 const attachmentIdPattern = /^[0-9a-f]{32}$/;
 const metadata = [
   "kind",
@@ -313,6 +315,12 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
   const termHash =
     hashTopic && account.term_search === true ? createChatTermHasher(hashTopic) : undefined;
   const mediaAttachments = account.media_attachments === true;
+  const maxMultipartBytes =
+    account.multipart_attachments === true &&
+    integer(account.max_attachment_bytes) &&
+    account.max_attachment_bytes > maxAttachmentBytes
+      ? account.max_attachment_bytes
+      : undefined;
   const sendable = (kind: string) => kind !== "media" || mediaAttachments;
 
   const parseAccount = (value: unknown): ChatAccount => {
@@ -562,6 +570,63 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
     options?.signal?.throwIfAborted();
     return { items, ...(value.next_cursor ? { nextCursor: value.next_cursor } : {}) };
   };
+
+  const multipart = (maxBytes: number): ChatMultipartAttachments => ({
+    maxBytes,
+    async create(sizeBytes, signal) {
+      if (!integer(sizeBytes) || sizeBytes <= maxAttachmentBytes || sizeBytes > maxBytes) invalid();
+      const value = await request(
+        "/attachments",
+        {
+          method: "POST",
+          body: JSON.stringify({ account_id: accountId, size_bytes: sizeBytes }),
+        },
+        signal
+      );
+      if (!object(value) || !object(value.multipart) || value.upload !== undefined) invalid();
+      const created = attachment(value.attachment);
+      const { part_bytes: partBytes, part_count: partCount } = value.multipart;
+      if (
+        created.sizeBytes !== sizeBytes ||
+        created.state !== "pending" ||
+        !integer(partBytes, 1) ||
+        partCount !== Math.ceil(sizeBytes / partBytes)
+      )
+        invalid();
+      return { attachment: created, partBytes, partCount };
+    },
+    async parts(attachmentId, partNumbers, signal) {
+      if (
+        !attachmentIdPattern.test(attachmentId) ||
+        !Array.isArray(partNumbers) ||
+        partNumbers.length < 1 ||
+        partNumbers.length > maxPartsPerRequest ||
+        new Set(partNumbers).size !== partNumbers.length ||
+        partNumbers.some((n) => !integer(n, 1))
+      )
+        invalid();
+      const value = await request(
+        `/attachments/${attachmentId}/parts`,
+        {
+          method: "POST",
+          body: JSON.stringify({ account_id: accountId, part_numbers: partNumbers }),
+        },
+        signal
+      );
+      if (
+        !object(value) ||
+        !Array.isArray(value.parts) ||
+        value.parts.length !== partNumbers.length
+      )
+        invalid();
+      const parts: unknown[] = value.parts;
+      return partNumbers.map((partNumber: number, i) => {
+        const part = parts[i];
+        if (!object(part) || part.part_number !== partNumber) invalid();
+        return { partNumber, ...presigned(part) };
+      });
+    },
+  });
 
   const indexTermsPage = async (cursor?: string, signal?: AbortSignal): Promise<ChatTermsPage> => {
     if (cursor !== undefined && (!text(cursor) || cursor.length > 2048)) invalid();
@@ -971,6 +1036,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
           signal
         );
       },
+      ...(maxMultipartBytes ? { multipart: multipart(maxMultipartBytes) } : {}),
     },
   };
 }

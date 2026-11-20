@@ -2,7 +2,7 @@
 
 > **createVaultMediaLibrary**(`options`: [`VaultMediaLibraryOptions`](../interfaces/VaultMediaLibraryOptions.md)): [`VaultMediaLibrary`](../interfaces/VaultMediaLibrary.md)
 
-Defined in: [src/lib/chatStore/media.ts:304](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#304)
+Defined in: [src/lib/chatStore/media.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#311)
 
 Creates the media library for one account; build a new one after a wallet or key change.
 

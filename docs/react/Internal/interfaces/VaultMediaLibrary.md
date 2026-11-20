@@ -1,6 +1,6 @@
 # VaultMediaLibrary
 
-Defined in: [src/lib/chatStore/media.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#52)
+Defined in: [src/lib/chatStore/media.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#53)
 
 The account's library files in vault: list, store, read and delete them on any device.
 
@@ -10,7 +10,7 @@ The account's library files in vault: list, store, read and delete them on any d
 
 > `readonly` **enabled**: `boolean`
 
-Defined in: [src/lib/chatStore/media.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#54)
+Defined in: [src/lib/chatStore/media.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#55)
 
 False when vault does not store media: `list` is empty, `read` null, `delete` false and `create` rejects with `media_unsupported`.
 
@@ -20,7 +20,7 @@ False when vault does not store media: `list` is empty, `read` null, `delete` fa
 
 > **close**(): `void`
 
-Defined in: [src/lib/chatStore/media.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#64)
+Defined in: [src/lib/chatStore/media.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#69)
 
 **Returns**
 
@@ -30,9 +30,9 @@ Defined in: [src/lib/chatStore/media.ts:64](https://github.com/anuma-ai/sdk/blob
 
 ### create()
 
-> **create**(`item`: [`MediaItemInput`](MediaItemInput.md), `bytes`: `Blob` | `Uint8Array`<`ArrayBufferLike`>, `signal?`: `AbortSignal`): `Promise`<[`MediaItem`](MediaItem.md)>
+> **create**(`item`: [`MediaItemInput`](MediaItemInput.md), `bytes`: `Blob` | `Uint8Array`<`ArrayBufferLike`> | [`VaultAttachmentSource`](VaultAttachmentSource.md), `signal?`: `AbortSignal`): `Promise`<[`MediaItem`](MediaItem.md)>
 
-Defined in: [src/lib/chatStore/media.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#58)
+Defined in: [src/lib/chatStore/media.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#59)
 
 Stores a file once per `localId`; rejects with `media_deleted` when the item was deleted on any device.
 
@@ -66,7 +66,7 @@ Stores a file once per `localId`; rejects with `media_deleted` when the item was
 </td>
 <td>
 
-`Blob` | `Uint8Array`<`ArrayBufferLike`>
+`Blob` | `Uint8Array`<`ArrayBufferLike`> | [`VaultAttachmentSource`](VaultAttachmentSource.md)
 
 </td>
 </tr>
@@ -95,7 +95,7 @@ Stores a file once per `localId`; rejects with `media_deleted` when the item was
 
 > **delete**(`id`: `string`, `signal?`: `AbortSignal`): `Promise`<`boolean`>
 
-Defined in: [src/lib/chatStore/media.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#62)
+Defined in: [src/lib/chatStore/media.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#67)
 
 Deletes an item on every device; false when it was already gone.
 
@@ -146,7 +146,7 @@ Deletes an item on every device; false when it was already gone.
 
 > **list**(`signal?`: `AbortSignal`): `Promise`<[`MediaItem`](MediaItem.md)\[]>
 
-Defined in: [src/lib/chatStore/media.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#56)
+Defined in: [src/lib/chatStore/media.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#57)
 
 Live items, newest first, after catching up with changes from other devices.
 
@@ -185,7 +185,7 @@ Live items, newest first, after catching up with changes from other devices.
 
 > **read**(`id`: `string`, `signal?`: `AbortSignal`): `Promise`<`Uint8Array`<`ArrayBufferLike`> | `null`>
 
-Defined in: [src/lib/chatStore/media.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#60)
+Defined in: [src/lib/chatStore/media.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#65)
 
 The decrypted bytes, or null when the item is gone or its upload has not finished.
 
@@ -236,7 +236,7 @@ The decrypted bytes, or null when the item is gone or its upload has not finishe
 
 > **subscribe**(`listener`: (`event`: `object`) => `void`): () => `void`
 
-Defined in: [src/lib/chatStore/media.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#63)
+Defined in: [src/lib/chatStore/media.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#68)
 
 **Parameters**
 
