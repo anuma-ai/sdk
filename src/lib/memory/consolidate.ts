@@ -84,11 +84,6 @@ interface ConsolidationResult {
    * decision (LLM failure or schema-violating response). Distinguishes
    * "the model chose create" from "we couldn't get a usable answer" —
    * the latter accumulates duplicates if it happens persistently.
-   *
-   * Note: retain()'s consolidation path drops the result on "create"
-   * (fallback or real), so this field only reaches direct
-   * consolidateMemory() callers and tests — `onFallback` is the live
-   * observability channel.
    */
   fallbackReason?: ConsolidationFallbackReason;
 }

@@ -164,7 +164,8 @@
     "check": "pnpm run lint && pnpm run knip && pnpm run check:export-consumers && pnpm run format && pnpm run generate",
     "eval:extraction": "tsx test/memory/src/extraction/benchmark.test.ts",
     "eval:topic": "tsx test/memory/src/topic/benchmark.ts",
-    "eval:consolidation": "tsx test/memory/src/consolidation/benchmark.test.ts"
+    "eval:consolidation": "tsx test/memory/src/consolidation/benchmark.test.ts",
+    "eval:retain-outcome": "tsx test/memory/src/retainOutcome/benchmark.ts"
   },
   "repository": {
     "type": "git",
