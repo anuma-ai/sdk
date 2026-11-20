@@ -1019,9 +1019,11 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   };
   const decayBackend: DecaySweepBackend = {
     candidates: async () =>
-      (await pages(metadata, { include_archived: true, include_quarantined: true }))
-        .filter(({ memory }) => memory.kind === undefined || memory.kind === null)
-        .map(({ memory }) => decayRow(memory)),
+      persistence.serverDecays?.()
+        ? []
+        : (await pages(metadata, { include_archived: true, include_quarantined: true }))
+            .filter(({ memory }) => memory.kind === undefined || memory.kind === null)
+            .map(({ memory }) => decayRow(memory)),
     archive: (rows, now) =>
       decayWrite(rows, "edit", (memory, seen) =>
         (memory.archived_at ?? null) === null &&
