@@ -330,10 +330,15 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
     }
   };
 
-  async function* chunks(source: VaultAttachmentSource, attachmentId: string) {
+  async function* chunks(
+    source: VaultAttachmentSource,
+    attachmentId: string,
+    signal?: AbortSignal
+  ) {
     yield Uint8Array.of(chunkedFrameVersion);
     const count = chunkCount(source.size);
     for (let index = 0; index < count; index++) {
+      signal?.throwIfAborted();
       const offset = index * chunkPlaintextBytes;
       const length = Math.min(chunkPlaintextBytes, source.size - offset);
       yield sealChunk(
@@ -359,7 +364,7 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
     );
     try {
       await uploadOptions?.onReserved?.(attachment.id);
-      const pieces = chunks(source, attachment.id);
+      const pieces = chunks(source, attachment.id, signal);
       let carry = new Uint8Array(0);
       let urls = new Map<number, ChatPresignedUrl>();
       for (let part = 1; part <= partCount; part++) {

@@ -293,6 +293,75 @@ describe("chunked vault attachments", () => {
     );
   });
 
+  it("stops reading the source once the upload is cancelled", async () => {
+    const vault = createFakeVault({ multipartAttachments: true });
+    const phone = await device(vault);
+    const source = pattern(largeSize);
+    const cancel = new AbortController();
+    vault.faults.push((request) => {
+      if (request.path.includes("partNumber=1&")) cancel.abort(new Error("user cancelled"));
+      return undefined;
+    });
+
+    await expect(phone.attachments.upload(source, { signal: cancel.signal })).rejects.toThrow(
+      "user cancelled"
+    );
+
+    expect(source.pulled()).toBeLessThanOrEqual(partBytes + chunkBytes);
+    expect(vault.attachments.size).toBe(0);
+  });
+
+  it("lets a second seeding run wait for a large upload instead of deleting it", async () => {
+    const vault = createFakeVault({ mediaAttachments: true, multipartAttachments: true });
+    const phone = await device(vault);
+    const entries = new Map<string, string>();
+    const journal: VaultAttachmentJournal = {
+      get: (key) => Promise.resolve(entries.get(key) ?? null),
+      set: (key, value) => {
+        if (value === null) entries.delete(key);
+        else entries.set(key, value);
+        return Promise.resolve();
+      },
+    };
+    const items = [
+      {
+        localId: "video_1",
+        name: "trip.mp4",
+        mimeType: "video/mp4",
+        source: "studio",
+        read: () => Promise.resolve(pattern(largeSize)),
+      },
+    ];
+    const run = () =>
+      seedMediaToVault({
+        store: phone.store,
+        attachments: phone.attachments,
+        journal,
+        items,
+        now: vault.now,
+      });
+    let second: ReturnType<typeof run> | undefined;
+    vault.faults.push((request) => {
+      if (second || !request.path.includes("partNumber=2&")) return undefined;
+      second = run();
+      vault.advance(urlTtlMs + 2 * 60_000);
+      return undefined;
+    });
+
+    expect(await run()).toMatchObject({ uploaded: 1, deferred: [] });
+    expect(await second).toMatchObject({ uploaded: 0, deferred: [] });
+
+    expect(
+      vault.requests.filter(
+        (r) => r.method === "POST" && r.path === "/api/private-chats/attachments"
+      )
+    ).toHaveLength(1);
+    const snapshot = await phone.store.get("media", await mediaItemId(phone.store, "video_1"));
+    expect(vault.attachments.get(snapshot!.record.data.attachmentId as string)?.state).toBe(
+      "committed"
+    );
+  });
+
   it("records a large library file's plaintext size when seeding resumes its upload", async () => {
     const vault = createFakeVault({ mediaAttachments: true, multipartAttachments: true });
     const phone = await device(vault);

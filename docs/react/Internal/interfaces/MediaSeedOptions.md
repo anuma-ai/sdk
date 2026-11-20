@@ -1,6 +1,6 @@
 # MediaSeedOptions
 
-Defined in: [src/lib/chatStore/media.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#76)
+Defined in: [src/lib/chatStore/media.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#77)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/media.ts:76](https://github.com/anuma-ai/sdk/blob
 
 > **attachments**: [`VaultAttachments`](VaultAttachments.md)
 
-Defined in: [src/lib/chatStore/media.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#78)
+Defined in: [src/lib/chatStore/media.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#79)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/media.ts:78](https://github.com/anuma-ai/sdk/blob
 
 > **items**: readonly [`LocalMediaItem`](LocalMediaItem.md)\[]
 
-Defined in: [src/lib/chatStore/media.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#81)
+Defined in: [src/lib/chatStore/media.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#82)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/chatStore/media.ts:81](https://github.com/anuma-ai/sdk/blob
 
 > **journal**: [`VaultAttachmentJournal`](VaultAttachmentJournal.md)
 
-Defined in: [src/lib/chatStore/media.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#80)
+Defined in: [src/lib/chatStore/media.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#81)
 
 Keeps each item's reservation so a rerun after a crash resumes it instead of uploading again.
 
@@ -34,7 +34,7 @@ Keeps each item's reservation so a rerun after a crash resumes it instead of upl
 
 > `optional` **maxUploads**: `number`
 
-Defined in: [src/lib/chatStore/media.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#83)
+Defined in: [src/lib/chatStore/media.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#84)
 
 Uploads at most this many files per run; rerun while `remaining` is above 0. Defaults to 20.
 
@@ -44,7 +44,7 @@ Uploads at most this many files per run; rerun while `remaining` is above 0. Def
 
 > `optional` **now**: () => `number`
 
-Defined in: [src/lib/chatStore/media.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#84)
+Defined in: [src/lib/chatStore/media.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#85)
 
 **Returns**
 
@@ -56,7 +56,7 @@ Defined in: [src/lib/chatStore/media.ts:84](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [src/lib/chatStore/media.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#85)
+Defined in: [src/lib/chatStore/media.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#86)
 
 ***
 
@@ -64,4 +64,4 @@ Defined in: [src/lib/chatStore/media.ts:85](https://github.com/anuma-ai/sdk/blob
 
 > **store**: [`ChatStore`](ChatStore.md)
 
-Defined in: [src/lib/chatStore/media.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#77)
+Defined in: [src/lib/chatStore/media.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#78)

@@ -14,6 +14,7 @@ import {
   type VaultAttachments,
   type VaultAttachmentSource,
 } from "./vaultAttachments.js";
+import type { ChatOutboxLocks } from "./vaultOutbox.js";
 import { isObject, plain } from "./vaultRecords.js";
 
 export interface MediaItemInput {
@@ -449,10 +450,21 @@ export function createVaultMediaLibrary(options: VaultMediaLibraryOptions): Vaul
   };
 }
 
-/** Uploads this device's library files that vault lacks, at most `maxUploads` per run; safe to rerun after a crash without uploading a file twice. */
-export async function seedMediaToVault(options: MediaSeedOptions): Promise<MediaSeedResult> {
+let seedRuns: Promise<unknown> = Promise.resolve();
+
+/** Uploads this device's library files that vault lacks, at most `maxUploads` per run; runs wait for each other, and a rerun after a crash never uploads a file twice. */
+export function seedMediaToVault(options: MediaSeedOptions): Promise<MediaSeedResult> {
+  if (!options.store.mediaAttachments) return Promise.reject(mediaUnsupported());
+  const locks = (globalThis as { navigator?: { locks?: ChatOutboxLocks } }).navigator?.locks;
+  const next = seedRuns.then(() =>
+    locks ? locks.request("anuma-media-seed", {}, () => seedRun(options)) : seedRun(options)
+  );
+  seedRuns = next.catch(() => undefined);
+  return next;
+}
+
+async function seedRun(options: MediaSeedOptions): Promise<MediaSeedResult> {
   const { store, attachments, journal, signal } = options;
-  if (!store.mediaAttachments) throw mediaUnsupported();
   const writer: MediaWriter = { store, attachments, journal, now: options.now ?? Date.now, signal };
   const maxUploads = options.maxUploads ?? 20;
   const result: MediaSeedResult = {

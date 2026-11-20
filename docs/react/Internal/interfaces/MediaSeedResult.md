@@ -1,6 +1,6 @@
 # MediaSeedResult
 
-Defined in: [src/lib/chatStore/media.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#88)
+Defined in: [src/lib/chatStore/media.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#89)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/media.ts:88](https://github.com/anuma-ai/sdk/blob
 
 > **deferred**: `string`\[]
 
-Defined in: [src/lib/chatStore/media.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#95)
+Defined in: [src/lib/chatStore/media.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#96)
 
 Local ids another run may still be uploading; rerun after 16 minutes.
 
@@ -18,7 +18,7 @@ Local ids another run may still be uploading; rerun after 16 minutes.
 
 > **deleted**: `string`\[]
 
-Defined in: [src/lib/chatStore/media.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#91)
+Defined in: [src/lib/chatStore/media.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#92)
 
 Local ids of items deleted on another device.
 
@@ -28,7 +28,7 @@ Local ids of items deleted on another device.
 
 > **missing**: `string`\[]
 
-Defined in: [src/lib/chatStore/media.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#92)
+Defined in: [src/lib/chatStore/media.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#93)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/lib/chatStore/media.ts:92](https://github.com/anuma-ai/sdk/blob
 
 > **oversized**: `string`\[]
 
-Defined in: [src/lib/chatStore/media.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#93)
+Defined in: [src/lib/chatStore/media.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#94)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/lib/chatStore/media.ts:93](https://github.com/anuma-ai/sdk/blob
 
 > **remaining**: `number`
 
-Defined in: [src/lib/chatStore/media.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#97)
+Defined in: [src/lib/chatStore/media.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#98)
 
 Items left for the next run after `maxUploads` was reached.
 
@@ -54,4 +54,4 @@ Items left for the next run after `maxUploads` was reached.
 
 > **uploaded**: `number`
 
-Defined in: [src/lib/chatStore/media.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#89)
+Defined in: [src/lib/chatStore/media.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#90)
