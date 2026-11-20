@@ -1,6 +1,23 @@
 import type { VaultAttachmentRef } from "../db/chat/types";
 import type { MemoryKeyRing } from "../memory/store/memoryKeys";
 import {
+  additionalData,
+  chunkAdditionalData,
+  chunkCiphertextBytes,
+  chunkedFrameVersion,
+  chunkOverhead,
+  chunkPlaintextBytes,
+  chunkTotal,
+  frameOverhead,
+  frameVersion,
+  invalidAttachment,
+  ivBytes,
+  maxCiphertextBytes,
+  openChunk,
+  openFrame,
+  plaintextBytes,
+} from "./sealedAttachments";
+import {
   type ChatAttachment,
   type ChatAttachmentOwnerKind,
   type ChatMultipartAttachments,
@@ -11,15 +28,8 @@ import {
 } from "./types";
 import { plain } from "./vaultRecords";
 
-const frameVersion = 1;
-const chunkedFrameVersion = 2;
-const ivBytes = 12;
-const tagBytes = 16;
-const frameOverhead = 1 + ivBytes + tagBytes;
-const maxCiphertextBytes = 50 * 1024 * 1024;
-const chunkOverhead = ivBytes + tagBytes;
-const chunkPlaintextBytes = 1024 * 1024;
-const chunkCiphertextBytes = chunkPlaintextBytes + chunkOverhead;
+export { plaintextBytes };
+
 const downloadWindowChunks = 4;
 const partUrlBatch = 8;
 const expirySkewMs = 30_000;
@@ -37,11 +47,6 @@ function chunkCount(plaintext: number): number {
 
 function chunkedSize(plaintext: number): number {
   return 1 + plaintext + chunkOverhead * chunkCount(plaintext);
-}
-
-export function plaintextBytes(sizeBytes: number): number {
-  if (sizeBytes <= maxCiphertextBytes) return sizeBytes - frameOverhead;
-  return sizeBytes - 1 - chunkOverhead * Math.ceil((sizeBytes - 1) / chunkCiphertextBytes);
 }
 
 /** A file read in pieces, so a large upload never holds the whole file in memory. */
@@ -100,28 +105,13 @@ export interface VaultAttachments {
   read(attachmentId: string, signal?: AbortSignal): Promise<Uint8Array | null>;
   /** Downloads and decrypts into `sink` a few chunks at a time; false when the attachment is gone or not yet committed. */
   readTo(attachmentId: string, sink: VaultAttachmentSink, signal?: AbortSignal): Promise<boolean>;
+  /** Downloads the ciphertext into `sink` exactly as vault stores it, without decrypting; false when the attachment is gone or not yet committed. */
+  readSealedTo(
+    attachmentId: string,
+    sink: VaultAttachmentSink,
+    signal?: AbortSignal
+  ): Promise<boolean>;
   delete(attachmentId: string, signal?: AbortSignal): Promise<void>;
-}
-
-function additionalData(attachmentId: string): Uint8Array<ArrayBuffer> {
-  return new TextEncoder().encode(`anuma-chat-attachment-v1:${attachmentId}`);
-}
-
-function chunkAdditionalData(
-  attachmentId: string,
-  index: number,
-  last: boolean
-): Uint8Array<ArrayBuffer> {
-  const prefix = new TextEncoder().encode(`anuma-chat-attachment-v2:${attachmentId}`);
-  const data = new Uint8Array(prefix.length + 5);
-  data.set(prefix);
-  new DataView(data.buffer).setUint32(prefix.length, index);
-  data[prefix.length + 4] = last ? 1 : 0;
-  return data;
-}
-
-function invalidAttachment(): never {
-  throw new ChatStoreError("Attachment does not decrypt under this key", 0, "invalid_attachment");
 }
 
 function tooLarge(): never {
@@ -234,25 +224,6 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
     return frame;
   };
 
-  const open = async (frame: Uint8Array, attachmentId: string) => {
-    if (frame.length < frameOverhead || frame[0] !== frameVersion) invalidAttachment();
-    try {
-      return new Uint8Array(
-        await crypto.subtle.decrypt(
-          {
-            name: "AES-GCM",
-            iv: frame.slice(1, 1 + ivBytes),
-            additionalData: additionalData(attachmentId),
-          },
-          keyRing.v3,
-          frame.slice(1 + ivBytes)
-        )
-      );
-    } catch {
-      return invalidAttachment();
-    }
-  };
-
   const put = async (
     upload: ChatPresignedUrl,
     body: Uint8Array<ArrayBuffer>,
@@ -304,30 +275,6 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
     chunk.set(iv);
     chunk.set(sealed, ivBytes);
     return chunk;
-  };
-
-  const openChunk = async (
-    chunk: Uint8Array,
-    attachmentId: string,
-    index: number,
-    last: boolean
-  ) => {
-    if (chunk.length < chunkOverhead) invalidAttachment();
-    try {
-      return new Uint8Array(
-        await crypto.subtle.decrypt(
-          {
-            name: "AES-GCM",
-            iv: chunk.slice(0, ivBytes),
-            additionalData: chunkAdditionalData(attachmentId, index, last),
-          },
-          keyRing.v3,
-          chunk.slice(ivBytes)
-        )
-      );
-    } catch {
-      return invalidAttachment();
-    }
   };
 
   async function* chunks(
@@ -469,6 +416,7 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
   const readInto = async (
     attachmentId: string,
     sink: VaultAttachmentSink,
+    sealed: boolean,
     signal?: AbortSignal
   ) => {
     let found = await withRetry(() => store.attachments.get(attachmentId, signal), signal);
@@ -494,10 +442,10 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
       const frame = await fetchBytes();
       if (!frame) return false;
       if (frame.length !== size) invalidAttachment();
-      await sink.write(await open(frame, attachmentId));
+      await sink.write(sealed ? frame : await openFrame(keyRing.v3, frame, attachmentId));
       return true;
     }
-    const count = Math.ceil((size - 1) / chunkCiphertextBytes);
+    const count = chunkTotal(size);
     for (let index = 0; index < count; ) {
       const stop = Math.min(count, index + downloadWindowChunks);
       const start = index === 0 ? 0 : 1 + index * chunkCiphertextBytes;
@@ -506,10 +454,17 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
       if (!window) return false;
       if (window.length !== end - start || (index === 0 && window[0] !== chunkedFrameVersion))
         invalidAttachment();
+      if (sealed) {
+        await sink.write(window);
+        index = stop;
+        continue;
+      }
       for (let offset = index === 0 ? 1 : 0; index < stop; index++) {
         const chunk = window.subarray(offset, offset + chunkCiphertextBytes);
         offset += chunk.length;
-        await sink.write(await openChunk(chunk, attachmentId, index, index === count - 1));
+        await sink.write(
+          await openChunk(keyRing.v3, chunk, attachmentId, index, index === count - 1)
+        );
       }
     }
     return true;
@@ -556,7 +511,14 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
       const cached = await cache?.get(attachmentId).catch(() => null);
       if (cached) return cached;
       const pieces: Uint8Array[] = [];
-      if (!(await readInto(attachmentId, { write: (piece) => void pieces.push(piece) }, signal)))
+      if (
+        !(await readInto(
+          attachmentId,
+          { write: (piece) => void pieces.push(piece) },
+          false,
+          signal
+        ))
+      )
         return null;
       let bytes = pieces[0];
       if (pieces.length > 1) {
@@ -572,7 +534,11 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
     },
     readTo(attachmentId, sink, signal) {
       if (!attachmentIdPattern.test(attachmentId)) invalidAttachment();
-      return readInto(attachmentId, sink, signal);
+      return readInto(attachmentId, sink, false, signal);
+    },
+    readSealedTo(attachmentId, sink, signal) {
+      if (!attachmentIdPattern.test(attachmentId)) invalidAttachment();
+      return readInto(attachmentId, sink, true, signal);
     },
     delete: remove,
   };

@@ -1,6 +1,6 @@
 # VaultAttachmentSink
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#54)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#59)
 
 Where a streamed download writes decrypted bytes, in order.
 
@@ -10,7 +10,7 @@ Where a streamed download writes decrypted bytes, in order.
 
 > **write**(`bytes`: `Uint8Array`): `void` | `Promise`<`void`>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#55)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#60)
 
 **Parameters**
 
