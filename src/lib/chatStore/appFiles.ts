@@ -6,6 +6,7 @@ import {
   type ChatStore,
   ChatStoreError,
 } from "./types.js";
+import type { VaultAttachments } from "./vaultAttachments.js";
 
 export interface AppFile {
   conversationId: string;
@@ -49,10 +50,11 @@ async function putLatest(
   target: { kind: ChatRecordKind; id: string; conversationId: string },
   next: { data: { [key: string]: ChatJson }; isDeleted: boolean },
   signal?: AbortSignal
-): Promise<ChatSnapshot | null> {
+): Promise<{ saved: ChatSnapshot | null; replaced: ChatSnapshot | null }> {
   for (let attempt = 1; ; attempt++) {
     const current = await store.get(target.kind, target.id, signal);
-    if (next.isDeleted && (!current || current.record.isDeleted)) return current;
+    if (next.isDeleted && (!current || current.record.isDeleted))
+      return { saved: current, replaced: current };
     const now = Date.now();
     try {
       const [saved] = await store.putMany(
@@ -71,7 +73,7 @@ async function putLatest(
         ],
         signal
       );
-      return saved;
+      return { saved, replaced: current };
     } catch (error) {
       if (
         !(error instanceof ChatStoreError) ||
@@ -99,17 +101,36 @@ async function listAll(
   return out;
 }
 
-function toAppFile(snapshot: ChatSnapshot): AppFile | null {
-  const { path, content } = snapshot.record.data;
-  if (typeof path !== "string" || typeof content !== "string") return null;
+async function toAppFile(
+  snapshot: ChatSnapshot,
+  attachments?: VaultAttachments,
+  signal?: AbortSignal
+): Promise<AppFile | null> {
+  const { path, content, attachmentId } = snapshot.record.data;
+  if (typeof path !== "string") return null;
+  let text = typeof content === "string" ? content : null;
+  if (text === null && typeof attachmentId === "string" && attachments) {
+    const bytes = await attachments.read(attachmentId, signal);
+    if (bytes) text = new TextDecoder().decode(bytes);
+  }
+  if (text === null) return null;
   return {
     conversationId: snapshot.record.conversationId,
     path,
-    content,
+    content: text,
     version: snapshot.version,
     createdAt: snapshot.record.createdAt,
     updatedAt: snapshot.record.updatedAt,
   };
+}
+
+async function resolveAppFiles(
+  items: readonly ChatSnapshot[],
+  attachments?: VaultAttachments,
+  signal?: AbortSignal
+): Promise<AppFile[]> {
+  const files = await Promise.all(items.map((item) => toAppFile(item, attachments, signal)));
+  return files.filter((file): file is AppFile => file !== null);
 }
 
 function toSavedTool(snapshot: ChatSnapshot): SavedTool | null {
@@ -137,14 +158,18 @@ function toSavedTool(snapshot: ChatSnapshot): SavedTool | null {
   };
 }
 
-/** Every live file of one conversation. */
+/** Every live file of one conversation; pass `attachments` to read files stored as vault attachments. */
 export async function listAppFiles(
   store: ChatStore,
   conversationId: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  attachments?: VaultAttachments
 ): Promise<AppFile[]> {
-  const items = await listAll(store, "app_file", conversationId, signal);
-  return items.map(toAppFile).filter((file): file is AppFile => file !== null);
+  return resolveAppFiles(
+    await listAll(store, "app_file", conversationId, signal),
+    attachments,
+    signal
+  );
 }
 
 export interface AppFileIndex {
@@ -152,8 +177,8 @@ export interface AppFileIndex {
   list(signal?: AbortSignal): Promise<AppFile[]>;
 }
 
-/** Keeps every app file of the account current from the changes feed. */
-export function createAppFileIndex(store: ChatStore): AppFileIndex {
+/** Keeps every app file of the account current from the changes feed; pass `attachments` to read files stored as vault attachments. */
+export function createAppFileIndex(store: ChatStore, attachments?: VaultAttachments): AppFileIndex {
   const latest = new Map<string, ChatSnapshot>();
   let cursor: string | undefined;
   let queue: Promise<unknown> = Promise.resolve();
@@ -164,10 +189,11 @@ export function createAppFileIndex(store: ChatStore): AppFileIndex {
       cursor = page.nextCursor ?? page.changesCursor;
       if (!page.nextCursor) break;
     }
-    return [...latest.values()]
-      .filter((item) => !item.record.isDeleted)
-      .map(toAppFile)
-      .filter((file): file is AppFile => file !== null);
+    return resolveAppFiles(
+      [...latest.values()].filter((item) => !item.record.isDeleted),
+      attachments,
+      signal
+    );
   };
   return {
     list(signal) {
@@ -179,8 +205,12 @@ export function createAppFileIndex(store: ChatStore): AppFileIndex {
 }
 
 /** Every live file of every conversation, read from the changes feed. */
-export function listEveryAppFile(store: ChatStore, signal?: AbortSignal): Promise<AppFile[]> {
-  return createAppFileIndex(store).list(signal);
+export function listEveryAppFile(
+  store: ChatStore,
+  signal?: AbortSignal,
+  attachments?: VaultAttachments
+): Promise<AppFile[]> {
+  return createAppFileIndex(store, attachments).list(signal);
 }
 
 /** One conversation file, or null when vault holds none at that path. */
@@ -188,33 +218,82 @@ export async function getAppFile(
   store: ChatStore,
   conversationId: string,
   path: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  attachments?: VaultAttachments
 ): Promise<AppFile | null> {
   const snapshot = await store.get(
     "app_file",
     await appFileId(store, conversationId, path),
     signal
   );
-  return snapshot && !snapshot.record.isDeleted ? toAppFile(snapshot) : null;
+  return snapshot && !snapshot.record.isDeleted ? toAppFile(snapshot, attachments, signal) : null;
 }
 
-/** Creates or replaces a conversation file; the last save of a path wins across devices. */
+function tooLarge(error: unknown): boolean {
+  return error instanceof ChatStoreError && error.code === "record_too_large";
+}
+
+async function release(
+  store: ChatStore,
+  attachments: VaultAttachments | undefined,
+  attachmentId: string
+): Promise<void> {
+  if (attachments) return attachments.delete(attachmentId);
+  await store.attachments.delete(attachmentId).catch((error: unknown) => {
+    if (!(error instanceof ChatStoreError) || error.status !== 404) throw error;
+  });
+}
+
+/** Creates or replaces a conversation file, the last save of a path winning across devices; with `attachments`, a file too large for one record becomes a vault attachment when vault supports it. */
 export async function saveAppFile(
   store: ChatStore,
   file: { conversationId: string; path: string; content: string },
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  attachments?: VaultAttachments
 ): Promise<AppFile> {
-  const saved = await putLatest(
-    store,
-    {
-      kind: "app_file",
-      id: await appFileId(store, file.conversationId, file.path),
-      conversationId: file.conversationId,
-    },
-    { data: { path: normalizePath(file.path), content: file.content }, isDeleted: false },
-    signal
-  );
-  return toAppFile(saved as ChatSnapshot) as AppFile;
+  const target = {
+    kind: "app_file" as const,
+    id: await appFileId(store, file.conversationId, file.path),
+    conversationId: file.conversationId,
+  };
+  const path = normalizePath(file.path);
+  let attachmentId: string | undefined;
+  let written: { saved: ChatSnapshot | null; replaced: ChatSnapshot | null };
+  try {
+    written = await putLatest(
+      store,
+      target,
+      { data: { path, content: file.content }, isDeleted: false },
+      signal
+    );
+  } catch (error) {
+    if (!tooLarge(error) || !attachments || !store.mediaAttachments) throw error;
+    attachmentId = await attachments.upload(new TextEncoder().encode(file.content), { signal });
+    try {
+      written = await putLatest(
+        store,
+        target,
+        { data: { path, attachmentId }, isDeleted: false },
+        signal
+      );
+    } catch (failure) {
+      await attachments.delete(attachmentId).catch(() => undefined);
+      throw failure;
+    }
+    await attachments.commit(attachmentId, { kind: "app_file", id: target.id }, signal);
+  }
+  const superseded = written.replaced?.record.data.attachmentId;
+  if (typeof superseded === "string" && superseded !== attachmentId)
+    await release(store, attachments, superseded);
+  const saved = written.saved as ChatSnapshot;
+  return {
+    conversationId: file.conversationId,
+    path,
+    content: file.content,
+    version: saved.version,
+    createdAt: saved.record.createdAt,
+    updatedAt: saved.record.updatedAt,
+  };
 }
 
 export async function deleteAppFile(
@@ -243,7 +322,7 @@ export async function saveSavedTool(
   tool: SavedToolData,
   signal?: AbortSignal
 ): Promise<SavedTool> {
-  const saved = await putLatest(
+  const { saved } = await putLatest(
     store,
     { kind: "saved_tool", id, conversationId: "" },
     { data: { ...tool }, isDeleted: false },

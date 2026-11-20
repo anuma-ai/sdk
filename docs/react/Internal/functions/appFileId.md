@@ -2,7 +2,7 @@
 
 > **appFileId**(`store`: `Pick`<[`ChatStore`](../interfaces/ChatStore.md), `"sealedId"`>, `conversationId`: `string`, `path`: `string`): `Promise`<`string`>
 
-Defined in: [src/lib/chatStore/appFiles.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#38)
+Defined in: [src/lib/chatStore/appFiles.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#39)
 
 The vault record id of a conversation's file: a keyed hash, so vault cannot tell the path.
 

@@ -2,6 +2,7 @@ import type { VaultAttachmentRef } from "../db/chat/types";
 import type { MemoryKeyRing } from "../memory/store/memoryKeys";
 import {
   type ChatAttachment,
+  type ChatAttachmentOwnerKind,
   type ChatPresignedUrl,
   type ChatRecord,
   type ChatStore,
@@ -17,11 +18,15 @@ const maxCiphertextBytes = 50 * 1024 * 1024;
 const expirySkewMs = 30_000;
 const maxRetryAfterMs = 30_000;
 const maxRefWrites = 5;
-const uploadWindowMs = 16 * 60_000;
-const attachmentIdPattern = /^[0-9a-f]{32}$/;
+export const uploadWindowMs = 16 * 60_000;
+export const attachmentIdPattern = /^[0-9a-f]{32}$/;
 
 /** The largest file vault stores, after the encryption frame is added. */
 export const maxVaultAttachmentBytes = maxCiphertextBytes - frameOverhead;
+
+export function plaintextBytes(sizeBytes: number): number {
+  return sizeBytes - frameOverhead;
+}
 
 /** Device-side store for decrypted attachment bytes, keyed by vault attachment id. */
 export interface VaultAttachmentCache {
@@ -31,7 +36,7 @@ export interface VaultAttachmentCache {
 }
 
 export interface VaultAttachmentOwner {
-  kind: "message" | "summary";
+  kind: ChatAttachmentOwnerKind;
   id: string;
 }
 
@@ -439,7 +444,7 @@ export async function migrateMessageAttachments(
       continue;
     }
     if (resumed) {
-      added.push({ attachmentId: resumed.id, ...meta, size: resumed.sizeBytes - frameOverhead });
+      added.push({ attachmentId: resumed.id, ...meta, size: plaintextBytes(resumed.sizeBytes) });
       settled.push(key);
       continue;
     }

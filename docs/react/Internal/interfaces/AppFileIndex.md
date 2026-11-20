@@ -1,6 +1,6 @@
 # AppFileIndex
 
-Defined in: [src/lib/chatStore/appFiles.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#150)
+Defined in: [src/lib/chatStore/appFiles.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#175)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/appFiles.ts:150](https://github.com/anuma-ai/sdk/
 
 > **list**(`signal?`: `AbortSignal`): `Promise`<[`AppFile`](AppFile.md)\[]>
 
-Defined in: [src/lib/chatStore/appFiles.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#152)
+Defined in: [src/lib/chatStore/appFiles.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#177)
 
 Every live file of every conversation, fetching only what changed since the last call.
 

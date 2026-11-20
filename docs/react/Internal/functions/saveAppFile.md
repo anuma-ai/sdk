@@ -1,10 +1,10 @@
 # saveAppFile
 
-> **saveAppFile**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `file`: `object`, `signal?`: `AbortSignal`): `Promise`<[`AppFile`](../interfaces/AppFile.md)>
+> **saveAppFile**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `file`: `object`, `signal?`: `AbortSignal`, `attachments?`: [`VaultAttachments`](../interfaces/VaultAttachments.md)): `Promise`<[`AppFile`](../interfaces/AppFile.md)>
 
-Defined in: [src/lib/chatStore/appFiles.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#202)
+Defined in: [src/lib/chatStore/appFiles.ts:248](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#248)
 
-Creates or replaces a conversation file; the last save of a path wins across devices.
+Creates or replaces a conversation file, the last save of a path winning across devices; with `attachments`, a file too large for one record becomes a vault attachment when vault supports it.
 
 ## Parameters
 
@@ -85,6 +85,18 @@ Creates or replaces a conversation file; the last save of a path wins across dev
 <td>
 
 `AbortSignal`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`attachments?`
+
+</td>
+<td>
+
+[`VaultAttachments`](../interfaces/VaultAttachments.md)
 
 </td>
 </tr>

@@ -1,6 +1,6 @@
 # ChatTermSearchOptions
 
-Defined in: [src/lib/chatStore/types.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#86)
+Defined in: [src/lib/chatStore/types.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#87)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/types.ts:86](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#89)
+Defined in: [src/lib/chatStore/types.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#90)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/types.ts:89](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **cursor**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#91)
+Defined in: [src/lib/chatStore/types.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#92)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/chatStore/types.ts:91](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **excludeConversationId**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#90)
+Defined in: [src/lib/chatStore/types.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#91)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/chatStore/types.ts:90](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **kinds**: (`"message"` | `"summary"`)\[]
 
-Defined in: [src/lib/chatStore/types.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#88)
+Defined in: [src/lib/chatStore/types.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#89)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/chatStore/types.ts:88](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/chatStore/types.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#87)
+Defined in: [src/lib/chatStore/types.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#88)
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: [src/lib/chatStore/types.ts:87](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [src/lib/chatStore/types.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#92)
+Defined in: [src/lib/chatStore/types.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#93)
