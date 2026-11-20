@@ -27,6 +27,18 @@ export {
   saveSavedTool,
 } from "./appFiles.js";
 export {
+  createVaultMediaLibrary,
+  type LocalMediaItem,
+  type MediaItem,
+  mediaItemId,
+  type MediaItemInput,
+  type MediaSeedOptions,
+  type MediaSeedResult,
+  seedMediaToVault,
+  type VaultMediaLibrary,
+  type VaultMediaLibraryOptions,
+} from "./media.js";
+export {
   type ChatMigrationOptions,
   type ChatMigrationProgress,
   type ChatMigrationResult,
@@ -40,6 +52,7 @@ export {
   type ChatAccount,
   type ChatAccountState,
   type ChatAttachment,
+  type ChatAttachmentOwnerKind,
   type ChatAttachments,
   type ChatChanges,
   type ChatImport,

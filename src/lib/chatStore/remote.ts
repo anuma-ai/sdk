@@ -10,6 +10,7 @@ import {
 import {
   type ChatAccount,
   type ChatAttachment,
+  type ChatAttachmentOwnerKind,
   type ChatImport,
   type ChatJson,
   type ChatPage,
@@ -37,7 +38,9 @@ const kinds = new Set([
   "setting",
   "app_file",
   "saved_tool",
+  "media",
 ]);
+const ownerKinds = new Set(["message", "summary", "media", "app_file"]);
 const cipherPattern = /^enc:v\d+:(?:[0-9a-f]{2}){28,}$/i;
 const maxPayload = 2 * 1024 * 1024;
 const storedDims = 1536;
@@ -144,7 +147,11 @@ function validRecord(value: unknown): value is ChatRecord {
 
 function rootKind(kind: string): boolean {
   return (
-    kind === "conversation" || kind === "project" || kind === "setting" || kind === "saved_tool"
+    kind === "conversation" ||
+    kind === "project" ||
+    kind === "setting" ||
+    kind === "saved_tool" ||
+    kind === "media"
   );
 }
 
@@ -222,8 +229,7 @@ function attachment(value: unknown): ChatAttachment {
     !integer(value.size_bytes, 1) ||
     (value.state !== "pending" && value.state !== "committed") ||
     (value.owner_kind !== undefined &&
-      value.owner_kind !== "message" &&
-      value.owner_kind !== "summary") ||
+      (!text(value.owner_kind) || !ownerKinds.has(value.owner_kind))) ||
     (value.owner_id !== undefined && !id(value.owner_id)) ||
     !timestamp(value.created_at) ||
     (value.committed_at !== undefined && !timestamp(value.committed_at))
@@ -233,7 +239,9 @@ function attachment(value: unknown): ChatAttachment {
     id: value.attachment_id,
     sizeBytes: value.size_bytes,
     state: value.state,
-    ...(value.owner_kind !== undefined ? { ownerKind: value.owner_kind } : {}),
+    ...(value.owner_kind !== undefined
+      ? { ownerKind: value.owner_kind as ChatAttachmentOwnerKind }
+      : {}),
     ...(value.owner_id !== undefined ? { ownerId: value.owner_id } : {}),
     createdAt: value.created_at,
     ...(value.committed_at !== undefined ? { committedAt: value.committed_at } : {}),
@@ -304,6 +312,8 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
   connectRead = account;
   const termHash =
     hashTopic && account.term_search === true ? createChatTermHasher(hashTopic) : undefined;
+  const mediaAttachments = account.media_attachments === true;
+  const sendable = (kind: string) => kind !== "media" || mediaAttachments;
 
   const parseAccount = (value: unknown): ChatAccount => {
     if (
@@ -425,7 +435,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
     let chunks = 0;
     return items.map((item: T) => {
       signal?.throwIfAborted();
-      if (!validRecord(item.record) || !embeddings(item)) invalid();
+      if (!validRecord(item.record) || !sendable(item.record.kind) || !embeddings(item)) invalid();
       chunks += item.embeddings?.length ?? 0;
       if (chunks > maxChunksPerRequest) invalid();
       const copy = JSON.parse(JSON.stringify(item)) as T;
@@ -598,7 +608,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
 
   return {
     async get(kind, recordId, signal) {
-      if (!kinds.has(kind) || !id(recordId)) invalid();
+      if (!kinds.has(kind) || !sendable(kind) || !id(recordId)) invalid();
       let value: unknown;
       try {
         value = await request(
@@ -620,6 +630,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       const parent = query.conversationId ?? "";
       if (
         !kinds.has(query.kind) ||
+        !sendable(query.kind) ||
         !integer(limit, 1) ||
         (query.includeDeleted !== undefined && typeof query.includeDeleted !== "boolean") ||
         limit > 200 ||
@@ -669,6 +680,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       const wanted = new Map<string, ChatRef>();
       for (const r of refs) {
         const checked = ref(r);
+        if (!sendable(checked.kind)) invalid();
         wanted.set(`${checked.kind}/${checked.id}`, checked);
       }
       const found = new Map<string, ChatSnapshot>();
@@ -744,7 +756,8 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
       const asked = new Set<string>();
       const wireRevisions = revisions.map((r: ChatRevision) => {
         const checked = ref(r);
-        if (!integer(r.updatedAt, 1) || typeof r.isDeleted !== "boolean") invalid();
+        if (!sendable(checked.kind) || !integer(r.updatedAt, 1) || typeof r.isDeleted !== "boolean")
+          invalid();
         asked.add(`${checked.kind}/${checked.id}`);
         return {
           kind: checked.kind,
@@ -788,7 +801,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
           (!Array.isArray(kindsFilter) ||
             kindsFilter.length === 0 ||
             new Set(kindsFilter).size !== kindsFilter.length ||
-            kindsFilter.some((k: string) => !kinds.has(k))))
+            kindsFilter.some((k: string) => !kinds.has(k) || !sendable(k))))
       )
         invalid();
       const params = new URLSearchParams({ account_id: String(accountId), limit: String(limit) });
@@ -884,6 +897,7 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
     },
     ...(hashTopic ? { sealedId: (value: string) => hashTopic(`record-id\u0000${value}`) } : {}),
     ...(termHash ? { searchTerms, indexTermsPage } : {}),
+    ...(mediaAttachments ? { mediaAttachments } : {}),
     attachments: {
       async create(sizeBytes, signal) {
         if (!integer(sizeBytes, 1) || sizeBytes > maxAttachmentBytes) invalid();
@@ -904,7 +918,8 @@ export async function createRemoteChatStore(options: RemoteChatStoreOptions): Pr
         if (
           !attachmentIdPattern.test(attachmentId) ||
           !object(owner) ||
-          (owner.kind !== "message" && owner.kind !== "summary") ||
+          !ownerKinds.has(owner.kind) ||
+          (!mediaAttachments && owner.kind !== "message" && owner.kind !== "summary") ||
           !id(owner.id)
         )
           invalid();

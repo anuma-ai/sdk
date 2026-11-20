@@ -106,6 +106,7 @@ function withFaults(store: ChatStore, calls: string[], faults: FakeChatStoreFaul
     ...(store.sealedId ? { sealedId: (value: string) => store.sealedId!(value) } : {}),
     ...(store.searchTerms ? { searchTerms: store.searchTerms } : {}),
     ...(store.indexTermsPage ? { indexTermsPage: store.indexTermsPage } : {}),
+    ...(store.mediaAttachments ? { mediaAttachments: true } : {}),
     attachments: store.attachments,
   };
 }

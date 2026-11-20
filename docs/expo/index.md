@@ -256,6 +256,12 @@ Re-exports [ChatAttachment](../react/Internal/interfaces/ChatAttachment.md)
 
 ***
 
+### ChatAttachmentOwnerKind
+
+Re-exports [ChatAttachmentOwnerKind](../react/Internal/type-aliases/ChatAttachmentOwnerKind.md)
+
+***
+
 ### ChatAttachments
 
 Re-exports [ChatAttachments](../react/Internal/interfaces/ChatAttachments.md)
@@ -865,6 +871,12 @@ Re-exports [CreateVaultFolderOptions](../react/Internal/interfaces/CreateVaultFo
 ### createVaultInbox
 
 Re-exports [createVaultInbox](../react/Internal/functions/createVaultInbox.md)
+
+***
+
+### createVaultMediaLibrary
+
+Re-exports [createVaultMediaLibrary](../react/Internal/functions/createVaultMediaLibrary.md)
 
 ***
 
@@ -1636,6 +1648,12 @@ Re-exports [localChatBackend](../react/Internal/functions/localChatBackend.md)
 
 ***
 
+### LocalMediaItem
+
+Re-exports [LocalMediaItem](../react/Internal/interfaces/LocalMediaItem.md)
+
+***
+
 ### LocalMemoryStoreOptions
 
 Re-exports [LocalMemoryStoreOptions](../react/Internal/interfaces/LocalMemoryStoreOptions.md)
@@ -1693,6 +1711,36 @@ Re-exports [MAX\_HOPS](../react/Internal/variables/MAX_HOPS.md)
 ### maxVaultAttachmentBytes
 
 Re-exports [maxVaultAttachmentBytes](../react/Internal/variables/maxVaultAttachmentBytes.md)
+
+***
+
+### MediaItem
+
+Re-exports [MediaItem](../react/Internal/interfaces/MediaItem.md)
+
+***
+
+### mediaItemId
+
+Re-exports [mediaItemId](../react/Internal/functions/mediaItemId.md)
+
+***
+
+### MediaItemInput
+
+Re-exports [MediaItemInput](../react/Internal/interfaces/MediaItemInput.md)
+
+***
+
+### MediaSeedOptions
+
+Re-exports [MediaSeedOptions](../react/Internal/interfaces/MediaSeedOptions.md)
+
+***
+
+### MediaSeedResult
+
+Re-exports [MediaSeedResult](../react/Internal/interfaces/MediaSeedResult.md)
 
 ***
 
@@ -2710,6 +2758,12 @@ Re-exports [seedEncryptionKeys](../react/Internal/functions/seedEncryptionKeys.m
 
 ***
 
+### seedMediaToVault
+
+Re-exports [seedMediaToVault](../react/Internal/functions/seedMediaToVault.md)
+
+***
+
 ### SELECT\_PAYMENT\_WALLET\_TOOL\_NAME
 
 Re-exports [SELECT\_PAYMENT\_WALLET\_TOOL\_NAME](../react/Internal/variables/SELECT_PAYMENT_WALLET_TOOL_NAME.md)
@@ -3241,6 +3295,18 @@ Re-exports [VaultFolderOperationsContext](../react/Internal/interfaces/VaultFold
 ### VaultInbox
 
 Re-exports [VaultInbox](../react/Internal/interfaces/VaultInbox.md)
+
+***
+
+### VaultMediaLibrary
+
+Re-exports [VaultMediaLibrary](../react/Internal/interfaces/VaultMediaLibrary.md)
+
+***
+
+### VaultMediaLibraryOptions
+
+Re-exports [VaultMediaLibraryOptions](../react/Internal/interfaces/VaultMediaLibraryOptions.md)
 
 ***
 
