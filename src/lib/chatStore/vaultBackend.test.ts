@@ -1013,30 +1013,6 @@ describe("vault chat backend", () => {
     }
     await writer.flush();
 
-    const { b } = backend(fake, { now: () => 600, threadCacheSize: 1 });
-    await b.upsertMessage({
-      conversationId: "conv_1",
-      uniqueId: "msg_edit",
-      role: "assistant",
-      content: "msg_edit",
-      files: [{ id: "edited", name: "edited.txt", type: "text/plain", size: 2 }],
-    });
-    await b.deleteMessage("msg_delete");
-    await b.deleteConversation("conv_2");
-    await b.createMessage({
-      conversationId: "conv_local",
-      uniqueId: "msg_local",
-      role: "user",
-      content: "local",
-      files: [{ id: "local", name: "local.txt", type: "text/plain", size: 3 }],
-    });
-
-    const expected = ["local", "msg_stored", "edited"];
-    expect((await b.getAllFiles()).map((file) => file.id)).toEqual(expected);
-    expect((await b.getAllFiles({ limit: 2 })).map((file) => file.id)).toEqual(
-      expected.slice(0, 2)
-    );
-
     let release!: () => void;
     const response = new Promise<void>((resolve) => (release = resolve));
     const original = fake.store.putMany.bind(fake.store);
@@ -1044,8 +1020,32 @@ describe("vault chat backend", () => {
       await response;
       return original(writes);
     });
-    const flushing = b.flush();
+    const { b } = backend(fake, { now: () => 600, threadCacheSize: 1 });
+    const expected = ["local", "msg_stored", "edited"];
+    let flushing = Promise.resolve();
     try {
+      await b.upsertMessage({
+        conversationId: "conv_1",
+        uniqueId: "msg_edit",
+        role: "assistant",
+        content: "msg_edit",
+        files: [{ id: "edited", name: "edited.txt", type: "text/plain", size: 2 }],
+      });
+      await b.deleteMessage("msg_delete");
+      await b.deleteConversation("conv_2");
+      await b.createMessage({
+        conversationId: "conv_local",
+        uniqueId: "msg_local",
+        role: "user",
+        content: "local",
+        files: [{ id: "local", name: "local.txt", type: "text/plain", size: 3 }],
+      });
+
+      expect((await b.getAllFiles()).map((file) => file.id)).toEqual(expected);
+      expect((await b.getAllFiles({ limit: 2 })).map((file) => file.id)).toEqual(
+        expected.slice(0, 2)
+      );
+      flushing = b.flush();
       await vi.waitFor(() => expect(putMany).toHaveBeenCalled());
       expect((await b.getAllFiles()).map((file) => file.id)).toEqual(expected);
     } finally {
