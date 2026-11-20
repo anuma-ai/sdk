@@ -2,7 +2,7 @@
 
 > **listAppFiles**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `conversationId`: `string`, `signal?`: `AbortSignal`, `attachments?`: [`VaultAttachments`](../interfaces/VaultAttachments.md)): `Promise`<[`AppFile`](../interfaces/AppFile.md)\[]>
 
-Defined in: [src/lib/chatStore/appFiles.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#162)
+Defined in: [src/lib/chatStore/appFiles.ts:169](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#169)
 
 Every live file of one conversation; pass `attachments` to read files stored as vault attachments.
 

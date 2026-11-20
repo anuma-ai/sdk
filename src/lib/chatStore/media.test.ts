@@ -213,6 +213,35 @@ describe("vault media library", () => {
     expect(vault.uploads()).toHaveLength(2);
     expect(await phone.library.list()).toEqual([]);
   });
+
+  it("rebuilds the list from the start when vault rejects its changes cursor", async () => {
+    const vault = createFakeVault({ mediaAttachments: true });
+    const phone = await device(vault);
+    const web = await device(vault);
+    const first = await web.library.create(photo("media_1"), bytes("one"));
+    expect(await phone.library.list()).toEqual([first]);
+    const second = await web.library.create(photo("media_2"), bytes("two"));
+    await web.library.delete(first.id);
+    vault.faults.push((request) =>
+      request.path.startsWith("/api/private-chats/changes") && request.path.includes("cursor=")
+        ? Response.json({ code: "cursor_expired", detail: "gone" }, { status: 410 })
+        : undefined
+    );
+
+    expect(await phone.library.list()).toEqual([second]);
+  });
+
+  it("stops reading an item once delete reports that another device deleted it", async () => {
+    const vault = createFakeVault({ mediaAttachments: true });
+    const phone = await device(vault, memoryCache());
+    const web = await device(vault);
+    const item = await phone.library.create(photo("media_1"), bytes("cached"));
+    expect(await phone.library.read(item.id)).toEqual(bytes("cached"));
+    await web.library.delete(item.id);
+
+    expect(await phone.library.delete(item.id)).toBe(false);
+    expect(await phone.library.read(item.id)).toBeNull();
+  });
 });
 
 describe("large app files", () => {
@@ -256,6 +285,98 @@ describe("large app files", () => {
     expect(
       (await getAppFile(web.store, "conv_1", "deck.jsx", undefined, web.attachments))?.content
     ).toBe("<p>short</p>");
+  });
+
+  it("keeps a large file readable on every device when the save's answer is lost", async () => {
+    const vault = createFakeVault({ mediaAttachments: true });
+    const phone = await device(vault);
+    const web = await device(vault);
+    await conversation(vault, phone.store);
+    const large = "y".repeat(2 * 1024 * 1024);
+    let lost = false;
+    vault.faults.push(async (request) => {
+      if (lost || !request.path.startsWith("/api/private-chats/records/batch")) return undefined;
+      lost = true;
+      await vault.fetch(`https://vault.test${request.path}`, {
+        method: request.method,
+        body: request.body,
+      });
+      throw new TypeError("connection reset");
+    });
+
+    await expect(
+      saveAppFile(
+        phone.store,
+        { conversationId: "conv_1", path: "deck.jsx", content: large },
+        undefined,
+        phone.attachments
+      )
+    ).rejects.toThrow("connection reset");
+
+    expect([...vault.attachments.values()]).toMatchObject([
+      { state: "committed", ownerKind: "app_file" },
+    ]);
+    expect(
+      (await getAppFile(web.store, "conv_1", "deck.jsx", undefined, web.attachments))?.content
+    ).toBe(large);
+  });
+
+  it("lists the readable large files one download at a time when one will not open", async () => {
+    const vault = createFakeVault({ mediaAttachments: true });
+    const phone = await device(vault);
+    const web = await device(vault);
+    await conversation(vault, phone.store);
+    for (const name of ["a", "b", "c"])
+      await saveAppFile(
+        phone.store,
+        { conversationId: "conv_1", path: `${name}.jsx`, content: name.repeat(2 * 1024 * 1024) },
+        undefined,
+        phone.attachments
+      );
+    const [broken] = vault.attachments.keys();
+    vault.blobs.get(broken)![40] ^= 1;
+    let downloading = 0;
+    let most = 0;
+    vault.faults.push(async (request) => {
+      if (request.host !== "r2.test" || request.method !== "GET") return undefined;
+      most = Math.max(most, ++downloading);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      downloading--;
+      return undefined;
+    });
+
+    const files = await listAppFiles(web.store, "conv_1", undefined, web.attachments);
+
+    expect(files.map((f) => f.path).sort()).toEqual(["b.jsx", "c.jsx"]);
+    expect(most).toBe(1);
+  });
+
+  it("reports a save as done when deleting the attachment it replaced fails", async () => {
+    const vault = createFakeVault({ mediaAttachments: true });
+    const phone = await device(vault);
+    await conversation(vault, phone.store);
+    const file = {
+      conversationId: "conv_1",
+      path: "deck.jsx",
+      content: "v".repeat(2 * 1024 * 1024),
+    };
+    await saveAppFile(phone.store, file, undefined, phone.attachments);
+    for (let i = 0; i < 4; i++)
+      vault.faults.push((request) =>
+        request.method === "DELETE"
+          ? Response.json({ code: "unavailable", detail: "down" }, { status: 503 })
+          : undefined
+      );
+
+    const saved = await saveAppFile(
+      phone.store,
+      { ...file, content: "w".repeat(2 * 1024 * 1024) },
+      undefined,
+      phone.attachments
+    );
+
+    expect(saved).toMatchObject({ version: 2, content: "w".repeat(2 * 1024 * 1024) });
+    expect(vault.attachments.size).toBe(2);
   });
 });
 
