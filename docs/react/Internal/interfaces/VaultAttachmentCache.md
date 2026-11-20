@@ -1,6 +1,6 @@
 # VaultAttachmentCache
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#32)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#59)
 
 Device-side store for decrypted attachment bytes, keyed by vault attachment id.
 
@@ -10,7 +10,7 @@ Device-side store for decrypted attachment bytes, keyed by vault attachment id.
 
 > **delete**(`attachmentId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#35)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#62)
 
 **Parameters**
 
@@ -47,7 +47,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:35](https://github.com/anuma-
 
 > **get**(`attachmentId`: `string`): `Promise`<`Uint8Array`<`ArrayBufferLike`> | `null`>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#33)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#60)
 
 **Parameters**
 
@@ -84,7 +84,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:33](https://github.com/anuma-
 
 > **set**(`attachmentId`: `string`, `bytes`: `Uint8Array`): `Promise`<`void`>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#34)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#61)
 
 **Parameters**
 

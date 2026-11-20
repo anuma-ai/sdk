@@ -12,7 +12,9 @@ import {
   uploadWindowMs,
   type VaultAttachmentJournal,
   type VaultAttachments,
+  type VaultAttachmentSource,
 } from "./vaultAttachments.js";
+import type { ChatOutboxLocks } from "./vaultOutbox.js";
 import { isObject, plain } from "./vaultRecords.js";
 
 export interface MediaItemInput {
@@ -55,7 +57,11 @@ export interface VaultMediaLibrary {
   /** Live items, newest first, after catching up with changes from other devices. */
   list(signal?: AbortSignal): Promise<MediaItem[]>;
   /** Stores a file once per `localId`; rejects with `media_deleted` when the item was deleted on any device. */
-  create(item: MediaItemInput, bytes: Uint8Array | Blob, signal?: AbortSignal): Promise<MediaItem>;
+  create(
+    item: MediaItemInput,
+    bytes: Uint8Array | Blob | VaultAttachmentSource,
+    signal?: AbortSignal
+  ): Promise<MediaItem>;
   /** The decrypted bytes, or null when the item is gone or its upload has not finished. */
   read(id: string, signal?: AbortSignal): Promise<Uint8Array | null>;
   /** Deletes an item on every device; false when it was already gone. */
@@ -65,7 +71,7 @@ export interface VaultMediaLibrary {
 }
 
 export interface LocalMediaItem extends MediaItemInput {
-  read(): Promise<Uint8Array | Blob | null>;
+  read(): Promise<Uint8Array | Blob | VaultAttachmentSource | null>;
 }
 
 export interface MediaSeedOptions {
@@ -208,7 +214,7 @@ function mediaRecord(
 async function storeMedia(
   writer: MediaWriter,
   item: MediaItemInput,
-  read: () => Promise<Uint8Array | Blob | null>,
+  read: () => Promise<Uint8Array | Blob | VaultAttachmentSource | null>,
   known?: ChatSnapshot | null
 ): Promise<{ snapshot: ChatSnapshot; uploaded: boolean } | "busy" | "missing"> {
   const { store, attachments, journal, now, signal } = writer;
@@ -243,13 +249,15 @@ async function storeMedia(
     if (!next) {
       const source = await read();
       if (!source) return "missing";
-      const bytes =
-        source instanceof Uint8Array ? source : new Uint8Array(await source.arrayBuffer());
-      const attachmentId = await attachments.upload(bytes, {
+      const attachmentId = await attachments.upload(source, {
         signal,
         onReserved: (reserved) => journal?.set(key, reserved),
       });
-      next = { id: attachmentId, size: bytes.length, committed: false };
+      next = {
+        id: attachmentId,
+        size: source instanceof Uint8Array ? source.length : source.size,
+        committed: false,
+      };
       uploaded = true;
     }
     if (recordedAttachment(current) !== next.id) {
@@ -442,10 +450,21 @@ export function createVaultMediaLibrary(options: VaultMediaLibraryOptions): Vaul
   };
 }
 
-/** Uploads this device's library files that vault lacks, at most `maxUploads` per run; safe to rerun after a crash without uploading a file twice. */
-export async function seedMediaToVault(options: MediaSeedOptions): Promise<MediaSeedResult> {
+let seedRuns: Promise<unknown> = Promise.resolve();
+
+/** Uploads this device's library files that vault lacks, at most `maxUploads` per run; runs wait for each other, and a rerun after a crash never uploads a file twice. */
+export function seedMediaToVault(options: MediaSeedOptions): Promise<MediaSeedResult> {
+  if (!options.store.mediaAttachments) return Promise.reject(mediaUnsupported());
+  const locks = (globalThis as { navigator?: { locks?: ChatOutboxLocks } }).navigator?.locks;
+  const next = seedRuns.then(() =>
+    locks ? locks.request("anuma-media-seed", {}, () => seedRun(options)) : seedRun(options)
+  );
+  seedRuns = next.catch(() => undefined);
+  return next;
+}
+
+async function seedRun(options: MediaSeedOptions): Promise<MediaSeedResult> {
   const { store, attachments, journal, signal } = options;
-  if (!store.mediaAttachments) throw mediaUnsupported();
   const writer: MediaWriter = { store, attachments, journal, now: options.now ?? Date.now, signal };
   const maxUploads = options.maxUploads ?? 20;
   const result: MediaSeedResult = {

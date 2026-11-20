@@ -122,11 +122,33 @@ export interface ChatPresignedUrl {
   expiresAt: string;
 }
 
+export interface ChatPresignedPart extends ChatPresignedUrl {
+  partNumber: number;
+}
+
+export interface ChatMultipartAttachments {
+  /** The largest ciphertext vault takes in parts. */
+  maxBytes: number;
+  /** Reserves more than 50 MiB; every part but the last holds exactly `partBytes`. */
+  create(
+    sizeBytes: number,
+    signal?: AbortSignal
+  ): Promise<{ attachment: ChatAttachment; partBytes: number; partCount: number }>;
+  /** Upload URLs for up to 100 parts of a pending reservation; call again when they expire. */
+  parts(
+    attachmentId: string,
+    partNumbers: readonly number[],
+    signal?: AbortSignal
+  ): Promise<ChatPresignedPart[]>;
+}
+
 export interface ChatAttachments {
   create(
     sizeBytes: number,
     signal?: AbortSignal
   ): Promise<{ attachment: ChatAttachment; upload: ChatPresignedUrl }>;
+  /** Present when vault takes attachments over 50 MiB in parts. */
+  multipart?: ChatMultipartAttachments;
   commit(
     attachmentId: string,
     owner: { kind: ChatAttachmentOwnerKind; id: string },

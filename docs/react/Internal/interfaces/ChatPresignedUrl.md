@@ -2,6 +2,10 @@
 
 Defined in: [src/lib/chatStore/types.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#118)
 
+## Extended by
+
+* [`ChatPresignedPart`](ChatPresignedPart.md)
+
 ## Properties
 
 ### expiresAt

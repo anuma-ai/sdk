@@ -1,6 +1,6 @@
 # MessageAttachmentMigrationOptions
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:331](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#331)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:595](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#595)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:331](https://github.com/anuma
 
 > **attachments**: [`VaultAttachments`](VaultAttachments.md)
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:333](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#333)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:597](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#597)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:333](https://github.com/anuma
 
 > **files**: readonly [`LocalMessageAttachment`](LocalMessageAttachment.md)\[]
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:337](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#337)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:601](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#601)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:337](https://github.com/anuma
 
 > **journal**: [`VaultAttachmentJournal`](VaultAttachmentJournal.md)
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:334](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#334)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:598](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#598)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:334](https://github.com/anuma
 
 > **messageId**: `string`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:336](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#336)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:600](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#600)
 
 The message's vault id (`StoredMessage.uniqueId`); vault must already hold it.
 
@@ -42,7 +42,7 @@ The message's vault id (`StoredMessage.uniqueId`); vault must already hold it.
 
 > `optional` **now**: () => `number`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:338](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#338)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:602](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#602)
 
 **Returns**
 
@@ -54,7 +54,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:338](https://github.com/anuma
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:339](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#339)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:603](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#603)
 
 ***
 
@@ -62,4 +62,4 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:339](https://github.com/anuma
 
 > **store**: [`ChatStore`](ChatStore.md)
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:332](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#332)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:596](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#596)

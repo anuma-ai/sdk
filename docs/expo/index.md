@@ -364,6 +364,12 @@ Re-exports [ChatMigrationSkip](../react/Internal/interfaces/ChatMigrationSkip.md
 
 ***
 
+### ChatMultipartAttachments
+
+Re-exports [ChatMultipartAttachments](../react/Internal/interfaces/ChatMultipartAttachments.md)
+
+***
+
 ### ChatOutboxLocks
 
 Re-exports [ChatOutboxLocks](../react/Internal/interfaces/ChatOutboxLocks.md)
@@ -379,6 +385,12 @@ Re-exports [ChatOutboxStorage](../react/Internal/interfaces/ChatOutboxStorage.md
 ### ChatPage
 
 Re-exports [ChatPage](../react/Internal/interfaces/ChatPage.md)
+
+***
+
+### ChatPresignedPart
+
+Re-exports [ChatPresignedPart](../react/Internal/interfaces/ChatPresignedPart.md)
 
 ***
 
@@ -3226,9 +3238,21 @@ Re-exports [VaultAttachments](../react/Internal/interfaces/VaultAttachments.md)
 
 ***
 
+### VaultAttachmentSink
+
+Re-exports [VaultAttachmentSink](../react/Internal/interfaces/VaultAttachmentSink.md)
+
+***
+
 ### VaultAttachmentsOptions
 
 Re-exports [VaultAttachmentsOptions](../react/Internal/interfaces/VaultAttachmentsOptions.md)
+
+***
+
+### VaultAttachmentSource
+
+Re-exports [VaultAttachmentSource](../react/Internal/interfaces/VaultAttachmentSource.md)
 
 ***
 

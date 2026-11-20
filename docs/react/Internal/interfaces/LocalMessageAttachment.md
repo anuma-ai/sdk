@@ -1,6 +1,6 @@
 # LocalMessageAttachment
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:323](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#323)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:587](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#587)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:323](https://github.com/anuma
 
 > **fileId**: `string`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:325](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#325)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:589](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#589)
 
 `FileMetadata.id` or the media id listed in `fileIds`.
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:325](https://github.com/anuma
 
 > **name**: `string`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#326)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:590](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#590)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:326](https://github.com/anuma
 
 > **type**: `string`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:327](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#327)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:591](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#591)
 
 ## Methods
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:327](https://github.com/anuma
 
 > **read**(): `Promise`<`Uint8Array`<`ArrayBufferLike`> | `null`>
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:328](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#328)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:592](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#592)
 
 **Returns**
 

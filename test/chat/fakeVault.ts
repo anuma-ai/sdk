@@ -18,6 +18,7 @@ interface Entry {
 export interface FakeVaultAttachment {
   id: string;
   size: number;
+  parts?: Map<number, Uint8Array<ArrayBuffer>>;
   state: "pending" | "committed";
   ownerKind?: string;
   ownerId?: string;
@@ -38,6 +39,8 @@ export type FakeVaultFault = (
 
 const accountId = 8801;
 const presignTtlMs = 15 * 60_000;
+const maxSinglePutBytes = 50 * 1024 * 1024;
+const partBytes = 16 * 1024 * 1024;
 const defaultChangeKinds = ["conversation", "message", "summary", "project", "memory_links"];
 const legacyKinds = new Set([
   "conversation",
@@ -56,7 +59,9 @@ function problem(status: number, code: string): Response {
 }
 
 /** An in-memory vault over HTTP, with presigned R2 storage, for SDK tests that drive `createRemoteChatStore`. */
-export function createFakeVault(options: { mediaAttachments?: boolean } = {}) {
+export function createFakeVault(
+  options: { mediaAttachments?: boolean; multipartAttachments?: boolean } = {}
+) {
   let clock = Date.UTC(2026, 10, 19);
   let attachmentSeq = 0;
   let changeSeq = 0;
@@ -110,6 +115,16 @@ export function createFakeVault(options: { mediaAttachments?: boolean } = {}) {
     const id = url.pathname.split("/").pop()!;
     if (clock > Number(url.searchParams.get("expires")))
       return new Response("<Code>AccessDenied</Code>", { status: 403 });
+    const partNumber = Number(url.searchParams.get("partNumber"));
+    if (request.method === "PUT" && partNumber) {
+      const row = attachments.get(id);
+      if (!row?.parts || !request.body)
+        return new Response("<Code>NoSuchUpload</Code>", { status: 404 });
+      if (request.body.length !== partSize(row, partNumber))
+        return new Response("<Code>SignatureDoesNotMatch</Code>", { status: 403 });
+      row.parts.set(partNumber, request.body);
+      return new Response(null, { status: 200 });
+    }
     if (request.method === "PUT") {
       const row = attachments.get(id);
       if (
@@ -122,9 +137,26 @@ export function createFakeVault(options: { mediaAttachments?: boolean } = {}) {
       return new Response(null, { status: 200 });
     }
     const blob = blobs.get(id);
-    return blob
-      ? new Response(blob.slice())
-      : new Response("<Code>NoSuchKey</Code>", { status: 404 });
+    if (!blob) return new Response("<Code>NoSuchKey</Code>", { status: 404 });
+    const range = /^bytes=(\d+)-(\d+)$/.exec(request.headers.range ?? "");
+    if (!range) return new Response(blob.slice());
+    const end = Math.min(blob.length, Number(range[2]) + 1);
+    return new Response(blob.slice(Number(range[1]), end), {
+      status: 206,
+      headers: { "Content-Range": `bytes ${range[1]}-${end - 1}/${blob.length}` },
+    });
+  };
+
+  const partSize = (row: FakeVaultAttachment, partNumber: number) =>
+    Math.min(partBytes, row.size - partBytes * (partNumber - 1));
+
+  const assembled = (row: FakeVaultAttachment) => {
+    const count = Math.ceil(row.size / partBytes);
+    const parts = Array.from({ length: count }, (_, i) => row.parts!.get(i + 1));
+    if (parts.some((part, i) => part?.length !== partSize(row, i + 1))) return undefined;
+    const blob = new Uint8Array(row.size);
+    parts.forEach((part, i) => blob.set(part!, i * partBytes));
+    return blob;
   };
 
   const write = (w: { record: WireRecord; expected_version: number }) => {
@@ -158,6 +190,9 @@ export function createFakeVault(options: { mediaAttachments?: boolean } = {}) {
         vector_count: 0,
         term_search: false,
         ...(options.mediaAttachments ? { media_attachments: true } : {}),
+        ...(options.multipartAttachments
+          ? { multipart_attachments: true, max_attachment_bytes: 1024 * 1024 * 1024 }
+          : {}),
       });
     const recordPath = /^\/records\/(\w+)\/([^/]+)$/.exec(path);
     if (recordPath && request.method === "GET") {
@@ -223,17 +258,41 @@ export function createFakeVault(options: { mediaAttachments?: boolean } = {}) {
       });
     }
     if (path === "/attachments" && request.method === "POST") {
+      const size = body.size_bytes as number;
+      const multipart = size > maxSinglePutBytes;
+      if (multipart && !options.multipartAttachments) return problem(422, "validation_failed");
       const id = (++attachmentSeq).toString(16).padStart(32, "0");
       attachments.set(id, {
         id,
-        size: body.size_bytes as number,
+        size,
+        ...(multipart ? { parts: new Map() } : {}),
         state: "pending",
         createdAt: clock,
       });
       return Response.json(
-        { attachment: wireAttachment(attachments.get(id)!), upload: presign(id, "PUT") },
+        {
+          attachment: wireAttachment(attachments.get(id)!),
+          ...(multipart
+            ? { multipart: { part_bytes: partBytes, part_count: Math.ceil(size / partBytes) } }
+            : { upload: presign(id, "PUT") }),
+        },
         { status: 201 }
       );
+    }
+    const partsPath = /^\/attachments\/([0-9a-f]{32})\/parts$/.exec(path);
+    if (partsPath) {
+      const row = attachments.get(partsPath[1]);
+      if (!row?.parts || row.state !== "pending") return problem(404, "not_found");
+      const numbers = body.part_numbers as number[];
+      return Response.json({
+        parts: numbers.map((n) => ({
+          part_number: n,
+          url: `https://r2.test/chat/${accountId}/${row.id}?partNumber=${n}&expires=${clock + presignTtlMs}`,
+          method: "PUT",
+          headers: { "Content-Length": String(partSize(row, n)) },
+          expires_at: new Date(clock + presignTtlMs).toISOString(),
+        })),
+      });
     }
     const commitPath = /^\/attachments\/([0-9a-f]{32})\/commit$/.exec(path);
     if (commitPath) {
@@ -244,6 +303,12 @@ export function createFakeVault(options: { mediaAttachments?: boolean } = {}) {
         return row.ownerKind === body.owner_kind && row.ownerId === body.owner_id
           ? Response.json({ attachment: wireAttachment(row) })
           : problem(409, "attachment_conflict");
+      if (row.parts) {
+        const blob = assembled(row);
+        if (!blob) return problem(409, "attachment_not_uploaded");
+        blobs.set(row.id, blob);
+        delete row.parts;
+      }
       if (blobs.get(row.id)?.length !== row.size) return problem(409, "attachment_not_uploaded");
       const owner = records.get(`${body.owner_kind as string}/${body.owner_id as string}`);
       if (!owner || owner.record.is_deleted) return problem(409, "attachment_owner_not_found");

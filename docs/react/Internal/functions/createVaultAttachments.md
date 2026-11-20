@@ -2,7 +2,7 @@
 
 > **createVaultAttachments**(`options`: [`VaultAttachmentsOptions`](../interfaces/VaultAttachmentsOptions.md)): [`VaultAttachments`](../interfaces/VaultAttachments.md)
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#97)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#178)
 
 Creates the attachment client for one account and key; bytes are AES-GCM sealed with the ring's v3 key before upload.
 
