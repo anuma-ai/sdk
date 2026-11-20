@@ -283,7 +283,7 @@ async function storeMedia(
     }
     if (!next.committed) {
       try {
-        await attachments.commit(next.id, { kind: "media", id }, signal);
+        await attachments.commit(next.id, { kind: "media", id });
       } catch (error) {
         if (!(error instanceof ChatStoreError) || attempt >= maxWriteAttempts) throw error;
         if (error.code === "attachment_owner_not_found") throw await deleted(next);
@@ -322,13 +322,25 @@ export function createVaultMediaLibrary(options: VaultMediaLibraryOptions): Vaul
   };
 
   const catchUp = (signal?: AbortSignal): Promise<boolean> => {
-    const next = queue.then(async () => {
+    const pages = async () => {
       let changed = false;
       for (;;) {
         const page = await store.changes(cursor, { kinds: ["media"], limit: 200, signal });
         for (const item of page.items) if (merge(item)) changed = true;
         cursor = page.nextCursor ?? page.changesCursor;
         if (!page.nextCursor) return changed;
+      }
+    };
+    const next = queue.then(async () => {
+      try {
+        return await pages();
+      } catch (error) {
+        if (!(error instanceof ChatStoreError) || (error.status !== 400 && error.status !== 410))
+          throw error;
+        latest.clear();
+        cursor = undefined;
+        await pages();
+        return true;
       }
     });
     queue = next.catch(() => undefined);
@@ -384,7 +396,10 @@ export function createVaultMediaLibrary(options: VaultMediaLibraryOptions): Vaul
       if (!enabled) return false;
       for (let attempt = 1; ; attempt++) {
         const current = await store.get("media", id, signal);
-        if (!current || current.record.isDeleted) return false;
+        if (!current || current.record.isDeleted) {
+          if (current) merge(current);
+          return false;
+        }
         try {
           const [saved] = await store.putMany(
             [
