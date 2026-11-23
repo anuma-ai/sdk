@@ -177,10 +177,40 @@ describe("openSealedText", () => {
   });
 });
 
+function withoutRawEcExport() {
+  const subtle = globalThis.crypto.subtle;
+  const exportKey = subtle.exportKey.bind(subtle);
+  return vi.spyOn(subtle, "exportKey").mockImplementation((async (
+    format: KeyFormat,
+    key: CryptoKey
+  ) => {
+    if (format === "raw" && key.algorithm.name === "ECDH") {
+      throw new Error("Unsupported EC export format: 0");
+    }
+    return exportKey(format as "jwk", key);
+  }) as typeof subtle.exportKey);
+}
+
 describe("exportInboxPublicKey", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it("exports the uncompressed point the way vault and portal expect", async () => {
     const { publicKey } = await recipientKeyPair();
     expect(await exportInboxPublicKey(publicKey)).toBe(vector.recipient_public_key);
+  });
+
+  it("exports the same point where WebCrypto cannot export a raw EC key", async () => {
+    const { publicKey } = await recipientKeyPair();
+    withoutRawEcExport();
+    expect(await exportInboxPublicKey(publicKey)).toBe(vector.recipient_public_key);
+  });
+
+  it("opens portal's sealed vector where WebCrypto cannot export a raw EC key", async () => {
+    const keyPair = await recipientKeyPair();
+    withoutRawEcExport();
+    expect(await openInboxItem({ id: vector.id, sealed: vector.sealed }, keyPair)).toEqual(
+      JSON.parse(vector.plaintext)
+    );
   });
 });
 
