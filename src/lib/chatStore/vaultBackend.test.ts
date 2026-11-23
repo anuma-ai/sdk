@@ -12,6 +12,7 @@ import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
 import { ANUMA_CONVERSATION_ID } from "./anuma";
 import { type ChatStore, ChatStoreError } from "./types";
 import { createVaultChatBackend, type VaultChatBackend, type VaultChatEvent } from "./vaultBackend";
+import { saveChatCache } from "./vaultCache";
 import type { ChatOutboxLocks, ChatOutboxStorage, ChatPatch } from "./vaultOutbox";
 
 beforeAll(() => {
@@ -76,6 +77,36 @@ function memoryLocks(): ChatOutboxLocks {
       }
     },
   };
+}
+
+async function pageHistory(sortKeys: number[]) {
+  const fake = await createChatStoreHarness();
+  const record = {
+    conversationId: "",
+    sortKey: 0,
+    createdAt: 1,
+    updatedAt: 1,
+    isDeleted: false,
+    data: {},
+  };
+  await fake.write([
+    { record: { ...record, kind: "conversation", id: "conv_pages" }, expectedVersion: 0 },
+  ]);
+  for (let offset = 0; offset < sortKeys.length; offset += 25)
+    await fake.write(
+      sortKeys.slice(offset, offset + 25).map((sortKey, index) => ({
+        record: {
+          ...record,
+          kind: "message" as const,
+          id: `msg_${offset + index}`,
+          conversationId: "conv_pages",
+          sortKey,
+          data: { role: "user", content: `message ${offset + index}` },
+        },
+        expectedVersion: 0,
+      }))
+    );
+  return fake;
 }
 
 describe("vault chat backend", () => {
@@ -936,6 +967,160 @@ describe("vault chat backend", () => {
     await b.upsertSummary("conv_1", "second", "msg_2", 12);
     await b.flush();
     expect((await backend(fake).b.getSummary("conv_1"))?.summary).toBe("second");
+  });
+
+  it.each(["cold", "partial"])("reads bounded message pages from a %s cache", async (state) => {
+    const fake = await pageHistory(Array.from({ length: 1000 }, (_, index) => index));
+    const storage = memoryStorage();
+    const seal = {
+      encrypt: (value: string) => Promise.resolve(value),
+      decrypt: (value: string) => Promise.resolve(value),
+    };
+    if (state === "partial")
+      await saveChatCache(storage, seal.encrypt, {
+        account: "0xaaa",
+        cursor: (await fake.store.account()).changesCursor!,
+        records: [
+          (await fake.row("conversation", "conv_pages"))!,
+          (await fake.row("message", "msg_999"))!,
+        ],
+        threads: ["conv_pages"],
+        partial: ["conv_pages"],
+        absent: [],
+      });
+    const { b } = backend(fake, {
+      ...(state === "partial" ? { cache: { storage, seal, account: "0xaaa" } } : {}),
+    });
+    await b.getConversations();
+    await b.poll();
+    const list = vi.spyOn(fake.store, "list");
+
+    const newest = await b.getMessagesPage("conv_pages", { limit: 20 });
+    expect(newest.map((message) => message.messageId)).toEqual(
+      Array.from({ length: 20 }, (_, index) => 980 + index)
+    );
+    expect(list.mock.calls.map(([query]) => query)).toEqual([
+      { kind: "message", conversationId: "conv_pages", limit: 20 },
+    ]);
+
+    const older = await b.getMessagesPage("conv_pages", {
+      limit: 20,
+      beforeMessageId: newest[0].messageId,
+      boundaryExcludeUniqueIds: [newest[0].uniqueId],
+    });
+    expect(older.map((message) => message.messageId)).toEqual(
+      Array.from({ length: 20 }, (_, index) => 960 + index)
+    );
+    expect(list.mock.calls.map(([query]) => query)).toEqual([
+      { kind: "message", conversationId: "conv_pages", limit: 20 },
+      { kind: "message", conversationId: "conv_pages", limit: 20, cursor: "20" },
+    ]);
+
+    const getMany = vi.spyOn(fake.store, "getMany");
+    expect((await b.getMessagesByIds(["msg_0"]))[0].messageId).toBe(0);
+    expect(getMany).toHaveBeenCalledTimes(1);
+    expect(await b.getMessageCount("conv_pages")).toBe(1000);
+  });
+
+  it("keeps duplicate boundary messages across remote pages", async () => {
+    const fake = await pageHistory([1, 2, 2, 2, 3]);
+    const { b } = backend(fake);
+    const newest = await b.getMessagesPage("conv_pages", { limit: 2 });
+    expect(newest.map((message) => message.uniqueId)).toEqual(["msg_3", "msg_4"]);
+    const older = await b.getMessagesPage("conv_pages", {
+      limit: 2,
+      beforeMessageId: 2,
+      boundaryExcludeUniqueIds: ["msg_3"],
+    });
+    expect(older.map((message) => message.uniqueId)).toEqual(["msg_1", "msg_2"]);
+    expect(
+      (await b.getMessagesPage("conv_pages", { limit: 2, beforeMessageId: 2 })).map(
+        (message) => message.uniqueId
+      )
+    ).toEqual(["msg_0"]);
+  });
+
+  it("caps remote requests and stops after the requested message count", async () => {
+    const fake = await pageHistory(Array.from({ length: 1000 }, (_, index) => index));
+    const { b } = backend(fake);
+    await b.getConversations();
+    const list = vi.spyOn(fake.store, "list");
+    const messages = await b.getMessagesPage("conv_pages", { limit: 205.9 });
+    expect(messages).toHaveLength(205);
+    expect(messages[0].messageId).toBe(795);
+    expect(list.mock.calls.map(([query]) => query)).toEqual([
+      { kind: "message", conversationId: "conv_pages", limit: 200 },
+      { kind: "message", conversationId: "conv_pages", limit: 5, cursor: "200" },
+    ]);
+  });
+
+  it("applies local message changes to remote pages without a full thread read", async () => {
+    const fake = await pageHistory([1, 2, 3, 4]);
+    const { b } = backend(fake);
+    await b.getMessagesPage("conv_pages", { limit: 2 });
+    await b.updateMessageError("msg_3", "retry");
+    await b.deleteMessage("msg_2");
+    const list = vi.spyOn(fake.store, "list");
+    const messages = await b.getMessagesPage("conv_pages", { limit: 2 });
+    expect(messages.map((message) => message.uniqueId)).toEqual(["msg_1", "msg_3"]);
+    expect(messages[1].error).toBe("retry");
+    expect(list.mock.calls.map(([query]) => query.limit)).toEqual([2, 1]);
+  });
+
+  it("discards a page cursor after a remote message delete", async () => {
+    const fake = await pageHistory([1, 2, 3, 4]);
+    const { b } = backend(fake);
+    await b.getMessagesPage("conv_pages", { limit: 2 });
+    const deleted = (await fake.row("message", "msg_3"))!;
+    await fake.write([
+      {
+        record: { ...deleted.record, isDeleted: true, data: {} },
+        expectedVersion: deleted.version,
+      },
+    ]);
+    await b.poll();
+    const messages = await b.getMessagesPage("conv_pages", { limit: 2, beforeMessageId: 3 });
+    expect(messages.map((message) => message.uniqueId)).toEqual(["msg_0", "msg_1"]);
+  });
+
+  it("announces a changed message page once and reads the new records", async () => {
+    const fake = await pageHistory([1, 2, 3, 4]);
+    const { b, events } = backend(fake);
+    await b.getMessagesPage("conv_pages", { limit: 2 });
+    events.length = 0;
+
+    const snapshots = await Promise.all([
+      fake.row("message", "msg_2"),
+      fake.row("message", "msg_3"),
+    ]);
+    await fake.write(
+      snapshots.map((snapshot) => ({
+        record: {
+          ...snapshot!.record,
+          data: { ...snapshot!.record.data, content: `remote ${snapshot!.record.id}` },
+        },
+        expectedVersion: snapshot!.version,
+      }))
+    );
+    await b.poll();
+
+    expect(events).toEqual([{ type: "messages", conversationId: "conv_pages", origin: "remote" }]);
+    const list = vi.spyOn(fake.store, "list");
+    expect(
+      (await b.getMessagesPage("conv_pages", { limit: 2 })).map((message) => message.content)
+    ).toEqual(["remote msg_2", "remote msg_3"]);
+    expect(list.mock.calls.map(([query]) => query)).toEqual([
+      { kind: "message", conversationId: "conv_pages", limit: 2 },
+    ]);
+  });
+
+  it.each([0, -1, NaN, Infinity, -Infinity])("rejects the message page limit %s", async (limit) => {
+    const fake = await pageHistory([1, 2, 3]);
+    const { b } = backend(fake);
+    await b.getConversations();
+    const list = vi.spyOn(fake.store, "list");
+    expect(await b.getMessagesPage("conv_pages", { limit })).toEqual([]);
+    expect(list).not.toHaveBeenCalled();
   });
 
   it("returns all files before a thread opens and after cache eviction", async () => {
