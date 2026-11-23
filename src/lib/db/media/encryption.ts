@@ -22,12 +22,12 @@ import type { CreateMediaOptions, MediaMetadata, StoredMedia } from "./types";
  * - mimeType, mediaType, size, role, model
  * - dimensions, duration, timestamps, isDeleted
  */
-export async function encryptMediaFields(
-  media: CreateMediaOptions,
+export async function encryptMediaFields<T extends Partial<CreateMediaOptions>>(
+  media: T,
   address: string,
   signMessage?: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn
-): Promise<CreateMediaOptions> {
+): Promise<T> {
   if (!address || !signMessage) {
     return media;
   }
@@ -35,17 +35,15 @@ export async function encryptMediaFields(
   try {
     await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
 
-    const encryptedName = await encryptField(
-      media.name,
-      address,
-      signMessage,
-      embeddedWalletSigner,
-      true
-    );
+    const encryptedName =
+      media.name !== undefined
+        ? await encryptField(media.name, address, signMessage, embeddedWalletSigner, true)
+        : undefined;
 
-    const encryptedSourceUrl = media.sourceUrl
-      ? await encryptField(media.sourceUrl, address, signMessage, embeddedWalletSigner, true)
-      : undefined;
+    const encryptedSourceUrl =
+      media.sourceUrl !== undefined
+        ? await encryptField(media.sourceUrl, address, signMessage, embeddedWalletSigner, true)
+        : undefined;
 
     const encryptedMetadata = media.metadata
       ? await encryptJsonField(media.metadata, address, signMessage, embeddedWalletSigner, true)
