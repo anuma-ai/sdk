@@ -98,7 +98,18 @@ export function createVaultInbox(options: {
 
 /** The 65-byte uncompressed P-256 point, base64url, as vault stores it. */
 export async function exportInboxPublicKey(publicKey: CryptoKey): Promise<string> {
-  return toBase64Url(new Uint8Array(await crypto.subtle.exportKey("raw", publicKey)));
+  return toBase64Url(await exportUncompressedPoint(publicKey));
+}
+
+async function exportUncompressedPoint(publicKey: CryptoKey): Promise<Uint8Array> {
+  const { x, y } = await crypto.subtle.exportKey("jwk", publicKey);
+  const xBytes = fromBase64Url(x);
+  const yBytes = fromBase64Url(y);
+  const point = new Uint8Array(1 + xBytes.length + yBytes.length);
+  point[0] = 4;
+  point.set(xBytes, 1);
+  point.set(yBytes, 1 + xBytes.length);
+  return point;
 }
 
 async function openEnvelope(
@@ -128,7 +139,7 @@ async function openEnvelope(
     keyPair.privateKey,
     256
   );
-  const recipient = new Uint8Array(await crypto.subtle.exportKey("raw", keyPair.publicKey));
+  const recipient = await exportUncompressedPoint(keyPair.publicKey);
   const salt = new Uint8Array(epk.length + recipient.length);
   salt.set(epk);
   salt.set(recipient, epk.length);

@@ -2,7 +2,7 @@
 
 > **openInboxSealedText**(`options`: `object`, `sealed`: `string`, `sealId`: `string`): `Promise`<`string`>
 
-Defined in: [src/lib/chat/inbox.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#164)
+Defined in: [src/lib/chat/inbox.ts:175](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#175)
 
 Open text that portal sealed to the wallet's inbox key under a seal id.
 
