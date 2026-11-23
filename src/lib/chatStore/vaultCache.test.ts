@@ -973,6 +973,104 @@ describe("vault chat cache", () => {
     expect(offlinePage.map((m) => m.uniqueId)).toEqual(page.slice(-5));
   });
 
+  it("serves a cached partial page after the vault connects and then fails", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const record = { sortKey: 0, createdAt: 1, updatedAt: 1, isDeleted: false };
+    await fake.write([
+      {
+        record: {
+          ...record,
+          kind: "conversation",
+          id: "conv_pages",
+          conversationId: "",
+          data: { title: "Paged" },
+        },
+        expectedVersion: 0,
+      },
+    ]);
+    await fake.write(
+      Array.from({ length: 30 }, (_, index) => ({
+        record: {
+          ...record,
+          kind: "message" as const,
+          id: `msg_${index}`,
+          conversationId: "conv_pages",
+          sortKey: index,
+          data: { role: "user", content: `Message ${index}` },
+        },
+        expectedVersion: 0,
+      }))
+    );
+    const page = Array.from({ length: 10 }, (_, index) => `msg_${20 + index}`);
+    const b = backend(fake.store, { cache });
+    await b.getMessagesPage("conv_pages", { limit: 10 });
+    await cached(storage, seal, cache.account, (c) => expect(ids(c)).toContain("msg_29"));
+    b.close();
+
+    const cold = backend(fake.store, { cache });
+    await cold.flush();
+    fake.fail({ op: "list", error: new TypeError("offline"), sticky: true });
+    const offlinePage = await cold.getMessagesPage("conv_pages", { limit: 5 });
+    expect(offlinePage.map((m) => m.uniqueId)).toEqual(page.slice(-5));
+  });
+
+  it("does not cache the held page of a conversation with an unsent delete", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const record = { sortKey: 0, createdAt: 1, updatedAt: 1, isDeleted: false };
+    await fake.write([
+      {
+        record: { ...record, kind: "conversation", id: "conv_1", conversationId: "", data: {} },
+        expectedVersion: 0,
+      },
+    ]);
+    await fake.write([
+      {
+        record: {
+          ...record,
+          kind: "message",
+          id: "msg_1",
+          conversationId: "conv_1",
+          data: { role: "user", content: "Trip note" },
+        },
+        expectedVersion: 0,
+      },
+    ]);
+    const paged = backend(fake.store, { cache });
+    await paged.getMessagesPage("conv_1", { limit: 5 });
+    await cached(storage, seal, "0xaaa", (c) => expect(ids(c)).toContain("msg_1"));
+
+    fake.fail({ op: "putMany", error: new TypeError("offline"), sticky: true });
+    fake.fail({ op: "getMany", error: new TypeError("offline"), sticky: true });
+    await paged.deleteConversation("conv_1");
+    await paged.flush();
+    expect(paged.status().pending).toBeGreaterThan(0);
+    await fake.write([
+      {
+        record: {
+          kind: "conversation",
+          id: "conv_2",
+          conversationId: "",
+          sortKey: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          isDeleted: false,
+          data: { title: "Elsewhere" },
+        },
+        expectedVersion: 0,
+      },
+    ]);
+    await paged.poll();
+    const during = await cached(storage, seal, "0xaaa", (c) => expect(ids(c)).toContain("conv_2"));
+    expect(ids(during)).not.toContain("msg_1");
+    expect(during.threads).not.toContain("conv_1");
+  });
+
   it("resumes from the cached cursor and pulls only later changes", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");

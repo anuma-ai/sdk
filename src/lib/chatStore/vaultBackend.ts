@@ -1233,6 +1233,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         if (patch.conversationId === conversationId) pending.delete(k);
       await enqueue({ kind: "conversation", id: conversationId, conversationId: "", delete: true });
       threads.delete(conversationId);
+      dropPage(conversationId);
       emit({ type: "conversations", origin: "local" });
       emit({ type: "messages", conversationId, origin: "local" });
       return true;
@@ -1359,8 +1360,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       }
       return load().catch((error: unknown) => {
         const held = messagePages.get(conversationId);
-        const records = held ? select(local(held).values()) : [];
-        if (held && (records.length >= limit || !held.nextCursor)) return records.map(toMessage);
+        const records = select(held ? local(held).values() : all("message", conversationId, true));
+        if (records.length >= limit || (held && !held.nextCursor)) return records.map(toMessage);
         throw error;
       });
     },
