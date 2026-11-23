@@ -2,7 +2,7 @@
 
 > **getMediaCountOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `mediaType?`: [`MediaType`](../type-aliases/MediaType.md)): `Promise`<`number`>
 
-Defined in: [src/lib/db/media/operations.ts:732](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#732)
+Defined in: [src/lib/db/media/operations.ts:739](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#739)
 
 Get media count for a user.
 
