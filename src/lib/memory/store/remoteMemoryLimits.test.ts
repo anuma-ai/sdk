@@ -28,6 +28,8 @@ describe("remote memory ID limits", () => {
         .mockResolvedValue({ items: [], failed: [] });
       const persistence: remotePersistence.RemoteMemoryPersistence = {
         claimWork: vi.fn(),
+        setEnabled: vi.fn(),
+        recordRecalls: vi.fn(),
         releaseWork: vi.fn(),
         topics: vi.fn(),
         putTopic: vi.fn(),

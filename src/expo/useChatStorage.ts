@@ -148,6 +148,7 @@ import { carriedToolSets, recordToolSetTurn } from "../lib/tools/selection/recen
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import {
   getKeyPair,
+  getStoredKeyPair,
   hasEncryptionKey,
   onClearAllEncryptionState,
   onKeyAvailable,
@@ -542,7 +543,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   getActiveStreams: (conversationId?: string) => Promise<ActiveStream[]>;
   /** Show a running generation from its first frame; nothing is stored. */
   watchStream: (stream: ActiveStream) => Promise<ResumeStreamResult>;
-  /** Register the inbox public key, then store and remove every answer portal sealed into the inbox. */
+  /** Register the inbox public key, then store and remove every answer portal sealed into the inbox; without `signMessage`, it uses the key pair the encryption-key unlock derived and does nothing before that. */
   deliverInbox: () => Promise<InboxDeliveryResult[]>;
   /** Open text that portal sealed to the inbox public key under `sealId`, such as a reward code. */
   openSealedWithInboxKey: (sealed: string, sealId: string) => Promise<string>;
@@ -2966,7 +2967,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const openSealedWithInboxKey = useCallback(
     (sealed: string, sealId: string): Promise<string> =>
       openInboxSealedText(
-        { walletAddress: walletAddress ?? "", signMessage: signMessage!, embeddedWalletSigner },
+        { walletAddress: walletAddress ?? "", signMessage, embeddedWalletSigner },
         sealed,
         sealId
       ),
@@ -2975,8 +2976,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
   const registeredInboxKeyRef = useRef<{ inbox: VaultInbox; publicKey: string } | null>(null);
   const deliverInbox = useCallback(async (): Promise<InboxDeliveryResult[]> => {
-    if (!inbox || !walletAddress || !signMessage) return [];
-    const keyPair = await getKeyPair(walletAddress, signMessage, embeddedWalletSigner);
+    if (!inbox || !walletAddress) return [];
+    const keyPair = signMessage
+      ? await getKeyPair(walletAddress, signMessage, embeddedWalletSigner)
+      : getStoredKeyPair(walletAddress);
+    if (!keyPair) return [];
     const publicKey = await exportInboxPublicKey(keyPair.publicKey);
     const registered = registeredInboxKeyRef.current;
     if (registered?.inbox !== inbox || registered.publicKey !== publicKey) {

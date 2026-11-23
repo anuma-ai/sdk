@@ -6,7 +6,8 @@ export type ChatRecordKind =
   | "memory_links"
   | "setting"
   | "app_file"
-  | "saved_tool";
+  | "saved_tool"
+  | "media";
 
 export type ChatJson = null | boolean | number | string | ChatJson[] | { [key: string]: ChatJson };
 
@@ -106,11 +107,13 @@ export interface ChatAttachment {
   id: string;
   sizeBytes: number;
   state: "pending" | "committed";
-  ownerKind?: "message" | "summary";
+  ownerKind?: ChatAttachmentOwnerKind;
   ownerId?: string;
   createdAt: string;
   committedAt?: string;
 }
+
+export type ChatAttachmentOwnerKind = "message" | "summary" | "media" | "app_file";
 
 export interface ChatPresignedUrl {
   url: string;
@@ -119,14 +122,36 @@ export interface ChatPresignedUrl {
   expiresAt: string;
 }
 
+export interface ChatPresignedPart extends ChatPresignedUrl {
+  partNumber: number;
+}
+
+export interface ChatMultipartAttachments {
+  /** The largest ciphertext vault takes in parts. */
+  maxBytes: number;
+  /** Reserves more than 50 MiB; every part but the last holds exactly `partBytes`. */
+  create(
+    sizeBytes: number,
+    signal?: AbortSignal
+  ): Promise<{ attachment: ChatAttachment; partBytes: number; partCount: number }>;
+  /** Upload URLs for up to 100 parts of a pending reservation; call again when they expire. */
+  parts(
+    attachmentId: string,
+    partNumbers: readonly number[],
+    signal?: AbortSignal
+  ): Promise<ChatPresignedPart[]>;
+}
+
 export interface ChatAttachments {
   create(
     sizeBytes: number,
     signal?: AbortSignal
   ): Promise<{ attachment: ChatAttachment; upload: ChatPresignedUrl }>;
+  /** Present when vault takes attachments over 50 MiB in parts. */
+  multipart?: ChatMultipartAttachments;
   commit(
     attachmentId: string,
-    owner: { kind: "message" | "summary"; id: string },
+    owner: { kind: ChatAttachmentOwnerKind; id: string },
     signal?: AbortSignal
   ): Promise<ChatAttachment>;
   get(
@@ -175,6 +200,8 @@ export interface ChatStore {
   deleteAll(signal?: AbortSignal): Promise<number>;
   /** A keyed hash vault cannot reproduce, for record ids derived from private names. */
   sealedId?(value: string): Promise<string>;
+  /** True when vault stores `media` records and attachments owned by `media` and `app_file` records. */
+  mediaAttachments?: boolean;
   attachments: ChatAttachments;
 }
 

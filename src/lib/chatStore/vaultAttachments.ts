@@ -1,7 +1,26 @@
 import type { VaultAttachmentRef } from "../db/chat/types";
 import type { MemoryKeyRing } from "../memory/store/memoryKeys";
 import {
+  additionalData,
+  chunkAdditionalData,
+  chunkCiphertextBytes,
+  chunkedFrameVersion,
+  chunkOverhead,
+  chunkPlaintextBytes,
+  chunkTotal,
+  frameOverhead,
+  frameVersion,
+  invalidAttachment,
+  ivBytes,
+  maxCiphertextBytes,
+  openChunk,
+  openFrame,
+  plaintextBytes,
+} from "./sealedAttachments";
+import {
   type ChatAttachment,
+  type ChatAttachmentOwnerKind,
+  type ChatMultipartAttachments,
   type ChatPresignedUrl,
   type ChatRecord,
   type ChatStore,
@@ -9,19 +28,37 @@ import {
 } from "./types";
 import { plain } from "./vaultRecords";
 
-const frameVersion = 1;
-const ivBytes = 12;
-const tagBytes = 16;
-const frameOverhead = 1 + ivBytes + tagBytes;
-const maxCiphertextBytes = 50 * 1024 * 1024;
+export { plaintextBytes };
+
+const downloadWindowChunks = 4;
+const partUrlBatch = 8;
 const expirySkewMs = 30_000;
 const maxRetryAfterMs = 30_000;
 const maxRefWrites = 5;
-const uploadWindowMs = 16 * 60_000;
-const attachmentIdPattern = /^[0-9a-f]{32}$/;
+export const uploadWindowMs = 16 * 60_000;
+export const attachmentIdPattern = /^[0-9a-f]{32}$/;
 
-/** The largest file vault stores, after the encryption frame is added. */
+/** The largest file vault stores in one encrypted frame; larger files need vault to take parts. */
 export const maxVaultAttachmentBytes = maxCiphertextBytes - frameOverhead;
+
+function chunkCount(plaintext: number): number {
+  return Math.max(1, Math.ceil(plaintext / chunkPlaintextBytes));
+}
+
+function chunkedSize(plaintext: number): number {
+  return 1 + plaintext + chunkOverhead * chunkCount(plaintext);
+}
+
+/** A file read in pieces, so a large upload never holds the whole file in memory. */
+export interface VaultAttachmentSource {
+  size: number;
+  read(offset: number, length: number): Promise<Uint8Array>;
+}
+
+/** Where a streamed download writes decrypted bytes, in order. */
+export interface VaultAttachmentSink {
+  write(bytes: Uint8Array): void | Promise<void>;
+}
 
 /** Device-side store for decrypted attachment bytes, keyed by vault attachment id. */
 export interface VaultAttachmentCache {
@@ -31,7 +68,7 @@ export interface VaultAttachmentCache {
 }
 
 export interface VaultAttachmentOwner {
-  kind: "message" | "summary";
+  kind: ChatAttachmentOwnerKind;
   id: string;
 }
 
@@ -53,8 +90,11 @@ export interface VaultAttachmentUploadOptions {
 
 /** Encrypted chat attachments in vault: upload, bind to a message, read back on any device, delete. */
 export interface VaultAttachments {
-  /** Encrypts and uploads `bytes`; the attachment stays pending until `commit`, and vault drops it after 24h. */
-  upload(bytes: Uint8Array, options?: VaultAttachmentUploadOptions): Promise<string>;
+  /** Encrypts and uploads a file, in parts when it is over 50 MiB and vault takes parts; the attachment stays pending until `commit`, and vault drops it after 24h. */
+  upload(
+    source: Uint8Array | Blob | VaultAttachmentSource,
+    options?: VaultAttachmentUploadOptions
+  ): Promise<string>;
   /** Binds an uploaded attachment to a message or summary that vault already holds. */
   commit(
     attachmentId: string,
@@ -63,15 +103,51 @@ export interface VaultAttachments {
   ): Promise<ChatAttachment>;
   /** The decrypted bytes, or null when the attachment is gone or not yet committed. */
   read(attachmentId: string, signal?: AbortSignal): Promise<Uint8Array | null>;
+  /** Downloads and decrypts into `sink` a few chunks at a time; false when the attachment is gone or not yet committed. */
+  readTo(attachmentId: string, sink: VaultAttachmentSink, signal?: AbortSignal): Promise<boolean>;
+  /** Downloads the ciphertext into `sink` exactly as vault stores it, without decrypting; false when the attachment is gone or not yet committed. */
+  readSealedTo(
+    attachmentId: string,
+    sink: VaultAttachmentSink,
+    signal?: AbortSignal
+  ): Promise<boolean>;
   delete(attachmentId: string, signal?: AbortSignal): Promise<void>;
 }
 
-function additionalData(attachmentId: string): Uint8Array<ArrayBuffer> {
-  return new TextEncoder().encode(`anuma-chat-attachment-v1:${attachmentId}`);
+function tooLarge(): never {
+  throw new ChatStoreError("Attachment is larger than vault accepts", 413, "attachment_too_large");
 }
 
-function invalidAttachment(): never {
-  throw new ChatStoreError("Attachment does not decrypt under this key", 0, "invalid_attachment");
+function toSource(input: Uint8Array | Blob | VaultAttachmentSource): VaultAttachmentSource {
+  if (input instanceof Uint8Array)
+    return {
+      size: input.length,
+      read: (offset, length) => Promise.resolve(input.subarray(offset, offset + length)),
+    };
+  if ("read" in input) return input;
+  return {
+    size: input.size,
+    read: async (offset, length) =>
+      new Uint8Array(await input.slice(offset, offset + length).arrayBuffer()),
+  };
+}
+
+function invalidSource(): never {
+  throw new ChatStoreError(
+    "Attachment source returned other bytes than its size",
+    0,
+    "invalid_source"
+  );
+}
+
+async function readExactly(
+  source: VaultAttachmentSource,
+  offset: number,
+  length: number
+): Promise<Uint8Array> {
+  const bytes = length > 0 ? await source.read(offset, length) : new Uint8Array(0);
+  if (!(bytes instanceof Uint8Array) || bytes.length !== length) invalidSource();
+  return bytes;
 }
 
 function sendableHeaders(headers: Record<string, string>): Record<string, string> {
@@ -148,25 +224,6 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
     return frame;
   };
 
-  const open = async (frame: Uint8Array, attachmentId: string) => {
-    if (frame.length < frameOverhead || frame[0] !== frameVersion) invalidAttachment();
-    try {
-      return new Uint8Array(
-        await crypto.subtle.decrypt(
-          {
-            name: "AES-GCM",
-            iv: frame.slice(1, 1 + ivBytes),
-            additionalData: additionalData(attachmentId),
-          },
-          keyRing.v3,
-          frame.slice(1 + ivBytes)
-        )
-      );
-    } catch {
-      return invalidAttachment();
-    }
-  };
-
   const put = async (
     upload: ChatPresignedUrl,
     body: Uint8Array<ArrayBuffer>,
@@ -200,9 +257,109 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
     }
   };
 
+  const sealChunk = async (
+    plaintext: Uint8Array,
+    attachmentId: string,
+    index: number,
+    last: boolean
+  ) => {
+    const iv = crypto.getRandomValues(new Uint8Array(ivBytes));
+    const sealed = new Uint8Array(
+      await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv, additionalData: chunkAdditionalData(attachmentId, index, last) },
+        keyRing.v3,
+        plaintext as Uint8Array<ArrayBuffer>
+      )
+    );
+    const chunk = new Uint8Array(ivBytes + sealed.length);
+    chunk.set(iv);
+    chunk.set(sealed, ivBytes);
+    return chunk;
+  };
+
+  async function* chunks(
+    source: VaultAttachmentSource,
+    attachmentId: string,
+    signal?: AbortSignal
+  ) {
+    yield Uint8Array.of(chunkedFrameVersion);
+    const count = chunkCount(source.size);
+    for (let index = 0; index < count; index++) {
+      signal?.throwIfAborted();
+      const offset = index * chunkPlaintextBytes;
+      const length = Math.min(chunkPlaintextBytes, source.size - offset);
+      yield sealChunk(
+        await readExactly(source, offset, length),
+        attachmentId,
+        index,
+        index === count - 1
+      );
+    }
+  }
+
+  const uploadParts = async (
+    multipart: ChatMultipartAttachments,
+    source: VaultAttachmentSource,
+    uploadOptions?: VaultAttachmentUploadOptions
+  ) => {
+    const signal = uploadOptions?.signal;
+    const size = chunkedSize(source.size);
+    if (size > multipart.maxBytes) tooLarge();
+    const { attachment, partBytes, partCount } = await withRetry(
+      () => multipart.create(size, signal),
+      signal
+    );
+    try {
+      await uploadOptions?.onReserved?.(attachment.id);
+      const pieces = chunks(source, attachment.id, signal);
+      let carry = new Uint8Array(0);
+      let urls = new Map<number, ChatPresignedUrl>();
+      for (let part = 1; part <= partCount; part++) {
+        const body = new Uint8Array(
+          part < partCount ? partBytes : size - partBytes * (partCount - 1)
+        );
+        for (let filled = 0; filled < body.length; ) {
+          if (carry.length === 0) carry = (await pieces.next()).value ?? invalidAttachment();
+          const take = Math.min(body.length - filled, carry.length);
+          body.set(carry.subarray(0, take), filled);
+          carry = carry.subarray(take);
+          filled += take;
+        }
+        for (let attempt = 0; ; attempt++) {
+          let url = urls.get(part);
+          if (!url) {
+            const numbers = Array.from(
+              { length: Math.min(partUrlBatch, partCount - part + 1) },
+              (_, i) => part + i
+            );
+            const fresh = await withRetry(
+              () => multipart.parts(attachment.id, numbers, signal),
+              signal
+            );
+            urls = new Map(fresh.map((p) => [p.partNumber, p]));
+            url = urls.get(part)!;
+          }
+          if ((await put(url, body, signal)) === "stored") break;
+          urls.clear();
+          if (attempt >= retries)
+            throw new ChatStoreError(
+              "Attachment storage rejected the upload URL",
+              403,
+              "attachment_upload_rejected"
+            );
+        }
+      }
+      return attachment.id;
+    } catch (error) {
+      await discardPending(attachment.id).catch(() => undefined);
+      throw error;
+    }
+  };
+
   const download = async (
     url: ChatPresignedUrl,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    range?: { start: number; end: number }
   ): Promise<Uint8Array | "expired" | "missing"> => {
     for (let attempt = 0; ; attempt++) {
       if (expired(url)) return "expired";
@@ -210,16 +367,26 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
       try {
         response = await fetcher(url.url, {
           method: url.method,
-          headers: sendableHeaders(url.headers),
+          headers: {
+            ...sendableHeaders(url.headers),
+            ...(range ? { Range: `bytes=${range.start}-${range.end - 1}` } : {}),
+          },
           signal,
         });
-        if (response.ok) return new Uint8Array(await response.arrayBuffer());
+        if (response.ok && (!range || response.status === 206))
+          return new Uint8Array(await response.arrayBuffer());
       } catch (error) {
         if (signal?.aborted || attempt >= retries) throw error;
         await pause(attempt, signal);
         continue;
       }
       await discardBody(response);
+      if (response.ok)
+        throw new ChatStoreError(
+          "Attachment storage ignored the byte range",
+          response.status,
+          "attachment_range_unsupported"
+        );
       if (response.status === 403) return "expired";
       if (response.status === 404) return "missing";
       if (!transientStatus(response.status) || attempt >= retries)
@@ -246,15 +413,73 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
     if (found?.attachment.state === "pending") await remove(attachmentId);
   };
 
-  return {
-    async upload(bytes, uploadOptions) {
-      const signal = uploadOptions?.signal;
-      if (!(bytes instanceof Uint8Array) || bytes.length > maxVaultAttachmentBytes)
-        throw new ChatStoreError(
-          "Attachment is larger than vault accepts",
-          413,
-          "attachment_too_large"
+  const readInto = async (
+    attachmentId: string,
+    sink: VaultAttachmentSink,
+    sealed: boolean,
+    signal?: AbortSignal
+  ) => {
+    let found = await withRetry(() => store.attachments.get(attachmentId, signal), signal);
+    if (!found?.download) return false;
+    const size = found.attachment.sizeBytes;
+    let url = found.download;
+    const fetchBytes = async (range?: { start: number; end: number }) => {
+      for (let attempt = 0; ; attempt++) {
+        const bytes = await download(url, signal, range);
+        if (bytes !== "expired") return bytes === "missing" ? null : bytes;
+        if (attempt >= retries)
+          throw new ChatStoreError(
+            "Attachment storage rejected the download URL",
+            403,
+            "attachment_download_rejected"
+          );
+        found = await withRetry(() => store.attachments.get(attachmentId, signal), signal);
+        if (!found?.download) return null;
+        url = found.download;
+      }
+    };
+    if (size <= maxCiphertextBytes) {
+      const frame = await fetchBytes();
+      if (!frame) return false;
+      if (frame.length !== size) invalidAttachment();
+      await sink.write(sealed ? frame : await openFrame(keyRing.v3, frame, attachmentId));
+      return true;
+    }
+    const count = chunkTotal(size);
+    for (let index = 0; index < count; ) {
+      const stop = Math.min(count, index + downloadWindowChunks);
+      const start = index === 0 ? 0 : 1 + index * chunkCiphertextBytes;
+      const end = Math.min(size, 1 + stop * chunkCiphertextBytes);
+      const window = await fetchBytes({ start, end });
+      if (!window) return false;
+      if (window.length !== end - start || (index === 0 && window[0] !== chunkedFrameVersion))
+        invalidAttachment();
+      if (sealed) {
+        await sink.write(window);
+        index = stop;
+        continue;
+      }
+      for (let offset = index === 0 ? 1 : 0; index < stop; index++) {
+        const chunk = window.subarray(offset, offset + chunkCiphertextBytes);
+        offset += chunk.length;
+        await sink.write(
+          await openChunk(keyRing.v3, chunk, attachmentId, index, index === count - 1)
         );
+      }
+    }
+    return true;
+  };
+
+  return {
+    async upload(input, uploadOptions) {
+      const signal = uploadOptions?.signal;
+      const source = toSource(input);
+      if (!Number.isSafeInteger(source.size) || source.size < 0) invalidSource();
+      if (source.size > maxVaultAttachmentBytes) {
+        if (!store.attachments.multipart) tooLarge();
+        return uploadParts(store.attachments.multipart, source, uploadOptions);
+      }
+      const bytes = await readExactly(source, 0, source.size);
       const size = bytes.length + frameOverhead;
       for (let attempt = 0; ; attempt++) {
         const { attachment, upload } = await withRetry(
@@ -285,25 +510,35 @@ export function createVaultAttachments(options: VaultAttachmentsOptions): VaultA
       if (!attachmentIdPattern.test(attachmentId)) invalidAttachment();
       const cached = await cache?.get(attachmentId).catch(() => null);
       if (cached) return cached;
-      for (let attempt = 0; ; attempt++) {
-        const found = await withRetry(() => store.attachments.get(attachmentId, signal), signal);
-        if (!found?.download) return null;
-        const frame = await download(found.download, signal);
-        if (frame === "missing") return null;
-        if (frame === "expired") {
-          if (attempt >= retries)
-            throw new ChatStoreError(
-              "Attachment storage rejected the download URL",
-              403,
-              "attachment_download_rejected"
-            );
-          continue;
+      const pieces: Uint8Array[] = [];
+      if (
+        !(await readInto(
+          attachmentId,
+          { write: (piece) => void pieces.push(piece) },
+          false,
+          signal
+        ))
+      )
+        return null;
+      let bytes = pieces[0];
+      if (pieces.length > 1) {
+        bytes = new Uint8Array(pieces.reduce((total, piece) => total + piece.length, 0));
+        let offset = 0;
+        for (const piece of pieces) {
+          bytes.set(piece, offset);
+          offset += piece.length;
         }
-        if (frame.length !== found.attachment.sizeBytes) invalidAttachment();
-        const bytes = await open(frame, attachmentId);
-        await cache?.set(attachmentId, bytes).catch(() => undefined);
-        return bytes;
       }
+      await cache?.set(attachmentId, bytes).catch(() => undefined);
+      return bytes;
+    },
+    readTo(attachmentId, sink, signal) {
+      if (!attachmentIdPattern.test(attachmentId)) invalidAttachment();
+      return readInto(attachmentId, sink, false, signal);
+    },
+    readSealedTo(attachmentId, sink, signal) {
+      if (!attachmentIdPattern.test(attachmentId)) invalidAttachment();
+      return readInto(attachmentId, sink, true, signal);
     },
     delete: remove,
   };
@@ -439,7 +674,7 @@ export async function migrateMessageAttachments(
       continue;
     }
     if (resumed) {
-      added.push({ attachmentId: resumed.id, ...meta, size: resumed.sizeBytes - frameOverhead });
+      added.push({ attachmentId: resumed.id, ...meta, size: plaintextBytes(resumed.sizeBytes) });
       settled.push(key);
       continue;
     }

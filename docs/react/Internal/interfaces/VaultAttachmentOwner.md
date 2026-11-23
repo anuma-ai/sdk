@@ -1,6 +1,6 @@
 # VaultAttachmentOwner
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#33)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#70)
 
 ## Properties
 
@@ -8,12 +8,12 @@ Defined in: [src/lib/chatStore/vaultAttachments.ts:33](https://github.com/anuma-
 
 > **id**: `string`
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#35)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#72)
 
 ***
 
 ### kind
 
-> **kind**: `"message"` | `"summary"`
+> **kind**: [`ChatAttachmentOwnerKind`](../type-aliases/ChatAttachmentOwnerKind.md)
 
-Defined in: [src/lib/chatStore/vaultAttachments.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#34)
+Defined in: [src/lib/chatStore/vaultAttachments.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/vaultAttachments.ts#71)

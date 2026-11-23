@@ -495,6 +495,7 @@ describe("createMemoryVaultSearchTool", () => {
 
     expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(mockVaultCtx, {
       scopes: ["private"],
+      excludeDisabled: true,
     });
   });
 
@@ -505,7 +506,7 @@ describe("createMemoryVaultSearchTool", () => {
     const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache);
     await tool.executor!({ query: "test" });
 
-    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(mockVaultCtx, undefined);
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(mockVaultCtx, { excludeDisabled: true });
   });
 
   it("degrades to BM25 and still returns a lexical hit when the query embed fails", async () => {

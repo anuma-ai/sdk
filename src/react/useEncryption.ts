@@ -1,5 +1,7 @@
 "use client";
 
+import { p256 } from "@noble/curves/nist.js";
+
 import { getLogger } from "../lib/logger";
 
 export const SIGN_MESSAGE =
@@ -373,7 +375,7 @@ export async function deriveKeyFromSignatureBytes(signature: Uint8Array): Promis
   return deriveHkdfAesKeyHex(signature, AES_GCM_V4_INFO);
 }
 
-function getStoredKeyPair(address: string): CryptoKeyPair | null {
+export function getStoredKeyPair(address: string): CryptoKeyPair | null {
   return keyPairStore.get(address) ?? null;
 }
 
@@ -411,38 +413,23 @@ async function deriveKeyPairFromSignature(
     privateKeyBytes[31] = 1;
   }
 
+  const publicPoint = p256.getPublicKey(privateKeyBytes, false);
+  const publicJwk = {
+    kty: "EC",
+    crv: "P-256",
+    x: bytesToBase64Url(publicPoint.subarray(1, 33)),
+    y: bytesToBase64Url(publicPoint.subarray(33)),
+  };
+  const algorithm = { name: "ECDH", namedCurve: "P-256" };
+
   const privateKey = await crypto.subtle.importKey(
-    "pkcs8",
-    createPKCS8PrivateKey(privateKeyBytes),
-    {
-      name: "ECDH",
-      namedCurve: "P-256",
-    },
+    "jwk",
+    { ...publicJwk, d: bytesToBase64Url(privateKeyBytes) },
+    algorithm,
     true,
     ["deriveBits", "deriveKey"]
   );
-
-  const privateKeyJwk = await crypto.subtle.exportKey("jwk", privateKey);
-
-  if (!privateKeyJwk.x || !privateKeyJwk.y) {
-    throw new Error("Failed to derive public key from private key");
-  }
-
-  const publicKey = await crypto.subtle.importKey(
-    "jwk",
-    {
-      kty: "EC",
-      crv: "P-256",
-      x: privateKeyJwk.x,
-      y: privateKeyJwk.y,
-    },
-    {
-      name: "ECDH",
-      namedCurve: "P-256",
-    },
-    true,
-    []
-  );
+  const publicKey = await crypto.subtle.importKey("jwk", publicJwk, algorithm, true, []);
 
   return {
     privateKey,
@@ -450,31 +437,10 @@ async function deriveKeyPairFromSignature(
   };
 }
 
-function createPKCS8PrivateKey(privateKeyBytes: Uint8Array): ArrayBuffer {
-  const ecPublicKeyOID = new Uint8Array([0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01]);
-  const prime256v1OID = new Uint8Array([
-    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
-  ]);
-
-  const version = new Uint8Array([0x02, 0x01, 0x01]);
-  const privateKeyOctet = new Uint8Array([0x04, 0x20, ...privateKeyBytes]);
-
-  const ecPrivateKeyContent = new Uint8Array([...version, ...privateKeyOctet]);
-  const ecPrivateKeyLength = ecPrivateKeyContent.length;
-  const ecPrivateKeySeq = new Uint8Array([0x30, ecPrivateKeyLength, ...ecPrivateKeyContent]);
-
-  const wrappedPrivateKey = new Uint8Array([0x04, ecPrivateKeySeq.length, ...ecPrivateKeySeq]);
-
-  const algorithmIdContent = new Uint8Array([...ecPublicKeyOID, ...prime256v1OID]);
-  const algorithmIdLength = algorithmIdContent.length;
-  const algorithmIdSeq = new Uint8Array([0x30, algorithmIdLength, ...algorithmIdContent]);
-
-  const pkcs8Version = new Uint8Array([0x02, 0x01, 0x00]);
-  const pkcs8Content = new Uint8Array([...pkcs8Version, ...algorithmIdSeq, ...wrappedPrivateKey]);
-  const pkcs8ContentLength = pkcs8Content.length;
-  const pkcs8Seq = new Uint8Array([0x30, pkcs8ContentLength, ...pkcs8Content]);
-
-  return pkcs8Seq.buffer;
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 /**

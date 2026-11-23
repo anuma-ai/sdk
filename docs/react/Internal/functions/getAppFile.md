@@ -1,8 +1,8 @@
 # getAppFile
 
-> **getAppFile**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `conversationId`: `string`, `path`: `string`, `signal?`: `AbortSignal`): `Promise`<[`AppFile`](../interfaces/AppFile.md) | `null`>
+> **getAppFile**(`store`: [`ChatStore`](../interfaces/ChatStore.md), `conversationId`: `string`, `path`: `string`, `signal?`: `AbortSignal`, `attachments?`: [`VaultAttachments`](../interfaces/VaultAttachments.md)): `Promise`<[`AppFile`](../interfaces/AppFile.md) | `null`>
 
-Defined in: [src/lib/chatStore/appFiles.ts:187](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#187)
+Defined in: [src/lib/chatStore/appFiles.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/appFiles.ts#224)
 
 One conversation file, or null when vault holds none at that path.
 
@@ -61,6 +61,18 @@ One conversation file, or null when vault holds none at that path.
 <td>
 
 `AbortSignal`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`attachments?`
+
+</td>
+<td>
+
+[`VaultAttachments`](../interfaces/VaultAttachments.md)
 
 </td>
 </tr>

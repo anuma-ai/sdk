@@ -1,6 +1,6 @@
 # VaultInbox
 
-Defined in: [src/lib/chat/inbox.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#39)
+Defined in: [src/lib/chat/inbox.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#40)
 
 The account's vault inbox and the public key portal seals answers to.
 
@@ -10,7 +10,7 @@ The account's vault inbox and the public key portal seals answers to.
 
 > **list**(): `Promise`<[`InboxItem`](../type-aliases/InboxItem.md)\[]>
 
-Defined in: [src/lib/chat/inbox.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#41)
+Defined in: [src/lib/chat/inbox.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#42)
 
 **Returns**
 
@@ -22,7 +22,7 @@ Defined in: [src/lib/chat/inbox.ts:41](https://github.com/anuma-ai/sdk/blob/main
 
 > **putPublicKey**(`publicKey`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/chat/inbox.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#40)
+Defined in: [src/lib/chat/inbox.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#41)
 
 **Parameters**
 
@@ -59,7 +59,7 @@ Defined in: [src/lib/chat/inbox.ts:40](https://github.com/anuma-ai/sdk/blob/main
 
 > **remove**(`id`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/chat/inbox.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#42)
+Defined in: [src/lib/chat/inbox.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/inbox.ts#43)
 
 **Parameters**
 

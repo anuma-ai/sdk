@@ -102,7 +102,11 @@ type ListFilters = Omit<RemoteMemoryQueryOptions, "cursor" | "limit" | "order"> 
   order: "created" | "updated" | "archived";
 };
 
-function projection({ memory }: RemoteMemoryMetadataRecord): VaultMemoryProjection {
+function projection({
+  memory,
+  enabled,
+  recall_count,
+}: RemoteMemoryMetadataRecord): VaultMemoryProjection {
   return {
     uniqueId: memory.memory_id,
     scope: memory.scope,
@@ -113,6 +117,8 @@ function projection({ memory }: RemoteMemoryMetadataRecord): VaultMemoryProjecti
     updatedAt: new Date(memory.updated_at),
     lastObservedAt: memory.last_observed_at ?? null,
     topicsUserManaged: memory.topics_user_managed ?? false,
+    enabled: enabled !== false,
+    recallCount: recall_count ?? 0,
   };
 }
 
@@ -217,7 +223,7 @@ interface SubscriptionState {
   fingerprint?: string;
 }
 
-function subscriptionState({ memory, version }: RemoteMemoryRecord): SubscriptionState {
+function subscriptionState({ memory, version, enabled }: RemoteMemoryRecord): SubscriptionState {
   const membership = memory.trust_tier === "quarantined" ? undefined : String(!!memory.is_deleted);
   const hidden =
     membership === undefined ||
@@ -247,6 +253,7 @@ function subscriptionState({ memory, version }: RemoteMemoryRecord): Subscriptio
             memory.topics_user_managed,
             memory.media,
             memory.source,
+            enabled !== false,
           ]),
           uuidv5.URL
         ),
@@ -369,7 +376,8 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const pages = async <T extends Row>(
     read: (options: RemoteMemoryQueryOptions) => Promise<Page<T>>,
     filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit">,
-    max = Infinity
+    max = Infinity,
+    keep: (row: T) => boolean = () => true
   ) => {
     const records: T[] = [];
     let cursor: string | undefined;
@@ -380,7 +388,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
         ...(cursor && { cursor }),
       });
       if (page.failed) warnFailed(page.failed);
-      records.push(...page.items);
+      records.push(...page.items.filter(keep));
       cursor = page.next_cursor;
     } while (cursor && records.length < max);
     return records.slice(0, max);
@@ -495,12 +503,13 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     read: (options: RemoteMemoryQueryOptions) => Promise<Page<T>>,
     ids: readonly string[],
     filters: Omit<RemoteMemoryQueryOptions, "cursor" | "limit" | "memory_ids">,
-    max = Infinity
+    max = Infinity,
+    keep?: (row: T) => boolean
   ) =>
     (
       await Promise.all(
         chunks([...new Set(ids)], MAX_REMOTE_MEMORY_IDS).map((memory_ids) =>
-          pages(read, { ...filters, memory_ids }, max)
+          pages(read, { ...filters, memory_ids }, max, keep)
         )
       )
     ).flat();
@@ -519,13 +528,14 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     filters: ListFilters,
     max: number
   ): Promise<T[]> => {
+    const keep = (row: T) => !listOptions.excludeDisabled || row.enabled !== false;
     const variants = bounded(filters, "scopes").flatMap((f) => bounded(f, "fact_types"));
-    if (!listOptions.memoryIds && variants.length === 1) return pages(read, filters, max);
+    if (!listOptions.memoryIds && variants.length === 1) return pages(read, filters, max, keep);
     const fetched = await Promise.all(
       variants.map((variant) =>
         listOptions.memoryIds
-          ? enumerateIds(read, listOptions.memoryIds, variant)
-          : pages(read, variant, max)
+          ? enumerateIds(read, listOptions.memoryIds, variant, Infinity, keep)
+          : pages(read, variant, max, keep)
       )
     );
     const time = (row: T) =>
@@ -756,9 +766,9 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   const created = (records: RemoteMemoryRecord[], inputs: MemoryCreate[]) => {
     embedInBackground(records.filter((_, i) => inputs[i].embedding === undefined));
     notify("membership", records);
-    return records.map((record) => stored(record.memory));
+    return records.map(stored);
   };
-  const asStored = (record: RemoteMemoryRecord | null) => (record ? stored(record.memory) : null);
+  const asStored = (record: RemoteMemoryRecord | null) => (record ? stored(record) : null);
   const knownKinds = async (topics: readonly StoredTopic[], signal?: AbortSignal) => {
     const unkinded = [
       ...new Set(topics.filter((t) => !t.kind).map((t) => normalizeTopicName(t.name))),
@@ -1009,9 +1019,11 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
   };
   const decayBackend: DecaySweepBackend = {
     candidates: async () =>
-      (await pages(metadata, { include_archived: true, include_quarantined: true }))
-        .filter(({ memory }) => memory.kind === undefined || memory.kind === null)
-        .map(({ memory }) => decayRow(memory)),
+      persistence.serverDecays?.()
+        ? []
+        : (await pages(metadata, { include_archived: true, include_quarantined: true }))
+            .filter(({ memory }) => memory.kind === undefined || memory.kind === null)
+            .map(({ memory }) => decayRow(memory)),
     archive: (rows, now) =>
       decayWrite(rows, "edit", (memory, seen) =>
         (memory.archived_at ?? null) === null &&
@@ -1420,7 +1432,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     repairEmbeddings,
     list: async (listOptions = {}) =>
       (await listRows(decrypted, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
-        (r) => stored(r.memory)
+        stored
       ),
     listProjections: async (listOptions = {}) =>
       (await listRows(metadata, listOptions, listFilters(listOptions), maxOf(listOptions))).map(
@@ -1477,7 +1489,7 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
     get: async (id) => asStored(await live(id)),
     listArchived: async () =>
       (await enumerate({ archived_only: true, order: "archived", include_embeddings: true })).map(
-        (record) => stored(record.memory)
+        stored
       ),
     memoriesByTopics,
     topicsByMemories: async (memoryIds) => {
@@ -1647,6 +1659,39 @@ export function createRemoteMemoryStore(options: RemoteMemoryStoreOptions): Memo
           return memory;
         })
       ),
+
+    setEnabled: (id, enabled) =>
+      serialized(id, async () => {
+        for (let attempt = 0; ; attempt++) {
+          const record = await live(id);
+          if (!record) return null;
+          try {
+            const saved = await persistence.setEnabled(id, enabled, record.version, Date.now());
+            notify("edit", [saved]);
+            return stored(saved);
+          } catch (error) {
+            if (!(error instanceof RemoteMemoryError)) throw error;
+            if (error.status === 404 && !(await live(id))) return null;
+            if (error.code !== "version_conflict" || attempt > 0) throw error;
+          }
+        }
+      }),
+    recordRecalls: async (memoryIds) => {
+      await persistence.recordRecalls(memoryIds);
+      const recalled = new Set(memoryIds);
+      for (const cache of [reads, metadataReads])
+        for (const [key, read] of cache)
+          void read.then(
+            ({ items }) => {
+              if (
+                cache.get(key) === read &&
+                items.some((item) => recalled.has(item.memory.memory_id))
+              )
+                cache.delete(key);
+            },
+            () => undefined
+          );
+    },
 
     recall: (query, recallOptions) => pipeline.recall(query, recallOptions),
     factSource: pipeline.factSource,

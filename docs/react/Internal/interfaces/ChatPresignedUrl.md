@@ -1,6 +1,10 @@
 # ChatPresignedUrl
 
-Defined in: [src/lib/chatStore/types.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#115)
+Defined in: [src/lib/chatStore/types.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#118)
+
+## Extended by
+
+* [`ChatPresignedPart`](ChatPresignedPart.md)
 
 ## Properties
 
@@ -8,7 +12,7 @@ Defined in: [src/lib/chatStore/types.ts:115](https://github.com/anuma-ai/sdk/blo
 
 > **expiresAt**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#119)
+Defined in: [src/lib/chatStore/types.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#122)
 
 ***
 
@@ -16,7 +20,7 @@ Defined in: [src/lib/chatStore/types.ts:119](https://github.com/anuma-ai/sdk/blo
 
 > **headers**: `Record`<`string`, `string`>
 
-Defined in: [src/lib/chatStore/types.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#118)
+Defined in: [src/lib/chatStore/types.ts:121](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#121)
 
 ***
 
@@ -24,7 +28,7 @@ Defined in: [src/lib/chatStore/types.ts:118](https://github.com/anuma-ai/sdk/blo
 
 > **method**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#117)
+Defined in: [src/lib/chatStore/types.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#120)
 
 ***
 
@@ -32,4 +36,4 @@ Defined in: [src/lib/chatStore/types.ts:117](https://github.com/anuma-ai/sdk/blo
 
 > **url**: `string`
 
-Defined in: [src/lib/chatStore/types.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#116)
+Defined in: [src/lib/chatStore/types.ts:119](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/types.ts#119)

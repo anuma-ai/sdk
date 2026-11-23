@@ -57,6 +57,8 @@ export interface RemoteMemoryRecord {
   version: number;
   server_updated_at: string;
   score?: number;
+  enabled?: boolean;
+  recall_count?: number;
 }
 
 export interface RemoteMemoryReadFilters {
@@ -112,6 +114,8 @@ export interface RemoteMemoryMetadataRecord {
   memory: Omit<RemoteMemoryRow, "content" | "kind_value">;
   version: number;
   server_updated_at: string;
+  enabled?: boolean;
+  recall_count?: number;
 }
 
 export interface RemoteMemoryMetadataPage {
@@ -179,6 +183,7 @@ export class RemoteMemoryError extends Error {
 export interface RemoteMemoryPersistence
   extends RemoteTopicPersistence, RemoteMemoryWorkPersistence {
   supportsCandidateLanes?(): boolean;
+  serverDecays?(): boolean;
   counts(): Promise<MemoryCounts>;
   temporal(window: { start: number; end: number }, limit?: number): Promise<string[]>;
   get(memoryId: string, signal?: AbortSignal): Promise<RemoteMemoryRecord | null>;
@@ -197,6 +202,16 @@ export interface RemoteMemoryPersistence
     expectedVersion: number | RemoteMemoryRecord,
     signal?: AbortSignal
   ): Promise<RemoteMemoryRecord>;
+  /** Switch a memory on or off for answers; `expectedVersion` is the item version this write replaces. */
+  setEnabled(
+    memoryId: string,
+    enabled: boolean,
+    expectedVersion: number,
+    updatedAt: number,
+    signal?: AbortSignal
+  ): Promise<RemoteMemoryRecord>;
+  /** Count one answer for each distinct id, in requests of at most 100 ids. */
+  recordRecalls(memoryIds: readonly string[], signal?: AbortSignal): Promise<void>;
   /** 1–50 writes in one server transaction; never split or replay a batch. */
   putMany(
     writes: { memory: RemoteMemoryRow; expectedVersion: number | RemoteMemoryRecord }[],
@@ -268,6 +283,7 @@ const memoryFields = {
 } satisfies Record<keyof RemoteMemoryRow, boolean>;
 
 export const MAX_REMOTE_MEMORY_IDS = 1000;
+const MAX_RECALLED_IDS = 100;
 
 const candidateListLimits = [
   ["scopes", 20],
@@ -391,6 +407,7 @@ export function createNearbyRequest(
       return path === "/topics" ? "private-memory-import" : "private-memory-write";
     if (method === "POST" && ["/import", "/memories/batch", "/topics/import"].includes(path))
       return "private-memory-import";
+    if (method === "POST" && path === "/memories/recalled") return "private-memory-write";
     return "private-memory-read";
   };
   const request = async (
@@ -949,6 +966,7 @@ export async function createRemoteMemoryPersistence(
     ...createRemoteTopicPersistence(request, codec),
     ...createRemoteWorkPersistence(request),
     supportsCandidateLanes: () => candidateLanes && !legacyTopicRows,
+    serverDecays: () => account.memory_decay === true,
     counts: async () => {
       const result = await request("/counts", {});
       if (
@@ -1050,6 +1068,33 @@ export async function createRemoteMemoryPersistence(
         write
       );
     },
+    setEnabled: async (id, enabled, expectedVersion, updatedAt, signal) =>
+      decode(
+        await request(
+          memoryPath(id) + "/enabled",
+          {
+            method: "PUT",
+            body: JSON.stringify({
+              expected_version: expectedVersion,
+              enabled,
+              updated_at: updatedAt,
+            }),
+          },
+          signal
+        )
+      ),
+    recordRecalls: async (memoryIds, signal) => {
+      const unique = [...new Set(memoryIds)];
+      for (let i = 0; i < unique.length; i += MAX_RECALLED_IDS)
+        await request(
+          "/memories/recalled",
+          {
+            method: "POST",
+            body: JSON.stringify({ memory_ids: unique.slice(i, i + MAX_RECALLED_IDS) }),
+          },
+          signal
+        );
+    },
     putMany: async (writes, signal, leaseToken) => {
       if (
         writes.length < 1 ||
@@ -1097,6 +1142,8 @@ export async function createRemoteMemoryPersistence(
               memory: { content: _content, kind_value: _kindValue, topics, ...memory },
               version,
               server_updated_at,
+              enabled,
+              recall_count,
             } = memoryRecord(item);
             const plain =
               topics === undefined ? undefined : await codec.decodeTopics(topics).catch(() => null);
@@ -1104,6 +1151,8 @@ export async function createRemoteMemoryPersistence(
               memory: { ...memory, ...(typeof plain === "string" && { topics: plain }) },
               version,
               server_updated_at,
+              enabled,
+              recall_count,
             };
           })
         ),

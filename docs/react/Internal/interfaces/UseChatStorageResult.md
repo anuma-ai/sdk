@@ -848,6 +848,23 @@ include soft-deleted memories)
 <tr>
 <td>
 
+`options.excludeDisabled?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Leave out memories the user switched off.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.factTypes?`
 
 </td>

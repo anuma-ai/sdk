@@ -729,12 +729,6 @@ export interface RetainResult {
   /**
    * What the consolidation LLM decided for this candidate, when consolidation
    * ran — see {@link ConsolidationAction}.
-   *
-   * Reported for the DECISION, not for what the write ended up doing, so the
-   * two can disagree and be read as such: a `merge` carrying
-   * `consolidation: "create"` is the model saying "new fact" and the strict
-   * cosine stage merging anyway. Absent when consolidation did not run, and
-   * absent on a degraded fallback create (`onFallback` owns that signal).
    */
   consolidation?: ConsolidationAction;
 }

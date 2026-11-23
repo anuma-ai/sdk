@@ -269,7 +269,7 @@ async function listRecentFacts(
       const previousCount = readable.length;
       for (const id of batch) {
         const m = byId.get(id);
-        if (m && !isEncrypted(m.content)) readable.push(m);
+        if (m && !isEncrypted(m.content) && m.enabled !== false) readable.push(m);
         if (readable.length >= readLimit) break;
       }
       batchLimit =

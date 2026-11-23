@@ -18,7 +18,9 @@ import {
   archiveVaultMemoryOp,
   createVaultMemoryOp,
   deleteVaultMemoryOp,
+  recordVaultMemoryRecallsOp,
   setMemoryVisibilityOp,
+  setVaultMemoryEnabledOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../../db/memoryVault/operations";
@@ -102,9 +104,18 @@ function scrubTombstone(row: Stored): Stored {
   };
 }
 
-function fakeNearby(initial: { state?: string; key_id?: string; scrubTombstones?: boolean } = {}) {
+function fakeNearby(
+  initial: {
+    state?: string;
+    key_id?: string;
+    scrubTombstones?: boolean;
+    switchRoute?: boolean;
+  } = {}
+) {
   const rows = new Map<string, Stored>();
   const versions = new Map<string, number>();
+  const enabled = new Map<string, boolean>();
+  const switches: Record<string, unknown>[] = [];
   const catalog = new Map<string, { name: string; name_hash: string; kind?: string }>();
   const account = { state: initial.state ?? "none", key_id: initial.key_id };
   const calls: string[] = [];
@@ -205,10 +216,31 @@ function fakeNearby(initial: { state?: string; key_id?: string; scrubTombstones?
       const ids = new Set(body.memory_ids as string[]);
       const items = [...rows.values()]
         .filter((row) => ids.has(row.memory_id))
-        .map((memory) => ({ memory, version: 1, server_updated_at: "2026-01-01T00:00:00Z" }));
+        .map((memory) => ({
+          memory,
+          version: versions.get(memory.memory_id) ?? 1,
+          server_updated_at: "2026-01-01T00:00:00Z",
+          ...(initial.switchRoute !== false && {
+            enabled: enabled.get(memory.memory_id) ?? true,
+            recall_count: 0,
+          }),
+        }));
       return json(200, { items });
     }
-    if (path.startsWith("/memories/")) {
+    const switchPath = path.match(/^\/memories\/(.+)\/enabled$/);
+    if (switchPath && method === "PUT" && initial.switchRoute !== false) {
+      const id = decodeURIComponent(switchPath[1]);
+      const row = rows.get(id);
+      if (!row || row.is_deleted) return json(404, { detail: "not found" });
+      const version = versions.get(id) ?? 1;
+      if (body.expected_version !== version) return json(409, { code: "version_conflict" });
+      switches.push({ memory_id: id, ...body });
+      enabled.set(id, body.enabled as boolean);
+      versions.set(id, version + 1);
+      rows.set(id, { ...row, updated_at: body.updated_at as number });
+      return json(200, { memory: rows.get(id), version: version + 1, enabled: body.enabled });
+    }
+    if (/^\/memories\/[^/]+$/.test(path)) {
       const id = decodeURIComponent(path.slice("/memories/".length));
       if (method === "PUT") {
         const version = versions.get(id) ?? (rows.has(id) ? 1 : 0);
@@ -229,6 +261,8 @@ function fakeNearby(initial: { state?: string; key_id?: string; scrubTombstones?
   });
   return {
     rows,
+    enabled,
+    switches,
     catalog,
     account,
     calls,
@@ -330,6 +364,75 @@ describe("migrateMemoriesToRemote", () => {
     expect(nearby.rows.get(deleted.uniqueId)?.is_deleted).toBe(true);
     expect(nearby.rows.get(archived.uniqueId)?.archived_at).toBeGreaterThan(0);
     expect(nearby.account.key_id).toBe(canonical.keyId);
+  });
+
+  it("switches a memory off on nearby when it was off on this device", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const off = await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    const on = await createVaultMemoryOp(ctx, { content: "Likes black coffee" });
+    const deleted = await createVaultMemoryOp(ctx, { content: "Had a cat" });
+    await setVaultMemoryEnabledOp(ctx, off.uniqueId, false);
+    await setVaultMemoryEnabledOp(ctx, deleted.uniqueId, false);
+    await deleteVaultMemoryOp(ctx, deleted.uniqueId);
+    await recordVaultMemoryRecallsOp(ctx, [on.uniqueId]);
+    const localUpdatedAt = (await ctx.vaultMemoryCollection.find(off.uniqueId)).updatedAt.getTime();
+    const nearby = fakeNearby();
+
+    const result = await migrate(nearby, ctx);
+
+    expect(result.state).toBe("active");
+    expect(nearby.switches).toEqual([
+      {
+        memory_id: off.uniqueId,
+        expected_version: 1,
+        enabled: false,
+        updated_at: localUpdatedAt,
+      },
+    ]);
+    expect(nearby.enabled.get(off.uniqueId)).toBe(false);
+    expect(nearby.rows.get(off.uniqueId)?.updated_at).toBe(localUpdatedAt);
+    expect(nearby.calls.filter((call) => call.includes("/recalled"))).toEqual([]);
+  });
+
+  it("switches a memory off on nearby after repairing its stale copy", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const off = await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    await setVaultMemoryEnabledOp(ctx, off.uniqueId, false);
+    const nearby = fakeNearby();
+    await migrate(nearby, ctx);
+    nearby.account.state = "migrating";
+    nearby.enabled.set(off.uniqueId, true);
+    nearby.switches.length = 0;
+    await setMemoryVisibilityOp(ctx, off.uniqueId, { visibility: "public" });
+    const localUpdatedAt = (await ctx.vaultMemoryCollection.find(off.uniqueId)).updatedAt.getTime();
+    expect(nearby.rows.get(off.uniqueId)?.updated_at).toBe(localUpdatedAt);
+
+    const result = await migrate(nearby, ctx);
+
+    expect(result.state).toBe("active");
+    expect(nearby.rows.get(off.uniqueId)).toMatchObject({
+      visibility: "public",
+      updated_at: localUpdatedAt + 1,
+    });
+    expect(nearby.switches).toEqual([
+      {
+        memory_id: off.uniqueId,
+        expected_version: 2,
+        enabled: false,
+        updated_at: localUpdatedAt + 1,
+      },
+    ]);
+    expect(nearby.enabled.get(off.uniqueId)).toBe(false);
+  });
+
+  it("fails the run when nearby has no route to switch a memory off", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const off = await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    await setVaultMemoryEnabledOp(ctx, off.uniqueId, false);
+    const nearby = fakeNearby({ switchRoute: false });
+
+    await expect(migrate(nearby, ctx)).rejects.toMatchObject({ status: 404 });
+    expect(nearby.account.state).toBe("migrating");
   });
 
   it("resends nothing nearby already holds when run again", async () => {

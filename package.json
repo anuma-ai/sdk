@@ -17,6 +17,12 @@
       "require": "./dist/index.cjs",
       "default": "./dist/index.cjs"
     },
+    "./attachments": {
+      "types": "./dist/attachments/index.d.ts",
+      "import": "./dist/attachments/index.mjs",
+      "require": "./dist/attachments/index.cjs",
+      "default": "./dist/attachments/index.cjs"
+    },
     "./constants": {
       "types": "./dist/constants/index.d.ts",
       "react-native": "./dist/constants/index.cjs",
@@ -129,7 +135,7 @@
     "spec": "openapi-ts && node scripts/patch-generated-client.mjs",
     "test": "vitest run",
     "test:browser": "vitest run --config vitest.browser.config.mts",
-    "test:vault-conformance": "vitest run src/lib/chatStore/anuma.test.ts src/lib/chatStore/migrateChats.test.ts src/lib/chatStore/vaultBackend.contract.test.ts src/lib/chatStore/vaultBackend.test.ts src/lib/chatStore/vaultParity.test.ts src/react/useChatStorage.vaultParity.test.tsx src/lib/vaultRealtime.vault.test.ts src/lib/chatStore/terms.vault.test.ts",
+    "test:vault-conformance": "vitest run src/lib/chatStore/anuma.test.ts src/lib/chatStore/migrateChats.test.ts src/lib/chatStore/vaultBackend.contract.test.ts src/lib/chatStore/vaultBackend.test.ts src/lib/chatStore/vaultParity.test.ts src/react/useChatStorage.vaultParity.test.tsx src/lib/vaultRealtime.vault.test.ts src/lib/chatStore/terms.vault.test.ts src/lib/chatStore/media.vault.test.ts",
     "build": "tsup",
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
@@ -158,7 +164,8 @@
     "check": "pnpm run lint && pnpm run knip && pnpm run check:export-consumers && pnpm run format && pnpm run generate",
     "eval:extraction": "tsx test/memory/src/extraction/benchmark.test.ts",
     "eval:topic": "tsx test/memory/src/topic/benchmark.ts",
-    "eval:consolidation": "tsx test/memory/src/consolidation/benchmark.test.ts"
+    "eval:consolidation": "tsx test/memory/src/consolidation/benchmark.test.ts",
+    "eval:retain-outcome": "tsx test/memory/src/retainOutcome/benchmark.ts"
   },
   "repository": {
     "type": "git",
@@ -176,6 +183,7 @@
     "@anuma/portal": "1.0.0-next.20260901170209",
     "@babel/parser": "^7.29.2",
     "@babel/types": "^7.29.0",
+    "@noble/curves": "^1.9.7",
     "ai": "6.0.300",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",

@@ -155,7 +155,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#71)
+Defined in: [src/lib/db/memoryVault/models.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#73)
 
 ***
 
@@ -174,6 +174,14 @@ Defined in: [src/lib/db/memoryVault/models.ts:17](https://github.com/anuma-ai/sd
 Defined in: [src/lib/db/memoryVault/models.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#19)
 
 Model that produced `embedding`. Null on legacy rows (grandfathered).
+
+***
+
+### enabled
+
+> **enabled**: `boolean` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#71)
 
 ***
 
@@ -239,7 +247,7 @@ Reserved coarse-geohash slot for landmark/Trail memories.
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#73)
+Defined in: [src/lib/db/memoryVault/models.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#75)
 
 ***
 
@@ -310,6 +318,14 @@ Defined in: [src/lib/db/memoryVault/models.ts:21](https://github.com/anuma-ai/sd
 Defined in: [src/lib/db/memoryVault/models.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#68)
 
 Unix ms when visibility last became non-private; null while private.
+
+***
+
+### recallCount
+
+> **recallCount**: `number` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#72)
 
 ***
 
@@ -437,7 +453,7 @@ Owner opted this memory into their own digital twin (twin-scoped only).
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#72)
+Defined in: [src/lib/db/memoryVault/models.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#74)
 
 ***
 

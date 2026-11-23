@@ -24,7 +24,7 @@ Activate even when some rows could not be migrated. Default false.
 
 > **baseUrl**: `string`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#146)
+Defined in: [src/lib/memory/store/remotePersistence.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#150)
 
 **Inherited from**
 
@@ -66,7 +66,7 @@ Older keys that may have encrypted local rows.
 
 > `optional` **fetch**: {(`input`: `RequestInfo` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; (`input`: `string` | `Request` | `URL`, `init?`: `RequestInit`): `Promise`<`Response`>; }
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:153](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#153)
+Defined in: [src/lib/memory/store/remotePersistence.ts:157](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#157)
 
 **Call Signature**
 
@@ -172,7 +172,7 @@ Defined in: [src/lib/memory/store/remotePersistence.ts:153](https://github.com/a
 
 > **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#147)
+Defined in: [src/lib/memory/store/remotePersistence.ts:151](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#151)
 
 **Returns**
 
@@ -247,7 +247,7 @@ Defined in: [src/lib/memory/store/remoteMigration.ts:124](https://github.com/anu
 
 > `optional` **timeoutMs**: `number`
 
-Defined in: [src/lib/memory/store/remotePersistence.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#156)
+Defined in: [src/lib/memory/store/remotePersistence.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePersistence.ts#160)
 
 **Inherited from**
 

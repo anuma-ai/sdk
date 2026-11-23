@@ -1495,7 +1495,6 @@ describe("retain — the consolidation decision is reported on the result", () =
 
   it("stamps create when the consolidator explicitly chose it", async () => {
     mockVaultMatchesOnce([{ uniqueId: "other", content: "Owns a rope", similarity: 0.6 }]);
-    mockVaultMatchesOnce([]);
     vi.mocked(consolidateMemory).mockResolvedValue({ action: "create" });
     vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
     vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "fresh" } as never);
@@ -1522,29 +1521,62 @@ describe("retain — the consolidation decision is reported on the result", () =
   });
 });
 
-describe("retain — a consolidator `create` survives the strict cosine stage", () => {
-  it("stamps the decision on a Stage-2 merge, so the two stages' disagreement is visible", async () => {
-    mockVaultMatchesOnce([{ uniqueId: "other", content: "Owns a rope", similarity: 0.6 }]);
-    mockVaultMatchesOnce([{ uniqueId: "close", content: "Climbs at Movement", similarity: 0.93 }]);
-    vi.mocked(consolidateMemory).mockResolvedValue({ action: "create" });
+describe("retain — the strict cosine stage after a consolidation decision", () => {
+  const close = { uniqueId: "close", content: "User is allergic to peanuts.", similarity: 0.86 };
+  const incoming = "User's daughter is allergic to peanuts.";
+
+  beforeEach(() => {
+    vi.mocked(generateEmbedding).mockResolvedValue([0.1, 0.2, 0.3]);
+    vi.mocked(createVaultMemoryOp).mockResolvedValue({ uniqueId: "fresh" } as never);
     vi.mocked(getVaultMemoryOp).mockResolvedValue({
       uniqueId: "close",
-      content: "Climbs at Movement",
+      content: close.content,
       proofCount: 1,
       sourceChunkIds: [],
       eventTimeStart: null,
     } as never);
     vi.mocked(updateVaultMemoryOp).mockResolvedValue({ proofCount: 2 } as never);
+  });
 
-    const result = await retain("Climbs at Movement gym", ctx, {
-      consolidateOptions: { apiKey: "k" },
+  it("writes a decided create as its own memory, above the merge threshold", async () => {
+    mockVaultMatchesOnce([close]);
+    vi.mocked(consolidateMemory).mockResolvedValue({ action: "create" });
+
+    const result = await retain(incoming, ctx, { consolidateOptions: { apiKey: "k" } });
+
+    expect(result).toMatchObject({ action: "create", memoryId: "fresh", consolidation: "create" });
+    expect(vi.mocked(createVaultMemoryOp).mock.calls[0][1]).toMatchObject({ content: incoming });
+    expect(updateVaultMemoryOp).not.toHaveBeenCalled();
+  });
+
+  it("writes a refused cross-subject supersede as its own memory, unstamped", async () => {
+    mockVaultMatchesOnce([close]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "create",
+      content: incoming,
+      fallbackReason: "subject_mismatch",
     });
 
-    expect(result).toMatchObject({
-      action: "merge",
-      memoryId: "close",
-      consolidation: "create",
+    const result = await retain(incoming, ctx, { consolidateOptions: { apiKey: "k" } });
+
+    expect(result.action).toBe("create");
+    expect(result.consolidation).toBeUndefined();
+    expect(updateVaultMemoryOp).not.toHaveBeenCalled();
+  });
+
+  it("still merges when the consolidation call failed", async () => {
+    mockVaultMatchesOnce([close]);
+    mockVaultMatchesOnce([close]);
+    vi.mocked(consolidateMemory).mockResolvedValue({
+      action: "create",
+      fallbackReason: "llm_error",
     });
+
+    const result = await retain(incoming, ctx, { consolidateOptions: { apiKey: "k" } });
+
+    expect(result).toMatchObject({ action: "merge", memoryId: "close" });
+    expect(result.consolidation).toBeUndefined();
+    expect(createVaultMemoryOp).not.toHaveBeenCalled();
   });
 });
 
