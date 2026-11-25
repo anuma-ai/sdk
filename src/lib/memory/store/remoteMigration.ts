@@ -460,7 +460,7 @@ interface RemoteItem {
 
 async function remoteMetadata(
   request: NearbyRequest,
-  codec: TopicCodec,
+  codec: TopicCodec | undefined,
   ids: string[],
   signal?: AbortSignal
 ): Promise<Map<string, RemoteItem>> {
@@ -494,9 +494,10 @@ async function remoteMetadata(
           rows.set(item.memory.memory_id, {
             memory: {
               ...item.memory,
-              ...(typeof item.memory.topics === "string" && {
-                topics: await codec.decodeTopics(item.memory.topics).catch(() => null),
-              }),
+              ...(codec &&
+                typeof item.memory.topics === "string" && {
+                  topics: await codec.decodeTopics(item.memory.topics).catch(() => null),
+                }),
             },
             version: num(item.version) ?? 0,
             enabled: item.enabled !== false,
@@ -507,24 +508,15 @@ async function remoteMetadata(
   return rows;
 }
 
-async function applyEnabled(
+async function putWithRetry(
   request: NearbyRequest,
-  id: string,
-  enabled: boolean,
-  version: number,
-  updatedAt: number,
+  path: string,
+  body: Record<string, unknown>,
   signal?: AbortSignal
 ): Promise<void> {
   for (let attempt = 0; ; attempt++) {
     try {
-      await request(
-        `/memories/${encodeURIComponent(id)}/enabled`,
-        {
-          method: "PUT",
-          body: JSON.stringify({ expected_version: version, enabled, updated_at: updatedAt }),
-        },
-        signal
-      );
+      await request(path, { method: "PUT", body: JSON.stringify(body) }, signal);
       return;
     } catch (error) {
       if (
@@ -535,6 +527,49 @@ async function applyEnabled(
         throw error;
       await wait(error.retryAfterMs ?? DEFAULT_RATE_LIMIT_WAIT_MS, signal);
     }
+  }
+}
+
+async function reconcileVisibility(
+  request: NearbyRequest,
+  candidates: RawRow[],
+  keyId: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const live = candidates.filter((raw) => !bool(raw.is_deleted));
+  const remote = await remoteMetadata(
+    request,
+    undefined,
+    live.map((raw) => raw.id as string),
+    signal
+  );
+  for (const raw of live) {
+    const id = raw.id as string;
+    const item = remote.get(id);
+    if (!item || bool(item.memory.is_deleted)) continue;
+    const local = raw.updated_at as number;
+    const updatedAt = num(item.memory.updated_at);
+    const visibility = raw.visibility === "public" ? "public" : "private";
+    const remoteVisibility = item.memory.visibility === "public" ? "public" : "private";
+    if (updatedAt === undefined || updatedAt > local) continue;
+    if (visibility === remoteVisibility) continue;
+    if (!Number.isSafeInteger(item.version) || item.version < 1)
+      throw new Error("Invalid nearby memory version");
+    await putWithRetry(
+      request,
+      `/memories/${encodeURIComponent(id)}`,
+      {
+        key_id: keyId,
+        expected_version: item.version,
+        memory: {
+          ...item.memory,
+          updated_at: Math.max(local, updatedAt + 1),
+          visibility,
+          published_at: visibility === "private" ? undefined : num(raw.published_at),
+        },
+      },
+      signal
+    );
   }
 }
 
@@ -644,7 +679,12 @@ export async function migrateMemoriesToRemote(
               "migration_incomplete"
             );
           for (const { raw, enabled, version, updatedAt } of switches)
-            await applyEnabled(request, raw.id as string, enabled, version, updatedAt, signal);
+            await putWithRetry(
+              request,
+              `/memories/${encodeURIComponent(raw.id as string)}/enabled`,
+              { expected_version: version, enabled, updated_at: updatedAt },
+              signal
+            );
           continue;
         }
       }
@@ -663,7 +703,8 @@ export async function migrateMemoriesToRemote(
         if (skipped.size > 0 && !options.allowSkipped) return result("migrating");
         if (!finalizing) return options.withWriteBarrier(() => uploadPasses(true));
         if (!claimed) await importBatch(request, canonical.keyId, [], signal);
-        if (!active)
+        if (active) await reconcileVisibility(request, candidates, canonical.keyId, signal);
+        else
           await request(
             "/account",
             { method: "PUT", body: JSON.stringify({ state: "active" }) },

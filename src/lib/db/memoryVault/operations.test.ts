@@ -2710,7 +2710,7 @@ describe("visibility defaults", () => {
 describe("setMemoryVisibilityOp", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("publishes: sets visibility and stamps published_at, preserving updated_at", async () => {
+  it("publishes: sets visibility and stamps published_at and updated_at", async () => {
     const record = mockRecord({ id: "mem_1" });
     const ctx = makeCtx({
       vaultMemoryCollection: {
@@ -2724,7 +2724,7 @@ describe("setMemoryVisibilityOp", () => {
     expect(result).not.toBeNull();
     expect(record.visibility).toBe("public");
     expect(record.publishedAt).toBeGreaterThanOrEqual(before);
-    expect(record.updatedAt).toBe(new Date("2025-01-01").getTime());
+    expect(record.updatedAt).toBe(record.publishedAt);
   });
 
   it("keeps an existing published_at when re-publishing an already-public memory", async () => {

@@ -194,8 +194,8 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
       expect(published).toMatchObject({
         visibility: "public",
         twinOptIn: !twinOptIn,
-        updatedAt: memory.updatedAt,
       });
+      expect(published?.updatedAt.getTime()).toBeGreaterThan(memory.updatedAt.getTime());
       expect(typeof published?.publishedAt).toBe("number");
       const onChange = vi.fn();
       const unsubscribe = store.subscribe(onChange, { embeddings });
@@ -204,7 +204,7 @@ describe("createLocalMemoryStore parity with the raw ops", () => {
         const expected = {
           visibility: "public",
           twinOptIn,
-          updatedAt: memory.updatedAt,
+          updatedAt: published?.updatedAt,
           publishedAt: published?.publishedAt,
         };
         expect(await store.setVisibility(memory.uniqueId, "public", { twinOptIn })).toMatchObject(

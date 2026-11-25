@@ -1428,10 +1428,6 @@ export async function clearMemoryTopicsOverrideOp(
  * clears it (revoke). The server index remains the authority for what IS
  * published — this records the user's intent for the reconciler to act on.
  *
- * Preserves `updated_at`: a visibility change is metadata, not a
- * re-observation, so it must not inflate the recency multiplier (mirrors
- * {@link setMemoryEntitiesOp}).
- *
  * @deprecated App code: use `MemoryStore.setVisibility` (`createLocalMemoryStore`).
  */
 export async function setMemoryVisibilityOp(
@@ -1460,17 +1456,22 @@ export async function setMemoryVisibilityOp(
     }
     const currentUpdatedAt = record.updatedAt.getTime();
     const currentPublishedAt = record.publishedAt ?? null;
+    const visibilityChanged = visibilityOrPrivate(record.visibility) !== opts.visibility;
+    const now = Date.now();
     await record.update((r) => {
       r._setRaw("visibility", opts.visibility);
       if (opts.visibility === "private") {
         r._setRaw("published_at", null);
       } else if (currentPublishedAt === null) {
-        r._setRaw("published_at", Date.now());
+        r._setRaw("published_at", now);
       }
       if (opts.twinOptIn !== undefined) {
         r._setRaw("twin_opt_in", opts.twinOptIn);
       }
-      r._setRaw("updated_at", currentUpdatedAt);
+      r._setRaw(
+        "updated_at",
+        visibilityChanged ? Math.max(now, currentUpdatedAt + 1) : currentUpdatedAt
+      );
     });
   });
   if (stale) return null;
