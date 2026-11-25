@@ -2,4 +2,4 @@
 
 > `const` **SLIDE\_CANVAS\_WIDTH**: `960` = `960`
 
-Defined in: [src/tools/slides/index.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/index.ts#98)
+Defined in: [src/tools/slides/index.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/index.ts#99)

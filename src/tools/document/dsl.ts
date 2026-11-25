@@ -21,8 +21,9 @@
  * @module tools/document/dsl
  */
 
-import { parseExpression } from "@babel/parser";
 import type { JSXAttribute, JSXElement, Node, SourceLocation } from "@babel/types";
+
+import { getBabelParser } from "../babelParser.js";
 
 /** Scalar value an attribute can hold. */
 type AttrScalar = string | number | boolean;
@@ -302,11 +303,13 @@ function validateStyleKey(key: string, loc: SrcLoc): void {
  * Throws {@link DocDslError} on any violation: invalid JSX, a non-`<Document>`
  * root, an unknown tag, a forbidden/dynamic attribute, an unknown style key,
  * or a structural rule break (e.g. `<Document>` containing a non-`<Page>`,
- * raw text outside `<Text>`, or a leaf tag with children).
+ * raw text outside `<Text>`, or a leaf tag with children). Throws a plain
+ * `Error` if `loadBabelParser()` has not been awaited yet.
  *
  * @category Document DSL
  */
 export function parseDocumentDsl(source: string): DocNode {
+  const { parseExpression } = getBabelParser("parseDocumentDsl");
   let ast: Node;
   try {
     ast = parseExpression(source, {

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
+import { loadBabelParser } from "../babelParser";
 import {
   type AnumaNode,
   findById,
@@ -14,6 +15,8 @@ import {
   updateAttrs,
   walk,
 } from "./jsx";
+
+beforeAll(() => loadBabelParser());
 
 function deckNode(children: AnumaNode[] = []): AnumaNode {
   return {

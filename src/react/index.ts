@@ -885,6 +885,7 @@ export type {
   VoiceRecording,
   WhisperModel,
 } from "../lib/voice";
+export { loadBabelParser } from "../tools/babelParser";
 export { createGitHubTools } from "../tools/github";
 export type { AnumaChild, AnumaNode, AttrValue, KnownTag, ThemeAttr } from "../tools/slides";
 export {

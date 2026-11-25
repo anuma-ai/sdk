@@ -5,7 +5,7 @@
 Defined in: [src/react/anumaRuntime.tsx:896](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#896)
 
 Parse a JSX string and render it. Convenience over
-`parseJsx(jsx) → renderAnumaTree(node)`.
+`parseJsx(jsx) → renderAnumaTree(node)`. Await `loadBabelParser()` first.
 
 ## Parameters
 

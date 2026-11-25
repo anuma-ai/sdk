@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
+import { loadBabelParser } from "../tools/babelParser";
 import {
   Anuma,
   AnumaShadowIsolationProvider,
@@ -9,6 +10,8 @@ import {
   renderAnumaJsx,
   resolveThemeColor,
 } from "./anumaRuntime";
+
+beforeAll(() => loadBabelParser());
 
 function deepQuery<T extends Element = Element>(root: ParentNode, selector: string): T | null {
   const direct = root.querySelector<T>(selector);
