@@ -1283,6 +1283,15 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
           ...(held?.records ?? []).map((r) => [r.id, withLocalChanges(r) ?? r] as const),
           ...all("message", conversationId, true).map((r) => [r.id, r] as const),
         ]);
+      const remembered = (held = cached) => {
+        const records = local(held);
+        for (const snapshot of held?.snapshots ?? []) {
+          const id = snapshot.record.id;
+          if (records.has(id)) continue;
+          records.set(id, withLocalChanges(snapshot.record) ?? snapshot.record);
+        }
+        return records;
+      };
       if (
         threads.has(conversationId) &&
         complete.has(conversationId) &&
@@ -1365,11 +1374,13 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         void load()
           .then(() => emit({ type: "messages", conversationId, origin: "remote" }))
           .catch(() => undefined);
-        return select(local().values()).map(toMessage);
+        return select(remembered().values()).map(toMessage);
       }
       return load().catch((error: unknown) => {
         const held = messagePages.get(conversationId);
-        const records = select(held ? local(held).values() : all("message", conversationId, true));
+        const records = select(
+          held ? remembered(held).values() : all("message", conversationId, true)
+        );
         if (records.length >= limit || (held && !held.nextCursor)) return records.map(toMessage);
         throw error;
       });

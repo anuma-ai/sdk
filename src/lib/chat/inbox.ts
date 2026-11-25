@@ -101,14 +101,21 @@ export async function exportInboxPublicKey(publicKey: CryptoKey): Promise<string
   return toBase64Url(await exportUncompressedPoint(publicKey));
 }
 
+function p256Coordinate(value: unknown): Uint8Array<ArrayBuffer> {
+  const bytes = fromBase64Url(value);
+  if (bytes.length > 32) throw new Error("Malformed inbox public key");
+  if (bytes.length === 32) return bytes;
+  const padded = new Uint8Array(32);
+  padded.set(bytes, 32 - bytes.length);
+  return padded;
+}
+
 async function exportUncompressedPoint(publicKey: CryptoKey): Promise<Uint8Array> {
   const { x, y } = await crypto.subtle.exportKey("jwk", publicKey);
-  const xBytes = fromBase64Url(x);
-  const yBytes = fromBase64Url(y);
-  const point = new Uint8Array(1 + xBytes.length + yBytes.length);
+  const point = new Uint8Array(65);
   point[0] = 4;
-  point.set(xBytes, 1);
-  point.set(yBytes, 1 + xBytes.length);
+  point.set(p256Coordinate(x), 1);
+  point.set(p256Coordinate(y), 33);
   return point;
 }
 

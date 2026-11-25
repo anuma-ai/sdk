@@ -1040,6 +1040,34 @@ describe("vault chat backend", () => {
     ).toEqual(["msg_0"]);
   });
 
+  it("serves the newest cached page when a later read fails after paging backward", async () => {
+    const fake = await pageHistory(Array.from({ length: 40 }, (_, index) => index));
+    const { b } = backend(fake);
+    const newest = await b.getMessagesPage("conv_pages", { limit: 10 });
+    const older = await b.getMessagesPage("conv_pages", {
+      limit: 10,
+      beforeMessageId: newest[0].messageId,
+      boundaryExcludeUniqueIds: [newest[0].uniqueId],
+    });
+    expect(older.map((message) => message.messageId)).toEqual(
+      Array.from({ length: 10 }, (_, index) => 20 + index)
+    );
+
+    fake.fail({ op: "list", error: new TypeError("offline"), sticky: true });
+    expect(
+      (await b.getMessagesPage("conv_pages", { limit: 10 })).map((message) => message.messageId)
+    ).toEqual(Array.from({ length: 10 }, (_, index) => 30 + index));
+    expect(
+      (
+        await b.getMessagesPage("conv_pages", {
+          limit: 10,
+          beforeMessageId: newest[0].messageId,
+          boundaryExcludeUniqueIds: [newest[0].uniqueId],
+        })
+      ).map((message) => message.messageId)
+    ).toEqual(Array.from({ length: 10 }, (_, index) => 20 + index));
+  });
+
   it("caps remote requests and stops after the requested message count", async () => {
     const fake = await pageHistory(Array.from({ length: 1000 }, (_, index) => index));
     const { b } = backend(fake);

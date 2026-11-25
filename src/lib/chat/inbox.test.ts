@@ -21,6 +21,12 @@ function fromBase64Url(value: string): Uint8Array {
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
+function toBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 async function recipientKeyPair(): Promise<CryptoKeyPair> {
   const privateKey = await crypto.subtle.importKey(
     "jwk",
@@ -211,6 +217,32 @@ describe("exportInboxPublicKey", () => {
     expect(await openInboxItem({ id: vector.id, sealed: vector.sealed }, keyPair)).toEqual(
       JSON.parse(vector.plaintext)
     );
+  });
+
+  it("left-pads JWK coordinates that omit a leading zero", async () => {
+    const { publicKey } = await recipientKeyPair();
+    const jwk = await crypto.subtle.exportKey("jwk", publicKey);
+    const xValue = jwk.x;
+    const yValue = jwk.y;
+    if (!xValue || !yValue) throw new Error("JWK is missing a coordinate");
+    const x = fromBase64Url(xValue);
+    const y = fromBase64Url(yValue);
+    expect(x).toHaveLength(32);
+    expect(y).toHaveLength(32);
+    const subtle = crypto.subtle;
+    const exportKey = subtle.exportKey.bind(subtle);
+    vi.spyOn(subtle, "exportKey").mockImplementation((async (format: KeyFormat, key: CryptoKey) => {
+      if (format === "jwk" && key === publicKey)
+        return { ...jwk, x: toBase64Url(x.subarray(1)), y: toBase64Url(y.subarray(1)) };
+      return exportKey(format, key);
+    }) as typeof subtle.exportKey);
+
+    const point = fromBase64Url(await exportInboxPublicKey(publicKey));
+    const expected = new Uint8Array(65);
+    expected[0] = 4;
+    expected.set(x.subarray(1), 2);
+    expected.set(y.subarray(1), 34);
+    expect(point).toEqual(expected);
   });
 });
 
