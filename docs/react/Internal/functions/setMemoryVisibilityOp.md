@@ -2,7 +2,7 @@
 
 > **setMemoryVisibilityOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`, `opts`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md) | `null`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:1437](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1437)
+Defined in: [src/lib/db/memoryVault/operations.ts:1433](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#1433)
 
 Set a memory's People Nearby visibility (and optionally its twin opt-in).
 
@@ -11,10 +11,6 @@ This is the ONLY sanctioned write path for `visibility` — it keeps the
 stamps `published_at` (kept if already set); transitioning to `private`
 clears it (revoke). The server index remains the authority for what IS
 published — this records the user's intent for the reconciler to act on.
-
-Preserves `updated_at`: a visibility change is metadata, not a
-re-observation, so it must not inflate the recency multiplier (mirrors
-[setMemoryEntitiesOp](setMemoryEntitiesOp.md)).
 
 ## Parameters
 

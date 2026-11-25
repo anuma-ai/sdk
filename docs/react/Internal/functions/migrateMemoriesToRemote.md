@@ -2,7 +2,7 @@
 
 > **migrateMemoriesToRemote**(`options`: [`MemoryMigrationOptions`](../interfaces/MemoryMigrationOptions.md)): `Promise`<[`MemoryMigrationResult`](../interfaces/MemoryMigrationResult.md)>
 
-Defined in: [src/lib/memory/store/remoteMigration.ts:554](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#554)
+Defined in: [src/lib/memory/store/remoteMigration.ts:589](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remoteMigration.ts#589)
 
 Upload this device's local memories to nearby and, once nearby holds every one, make it authoritative.
 
