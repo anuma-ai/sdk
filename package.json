@@ -37,6 +37,12 @@
       "require": "./dist/react/index.cjs",
       "default": "./dist/react/index.cjs"
     },
+    "./react/chart": {
+      "types": "./dist/react/chart/index.d.ts",
+      "import": "./dist/react/chart/index.mjs",
+      "require": "./dist/react/chart/index.cjs",
+      "default": "./dist/react/chart/index.cjs"
+    },
     "./design": {
       "types": "./dist/design/index.d.ts",
       "import": "./dist/design/index.mjs",

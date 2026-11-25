@@ -87,12 +87,23 @@ export default defineConfig([
       "react",
       "@privy-io/react-auth",
       "@huggingface/transformers",
-      "recharts",
       "exceljs",
       "jspdf",
       "html2canvas",
       "marked",
     ],
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
+  {
+    entry: { index: "src/react/chart.tsx" },
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/react/chart",
+    external: ["react", "recharts"],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",
