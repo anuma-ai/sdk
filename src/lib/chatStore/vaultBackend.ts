@@ -755,6 +755,41 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     }
   };
 
+  const restoreEvictedPages = () => {
+    const room = Math.max(0, threadLimit);
+    const overflow = [...threads.keys()].slice(0, Math.max(0, threads.size - room));
+    for (const conversationId of overflow) {
+      if (!partial.has(conversationId)) continue;
+      const snapshots = [...confirmed.values()]
+        .filter(
+          (snapshot) =>
+            snapshot.record.kind === "message" && snapshot.record.conversationId === conversationId
+        )
+        .sort(
+          (a, b) =>
+            a.record.sortKey - b.record.sortKey ||
+            a.record.createdAt - b.record.createdAt ||
+            (a.record.id < b.record.id ? -1 : 1)
+        );
+      threads.delete(conversationId);
+      complete.delete(conversationId);
+      const visible = snapshots
+        .filter((snapshot) => !snapshot.record.isDeleted)
+        .slice(-cachedMessageLimit);
+      if (visible.length > 0)
+        messagePages.set(conversationId, {
+          records: visible.map((snapshot) => snapshot.record),
+          snapshots: visible,
+          boundaryIds: [],
+        });
+      for (const snapshot of snapshots) {
+        const k = key("message", snapshot.record.id);
+        if (!pending.has(k) && !inflight.has(k)) forget(k);
+      }
+    }
+    while (messagePages.size > room) messagePages.delete(messagePages.keys().next().value!);
+  };
+
   const loadThread = (conversationId: string): Promise<void> => {
     const known = threads.get(conversationId);
     if (known) {
@@ -1792,6 +1827,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         threads.set(conversationId, Promise.resolve());
         complete.add(conversationId);
       }
+      restoreEvictedPages();
       evict();
       for (const k of snapshot.absent) checked.add(k);
       cursor = snapshot.cursor;

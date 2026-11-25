@@ -973,6 +973,87 @@ describe("vault chat cache", () => {
     expect(offlinePage.map((m) => m.uniqueId)).toEqual(page.slice(-5));
   });
 
+  it("keeps a cached page when restore evicts it from the thread cache", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const storage = cacheStorage();
+    const cache = { storage, seal, account: "0xaaa" };
+    const record = { sortKey: 0, createdAt: 1, updatedAt: 1, isDeleted: false };
+    await fake.write([
+      {
+        record: {
+          ...record,
+          kind: "conversation",
+          id: "conv_full",
+          conversationId: "",
+          data: { title: "Full" },
+        },
+        expectedVersion: 0,
+      },
+      {
+        record: {
+          ...record,
+          kind: "conversation",
+          id: "conv_pages",
+          conversationId: "",
+          data: { title: "Paged" },
+        },
+        expectedVersion: 0,
+      },
+    ]);
+    await fake.write([
+      {
+        record: {
+          ...record,
+          kind: "message",
+          id: "msg_full",
+          conversationId: "conv_full",
+          data: { role: "user", content: "full thread" },
+        },
+        expectedVersion: 0,
+      },
+      ...Array.from({ length: 10 }, (_, index) => ({
+        record: {
+          ...record,
+          kind: "message" as const,
+          id: `msg_${index}`,
+          conversationId: "conv_pages",
+          sortKey: index,
+          data: { role: "user", content: `Message ${index}` },
+        },
+        expectedVersion: 0,
+      })),
+    ]);
+    const page = Array.from({ length: 10 }, (_, index) => `msg_${index}`);
+    const b = backend(fake.store, { cache, threadCacheSize: 1 });
+    expect((await b.getMessages("conv_full")).map((m) => m.uniqueId)).toEqual(["msg_full"]);
+    expect((await b.getMessagesPage("conv_pages", { limit: 10 })).map((m) => m.uniqueId)).toEqual(
+      page
+    );
+    const saved = await cached(storage, seal, cache.account, (c) =>
+      expect(c.threads).toEqual(["conv_pages", "conv_full"])
+    );
+    expect(saved.partial).toContain("conv_pages");
+    b.close();
+
+    const cold = backend(offline, { cache, threadCacheSize: 1 });
+    expect((await cold.getMessagesPage("conv_pages", { limit: 5 })).map((m) => m.uniqueId)).toEqual(
+      page.slice(-5)
+    );
+    expect((await cold.getMessages("conv_full")).map((m) => m.uniqueId)).toEqual(["msg_full"]);
+    cold.close();
+
+    const set = vi.spyOn(storage, "set");
+    const again = backend(fake.store, { cache, threadCacheSize: 1 });
+    await again.poll();
+    await vi.waitFor(() => expect(set).toHaveBeenCalledWith(cache.account, expect.any(String)), {
+      timeout: 3000,
+    });
+    const rewritten = await loadChatCache(storage, cache.account, seal.decrypt);
+    expect(rewritten?.threads).toEqual(["conv_pages", "conv_full"]);
+    expect(ids(rewritten!)).toEqual(expect.arrayContaining(["msg_full", "msg_9"]));
+  });
+
   it("serves a cached partial page after the vault connects and then fails", async () => {
     const fake = createFakeChatStore();
     const seal = await sealFor("56");
