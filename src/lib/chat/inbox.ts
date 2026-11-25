@@ -45,6 +45,7 @@ export interface VaultInbox {
 
 const ENVELOPE_ALG = "ECDH-ES+HKDF-SHA256+A256GCM";
 const HKDF_INFO_PREFIX = "anuma-inbox-v1:";
+const P256_COORDINATE_BYTES = 32;
 const encoder = new TextEncoder();
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -101,14 +102,22 @@ export async function exportInboxPublicKey(publicKey: CryptoKey): Promise<string
   return toBase64Url(await exportUncompressedPoint(publicKey));
 }
 
+function toP256Coordinate(value: unknown): Uint8Array<ArrayBuffer> {
+  const decoded = fromBase64Url(value);
+  if (decoded.length > P256_COORDINATE_BYTES) {
+    throw new Error("Inbox public key coordinate is too long");
+  }
+  const coordinate = new Uint8Array(P256_COORDINATE_BYTES);
+  coordinate.set(decoded, P256_COORDINATE_BYTES - decoded.length);
+  return coordinate;
+}
+
 async function exportUncompressedPoint(publicKey: CryptoKey): Promise<Uint8Array> {
   const { x, y } = await crypto.subtle.exportKey("jwk", publicKey);
-  const xBytes = fromBase64Url(x);
-  const yBytes = fromBase64Url(y);
-  const point = new Uint8Array(1 + xBytes.length + yBytes.length);
+  const point = new Uint8Array(1 + P256_COORDINATE_BYTES * 2);
   point[0] = 4;
-  point.set(xBytes, 1);
-  point.set(yBytes, 1 + xBytes.length);
+  point.set(toP256Coordinate(x), 1);
+  point.set(toP256Coordinate(y), 1 + P256_COORDINATE_BYTES);
   return point;
 }
 

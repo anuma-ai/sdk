@@ -6,6 +6,7 @@ import { createVaultChatBackend, type VaultChatBackend } from "../chatStore/vaul
 import { getLogger, type Logger, setLogger } from "../logger";
 import rewardVector from "./fixtures/inboxRewardVector.json";
 import vector from "./fixtures/inboxSealVector.json";
+import { sealInboxText } from "./fixtures/sealInboxItem";
 import {
   createVaultInbox,
   deliverInboxAnswers,
@@ -177,6 +178,46 @@ describe("openSealedText", () => {
   });
 });
 
+function toBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function withoutLeadingZeros(bytes: Uint8Array): Uint8Array {
+  let start = 0;
+  while (start < bytes.length - 1 && bytes[start] === 0) start += 1;
+  return bytes.subarray(start);
+}
+
+function withUnpaddedJwkCoordinates(x: string, y: string) {
+  const subtle = globalThis.crypto.subtle;
+  const exportKey = subtle.exportKey.bind(subtle);
+  return vi.spyOn(subtle, "exportKey").mockImplementation((async (
+    format: KeyFormat,
+    key: CryptoKey
+  ) => {
+    if (format === "jwk" && key.algorithm.name === "ECDH") {
+      return { kty: "EC", crv: "P-256", x, y };
+    }
+    return exportKey(format, key);
+  }) as typeof subtle.exportKey);
+}
+
+async function keyPairWithZeroCoordinate(): Promise<{
+  keyPair: CryptoKeyPair;
+  raw: Uint8Array;
+}> {
+  for (let attempt = 0; attempt < 2048; attempt += 1) {
+    const keyPair = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+      "deriveBits",
+    ]);
+    const raw = new Uint8Array(await crypto.subtle.exportKey("raw", keyPair.publicKey));
+    if (raw[1] === 0 || raw[33] === 0) return { keyPair, raw };
+  }
+  throw new Error("P-256 key generation did not yield a zero-prefixed coordinate");
+}
+
 function withoutRawEcExport() {
   const subtle = globalThis.crypto.subtle;
   const exportKey = subtle.exportKey.bind(subtle);
@@ -211,6 +252,22 @@ describe("exportInboxPublicKey", () => {
     expect(await openInboxItem({ id: vector.id, sealed: vector.sealed }, keyPair)).toEqual(
       JSON.parse(vector.plaintext)
     );
+  });
+
+  it("left-pads JWK coordinates that omit leading zeros", async () => {
+    const { keyPair, raw } = await keyPairWithZeroCoordinate();
+    const jwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+    if (typeof jwk.x !== "string" || typeof jwk.y !== "string") {
+      throw new Error("P-256 JWK is missing coordinates");
+    }
+    const x = withoutLeadingZeros(fromBase64Url(jwk.x));
+    const y = withoutLeadingZeros(fromBase64Url(jwk.y));
+    expect(x.length < 32 || y.length < 32).toBe(true);
+    const sealed = await sealInboxText(toBase64Url(raw), "pad", "hello");
+    withUnpaddedJwkCoordinates(toBase64Url(x), toBase64Url(y));
+
+    expect(await exportInboxPublicKey(keyPair.publicKey)).toBe(toBase64Url(raw));
+    await expect(openSealedText(sealed, "pad", keyPair)).resolves.toBe("hello");
   });
 });
 
