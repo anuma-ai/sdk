@@ -1175,6 +1175,57 @@ describe("vault chat backend", () => {
     expect((await b.getAllFiles()).map((file) => file.id)).toEqual(["msg_3", "msg_2", "msg_1"]);
   });
 
+  it("returns cached files when a global file scan fails", async () => {
+    const fake = await createChatStoreHarness();
+    let at = 100;
+    const writer = backend(fake, { now: () => ++at }).b;
+    for (const conversationId of ["conv_cached", "conv_remote"]) {
+      await writer.createConversation({ conversationId });
+      await writer.createMessage({
+        conversationId,
+        role: "user",
+        content: conversationId,
+        files: [{ id: conversationId, name: `${conversationId}.txt`, type: "text/plain", size: 1 }],
+      });
+    }
+    await writer.flush();
+
+    const { b } = backend(fake);
+    await b.getMessages("conv_cached");
+    const original = fake.store.list.bind(fake.store);
+    const list = vi
+      .spyOn(fake.store, "list")
+      .mockImplementationOnce(original)
+      .mockRejectedValueOnce(new TypeError("offline"));
+
+    await expect(b.getAllFiles()).resolves.toMatchObject([{ id: "conv_cached" }]);
+    expect(list.mock.calls.map(([query]) => query.conversationId)).toEqual([
+      "conv_remote",
+      "conv_cached",
+    ]);
+    expect((await b.getAllFiles()).map((file) => file.id)).toEqual(["conv_remote", "conv_cached"]);
+  });
+
+  it("returns paged files when a global file scan fails", async () => {
+    const fake = await createChatStoreHarness();
+    let at = 100;
+    const writer = backend(fake, { now: () => ++at }).b;
+    await writer.createConversation({ conversationId: "conv_paged" });
+    await writer.createMessage({
+      conversationId: "conv_paged",
+      role: "user",
+      content: "paged",
+      files: [{ id: "file_paged", name: "paged.txt", type: "text/plain", size: 1 }],
+    });
+    await writer.flush();
+
+    const { b } = backend(fake);
+    await b.getMessagesPage("conv_paged", { limit: 10 });
+    vi.spyOn(fake.store, "list").mockRejectedValueOnce(new TypeError("offline"));
+
+    await expect(b.getAllFiles()).resolves.toMatchObject([{ id: "file_paged" }]);
+  });
+
   it("applies local file edits and deletions before the global file limit", async () => {
     const fake = await createChatStoreHarness();
     let at = 100;
