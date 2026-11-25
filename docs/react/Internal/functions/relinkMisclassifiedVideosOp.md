@@ -2,7 +2,7 @@
 
 > **relinkMisclassifiedVideosOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`): `Promise`<`number`>
 
-Defined in: [src/lib/db/media/operations.ts:341](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#341)
+Defined in: [src/lib/db/media/operations.ts:347](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#347)
 
 Recovery migration: relink videos that were mistakenly stored as images.
 
