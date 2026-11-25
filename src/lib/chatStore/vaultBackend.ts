@@ -153,6 +153,7 @@ const cacheSaveDelayMs = 500;
 const termIndexDelayMs = 30_000;
 const termPagePauseMs = 1_000;
 const cachedMessageLimit = 200;
+const fileScanConcurrency = 4;
 
 function cursorRejected(error: unknown): boolean {
   return error instanceof ChatStoreError && (error.status === 400 || error.status === 410);
@@ -219,6 +220,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   const activity = options.activity ?? defaultActivity();
 
   const confirmed = new Map<string, ChatSnapshot>();
+  const fileLists = new Map<string, Map<string, ChatSnapshot>>();
+  let scanningFiles: Promise<typeof fileLists> | undefined;
   const checked = new Set<string>();
   let pending = new Map<string, ChatPatch>();
   const inflight = new Map<string, ChatPatch>();
@@ -426,10 +429,36 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       void clearCache().catch(() => undefined);
   };
 
+  const hasFiles = (record?: ChatRecord) =>
+    Array.isArray(record?.data.files) && record.data.files.length > 0;
+
+  const holdForFiles = (files: Map<string, ChatSnapshot>, k: string, snapshot: ChatSnapshot) => {
+    const held = files.get(k);
+    const { record } = snapshot;
+    if (held && held.version >= snapshot.version) return;
+    if (!held && !hasFiles(record) && !hasFiles(confirmed.get(k)?.record)) return;
+    const { files: attachments, role } = record.data;
+    files.set(k, {
+      ...snapshot,
+      record: {
+        ...record,
+        data: {
+          ...(attachments === undefined ? {} : { files: attachments }),
+          ...(role === undefined ? {} : { role }),
+        },
+      },
+    });
+  };
+
   const merge = (snapshot: ChatSnapshot) => {
-    const k = key(snapshot.record.kind, snapshot.record.id);
+    const { record } = snapshot;
+    const k = key(record.kind, record.id);
     const known = confirmed.get(k);
     if (known && known.version >= snapshot.version) return false;
+    if (record.kind === "message") {
+      const files = fileLists.get(record.conversationId);
+      if (files) holdForFiles(files, k, snapshot);
+    }
     confirmed.set(k, snapshot);
     saveCache();
     return true;
@@ -519,6 +548,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       const k = key(ref.kind, ref.id);
       if (!seen.has(k)) {
         if (confirmed.get(k) !== before.get(k)) continue;
+        const missing = before.get(k)?.record;
+        if (missing?.kind === "message") fileLists.delete(missing.conversationId);
         confirmed.delete(k);
       }
       checked.add(k);
@@ -710,27 +741,19 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
 
   const flush = (): Promise<void> => (Date.now() < heldUntil ? Promise.resolve() : startFlush());
 
-  const fileScans = new Set<Map<string, ChatSnapshot>>();
-
-  const hasFiles = (record: ChatRecord) =>
-    Array.isArray(record.data.files) && record.data.files.length > 0;
-
-  const holdForScan = (scan: Map<string, ChatSnapshot>, k: string, snapshot: ChatSnapshot) => {
-    const held = scan.get(k);
-    if (!held || held.version < snapshot.version) scan.set(k, snapshot);
-  };
-
   const forget = (k: string) => {
     const known = confirmed.get(k);
-    if (known?.record.kind === "message")
-      for (const scan of fileScans)
-        if (scan.has(k) || hasFiles(known.record)) holdForScan(scan, k, known);
+    if (known?.record.kind === "message") {
+      const files = fileLists.get(known.record.conversationId);
+      if (files) holdForFiles(files, k, known);
+    }
     confirmed.delete(k);
     checked.delete(k);
     saveCache();
   };
 
   const forgetConversation = (conversationId: string) => {
+    fileLists.delete(conversationId);
     dropPage(conversationId);
     threads.delete(conversationId);
     partial.delete(conversationId);
@@ -813,6 +836,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       threads.has(record.conversationId) ||
       confirmed.has(k) ||
       (checked.has(k) && record.kind !== "message");
+    if (record.kind === "message" && (confirmed.get(k)?.version ?? 0) < snapshot.version)
+      fileLists.delete(record.conversationId);
     const paged = record.kind === "message" && dropPage(record.conversationId);
     if (relevant && merge(snapshot)) return record;
     if (paged) return record;
@@ -849,6 +874,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     const index = await listIndex(source);
     const reopened = [...threads.keys()];
     confirmed.clear();
+    fileLists.clear();
     checked.clear();
     threads.clear();
     messagePages.clear();
@@ -1065,33 +1091,51 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     });
   };
 
-  const scanFiles = async () => {
+  const scanConversationFiles = async (source: ChatStore, conversationId: string) => {
+    if (closed || !confirmedLive(conversationId) || !conversationLive(conversationId)) return;
     const scan = new Map<string, ChatSnapshot>();
-    fileScans.add(scan);
+    fileLists.set(conversationId, scan);
     try {
-      const source = await remote();
-      for (const conversation of all("conversation")) {
-        if (!confirmedLive(conversation.id)) continue;
-        let page: string | undefined;
-        do {
-          const result = await source.list({
-            kind: "message",
-            conversationId: conversation.id,
-            limit: 200,
-            ...(page ? { cursor: page } : {}),
-          });
-          for (const snapshot of result.items) {
-            const k = key("message", snapshot.record.id);
-            if (scan.has(k) || confirmed.has(k) || hasFiles(snapshot.record))
-              holdForScan(scan, k, snapshot);
-          }
-          page = result.nextCursor;
-        } while (page);
-      }
-      return scan;
-    } finally {
-      fileScans.delete(scan);
+      let page: string | undefined;
+      do {
+        const result = await source.list({
+          kind: "message",
+          conversationId,
+          limit: 200,
+          ...(page ? { cursor: page } : {}),
+        });
+        if (fileLists.get(conversationId) !== scan) return;
+        for (const snapshot of result.items)
+          holdForFiles(scan, key("message", snapshot.record.id), snapshot);
+        page = result.nextCursor;
+      } while (page);
+    } catch (error) {
+      if (fileLists.get(conversationId) === scan) fileLists.delete(conversationId);
+      throw error;
     }
+  };
+
+  const scanFiles = () => {
+    scanningFiles ??= (async () => {
+      const source = await remote();
+      if (!closed) await poll();
+      const missing = () =>
+        all("conversation").filter(({ id }) => confirmedLive(id) && !fileLists.has(id));
+      for (let targets = missing(); !closed && targets.length; targets = missing()) {
+        let next = 0;
+        const worker = async () => {
+          while (next < targets.length) await scanConversationFiles(source, targets[next++].id);
+        };
+        const results = await Promise.allSettled(
+          Array.from({ length: Math.min(fileScanConcurrency, targets.length) }, worker)
+        );
+        for (const result of results) if (result.status === "rejected") throw result.reason;
+      }
+      return new Map(fileLists);
+    })().finally(() => {
+      scanningFiles = undefined;
+    });
+    return scanningFiles;
   };
 
   const thread = async (conversationId: string, wait = true): Promise<ChatRecord[]> => {
@@ -1233,6 +1277,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         if (patch.conversationId === conversationId) pending.delete(k);
       await enqueue({ kind: "conversation", id: conversationId, conversationId: "", delete: true });
       threads.delete(conversationId);
+      fileLists.delete(conversationId);
       dropPage(conversationId);
       emit({ type: "conversations", origin: "local" });
       emit({ type: "messages", conversationId, origin: "local" });
@@ -1538,20 +1583,25 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     async getAllFiles(query?: Parameters<typeof getAllFilesOp>[1]) {
       await available();
       if (query?.conversationId) await thread(query.conversationId);
-      const scanned =
-        !query?.conversationId && reachable ? await scanFiles() : new Map<string, ChatSnapshot>();
+      const scanned = !query?.conversationId && reachable ? await scanFiles() : undefined;
       const records = new Map(all("message", query?.conversationId).map((r) => [r.id, r]));
-      for (const [k, snapshot] of scanned) {
-        const cached = confirmed.get(k);
-        const record = withLocalChanges(
-          cached && cached.version > snapshot.version ? cached.record : snapshot.record
-        );
-        if (record && !record.isDeleted) records.set(record.id, record);
-        else records.delete(snapshot.record.id);
+      if (scanned) {
+        for (const { id } of all("conversation")) {
+          const list = scanned.get(id);
+          if (!list) continue;
+          for (const [k, snapshot] of list) {
+            const cached = confirmed.get(k);
+            const record = withLocalChanges(
+              cached && cached.version > snapshot.version ? cached.record : snapshot.record
+            );
+            if (record && !record.isDeleted) records.set(record.id, record);
+            else records.delete(snapshot.record.id);
+          }
+        }
       }
       const files: StoredFileWithContext[] = [];
       for (const record of records.values()) {
-        if (!conversationLive(record.conversationId)) continue;
+        if (!hasFiles(record) || !conversationLive(record.conversationId)) continue;
         const stored = toMessage(record);
         for (const file of stored.files ?? [])
           files.push({
@@ -1742,6 +1792,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         );
         for (const { record } of conversations) {
           threads.delete(record.id);
+          fileLists.delete(record.id);
           dropPage(record.id);
         }
         channel?.postMessage("changed");
@@ -1755,6 +1806,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     clearCache,
     close() {
       closed = true;
+      fileLists.clear();
       messagePages.clear();
       clearTimeout(cacheTimer);
       clearTimeout(flushTimer);
