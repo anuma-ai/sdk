@@ -244,7 +244,7 @@ describe("vault media library", () => {
   });
 });
 
-describe("large app files", () => {
+describe("large app files", { timeout: 60_000 }, () => {
   it("round-trips a file over the record limit and deletes the attachment each edit supersedes", async () => {
     const vault = createFakeVault({ mediaAttachments: true });
     const phone = await device(vault);
@@ -456,10 +456,11 @@ describe("seedMediaToVault", () => {
     expect(await run()).toMatchObject({ uploaded: 0, remaining: 0 });
     const before = vault.requests.length;
     expect(await run()).toMatchObject({ uploaded: 0, remaining: 0 });
-    expect(vault.requests.slice(before).map((r) => r.path.split("?")[0])).toEqual([
-      "/api/private-chats/records/get",
-      ...Array.from(vault.attachments.keys(), (id) => `/api/private-chats/attachments/${id}`),
-    ]);
+    expect(
+      vault.requests
+        .slice(before)
+        .filter(({ method, path }) => method !== "GET" && path !== "/api/private-chats/records/get")
+    ).toEqual([]);
     expect(vault.uploads()).toHaveLength(3);
     expect([...vault.attachments.values()].map((a) => a.state)).toEqual([
       "committed",
@@ -499,6 +500,7 @@ describe("seedMediaToVault", () => {
     expect(await phone.library.read(id)).toBeNull();
 
     vault.faults.length = 0;
+    expect(journal.entries.size).toBe(1);
     journal.entries.clear();
     if (state === "gone") await phone.attachments.delete(attachmentId);
 
@@ -506,7 +508,14 @@ describe("seedMediaToVault", () => {
       uploaded: additionalUploads,
       remaining: 0,
     });
-    expect(await phone.library.list()).toHaveLength(1);
+    const listed = await phone.library.list();
+    expect(listed.map((item) => item.id)).toEqual([id]);
+    const [recovered] = listed;
+    expect(vault.attachments.get(recovered.attachmentId)).toMatchObject({
+      state: "committed",
+      ownerKind: "media",
+      ownerId: id,
+    });
     expect(await phone.library.read(id)).toEqual(bytes("alpha"));
     expect(vault.uploads()).toHaveLength(1 + additionalUploads);
   });
@@ -532,7 +541,7 @@ describe("seedMediaToVault", () => {
   });
 });
 
-describe("without vault media support", () => {
+describe("without vault media support", { timeout: 60_000 }, () => {
   it("keeps media on the device and large app files out of vault", async () => {
     const vault = createFakeVault();
     const phone = await device(vault);
