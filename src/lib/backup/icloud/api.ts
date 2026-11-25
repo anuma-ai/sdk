@@ -46,7 +46,10 @@ interface CloudKitRecord {
 /** CloudKit response structure */
 interface CloudKitResponse {
   records?: CloudKitRecord[];
-  continuationMarker?: string;
+}
+
+interface CloudKitQueryResponse extends CloudKitResponse {
+  continuationMarker?: string | null;
 }
 
 declare global {
@@ -95,10 +98,7 @@ interface CloudKitDatabase {
     recordNames: { recordName: string }[],
     options?: { zoneName?: string }
   ) => Promise<CloudKitResponse>;
-  performQuery: (
-    query: CloudKitQuery,
-    options?: { continuationMarker?: string }
-  ) => Promise<CloudKitResponse>;
+  performQuery: (query: CloudKitQuery | CloudKitQueryResponse) => Promise<CloudKitQueryResponse>;
   fetchRecords: (
     recordNames: Array<{ recordName: string }>,
     options?: { desiredKeys?: string[] }
@@ -372,19 +372,23 @@ export async function listICloudFiles(): Promise<ICloudFile[]> {
   };
 
   const allRecords: CloudKitRecord[] = [];
+  const seenMarkers = new Set<string>();
   let response = await database.performQuery(query);
 
-  if (response.records) {
-    allRecords.push(...response.records);
-  }
-
-  while (response.continuationMarker) {
-    response = await database.performQuery(query, {
-      continuationMarker: response.continuationMarker,
-    });
+  while (true) {
     if (response.records) {
       allRecords.push(...response.records);
     }
+
+    const marker = response.continuationMarker;
+    if (marker === undefined || marker === null) {
+      break;
+    }
+    if (seenMarkers.has(marker)) {
+      throw new Error("CloudKit returned a repeated continuation marker");
+    }
+    seenMarkers.add(marker);
+    response = await database.performQuery(response);
   }
 
   const files = allRecords.map((record) => ({
