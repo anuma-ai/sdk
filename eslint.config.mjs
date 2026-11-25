@@ -87,6 +87,7 @@ const checkedTestFiles = [
   "src/react/useAccountFetch.abort.test.tsx",
   "src/react/useChatStorage.background.test.tsx",
   "src/react/useChatStorage.fileSize.test.tsx",
+  "src/react/useChatStorage.inbox.test.tsx",
   "src/react/useChatStorage.queueIdentifiers.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",
   "src/react/useChatStorage.sendHistoryRead.test.tsx",
