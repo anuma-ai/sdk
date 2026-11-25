@@ -1134,6 +1134,41 @@ describe("vault chat backend", () => {
     ]);
   });
 
+  it("keeps a remote delete that arrives while a page read is pending", async () => {
+    const fake = await pageHistory([1, 2, 3, 4]);
+    const { b } = backend(fake);
+    await b.getMessagesPage("conv_pages", { limit: 2 });
+    const list = fake.store.list.bind(fake.store);
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const reads = vi.spyOn(fake.store, "list").mockImplementation(async (query) => {
+      if (query.kind === "message") await held;
+      return list(query);
+    });
+    const reading = b.getMessagesPage("conv_pages", { limit: 2 });
+    await vi.waitFor(() => expect(reads).toHaveBeenCalled());
+    const deleted = (await fake.row("message", "msg_3"))!;
+    await fake.write([
+      {
+        record: { ...deleted.record, isDeleted: true, data: {} },
+        expectedVersion: deleted.version,
+      },
+    ]);
+    await b.poll();
+    release();
+    expect((await reading).map((message) => message.uniqueId)).toEqual(["msg_1", "msg_2"]);
+  });
+
+  it("does not serve an older held page for a newer page while the vault fails", async () => {
+    const fake = await pageHistory([1, 2, 3, 4]);
+    const { b } = backend(fake);
+    await b.getMessagesPage("conv_pages", { limit: 2 });
+    const oldest = await b.getMessagesPage("conv_pages", { limit: 5, beforeMessageId: 3 });
+    expect(oldest.map((message) => message.uniqueId)).toEqual(["msg_0", "msg_1"]);
+    fake.fail({ op: "list", error: new TypeError("offline"), sticky: true });
+    await expect(b.getMessagesPage("conv_pages", { limit: 2 })).rejects.toThrow("offline");
+  });
+
   it.each([0, -1, NaN, Infinity, -Infinity])("rejects the message page limit %s", async (limit) => {
     const fake = await pageHistory([1, 2, 3]);
     const { b } = backend(fake);

@@ -240,6 +240,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       nextCursor?: string;
       boundary?: number;
       boundaryIds: string[];
+      before?: number;
     }
   >();
   const pageChanged = new Map<string, number>();
@@ -1266,7 +1267,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         [...records].filter(matches).sort(compareMessageRecords).slice(-limit);
       const cached = messagePages.get(conversationId);
       const started = pageTick;
-      const local = (held = cached) =>
+      const local = (held: typeof cached) =>
         new Map([
           ...(held?.records ?? []).map((r) => [r.id, withLocalChanges(r) ?? r] as const),
           ...all("message", conversationId, true).map((r) => [r.id, r] as const),
@@ -1337,6 +1338,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
             nextCursor,
             boundary,
             boundaryIds,
+            before: page.beforeMessageId,
           });
           while (messagePages.size > Math.max(0, threadLimit))
             messagePages.delete(messagePages.keys().next().value!);
@@ -1348,12 +1350,18 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
         void load()
           .then(() => emit({ type: "messages", conversationId, origin: "remote" }))
           .catch(() => undefined);
-        return select(local().values()).map(toMessage);
+        return select(local(cached).values()).map(toMessage);
       }
       return load().catch((error: unknown) => {
         const held = messagePages.get(conversationId);
-        const records = select(held ? local(held).values() : all("message", conversationId, true));
-        if (records.length >= limit || (held && !held.nextCursor)) return records.map(toMessage);
+        const covers =
+          held &&
+          (held.before === undefined ||
+            (page.beforeMessageId !== undefined && page.beforeMessageId <= held.before));
+        const records = select(
+          covers ? local(held).values() : all("message", conversationId, true)
+        );
+        if (records.length >= limit || (covers && !held.nextCursor)) return records.map(toMessage);
         throw error;
       });
     },
