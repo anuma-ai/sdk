@@ -27,6 +27,16 @@ Unix ms this doc was produced.
 
 ***
 
+### memoryRevisions?
+
+> `optional` **memoryRevisions**: `Record`<`string`, `string`>
+
+Defined in: [src/lib/memory/synthesizeProfile.ts:246](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#246)
+
+Revisions of eligible facts at synthesis time, keyed by memory ID.
+
+***
+
 ### observationTrends
 
 > **observationTrends**: `Record`<[`ObservationTrend`](../type-aliases/ObservationTrend.md), `number`>
@@ -65,11 +75,9 @@ this set changes, and attributes a memory once it becomes readable.
 
 > **vaultWatermark**: `number`
 
-Defined in: [src/lib/memory/synthesizeProfile.ts:246](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#246)
+Defined in: [src/lib/memory/synthesizeProfile.ts:244](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/synthesizeProfile.ts#244)
 
-Max change-time across all vault facts (incl. deleted/superseded) at
-synthesis time. Delta refresh regenerates only sections whose source facts
-changed since a previous doc's watermark.
+Max change-time across all vault facts (incl. deleted/superseded) at synthesis time.
 
 ***
 
