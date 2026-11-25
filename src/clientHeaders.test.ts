@@ -367,20 +367,24 @@ it.each(["fresh", "partial"])("patches %s generated header spreads", spawnsNode,
   }
 });
 
-it("retains repeated tuple header values", async () => {
+it("uses the last value for duplicate header pairs on push registration", async () => {
   const { client, fetch } = setup();
 
-  await postNearbyAccessCode({
+  await postApiV1NotificationsDevices({
     client,
-    body: { code: "beta-code" },
+    body: { token: "ExponentPushToken[test]", platform: "ios" },
     headers: [
+      ["Authorization", "Bearer old"],
+      ["authorization", "Bearer new"],
       ["X-Tag", "first"],
       ["X-Tag", "second"],
     ],
   });
 
   expect(fetch).toHaveBeenCalledOnce();
-  expect(new Headers(fetch.mock.calls[0][1]?.headers).get("x-tag")).toBe("first, second");
+  const headers = new Headers(fetch.mock.calls[0][1]?.headers);
+  expect(headers.get("authorization")).toBe("Bearer new");
+  expect(headers.get("x-tag")).toBe("second");
 });
 
 it("retains record header deletion and array values", async () => {
