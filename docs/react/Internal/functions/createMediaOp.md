@@ -2,7 +2,7 @@
 
 > **createMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `options`: [`CreateMediaOptions`](../interfaces/CreateMediaOptions.md)): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)>
 
-Defined in: [src/lib/db/media/operations.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#75)
+Defined in: [src/lib/db/media/operations.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#76)
 
 Create a new media record.
 
