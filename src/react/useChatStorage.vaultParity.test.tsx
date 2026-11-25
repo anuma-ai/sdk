@@ -3,9 +3,9 @@ import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { type ChatStoreHarness, createChatStoreHarness } from "../../test/chat/vaultHarness";
 import { useChatStorage as useExpoChatStorage } from "../expo/useChatStorage";
 import { runToolLoop } from "../lib/chat/toolLoop";
-import { type ChatStoreHarness, createChatStoreHarness } from "../../test/chat/vaultHarness";
 import { createVaultChatBackend, vaultChatBackend } from "../lib/chatStore/vaultBackend";
 import { sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 import { type ChatBackend, localChatBackend } from "../lib/storage";

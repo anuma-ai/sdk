@@ -91,6 +91,7 @@ const checkedTestFiles = [
   "src/react/useChatStorage.queueIdentifiers.test.tsx",
   "src/react/useChatStorage.runHooks.test.tsx",
   "src/react/useChatStorage.sendHistoryRead.test.tsx",
+  "src/react/useChatStorage.vaultParity.test.tsx",
   "src/react/useEncryption.import.test.ts",
   "src/react/useEncryption.keyPair.test.ts",
   "src/react/useEncryption.refresh.test.ts",
