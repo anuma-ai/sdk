@@ -215,10 +215,11 @@ async function storeMedia(
   writer: MediaWriter,
   item: MediaItemInput,
   read: () => Promise<Uint8Array | Blob | VaultAttachmentSource | null>,
-  known?: ChatSnapshot | null
-): Promise<{ snapshot: ChatSnapshot; uploaded: boolean } | "busy" | "missing"> {
+  known?: ChatSnapshot | null,
+  canUpload = true
+): Promise<{ snapshot: ChatSnapshot; uploaded: boolean } | "busy" | "missing" | "upload_limit"> {
   const { store, attachments, journal, now, signal } = writer;
-  const id = await mediaItemId(store, item.localId);
+  const id = known?.record.id ?? (await mediaItemId(store, item.localId));
   const key = journalKey(id);
   const lookup = async (attachmentId: string | null | undefined) =>
     toCandidate(
@@ -235,7 +236,8 @@ async function storeMedia(
   };
 
   let current = known === undefined ? await store.get("media", id, signal) : known;
-  let next = await lookup(await journal?.get(key));
+  const reserved = await journal?.get(key);
+  let next = await lookup(reserved);
   if (current?.record.isDeleted) throw await deleted(next);
   if (current && next?.id !== recordedAttachment(current)) {
     if (next) {
@@ -247,6 +249,7 @@ async function storeMedia(
   let uploaded = false;
   for (let attempt = 1; ; attempt++) {
     if (!next) {
+      if (!canUpload) return "upload_limit";
       const source = await read();
       if (!source) return "missing";
       const attachmentId = await attachments.upload(source, {
@@ -303,7 +306,7 @@ async function storeMedia(
         continue;
       }
     }
-    await journal?.set(key, null);
+    if (reserved || uploaded) await journal?.set(key, null);
     return { snapshot: current!, uploaded };
   }
 }
@@ -487,15 +490,17 @@ async function seedRun(options: MediaSeedOptions): Promise<MediaSeedResult> {
   for (const [i, item] of options.items.entries()) {
     signal?.throwIfAborted();
     const known = found.get(ids[i]) ?? null;
-    if (known && !known.record.isDeleted && !(await journal.get(journalKey(ids[i])))) continue;
-    if (!known?.record.isDeleted && result.uploaded >= maxUploads) {
-      result.remaining++;
-      continue;
-    }
     try {
-      const stored = await storeMedia(writer, item, () => item.read(), known);
+      const stored = await storeMedia(
+        writer,
+        item,
+        () => item.read(),
+        known,
+        result.uploaded < maxUploads
+      );
       if (stored === "missing") result.missing.push(item.localId);
       else if (stored === "busy") result.deferred.push(item.localId);
+      else if (stored === "upload_limit") result.remaining++;
       else if (stored.uploaded) result.uploaded++;
     } catch (error) {
       if (!(error instanceof ChatStoreError)) throw error;

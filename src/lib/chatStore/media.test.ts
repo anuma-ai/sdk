@@ -456,8 +456,9 @@ describe("seedMediaToVault", () => {
     expect(await run()).toMatchObject({ uploaded: 0, remaining: 0 });
     const before = vault.requests.length;
     expect(await run()).toMatchObject({ uploaded: 0, remaining: 0 });
-    expect(vault.requests.slice(before).map((r) => r.path)).toEqual([
+    expect(vault.requests.slice(before).map((r) => r.path.split("?")[0])).toEqual([
       "/api/private-chats/records/get",
+      ...Array.from(vault.attachments.keys(), (id) => `/api/private-chats/attachments/${id}`),
     ]);
     expect(vault.uploads()).toHaveLength(3);
     expect([...vault.attachments.values()].map((a) => a.state)).toEqual([
@@ -470,6 +471,44 @@ describe("seedMediaToVault", () => {
     for (const item of listed)
       expect(vault.attachments.get(item.attachmentId)?.ownerId).toBe(item.id);
     expect(journal.entries.size).toBe(0);
+  });
+
+  it.each([
+    { state: "pending", additionalUploads: 0 },
+    { state: "gone", additionalUploads: 1 },
+  ])("recovers a $state attachment after journal loss", async ({ state, additionalUploads }) => {
+    const vault = createFakeVault({ mediaAttachments: true });
+    const phone = await device(vault);
+    const journal = memoryJournal();
+    const run = (maxUploads?: number) =>
+      seedMediaToVault({
+        store: phone.store,
+        attachments: phone.attachments,
+        journal,
+        items: [localItem("a", "alpha")],
+        maxUploads,
+        now: vault.now,
+      });
+
+    vault.faults.push((request) => {
+      if (request.path.endsWith("/commit")) return Promise.reject(new TypeError("app killed"));
+    });
+    await expect(run()).rejects.toThrow("app killed");
+    const [{ id, attachmentId }] = await phone.library.list();
+    expect(vault.attachments.get(attachmentId)?.state).toBe("pending");
+    expect(await phone.library.read(id)).toBeNull();
+
+    vault.faults.length = 0;
+    journal.entries.clear();
+    if (state === "gone") await phone.attachments.delete(attachmentId);
+
+    expect(await run(additionalUploads)).toMatchObject({
+      uploaded: additionalUploads,
+      remaining: 0,
+    });
+    expect(await phone.library.list()).toHaveLength(1);
+    expect(await phone.library.read(id)).toEqual(bytes("alpha"));
+    expect(vault.uploads()).toHaveLength(1 + additionalUploads);
   });
 
   it("skips items deleted on another device", async () => {
