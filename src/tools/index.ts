@@ -149,6 +149,7 @@ export {
   truncateContent,
   VERIFY_APP_SCHEMA,
 } from "./appGeneration";
+export { loadBabelParser } from "./babelParser";
 export type { ChartDataPoint, ChartValueFormat, DisplayChartResult } from "./chart";
 export { createChartTool } from "./chart";
 export type {

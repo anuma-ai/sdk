@@ -2,7 +2,7 @@
 
 > **updateAttrs**(`node`: [`AnumaNode`](../interfaces/AnumaNode.md), `patch`: `Record`<`string`, `unknown`>): `void`
 
-Defined in: [src/tools/slides/jsx.ts:1013](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#1013)
+Defined in: [src/tools/slides/jsx.ts:1017](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#1017)
 
 Shallow-merge attrs onto `node`. Ignores prototype-pollution keys.
 

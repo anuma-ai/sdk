@@ -34,6 +34,7 @@ import {
   snippetAroundLine,
   snippetForFailedPatch,
 } from "../appGeneration.js";
+import { loadBabelParser } from "../babelParser.js";
 import { DocDslError, parseDocumentDsl } from "./dsl.js";
 
 export { buildDocumentSystemPrompt, DOCUMENT_BUILDER_PROMPT } from "./documentBuilderPrompt.js";
@@ -292,7 +293,8 @@ export function createDocumentTools({
     patchFailuresByConv.get(conversationId)?.delete(path);
   }
 
-  function validateOrError(source: string): Record<string, unknown> | null {
+  async function validateOrError(source: string): Promise<Record<string, unknown> | null> {
+    await loadBabelParser();
     try {
       parseDocumentDsl(source);
       return null;
@@ -336,7 +338,7 @@ export function createDocumentTools({
           return { error: "source is required and must be a non-empty react-pdf DSL string" };
         }
 
-        const validationError = validateOrError(source);
+        const validationError = await validateOrError(source);
         if (validationError) return validationError;
 
         const existing = await storage.getFile(conversationId, path);
@@ -481,7 +483,7 @@ export function createDocumentTools({
           };
         }
 
-        const validationError = validateOrError(content);
+        const validationError = await validateOrError(content);
         if (validationError) {
           const dslError = validationError.dslError as { line?: number } | undefined;
           return {

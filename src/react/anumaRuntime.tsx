@@ -891,7 +891,7 @@ export function renderAnumaTree(node: AnumaNode): React.ReactElement | null {
 
 /**
  * Parse a JSX string and render it. Convenience over
- * `parseJsx(jsx) → renderAnumaTree(node)`.
+ * `parseJsx(jsx) → renderAnumaTree(node)`. Await `loadBabelParser()` first.
  */
 export function renderAnumaJsx(jsx: string): React.ReactElement | null {
   const node = parseJsx(jsx);

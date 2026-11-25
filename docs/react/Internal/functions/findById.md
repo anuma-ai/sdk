@@ -2,7 +2,7 @@
 
 > **findById**(`root`: [`AnumaNode`](../interfaces/AnumaNode.md), `id`: `string`): [`AnumaNode`](../interfaces/AnumaNode.md) | `null`
 
-Defined in: [src/tools/slides/jsx.ts:919](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#919)
+Defined in: [src/tools/slides/jsx.ts:923](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#923)
 
 Find the first node whose `attrs.id` matches `id`.
 

@@ -2,7 +2,7 @@
 
 > **parseJsx**(`source`: `string`, `options?`: `object`): [`AnumaNode`](../interfaces/AnumaNode.md)
 
-Defined in: [src/tools/slides/jsx.ts:441](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#441)
+Defined in: [src/tools/slides/jsx.ts:444](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#444)
 
 Parse a JSX source string into an AnumaNode tree.
 
@@ -15,6 +15,8 @@ non-conforming JSX, and we don't want a tightened validator to retro-
 actively break every tool call on that deck. Callers that parse
 model-submitted JSX (`add_slide`, `insert_slide`, `replace_slide`,
 `replace_element`, `insert_element`) pass `strict: true`.
+
+Throws a plain `Error` if `loadBabelParser()` has not been awaited yet.
 
 ## Parameters
 

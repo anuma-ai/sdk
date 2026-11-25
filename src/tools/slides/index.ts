@@ -39,6 +39,7 @@
 
 import type { ToolConfig } from "../../lib/chat/useChat/types.js";
 import type { AppFileStorage } from "../appGeneration";
+import { loadBabelParser } from "../babelParser";
 import { renderElementKinds } from "./elementKinds";
 import { isKnownFont, renderFontLibrary } from "./fonts";
 
@@ -673,6 +674,7 @@ export function createSlideTools({
     executor: async (args: Record<string, unknown>) => {
       try {
         const conversationId = requireConversationId();
+        await loadBabelParser();
         const title = typeof args.title === "string" ? args.title : "";
         const fontPreset = typeof args.fontPreset === "string" ? args.fontPreset : "";
         const paletteName = typeof args.paletteName === "string" ? args.paletteName : "";
@@ -849,6 +851,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
     executor: async (args: Record<string, unknown>) => {
       try {
         const conversationId = requireConversationId();
+        await loadBabelParser();
         const layout = typeof args.layout === "string" ? args.layout : "";
         const slideJsx = typeof args.slideJsx === "string" ? args.slideJsx : "";
         const slideIndexRaw = args.slideIndex;
@@ -1043,6 +1046,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
     executor: async (args: Record<string, unknown>) => {
       try {
         const conversationId = requireConversationId();
+        await loadBabelParser();
         const file = await storage.getFile(conversationId, SLIDES_FILE_PATH);
         if (!file) return { error: "No slides.jsx found." };
         const requestedIds = Array.isArray(args.slideIds)
@@ -1084,6 +1088,7 @@ NOW call add_slide ${slideCount} times, one slide per call. Each add_slide takes
     executor: async (args: Record<string, unknown>) => {
       try {
         const conversationId = requireConversationId();
+        await loadBabelParser();
         const operations = args.operations as Array<{
           action: string;
           slideId?: string;

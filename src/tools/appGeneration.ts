@@ -1,9 +1,8 @@
-import { parse as babelParse } from "@babel/parser";
-
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { normalizePath } from "../utils/paths.js";
 import { auditDesign } from "./appAudit.js";
 import { APP_BUILDER_PROMPT } from "./appBuilderPrompt.js";
+import { getBabelParser, loadBabelParser } from "./babelParser.js";
 
 /** Minimal file record returned by storage operations. */
 export interface AppFileRecord {
@@ -297,22 +296,29 @@ interface FileValidationError {
  * or correct a freshly-written file without bouncing through the
  * Sandpack bundler.
  */
-export function validateFileContent(path: string, content: string): FileValidationError | null {
+export async function validateFileContent(
+  path: string,
+  content: string
+): Promise<FileValidationError | null> {
   const lower = path.toLowerCase();
   const dotIdx = lower.lastIndexOf(".");
   if (dotIdx === -1) return null;
   const ext = lower.slice(dotIdx);
-  if (JS_EXTENSIONS.has(ext)) return validateJsLike(content, ext);
+  if (JS_EXTENSIONS.has(ext)) {
+    if (content.length === 0) return null;
+    await loadBabelParser();
+    return validateJsLike(content, ext);
+  }
   if (JSON_EXTENSIONS.has(ext)) return validateJson(content);
   return null;
 }
 
 function validateJsLike(content: string, ext: string): FileValidationError | null {
-  if (content.length === 0) return null;
+  const { parse } = getBabelParser("validateFileContent");
   const plugins: ("jsx" | "typescript")[] = ["jsx"];
   if (ext === ".ts" || ext === ".tsx") plugins.push("typescript");
   try {
-    babelParse(content, { sourceType: "module", plugins });
+    parse(content, { sourceType: "module", plugins });
     return null;
   } catch (err) {
     return babelErrorToValidation(err);
@@ -714,13 +720,13 @@ async function writeBatch(
   return null;
 }
 
-function collectValidationErrors(
+async function collectValidationErrors(
   files: Array<{ path: string; content: string }>
-): Array<{ path: string; line: number; column: number; message: string }> {
+): Promise<Array<{ path: string; line: number; column: number; message: string }>> {
   const errors: Array<{ path: string; line: number; column: number; message: string }> = [];
   for (const f of files) {
     if (typeof f.path !== "string" || typeof f.content !== "string") continue;
-    const ve = validateFileContent(f.path, f.content);
+    const ve = await validateFileContent(f.path, f.content);
     if (ve) {
       errors.push({
         path: normalizePath(f.path),
@@ -886,7 +892,7 @@ export function createAppGenerationTools({
           };
         }
 
-        const validationErrors = collectValidationErrors(filesArg);
+        const validationErrors = await collectValidationErrors(filesArg);
         if (validationErrors.length > 0) {
           return {
             error: `Validation failed: ${validationErrors.length} file(s) had syntax errors. Fix and retry — nothing was written.`,
@@ -1034,7 +1040,7 @@ export function createAppGenerationTools({
           };
         }
 
-        const syntaxError = validateFileContent(filePath, content);
+        const syntaxError = await validateFileContent(filePath, content);
         if (syntaxError) {
           return {
             success: false,

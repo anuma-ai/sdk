@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { loadBabelParser } from "../babelParser.js";
 import { DocDslError, parseDocumentDsl } from "./dsl.js";
+
+beforeAll(() => loadBabelParser());
 
 const MINIMAL = `
 <Document>

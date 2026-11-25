@@ -24,7 +24,6 @@
  * @module tools/slides/jsx
  */
 
-import { parseExpression } from "@babel/parser";
 import type {
   JSXAttribute,
   JSXElement,
@@ -32,6 +31,8 @@ import type {
   Node,
   SourceLocation,
 } from "@babel/types";
+
+import { getBabelParser } from "../babelParser";
 
 /** Scalar value an attribute can hold. */
 type AttrScalar = string | number | boolean;
@@ -437,8 +438,11 @@ export function isTextBodyTag(tag: string): boolean {
  * actively break every tool call on that deck. Callers that parse
  * model-submitted JSX (`add_slide`, `insert_slide`, `replace_slide`,
  * `replace_element`, `insert_element`) pass `strict: true`.
+ *
+ * Throws a plain `Error` if `loadBabelParser()` has not been awaited yet.
  */
 export function parseJsx(source: string, options?: { strict?: boolean }): AnumaNode {
+  const { parseExpression } = getBabelParser("parseJsx");
   let ast: Node;
   try {
     ast = parseExpression(source, {
