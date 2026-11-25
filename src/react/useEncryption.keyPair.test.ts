@@ -1,6 +1,9 @@
 import { createECDH, createHash, hkdfSync } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import ts from "typescript";
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearAllEncryptionState,
@@ -26,6 +29,26 @@ function deferredSignature() {
   });
   return { promise, resolve };
 }
+
+it("documents how requestKeyPair shares and retries requests", () => {
+  const source = ts.createSourceFile(
+    "useEncryption.ts",
+    readFileSync(join(__dirname, "useEncryption.ts"), "utf8"),
+    ts.ScriptTarget.Latest,
+    true
+  );
+  const declaration = source.statements.find(
+    (node) => ts.isFunctionDeclaration(node) && node.name?.text === "requestKeyPair"
+  );
+  assert.isDefined(declaration);
+  const jsDoc = ts.getJSDocCommentsAndTags(declaration).find(ts.isJSDoc);
+  const documentation = (ts.getTextOfJSDocComment(jsDoc?.comment) ?? "").replace(/\s+/g, " ");
+
+  expect(documentation).toContain("same wallet address share one pending request");
+  expect(documentation).toContain("ignores later callers' signers");
+  expect(documentation).toContain("receive the first caller's result or rejection");
+  expect(documentation).toContain("clears a rejected request so a retry starts a new request");
+});
 
 describe("requestKeyPair concurrency", () => {
   beforeEach(() => {
