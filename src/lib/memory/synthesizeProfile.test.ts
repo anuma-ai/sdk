@@ -4,6 +4,7 @@ vi.mock("./reflect.js", () => ({ reflect: vi.fn() }));
 vi.mock("./recall.js", () => ({ recall: vi.fn() }));
 vi.mock("../db/memoryVault/operations.js", () => ({
   getAllVaultMemoriesOp: vi.fn(),
+  getVaultMemoriesByIdsOp: vi.fn(),
   getVaultProfileMetadataOp: vi.fn(),
   getVaultEmbeddingsByIdsOp: vi.fn(),
 }));
@@ -12,6 +13,7 @@ vi.mock("../memoryEngine/embeddings.js", () => ({ generateEmbeddings: vi.fn() })
 import {
   getAllVaultMemoriesOp,
   getVaultEmbeddingsByIdsOp,
+  getVaultMemoriesByIdsOp,
   getVaultProfileMetadataOp,
 } from "../db/memoryVault/operations.js";
 import type { StoredVaultMemory } from "../db/memoryVault/types.js";
@@ -43,6 +45,9 @@ const mockGetMetadata = vi.mocked(getVaultProfileMetadataOp);
 const mockGetEmbeddings = vi.mocked(getVaultEmbeddingsByIdsOp);
 
 function setMemories(memories: StoredVaultMemory[]) {
+  vi.mocked(getVaultMemoriesByIdsOp).mockImplementation((_ctx, ids) =>
+    Promise.resolve(memories.filter((memory) => ids.includes(memory.uniqueId)))
+  );
   mockGetMetadata.mockResolvedValue(
     memories.map((memory) => ({
       uniqueId: memory.uniqueId,
@@ -676,16 +681,35 @@ describe("synthesizeProfile", () => {
     "refreshes previous and newly relevant sections for an edited cited fact through the %s",
     async (source) => {
       const facets = [...FACETS, WORK_ROLE];
-      const memories = [
+      let memories = [mem("a"), mem("b"), mem("c")];
+      setMemories(memories);
+      const reviewedMemoryIds = ["a", "b", "c"];
+      const store =
+        source === "store"
+          ? {
+              list: () => Promise.resolve(memories),
+              listProjections: () => Promise.resolve(memories),
+              factSource: {} as RecallFactSource,
+            }
+          : undefined;
+      const options = { apiKey: "k", facets, reviewedMemoryIds, store };
+      mockReflect
+        .mockResolvedValueOnce(reflectResult("old bio", ["b"]))
+        .mockResolvedValueOnce(reflectResult("Hobby photography", ["a"]))
+        .mockResolvedValueOnce(reflectResult("Teacher", ["c"]));
+      const previous = await synthesizeProfile(ctx, options);
+
+      memories = [
         mem("a", {
           content: "I work as a professional photographer.",
           updatedAt: new Date(5000),
+          lastObservedAt: 5000,
           embedding: "[0,0,1]",
         }),
-        mem("b"),
-        mem("c"),
+        ...memories.slice(1),
       ];
       setMemories(memories);
+      mockReflect.mockClear();
       mockEmbed.mockResolvedValue([
         [1, 0, 0],
         [0, 1, 0],
@@ -696,32 +720,7 @@ describe("synthesizeProfile", () => {
           occupation: "Professional photographer",
         })
       );
-      const reviewedMemoryIds = ["a", "b", "c"];
-      const previous = priorDoc(
-        [
-          section("bio", "old bio", ["b"]),
-          section("interests", "Hobby photography", ["a"]),
-          section("work_role", "Teacher", ["c"]),
-        ],
-        2000,
-        fingerprint(facets, false, reviewedMemoryIds)
-      );
-      const store =
-        source === "store"
-          ? {
-              list: vi.fn().mockResolvedValue(memories),
-              listProjections: vi.fn().mockResolvedValue(memories),
-              factSource: {} as RecallFactSource,
-            }
-          : undefined;
-
-      const doc = await synthesizeProfile(ctx, {
-        apiKey: "k",
-        facets,
-        previous,
-        reviewedMemoryIds,
-        store,
-      });
+      const doc = await synthesizeProfile(ctx, { ...options, previous });
 
       expect(doc.sections[2]).toMatchObject({
         text: "Professional photographer.",
@@ -735,29 +734,59 @@ describe("synthesizeProfile", () => {
     }
   );
 
-  it("delta-refreshes a facet when its fact was re-observed (last_observed_at)", async () => {
-    setMemories([
-      mem("a", { updatedAt: new Date(1000), lastObservedAt: 5000, embedding: "[1,0]" }),
-      mem("b", { updatedAt: new Date(1000) }),
-    ]);
-    mockEmbed.mockResolvedValue([
-      [1, 0],
-      [0, 1],
-    ]);
-    mockReflect.mockResolvedValueOnce(reflectResult("reinforced bio", ["a"]));
+  it.each(["vault", "store"] as const)(
+    "refreshes only the citing facet when the %s re-observes unchanged content",
+    async (source) => {
+      const fact = mem("a", { embedding: "[1,1]" });
+      let memories = [fact, mem("b")];
+      setMemories(memories);
+      const store =
+        source === "store"
+          ? {
+              list: () => Promise.resolve(memories),
+              listProjections: () => Promise.resolve(memories),
+              factSource: {} as RecallFactSource,
+            }
+          : undefined;
+      const options = { apiKey: "k", facets: FACETS, store };
+      mockRecall.mockResolvedValueOnce({
+        memories: [ranked("b")],
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 1,
+      });
+      mockReflect.mockImplementation((query) =>
+        Promise.resolve(
+          query === FACETS[0].query
+            ? reflectResult("old bio", ["b"])
+            : reflectResult("old interests", ["a"])
+        )
+      );
+      const initial = await synthesizeProfile(ctx, options);
+      const previous = JSON.parse(JSON.stringify(initial)) as ProfileDoc;
 
-    const previous = priorDoc(
-      [section("bio", "old bio", ["a"]), section("interests", "old interests", ["b"])],
-      2000
-    );
+      memories = [
+        { ...fact, lastObservedAt: 5000, updatedAt: new Date(5000), proofCount: 2 },
+        memories[1],
+      ];
+      setMemories(memories);
+      mockReflect.mockClear();
+      mockReflect.mockResolvedValueOnce(reflectResult("reinforced interests", ["a"]));
+      mockEmbed.mockResolvedValue([
+        [1, 0],
+        [0, 1],
+      ]);
 
-    const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
+      const doc = await synthesizeProfile(ctx, { ...options, previous });
 
-    expect(doc.vaultWatermark).toBe(5000);
-    expect(mockReflect).toHaveBeenCalledTimes(1);
-    expect(doc.sections.find((s) => s.key === "bio")!.text).toBe("reinforced bio");
-    expect(doc.sections.find((s) => s.key === "interests")!.text).toBe("old interests");
-  });
+      expect(mockReflect).toHaveBeenCalledTimes(1);
+      expect(mockEmbed).not.toHaveBeenCalled();
+      expect(mockGetEmbeddings).not.toHaveBeenCalled();
+      expect(doc.vaultWatermark).toBe(5000);
+      expect(doc.sections[0]).toBe(previous.sections[0]);
+      expect(doc.sections[1].text).toBe("reinforced interests");
+    }
+  );
 
   it("regenerates all facets when a new fact has no embedding to attribute", async () => {
     setMemories([
