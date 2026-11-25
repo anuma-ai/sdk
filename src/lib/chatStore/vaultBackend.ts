@@ -1094,6 +1094,15 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     }
   };
 
+  const pagedFiles = () => {
+    const scan = new Map<string, ChatSnapshot>();
+    for (const { snapshots } of messagePages.values())
+      for (const snapshot of snapshots)
+        if (hasFiles(snapshot.record))
+          holdForScan(scan, key("message", snapshot.record.id), snapshot);
+    return scan;
+  };
+
   const thread = async (conversationId: string, wait = true): Promise<ChatRecord[]> => {
     await available();
     if (!conversationLive(conversationId)) return [];
@@ -1539,7 +1548,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       await available();
       if (query?.conversationId) await thread(query.conversationId);
       const scanned =
-        !query?.conversationId && reachable ? await scanFiles() : new Map<string, ChatSnapshot>();
+        !query?.conversationId && reachable
+          ? await scanFiles().catch(pagedFiles)
+          : new Map<string, ChatSnapshot>();
       const records = new Map(all("message", query?.conversationId).map((r) => [r.id, r]));
       for (const [k, snapshot] of scanned) {
         const cached = confirmed.get(k);
