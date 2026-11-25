@@ -203,11 +203,15 @@ describe("listICloudFiles", () => {
     const oldest = createRecord("oldest", 1_000);
     const newest = createRecord("newest", 3_000);
     const middle = createRecord("middle", 2_000);
-    performQuery
-      .mockResolvedValueOnce({ records: [oldest], continuationMarker: "page-2" })
-      .mockResolvedValueOnce({ records: [newest], continuationMarker: "page-3" })
-      .mockResolvedValueOnce({ records, continuationMarker: "page-4" })
-      .mockResolvedValueOnce({ records: [middle], continuationMarker: null });
+    const pages = [
+      { records: [oldest], continuationMarker: "page-2" },
+      { records: [newest], continuationMarker: "page-3" },
+      { records, continuationMarker: "page-4" },
+      { records: [middle], continuationMarker: null },
+    ];
+    for (const page of pages) {
+      performQuery.mockResolvedValueOnce(page);
+    }
 
     expect(await listICloudFiles()).toEqual(
       [newest, middle, oldest].map((record) => ({
@@ -218,12 +222,28 @@ describe("listICloudFiles", () => {
         size: 100,
       }))
     );
-    expect(performQuery.mock.calls).toEqual([
-      [{ recordType: "ConversationBackup" }],
-      [{ recordType: "ConversationBackup" }, { continuationMarker: "page-2" }],
-      [{ recordType: "ConversationBackup" }, { continuationMarker: "page-3" }],
-      [{ recordType: "ConversationBackup" }, { continuationMarker: "page-4" }],
-    ]);
+    expect(performQuery).toHaveBeenCalledTimes(pages.length);
+    expect(performQuery).toHaveBeenNthCalledWith(1, { recordType: "ConversationBackup" });
+    for (const [index, page] of pages.slice(0, -1).entries()) {
+      const args = performQuery.mock.calls[index + 1];
+      expect(args).toHaveLength(1);
+      expect(args[0]).toBe(page);
+    }
+  });
+
+  it.each([
+    { scenario: "on consecutive pages", markers: ["page-2", "page-2"] },
+    { scenario: "after a different marker", markers: ["page-2", "page-3", "page-2"] },
+  ])("rejects a repeated continuation marker $scenario", async ({ markers }) => {
+    for (const continuationMarker of markers) {
+      performQuery.mockResolvedValueOnce({ records: [], continuationMarker });
+    }
+    performQuery.mockResolvedValue({ records: [] });
+
+    await expect(listICloudFiles()).rejects.toThrow(
+      "CloudKit returned a repeated continuation marker"
+    );
+    expect(performQuery).toHaveBeenCalledTimes(markers.length);
   });
 
   it("stops after an empty page without a continuation marker", async () => {
