@@ -1,5 +1,5 @@
 import { act, render, renderHook, waitFor } from "@testing-library/react";
-import React, { type PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authenticateICloud } from "../lib/backup/icloud/api";
@@ -10,7 +10,7 @@ vi.mock("../lib/backup/icloud/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/backup/icloud/api")>()),
   loadCloudKit: vi.fn(async () => {}),
   configureCloudKit: vi.fn(async () => {}),
-  authenticateICloud: vi.fn(async () => ({ userRecordName: "icloud-user" })),
+  authenticateICloud: vi.fn(() => Promise.resolve({ userRecordName: "icloud-user" })),
 }));
 
 const WALLET = "0x" + "a".repeat(40);
