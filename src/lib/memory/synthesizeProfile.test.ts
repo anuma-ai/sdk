@@ -203,6 +203,9 @@ function priorDoc(sections: ProfileSection[], watermark: number, config = cfg())
     version: PROFILE_DOC_VERSION,
     sections,
     vaultWatermark: watermark,
+    memoryRevisions: Object.fromEntries(
+      sections.flatMap((s) => s.sourceMemoryIds.map((id) => [id, "1000:"]))
+    ),
     config,
     observationTrends: { new: 0, strengthening: 0, stable: 0, weakening: 0, stale: 0 },
     generatedAt: 1,
@@ -236,6 +239,7 @@ describe("synthesizeProfile", () => {
         weakening: 0,
         stale: count,
       };
+      previous.memoryRevisions = Object.fromEntries(memories.map((m) => [m.uniqueId, "2000:3000"]));
 
       const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
 
@@ -368,6 +372,7 @@ describe("synthesizeProfile", () => {
       [section("bio", "old bio", ["b"]), section("interests", "old interests", ["a"])],
       3000
     );
+    previous.memoryRevisions = { a: "3000:", b: "1000:" };
 
     const first = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous, store });
 
@@ -395,6 +400,7 @@ describe("synthesizeProfile", () => {
       [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
       3000
     );
+    previous.memoryRevisions = { a: "3000:" };
 
     const doc = await synthesizeProfile(ctx, {
       apiKey: "k",
@@ -428,6 +434,7 @@ describe("synthesizeProfile", () => {
         [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
         3000
       ),
+      memoryRevisions: { a: "3000:" },
       unreadableMemoryIds: ["b"],
     };
 
@@ -639,6 +646,7 @@ describe("synthesizeProfile", () => {
       [section("bio", "old bio", ["a"]), section("interests", "old", ["a"])],
       2000
     );
+    previous.memoryRevisions = { a: "2000:" };
     previous.observationTrends = {
       new: 0,
       strengthening: 0,
@@ -652,6 +660,69 @@ describe("synthesizeProfile", () => {
     expect(doc).toBe(previous);
     expect(mockReflect).not.toHaveBeenCalled();
   });
+
+  it("refreshes a cached profile without memory revisions once", async () => {
+    setMemories([mem("a")]);
+    const facets = [FACETS[0]];
+    const previous = priorDoc([section("bio", "old bio", ["a"])], 1000, fingerprint(facets));
+    delete previous.memoryRevisions;
+    mockReflect.mockResolvedValueOnce(reflectResult("refreshed bio", ["a"]));
+    const options = { apiKey: "k", facets };
+
+    const doc = await synthesizeProfile(ctx, { ...options, previous });
+
+    expect(doc.sections[0].text).toBe("refreshed bio");
+    expect(await synthesizeProfile(ctx, { ...options, previous: doc })).toBe(doc);
+    expect(mockReflect).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["vault", "store"] as const)(
+    "attributes an older imported fact through the %s without refreshing unrelated facets",
+    async (source) => {
+      let memories = [mem("a", { updatedAt: new Date(4000) })];
+      setMemories(memories);
+      const store =
+        source === "store"
+          ? {
+              list: () => Promise.resolve(memories),
+              listProjections: () => Promise.resolve(memories),
+              factSource: {} as RecallFactSource,
+            }
+          : undefined;
+      const options = { apiKey: "k", facets: FACETS, store };
+      mockReflect
+        .mockReset()
+        .mockResolvedValueOnce(reflectResult("old bio", ["a"]))
+        .mockResolvedValueOnce(reflectResult("old interests", ["a"]));
+      const previous = await synthesizeProfile(ctx, options);
+
+      memories = [...memories, mem("imported", { embedding: "[1,0]" })];
+      setMemories(memories);
+      mockRecall.mockClear().mockResolvedValueOnce({
+        memories: [ranked("a"), ranked("imported")],
+        usedBudget: "low",
+        reranked: false,
+        candidateCount: 2,
+      });
+      mockReflect.mockClear().mockResolvedValueOnce(reflectResult("new bio", ["a", "imported"]));
+      mockEmbed.mockResolvedValue([
+        [1, 0],
+        [0, 1],
+      ]);
+
+      const doc = await synthesizeProfile(ctx, { ...options, previous });
+
+      expect(doc.vaultWatermark).toBe(previous.vaultWatermark);
+      expect(doc.sections[0]).toMatchObject({
+        text: "new bio",
+        sourceMemoryIds: ["a", "imported"],
+      });
+      expect(doc.sections[1]).toBe(previous.sections[1]);
+      expect(await synthesizeProfile(ctx, { ...options, previous: doc })).toBe(doc);
+      expect(mockRecall.mock.calls.map(([query]) => query)).toEqual([FACETS[0].query]);
+      expect(mockReflect).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it("refreshes only the cited section when the edited fact matches no other section", async () => {
     setMemories([
@@ -678,10 +749,10 @@ describe("synthesizeProfile", () => {
   });
 
   it.each(["vault", "store"] as const)(
-    "refreshes previous and newly relevant sections for an edited cited fact through the %s",
+    "refreshes previous and newly relevant sections for an edited fact below the %s watermark",
     async (source) => {
       const facets = [...FACETS, WORK_ROLE];
-      let memories = [mem("a"), mem("b"), mem("c")];
+      let memories = [mem("a"), mem("b"), mem("c", { updatedAt: new Date(7000) })];
       setMemories(memories);
       const reviewedMemoryIds = ["a", "b", "c"];
       const store =
@@ -694,6 +765,7 @@ describe("synthesizeProfile", () => {
           : undefined;
       const options = { apiKey: "k", facets, reviewedMemoryIds, store };
       mockReflect
+        .mockReset()
         .mockResolvedValueOnce(reflectResult("old bio", ["b"]))
         .mockResolvedValueOnce(reflectResult("Hobby photography", ["a"]))
         .mockResolvedValueOnce(reflectResult("Teacher", ["c"]));
@@ -729,7 +801,7 @@ describe("synthesizeProfile", () => {
       });
       expect(doc.sections[1]).toMatchObject({ text: "", sourceMemoryIds: [] });
       expect(doc.sections[0]).toBe(previous.sections[0]);
-      expect(doc.vaultWatermark).toBe(5000);
+      expect(doc.vaultWatermark).toBe(previous.vaultWatermark);
       expect(mockReflect).toHaveBeenCalledTimes(2);
     }
   );
@@ -946,6 +1018,7 @@ describe("synthesizeProfile", () => {
       2000,
       fingerprint([FACETS[0]])
     );
+    previous.memoryRevisions = { a: "2000:" };
 
     const doc = await synthesizeProfile(ctx, {
       apiKey: "k",
@@ -1024,6 +1097,7 @@ describe("synthesizeProfile", () => {
       5000,
       fingerprint([WORK_ROLE])
     );
+    previous.memoryRevisions = { a: "2000:", deleted: "5000:" };
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
 
@@ -1065,6 +1139,7 @@ describe("synthesizeProfile", () => {
       ],
       2000
     );
+    previous.memoryRevisions = { a: "2000:", b: "2000:" };
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
 
@@ -1186,6 +1261,7 @@ describe("synthesizeProfile", () => {
       [section("bio", "old bio", ["a"]), section("interests", "old interests", ["a"])],
       2000
     );
+    previous.memoryRevisions = { a: "2000:" };
 
     const reversed: ProfileFacet[] = [FACETS[1], FACETS[0]];
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: reversed, previous });
@@ -1245,6 +1321,7 @@ describe("synthesizeProfile", () => {
       [section("bio", "old bio citing a", ["a"]), section("interests", "old interests", ["b"])],
       2000
     );
+    previous.memoryRevisions = { a: "1000:", b: "2000:" };
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: FACETS, previous });
 
@@ -1876,6 +1953,7 @@ describe("synthesizeProfile", () => {
       2000,
       fingerprint([WORK_ROLE])
     );
+    previous.memoryRevisions = { a: "2000:" };
 
     const doc = await synthesizeProfile(ctx, { apiKey: "k", facets: [WORK_ROLE], previous });
 

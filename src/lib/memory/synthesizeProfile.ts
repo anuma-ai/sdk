@@ -240,10 +240,10 @@ export interface ProfileDoc {
   version: number;
   /** One section per requested facet (in facet order). */
   sections: ProfileSection[];
-  /** Max change-time across all vault facts (incl. deleted/superseded) at
-   * synthesis time. Delta refresh regenerates only sections whose source facts
-   * changed since a previous doc's watermark. */
+  /** Max change-time across all vault facts (incl. deleted/superseded) at synthesis time. */
   vaultWatermark: number;
+  /** Revisions of eligible facts at synthesis time, keyed by memory ID. */
+  memoryRevisions?: Record<string, string>;
   /** The config that produced this doc — see {@link ProfileConfigFingerprint}. */
   config: ProfileConfigFingerprint;
   /**
@@ -368,14 +368,31 @@ export async function synthesizeProfile(
     ? await Promise.all([store.list(listOptions), store.listProjections(listOptions)])
     : [await getVaultProfileMetadataOp(vaultCtx!, { scopes }), []];
   const watermark = computeVaultWatermark(memories);
+  const reviewedIds = options.reviewedMemoryIds && new Set(options.reviewedMemoryIds);
+  const liveMemories = memories.filter((m) => !m.isDeleted && m.supersededBy === null);
+  const eligibleMemories = new Map(
+    liveMemories
+      .filter((m) => m.factType !== "instruction" && (!reviewedIds || reviewedIds.has(m.uniqueId)))
+      .map((m) => [m.uniqueId, m])
+  );
+  const memoryRevisions = Object.fromEntries(
+    Array.from(
+      eligibleMemories,
+      ([id, m]) => [id, `${m.updatedAt.getTime()}:${m.lastObservedAt ?? ""}`] as const
+    )
+  );
+  const previousRevisions = previous?.memoryRevisions;
+  const changedMemories = previousRevisions
+    ? [...eligibleMemories.values()].filter(
+        (m) => memoryRevisions[m.uniqueId] !== previousRevisions[m.uniqueId]
+      )
+    : [];
   const observationTrends = summarizeObservationTrends(
-    memories
-      .filter((m) => !m.isDeleted && m.supersededBy === null)
-      .map((m) => ({
-        createdAt: m.createdAt,
-        lastObservedAt: m.lastObservedAt,
-        proofCount: m.proofCount,
-      }))
+    liveMemories.map((m) => ({
+      createdAt: m.createdAt,
+      lastObservedAt: m.lastObservedAt,
+      proofCount: m.proofCount,
+    }))
   );
 
   const presentIds = new Set(memories.map((m) => m.uniqueId));
@@ -388,14 +405,17 @@ export async function synthesizeProfile(
     unreadableMemoryIds.length === previousUnreadable.size &&
     unreadableMemoryIds.every((id) => previousUnreadable.has(id));
   const hasStaleSections = previous?.sections.some((s) => s.stale);
-  const citesMissingFact = previous?.sections.some((s) =>
-    s.sourceMemoryIds.some((id) => !presentIds.has(id))
+  const citesIneligibleFact = previous?.sections.some((s) =>
+    s.sourceMemoryIds.some((id) => !eligibleMemories.has(id))
   );
   if (
     previous &&
+    previousRevisions &&
+    changedMemories.length === 0 &&
+    Object.keys(previousRevisions).length === eligibleMemories.size &&
     previous.vaultWatermark === watermark &&
     !hasStaleSections &&
-    !citesMissingFact &&
+    !citesIneligibleFact &&
     sameUnreadable
   ) {
     const sameOrder =
@@ -414,30 +434,28 @@ export async function synthesizeProfile(
 
   const staleKeys = await computeStaleFacetKeys(
     recallCtx,
-    memories,
+    eligibleMemories,
+    changedMemories,
     facets,
-    previous,
+    previousRevisions ? previous : undefined,
     watermark,
-    options.reviewedMemoryIds,
     previousUnreadable,
     store ? undefined : vaultCtx
   );
 
-  const memoriesById = new Map(memories.map((memory) => [memory.uniqueId, memory]));
   const fallbackPriors = new Map<ProfileFacetKey, ProfileSection>();
   if (previous) {
     for (const section of previous.sections) {
       if (
         section.sourceMemoryIds.length > 0 &&
         section.sourceMemoryIds.every((id) => {
-          const memory = memoriesById.get(id);
+          const memory = eligibleMemories.get(id);
           return (
             memory &&
-            !memory.isDeleted &&
-            !memory.supersededBy &&
             scopes.includes(memory.scope) &&
-            (options.reviewedMemoryIds === undefined || options.reviewedMemoryIds.includes(id)) &&
-            changeTime(memory) <= previous.vaultWatermark
+            (previousRevisions
+              ? memoryRevisions[id] === previousRevisions[id]
+              : changeTime(memory) <= previous.vaultWatermark)
           );
         })
       ) {
@@ -446,16 +464,9 @@ export async function synthesizeProfile(
     }
   }
 
-  const reviewedIds = options.reviewedMemoryIds && new Set(options.reviewedMemoryIds);
-  const liveMemories = memories.filter((m) => !m.isDeleted && m.supersededBy === null);
-  const hasLiveInstruction = liveMemories.some((m) => m.factType === "instruction");
   const eligibleMemoryIds =
-    reviewedIds || hasLiveInstruction
-      ? liveMemories
-          .filter(
-            (m) => m.factType !== "instruction" && (!reviewedIds || reviewedIds.has(m.uniqueId))
-          )
-          .map((m) => m.uniqueId)
+    reviewedIds || liveMemories.some((m) => m.factType === "instruction")
+      ? [...eligibleMemories.keys()]
       : undefined;
   const vaultPreparation = createVaultPreparation();
   const settled = await Promise.allSettled(
@@ -498,6 +509,7 @@ export async function synthesizeProfile(
     version: PROFILE_DOC_VERSION,
     sections,
     vaultWatermark: watermark,
+    memoryRevisions,
     config,
     observationTrends,
     ...(unreadableMemoryIds.length > 0 && { unreadableMemoryIds }),
@@ -612,31 +624,23 @@ async function memoryContentHash(id: string, content: string): Promise<string | 
 
 async function computeStaleFacetKeys(
   ctx: RecallContext,
-  memories: ProfileMemory[],
+  eligibleMemories: ReadonlyMap<string, ProfileMemory>,
+  changed: ProfileMemory[],
   facets: ProfileFacet[],
   previous: ProfileDoc | undefined,
   watermark: number,
-  reviewedMemoryIds: readonly string[] | undefined,
   previouslyUnreadable: ReadonlySet<string>,
   vaultCtx?: VaultMemoryOperationsContext
 ): Promise<Set<ProfileFacetKey>> {
   const allKeys = new Set(facets.map((f) => f.key));
-  if (previous && watermark < previous.vaultWatermark) return allKeys;
-  if (!previous) return allKeys;
+  if (!previous || watermark < previous.vaultWatermark) return allKeys;
 
-  const changed = memories.filter(
-    (m) => changeTime(m) > previous.vaultWatermark || previouslyUnreadable.has(m.uniqueId)
-  );
   const changedIds = new Set(changed.map((m) => m.uniqueId));
-  const presentIds = new Set(memories.map((m) => m.uniqueId));
   const stale = new Set<ProfileFacetKey>();
   const citedHashes = new Map<string, string | undefined>();
 
   for (const section of previous.sections) {
-    if (section.sourceMemoryIds.some((id) => changedIds.has(id))) {
-      stale.add(section.key);
-    }
-    if (section.sourceMemoryIds.some((id) => !presentIds.has(id))) {
+    if (section.sourceMemoryIds.some((id) => changedIds.has(id) || !eligibleMemories.has(id))) {
       stale.add(section.key);
     }
     if (section.stale) {
@@ -651,11 +655,7 @@ async function computeStaleFacetKeys(
     if (!previous.sections.some((s) => s.key === facet.key)) stale.add(facet.key);
   }
 
-  let toAttribute = changed.filter((m) => !m.isDeleted && !m.supersededBy);
-  if (reviewedMemoryIds !== undefined) {
-    const allowed = new Set(reviewedMemoryIds);
-    toAttribute = toAttribute.filter((m) => allowed.has(m.uniqueId));
-  }
+  let toAttribute = changed;
   const comparable = toAttribute.filter(
     (m) => citedHashes.get(m.uniqueId) !== undefined && !previouslyUnreadable.has(m.uniqueId)
   );
