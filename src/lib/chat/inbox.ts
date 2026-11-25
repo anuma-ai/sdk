@@ -174,7 +174,7 @@ export async function openSealedText(
  */
 export async function openInboxSealedText(
   options: {
-    walletAddress: string;
+    walletAddress?: string;
     signMessage?: SignMessageFn;
     embeddedWalletSigner?: EmbeddedWalletSignerFn;
   },
