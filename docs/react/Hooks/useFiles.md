@@ -2,7 +2,7 @@
 
 > **useFiles**(`options`: [`UseFilesOptions`](../Internal/interfaces/UseFilesOptions.md)): [`UseFilesResult`](../Internal/interfaces/UseFilesResult.md)
 
-Defined in: [src/react/useFiles.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#189)
+Defined in: [src/react/useFiles.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#197)
 
 A React hook for managing files (images, videos, audio, documents).
 
