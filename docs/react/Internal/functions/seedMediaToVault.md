@@ -2,7 +2,7 @@
 
 > **seedMediaToVault**(`options`: [`MediaSeedOptions`](../interfaces/MediaSeedOptions.md)): `Promise`<[`MediaSeedResult`](../interfaces/MediaSeedResult.md)>
 
-Defined in: [src/lib/chatStore/media.ts:456](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#456)
+Defined in: [src/lib/chatStore/media.ts:459](https://github.com/anuma-ai/sdk/blob/main/src/lib/chatStore/media.ts#459)
 
 Uploads this device's library files that vault lacks, at most `maxUploads` per run; runs wait for each other, and a rerun after a crash never uploads a file twice.
 
