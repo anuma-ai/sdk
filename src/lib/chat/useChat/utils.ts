@@ -513,15 +513,8 @@ export function isDoneMarker(chunk: unknown): boolean {
 export function isTerminalChunk(chunk: unknown): boolean {
   if (isDoneMarker(chunk)) return true;
   if (!chunk || typeof chunk !== "object") return false;
-  const value = chunk as {
-    type?: string;
-    choices?: Array<{ finish_reason?: string | null }>;
-  };
-  return (
-    value.type === "response.completed" ||
-    value.type === "response.incomplete" ||
-    (Array.isArray(value.choices) && value.choices.some((choice) => Boolean(choice?.finish_reason)))
-  );
+  const { type } = chunk as { type?: string };
+  return type === "response.completed" || type === "response.incomplete";
 }
 
 /**

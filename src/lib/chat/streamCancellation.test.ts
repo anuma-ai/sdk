@@ -191,12 +191,18 @@ describe.each(["fetch", "custom"] as const)("%s stream cancellation", (source) =
 });
 
 describe.each(["replay", "initial"] as const)("%s completion", (phase) => {
+  const finishReason = { choices: [{ index: 0, delta: {}, finish_reason: "stop" }] };
+  const usage = { cost_micro_usd: 120, credits_used: 3 };
+  const usageChunk = { choices: [], usage };
+
   it.each([
-    ["responses", { type: "response.completed", response: {} }],
-    ["responses", { type: "response.incomplete", response: {} }],
-    ["responses", "[DONE]"],
-    ["completions", { choices: [{ index: 0, delta: {}, finish_reason: "stop" }] }],
-  ] as const)("preserves a terminal %s response on a late abort: %j", async (apiType, terminal) => {
+    ["responses", [{ type: "response.completed", response: {} }], true],
+    ["responses", [{ type: "response.incomplete", response: {} }], true],
+    ["responses", ["[DONE]"], true],
+    ["completions", [finishReason], false],
+    ["completions", [finishReason, usageChunk], false],
+    ["completions", [finishReason, usageChunk, "[DONE]"], true],
+  ] as const)("handles an abort after %s frames: %j", async (apiType, frames, completed) => {
     const caller = new AbortController();
     const onFinish = vi.fn();
     const transport: StreamingTransport = () => ({
@@ -206,7 +212,7 @@ describe.each(["replay", "initial"] as const)("%s completion", (phase) => {
             ? textChunk
             : { choices: [{ index: 0, delta: { content: "partial" } }] }
         );
-        yield terminal;
+        yield* frames;
         caller.abort();
       })(),
     });
@@ -227,9 +233,15 @@ describe.each(["replay", "initial"] as const)("%s completion", (phase) => {
             messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
           });
 
-    expect(result.error).toBeNull();
     expect(JSON.stringify(result.data)).toContain("partial");
-    expect(onFinish).toHaveBeenCalledOnce();
+    if (completed) {
+      expect(result.error).toBeNull();
+      expect(onFinish).toHaveBeenCalledExactlyOnceWith(result.data);
+      if (apiType === "completions") expect(result.data).toHaveProperty("usage", usage);
+    } else {
+      expect(result.error).toBe(phase === "replay" ? "Resume aborted" : "Request aborted");
+      expect(onFinish).not.toHaveBeenCalled();
+    }
   });
 });
 
