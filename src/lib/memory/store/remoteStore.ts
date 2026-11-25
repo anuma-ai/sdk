@@ -49,6 +49,7 @@ import {
 } from "../topicExtract.js";
 import type { RecallFactSource, RecallOptions } from "../types.js";
 import {
+  chunks,
   MAX_REMOTE_MEMORY_IDS,
   type RemoteMemoryCandidateLanes,
   type RemoteMemoryDecodeFailure,
@@ -200,12 +201,6 @@ function bounded<T extends { scopes?: string[]; fact_types?: string[] }>(
 
 function maxOf(options: MemoryListOptions): number {
   return options.limit && options.limit > 0 ? options.limit : Infinity;
-}
-
-function chunks<T>(values: readonly T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < values.length; i += size) out.push(values.slice(i, i + size));
-  return out;
 }
 
 function stateFilters(options: MemoryListOptions) {

@@ -32,6 +32,7 @@ import type {
 } from "../types.js";
 import {
   CANDIDATE_LANES_UNSUPPORTED,
+  chunks,
   MAX_REMOTE_MEMORY_IDS,
   type RemoteMemoryCandidateLanes,
   type RemoteMemoryCandidateOptions,
@@ -272,12 +273,13 @@ export function createRemoteMemoryPipeline(
           Math.max(0, start + budgetMs - Date.now())
         );
         try {
-          const idFilters: Pick<RemoteMemoryCandidateOptions, "memory_ids">[] = [];
-          if (search.memoryIds && search.memoryIds.length > MAX_REMOTE_MEMORY_IDS) {
-            const ids = [...new Set(search.memoryIds)];
-            for (let i = 0; i < ids.length; i += MAX_REMOTE_MEMORY_IDS)
-              idFilters.push({ memory_ids: ids.slice(i, i + MAX_REMOTE_MEMORY_IDS) });
-          } else idFilters.push({});
+          const { memoryIds } = search;
+          const idFilters =
+            memoryIds && memoryIds.length > MAX_REMOTE_MEMORY_IDS
+              ? chunks([...new Set(memoryIds)], MAX_REMOTE_MEMORY_IDS).map((memory_ids) => ({
+                  memory_ids,
+                }))
+              : [{}];
           windows = await Promise.all(
             vectors.flatMap((embedding, i) => {
               const candidateOptions = windowOptions(i, deadline.signal);

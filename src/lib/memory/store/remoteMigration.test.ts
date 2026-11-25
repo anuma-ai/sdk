@@ -35,6 +35,7 @@ import {
   RemoteMemoryError,
   type RemoteMemoryRow,
 } from "./remotePersistence";
+import * as remotePersistence from "./remotePersistence";
 import { storedVector } from "./remotePipeline";
 import { createRemoteMemoryStore } from "./remoteStore";
 import { createTopicCodec } from "./topicCodec";
@@ -364,6 +365,32 @@ describe("migrateMemoriesToRemote", () => {
     expect(nearby.rows.get(deleted.uniqueId)?.is_deleted).toBe(true);
     expect(nearby.rows.get(archived.uniqueId)?.archived_at).toBeGreaterThan(0);
     expect(nearby.account.key_id).toBe(canonical.keyId);
+  });
+
+  it("uses the shared memory ID limit for migration queries", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const nearby = fakeNearby();
+    const ids = [];
+    for (const content of ["Likes tea", "Likes coffee", "Likes juice"]) {
+      const memory = await createVaultMemoryOp(ctx, { content });
+      ids.push(memory.uniqueId);
+    }
+    const queryLimits: { readonly MAX_REMOTE_MEMORY_IDS: number } = remotePersistence;
+    const limit = vi.spyOn(queryLimits, "MAX_REMOTE_MEMORY_IDS", "get").mockReturnValue(2);
+    try {
+      await expect(migrate(nearby, ctx)).resolves.toMatchObject({ state: "active" });
+
+      const batches = vi
+        .mocked(nearby.fetch)
+        .mock.calls.filter(([url]) => requestUrl(url).endsWith("/memories/query"))
+        .map(
+          ([, init]) => (JSON.parse(init!.body as string) as { memory_ids: string[] }).memory_ids
+        );
+      for (const batch of batches) expect(batch.length).toBeLessThanOrEqual(2);
+      expect(new Set(batches.flat())).toEqual(new Set(ids));
+    } finally {
+      limit.mockRestore();
+    }
   });
 
   it("switches a memory off on nearby when it was off on this device", async () => {
