@@ -1539,7 +1539,9 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       await available();
       if (query?.conversationId) await thread(query.conversationId);
       const scanned =
-        !query?.conversationId && reachable ? await scanFiles() : new Map<string, ChatSnapshot>();
+        !query?.conversationId && reachable
+          ? await scanFiles().catch(() => new Map<string, ChatSnapshot>())
+          : new Map<string, ChatSnapshot>();
       const records = new Map(all("message", query?.conversationId).map((r) => [r.id, r]));
       for (const [k, snapshot] of scanned) {
         const cached = confirmed.get(k);
