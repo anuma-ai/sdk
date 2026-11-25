@@ -1,6 +1,6 @@
 # RemoteMemoryPipelineOptions
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#46)
+Defined in: [src/lib/memory/store/remotePipeline.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#47)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/store/remotePipeline.ts:46](https://github.com/anuma
 
 > `optional` **candidateLanes**: (`query`: `string`, `options`: [`RecallOptions`](RecallOptions.md)) => `RemoteMemoryCandidateLanes` | `undefined`
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#52)
+Defined in: [src/lib/memory/store/remotePipeline.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#53)
 
 **Parameters**
 
@@ -57,7 +57,7 @@ Defined in: [src/lib/memory/store/remotePipeline.ts:52](https://github.com/anuma
 
 > **embeddingOptions**: [`MemoryEngineEmbeddingOptions`](MemoryEngineEmbeddingOptions.md)
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#48)
+Defined in: [src/lib/memory/store/remotePipeline.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#49)
 
 ***
 
@@ -65,7 +65,7 @@ Defined in: [src/lib/memory/store/remotePipeline.ts:48](https://github.com/anuma
 
 > **graphRanking**: (`query`: `string`, `traverse`: `boolean`, `options`: [`RecallOptions`](RecallOptions.md)) => `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#50)
+Defined in: [src/lib/memory/store/remotePipeline.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#51)
 
 Server-backed metadata lanes. These callbacks execute on the device.
 
@@ -128,7 +128,7 @@ Server-backed metadata lanes. These callbacks execute on the device.
 
 > **persistence**: [`RemoteMemoryPersistence`](RemoteMemoryPersistence.md)
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#47)
+Defined in: [src/lib/memory/store/remotePipeline.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#48)
 
 ***
 
@@ -136,7 +136,7 @@ Defined in: [src/lib/memory/store/remotePipeline.ts:47](https://github.com/anuma
 
 > **temporalRanking**: (`query`: `string`, `now?`: `number`) => `Promise`<`string`\[]>
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#51)
+Defined in: [src/lib/memory/store/remotePipeline.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#52)
 
 **Parameters**
 
