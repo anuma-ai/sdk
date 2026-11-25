@@ -49,7 +49,13 @@ import {
   readEncryptedFile,
   resolveFilePlaceholders as resolveFilePlaceholdersOp,
 } from "../lib/storage";
-import { getEncryptionKey, hasEncryptionKey, onKeyAvailable } from "./useEncryption";
+import {
+  type EmbeddedWalletSignerFn,
+  getEncryptionKey,
+  hasEncryptionKey,
+  onKeyAvailable,
+  type SignMessageFn,
+} from "./useEncryption";
 
 /**
  * Options for useFiles hook.
@@ -59,6 +65,8 @@ export interface UseFilesOptions {
   database: Database;
   /** Wallet address for user context (required for most operations and file decryption) */
   walletAddress?: string;
+  signMessage?: SignMessageFn;
+  embeddedWalletSigner?: EmbeddedWalletSignerFn;
 }
 
 /**
@@ -187,7 +195,7 @@ export interface UseFilesResult {
  * @category Hooks
  */
 export function useFiles(options: UseFilesOptions): UseFilesResult {
-  const { database, walletAddress } = options;
+  const { database, walletAddress, signMessage, embeddedWalletSigner } = options;
 
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -228,8 +236,8 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     if (!isReady || !mediaCollection) {
       return null;
     }
-    return { database, walletAddress };
-  }, [database, mediaCollection, isReady, walletAddress]);
+    return { database, walletAddress, signMessage, embeddedWalletSigner };
+  }, [database, mediaCollection, isReady, walletAddress, signMessage, embeddedWalletSigner]);
 
   const createMedia = useCallback(
     async (createOptions: CreateMediaOptions): Promise<StoredMedia> => {
