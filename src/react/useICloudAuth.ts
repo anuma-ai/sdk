@@ -48,7 +48,8 @@ export interface ICloudAuthContextValue {
   /** User record name (unique identifier) */
   userRecordName: string | null;
   /** Request access - triggers iCloud sign-in if needed */
-  requestAccess: () => Promise<void>;
+  requestAccess(): Promise<void>;
+  requestAccess(options: { signal?: AbortSignal }): Promise<void>;
   /** Sign out from iCloud */
   logout: () => void;
 }
@@ -129,24 +130,27 @@ export function ICloudAuthProvider({
     void initCloudKit();
   }, [apiToken, containerIdentifier, environment]);
 
-  const requestAccess = useCallback(async (): Promise<void> => {
-    if (!isConfigured) {
-      throw new Error("iCloud is not configured");
-    }
+  const requestAccess = useCallback(
+    async (options?: { signal?: AbortSignal }) => {
+      if (!isConfigured) {
+        throw new Error("iCloud is not configured");
+      }
 
-    if (isAuthenticated) {
-      return;
-    }
+      if (isAuthenticated) {
+        return;
+      }
 
-    try {
-      const userIdentity = await requestICloudSignIn();
-      setIsAuthenticated(true);
-      setUserRecordName(userIdentity.userRecordName);
-    } catch (err) {
-      // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
-      throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
-    }
-  }, [isAuthenticated, isConfigured]);
+      try {
+        const userIdentity = await requestICloudSignIn(options);
+        setIsAuthenticated(true);
+        setUserRecordName(userIdentity.userRecordName);
+      } catch (err) {
+        // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
+        throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
+      }
+    },
+    [isAuthenticated, isConfigured]
+  );
 
   const logout = useCallback(() => {
     setIsAuthenticated(false);

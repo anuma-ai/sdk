@@ -47,7 +47,8 @@ export interface ProviderAuthState {
   /** Whether this provider is configured */
   isConfigured: boolean;
   /** Request access - triggers iCloud sign-in if needed and returns the user record name */
-  requestAccess: () => Promise<string>;
+  requestAccess(): Promise<string>;
+  requestAccess(options: { signal?: AbortSignal }): Promise<string>;
   /** Sign out of iCloud */
   logout: () => Promise<void>;
   /** Re-check the iCloud session and return the user record name */
@@ -151,25 +152,28 @@ export function BackupAuthProvider({
     return null;
   }, []);
 
-  const requestIcloudAccess = useCallback(async (): Promise<string> => {
-    if (!isIcloudConfigured) {
-      throw new Error("iCloud is not configured");
-    }
+  const requestIcloudAccess = useCallback(
+    async (options?: { signal?: AbortSignal }) => {
+      if (!isIcloudConfigured) {
+        throw new Error("iCloud is not configured");
+      }
 
-    if (icloudAuthenticated && icloudUserRecordName) {
-      return icloudUserRecordName;
-    }
+      if (icloudAuthenticated && icloudUserRecordName) {
+        return icloudUserRecordName;
+      }
 
-    try {
-      const userIdentity = await requestICloudSignIn();
-      setIcloudAuthenticated(true);
-      setIcloudUserRecordName(userIdentity.userRecordName);
-      return userIdentity.userRecordName;
-    } catch (err) {
-      // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
-      throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
-    }
-  }, [icloudAuthenticated, icloudUserRecordName, isIcloudConfigured]);
+      try {
+        const userIdentity = await requestICloudSignIn(options);
+        setIcloudAuthenticated(true);
+        setIcloudUserRecordName(userIdentity.userRecordName);
+        return userIdentity.userRecordName;
+      } catch (err) {
+        // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
+        throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
+      }
+    },
+    [icloudAuthenticated, icloudUserRecordName, isIcloudConfigured]
+  );
 
   // eslint-disable-next-line @typescript-eslint/require-await -- must return Promise<void> per interface
   const logoutIcloud = useCallback(async () => {

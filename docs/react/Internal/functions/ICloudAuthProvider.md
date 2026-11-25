@@ -2,7 +2,7 @@
 
 > **ICloudAuthProvider**(`__namedParameters`: [`ICloudAuthProviderProps`](../interfaces/ICloudAuthProviderProps.md)): `Element`
 
-Defined in: [src/react/useICloudAuth.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#81)
+Defined in: [src/react/useICloudAuth.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#82)
 
 Provider component for iCloud authentication.
 

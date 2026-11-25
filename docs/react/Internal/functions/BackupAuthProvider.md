@@ -2,7 +2,7 @@
 
 > **BackupAuthProvider**(`__namedParameters`: [`BackupAuthProviderProps`](../interfaces/BackupAuthProviderProps.md)): `Element`
 
-Defined in: [src/react/useBackupAuth.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#95)
+Defined in: [src/react/useBackupAuth.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#96)
 
 Provider component for backup authentication.
 

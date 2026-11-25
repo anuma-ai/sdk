@@ -40,27 +40,13 @@ Whether iCloud is configured and available
 
 > **logout**: () => `void`
 
-Defined in: [src/react/useICloudAuth.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#53)
+Defined in: [src/react/useICloudAuth.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#54)
 
 Sign out from iCloud
 
 **Returns**
 
 `void`
-
-***
-
-### requestAccess()
-
-> **requestAccess**: () => `Promise`<`void`>
-
-Defined in: [src/react/useICloudAuth.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#51)
-
-Request access - triggers iCloud sign-in if needed
-
-**Returns**
-
-`Promise`<`void`>
 
 ***
 
@@ -71,3 +57,66 @@ Request access - triggers iCloud sign-in if needed
 Defined in: [src/react/useICloudAuth.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#49)
 
 User record name (unique identifier)
+
+## Methods
+
+### requestAccess()
+
+**Call Signature**
+
+> **requestAccess**(): `Promise`<`void`>
+
+Defined in: [src/react/useICloudAuth.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#51)
+
+Request access - triggers iCloud sign-in if needed
+
+**Returns**
+
+`Promise`<`void`>
+
+**Call Signature**
+
+> **requestAccess**(`options`: `object`): `Promise`<`void`>
+
+Defined in: [src/react/useICloudAuth.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#52)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.signal?`
+
+</td>
+<td>
+
+`AbortSignal`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`void`>
