@@ -1103,6 +1103,77 @@ describe("vault chat backend", () => {
     expect(messages.map((message) => message.uniqueId)).toEqual(["msg_0", "msg_1"]);
   });
 
+  it("does not serve an older exhausted page as a different page", async () => {
+    const fake = await pageHistory(Array.from({ length: 30 }, (_, index) => index));
+    const { b } = backend(fake);
+    const newest = await b.getMessagesPage("conv_pages", { limit: 10 });
+    const middle = await b.getMessagesPage("conv_pages", {
+      limit: 10,
+      beforeMessageId: newest[0].messageId,
+      boundaryExcludeUniqueIds: [newest[0].uniqueId],
+    });
+    const oldest = await b.getMessagesPage("conv_pages", {
+      limit: 10,
+      beforeMessageId: middle[0].messageId,
+      boundaryExcludeUniqueIds: [middle[0].uniqueId],
+    });
+    expect(oldest.map((message) => message.messageId)).toEqual(
+      Array.from({ length: 10 }, (_, index) => index)
+    );
+
+    fake.fail({ op: "list", error: new TypeError("offline"), sticky: true });
+    const oldestPage = {
+      limit: 10,
+      beforeMessageId: middle[0].messageId,
+      boundaryExcludeUniqueIds: [middle[0].uniqueId],
+    };
+    await expect(b.getMessagesPage("conv_pages", { limit: 10 })).rejects.toThrow("offline");
+    await expect(
+      b.getMessagesPage("conv_pages", {
+        limit: 10,
+        beforeMessageId: newest[0].messageId,
+        boundaryExcludeUniqueIds: [newest[0].uniqueId],
+      })
+    ).rejects.toThrow("offline");
+    expect(
+      (await b.getMessagesPage("conv_pages", oldestPage)).map((message) => message.messageId)
+    ).toEqual(oldest.map((message) => message.messageId));
+    expect(
+      (await b.getMessagesPage("conv_pages", { ...oldestPage, limit: 4 })).map(
+        (message) => message.messageId
+      )
+    ).toEqual(oldest.slice(-4).map((message) => message.messageId));
+  });
+
+  it("serves the cached newest page when a later read misses", async () => {
+    const fake = await pageHistory(Array.from({ length: 30 }, (_, index) => index));
+    const { b } = backend(fake);
+    const newest = await b.getMessagesPage("conv_pages", { limit: 10 });
+    fake.fail({ op: "list", error: new TypeError("offline"), sticky: true });
+    expect(
+      (await b.getMessagesPage("conv_pages", { limit: 4 })).map((message) => message.messageId)
+    ).toEqual(newest.slice(-4).map((message) => message.messageId));
+
+    const short = await pageHistory([1, 2, 3]);
+    const cached = backend(short).b;
+    expect(
+      (await cached.getMessagesPage("conv_pages", { limit: 10 })).map(
+        (message) => message.messageId
+      )
+    ).toEqual([1, 2, 3]);
+    short.fail({ op: "list", error: new TypeError("offline"), sticky: true });
+    expect(
+      (await cached.getMessagesPage("conv_pages", { limit: 10 })).map(
+        (message) => message.messageId
+      )
+    ).toEqual([1, 2, 3]);
+    expect(
+      (await cached.getMessagesPage("conv_pages", { limit: 10, beforeMessageId: 2 })).map(
+        (message) => message.messageId
+      )
+    ).toEqual([1]);
+  });
+
   it("announces a changed message page once and reads the new records", async () => {
     const fake = await pageHistory([1, 2, 3, 4]);
     const { b, events } = backend(fake);

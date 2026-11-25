@@ -240,6 +240,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       nextCursor?: string;
       boundary?: number;
       boundaryIds: string[];
+      beforeMessageId?: number;
+      boundaryExcludeUniqueIds: readonly string[];
     }
   >();
   const pageChanged = new Map<string, number>();
@@ -1337,6 +1339,8 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
             nextCursor,
             boundary,
             boundaryIds,
+            beforeMessageId: page.beforeMessageId,
+            boundaryExcludeUniqueIds: [...exclude],
           });
           while (messagePages.size > Math.max(0, threadLimit))
             messagePages.delete(messagePages.keys().next().value!);
@@ -1353,7 +1357,14 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       return load().catch((error: unknown) => {
         const held = messagePages.get(conversationId);
         const records = select(held ? local(held).values() : all("message", conversationId, true));
-        if (records.length >= limit || (held && !held.nextCursor)) return records.map(toMessage);
+        const covered =
+          !held ||
+          held.beforeMessageId === undefined ||
+          (page.beforeMessageId === held.beforeMessageId &&
+            held.boundaryExcludeUniqueIds.length === exclude.size &&
+            held.boundaryExcludeUniqueIds.every((id) => exclude.has(id)));
+        if (covered && (records.length >= limit || (held && !held.nextCursor)))
+          return records.map(toMessage);
         throw error;
       });
     },
