@@ -12,6 +12,16 @@ Defined in: [src/lib/db/chat/types.ts:497](https://github.com/anuma-ai/sdk/blob/
 
 ***
 
+### newId?
+
+> `optional` **newId**: `boolean`
+
+Defined in: [src/lib/db/chat/types.ts:502](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#502)
+
+Mark a new conversation ID so the vault backend can check for conflicts when it sends the write.
+
+***
+
 ### projectId?
 
 > `optional` **projectId**: `string`

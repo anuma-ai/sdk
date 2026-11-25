@@ -1016,10 +1016,10 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
   });
   if (channel) channel.onmessage = () => void poll();
 
-  const conversation = async (conversationId: string): Promise<ChatRecord | undefined> => {
+  const conversation = async (conversationId: string, readRemote = true) => {
     await available();
     const k = key("conversation", conversationId);
-    if (!view(k) && !checked.has(k)) {
+    if (readRemote && !view(k) && !checked.has(k)) {
       const found = await (await remote()).get("conversation", conversationId);
       checked.add(k);
       if (found) merge(found);
@@ -1198,7 +1198,10 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       defaultTitle = "New Conversation"
     ) {
       const conversationId = create?.conversationId || generateConversationId();
-      const existing = await conversation(conversationId);
+      const existing = await conversation(
+        conversationId,
+        !!create?.conversationId && !create.newId
+      );
       if (existing?.isDeleted) throw new Error("Conversation was deleted");
       if (existing) return toConversation(existing);
       const at = now();

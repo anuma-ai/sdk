@@ -3,6 +3,7 @@ import { webcrypto } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createFakeChatStore } from "../../../test/chat/fakeChatStore";
+import { generateConversationId } from "../db/chat/types";
 import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
 import { type ChatStore, ChatStoreError } from "./types";
 import { createVaultChatBackend, type VaultChatBackend, type VaultChatEvent } from "./vaultBackend";
@@ -922,6 +923,54 @@ describe("vault chat cache", () => {
     online = true;
     await cold.poll();
     expect((await cold.getMessages("conv_1")).map((m) => m.uniqueId)).toEqual(["msg_1", "msg_2"]);
+  });
+
+  it("saves new conversations in the outbox on an offline cold start", async () => {
+    const fake = createFakeChatStore();
+    const seal = await sealFor("56");
+    const snapshot = { ...conversationCache(0), cursor: "" };
+    const cache = { storage: cacheStorage(), seal, account: snapshot.account };
+    const outbox = { storage: outboxStorage(), seal };
+    await saveChatCache(cache.storage, seal.encrypt, snapshot);
+    const cold = backend(offline, { cache, outbox });
+
+    await expect(cold.createConversation({ conversationId: "conv_known" })).rejects.toThrow(
+      "offline"
+    );
+    const generated = await cold.createConversation({ title: "Local draft" });
+    const preallocated = { conversationId: generateConversationId(), newId: true };
+    const created = await cold.createConversation({ ...preallocated, title: "Second draft" });
+    expect(created.conversationId).toBe(preallocated.conversationId);
+    expect(await cold.getConversations()).toEqual(expect.arrayContaining([generated, created]));
+    await cold.flush();
+    expect(cold.status().pending).toBe(2);
+    cold.close();
+
+    const reloaded = backend(fake.store, { cache, outbox });
+    await reloaded.flush();
+    expect(reloaded.status().pending).toBe(0);
+    expect(outbox.storage.values.size).toBe(0);
+    for (const { conversationId, title } of [generated, created]) {
+      expect((await fake.row("conversation", conversationId))?.record.data.title).toBe(title);
+    }
+  });
+
+  it("keeps the vault conversation when a queued creation conflicts", async () => {
+    const fake = createFakeChatStore();
+    const b = backend(fake.store);
+    await b.getConversations();
+    const conversationId = generateConversationId();
+    const other = backend(fake.store);
+    await other.createConversation({ conversationId, title: "Remote title" });
+    await other.flush();
+
+    const preallocated = { conversationId, newId: true, title: "Local title" };
+    expect((await b.createConversation(preallocated)).title).toBe("Local title");
+    await b.flush();
+
+    expect((await b.getConversation(conversationId))?.title).toBe("Remote title");
+    expect((await fake.row("conversation", conversationId))?.version).toBe(1);
+    expect(b.status().pending).toBe(0);
   });
 
   it("caches a page-only read as a partial thread for an offline reload", async () => {

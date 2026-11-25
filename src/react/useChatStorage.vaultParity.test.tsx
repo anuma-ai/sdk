@@ -130,6 +130,27 @@ describe.each([
     return seen;
   }
 
+  it("queues a new conversation when vault reads fail", async () => {
+    const fake = await createChatStoreHarness();
+    const vault = createVaultChatBackend({ store: fake.store, pollIntervalMs: 0 });
+    const database = makeDatabase();
+    try {
+      await vault.getConversations();
+      fake.fail({ op: "get", error: new TypeError("offline"), sticky: true });
+      fake.fail({ op: "putMany", error: new TypeError("offline"), sticky: true });
+      const { result } = renderHook(() =>
+        useChatStorage({ database, chatBackend: vaultChatBackend(vault) })
+      );
+
+      const created = await act(() => result.current.createConversation({ title: "Draft" }));
+      expect(result.current.conversationId).toBe(created.conversationId);
+      expect(await vault.getConversation(created.conversationId)).toEqual(created);
+      expect(vault.status().pending).toBe(1);
+    } finally {
+      vault.close();
+    }
+  });
+
   it("persists the same conversation, branch links and tool results", async () => {
     const local = await session();
     const fake = await createChatStoreHarness();

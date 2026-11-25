@@ -1306,6 +1306,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const conversationOpts = {
         ...opts,
         conversationId: opts?.conversationId || generateConversationId(),
+        ...(!opts?.conversationId && { newId: true }),
       };
       const { result, queued } = await writeOrQueue(
         "createConversation",

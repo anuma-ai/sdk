@@ -498,6 +498,8 @@ export interface CreateConversationOptions {
   title?: string;
   /** Optional project ID to associate this conversation with */
   projectId?: string;
+  /** Mark a new conversation ID so the vault backend can check for conflicts when it sends the write. */
+  newId?: boolean;
 }
 
 export interface UpdateMessageOptions {
