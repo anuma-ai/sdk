@@ -11,7 +11,12 @@ import type { StoredConversation, StoredMessage } from "../db/chat/types";
 import { deriveMemoryKeyRing, memoryCipher } from "../memory/store/memoryKeys";
 import { ANUMA_CONVERSATION_ID } from "./anuma";
 import { type ChatStore, ChatStoreError } from "./types";
-import { createVaultChatBackend, type VaultChatBackend, type VaultChatEvent } from "./vaultBackend";
+import {
+  compareMessageRecords,
+  createVaultChatBackend,
+  type VaultChatBackend,
+  type VaultChatEvent,
+} from "./vaultBackend";
 import { saveChatCache } from "./vaultCache";
 import type { ChatOutboxLocks, ChatOutboxStorage, ChatPatch } from "./vaultOutbox";
 
@@ -110,6 +115,21 @@ async function pageHistory(sortKeys: number[]) {
 }
 
 describe("vault chat backend", () => {
+  it("compares message records by sort key, creation time, and ID", () => {
+    const first = { sortKey: 1, createdAt: 3, id: "msg_z" };
+    const second = { sortKey: 2, createdAt: 1, id: "msg_b" };
+    const third = { sortKey: 2, createdAt: 2, id: "msg_A" };
+    const fourth = { sortKey: 2, createdAt: 2, id: "msg_a" };
+
+    expect(compareMessageRecords(third, { ...third })).toBe(0);
+    expect([fourth, third, second, first].sort(compareMessageRecords)).toEqual([
+      first,
+      second,
+      third,
+      fourth,
+    ]);
+  });
+
   it("sends a turn as one batch that another device reads back", async () => {
     const fake = await createChatStoreHarness();
     const { b } = backend(fake);

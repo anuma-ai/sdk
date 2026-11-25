@@ -154,6 +154,15 @@ const termIndexDelayMs = 30_000;
 const termPagePauseMs = 1_000;
 const cachedMessageLimit = 200;
 
+type MessageOrderFields = Pick<ChatRecord, "sortKey" | "createdAt" | "id">;
+
+export function compareMessageRecords(a: MessageOrderFields, b: MessageOrderFields): number {
+  const order = a.sortKey - b.sortKey || a.createdAt - b.createdAt;
+  if (order) return order;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+}
+
 function cursorRejected(error: unknown): boolean {
   return error instanceof ChatStoreError && (error.status === 400 || error.status === 410);
 }
@@ -357,12 +366,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
     }
     for (const [id, found] of messages) {
       const group = [...found.values()].filter((snapshot) => !snapshot.record.isDeleted);
-      group.sort(
-        (a, b) =>
-          a.record.sortKey - b.record.sortKey ||
-          a.record.createdAt - b.record.createdAt ||
-          (a.record.id < b.record.id ? -1 : 1)
-      );
+      group.sort((a, b) => compareMessageRecords(a.record, b.record));
       if (group.length > cachedMessageLimit) truncated.add(id);
       records.push(...group.slice(-cachedMessageLimit));
     }
@@ -1101,9 +1105,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
       if (wait || reachable) await reloadPartial(conversationId);
       else void reloadPartial(conversationId);
     } else await loadThread(conversationId);
-    return all("message", conversationId).sort(
-      (a, b) => a.sortKey - b.sortKey || a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1)
-    );
+    return all("message", conversationId).sort(compareMessageRecords);
   };
 
   const ensureConversation = async (conversationId: string) => {
@@ -1261,12 +1263,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
             ? r.sortKey <= page.beforeMessageId
             : r.sortKey < page.beforeMessageId));
       const select = (records: Iterable<ChatRecord>) =>
-        [...records]
-          .filter(matches)
-          .sort(
-            (a, b) => a.sortKey - b.sortKey || a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1)
-          )
-          .slice(-limit);
+        [...records].filter(matches).sort(compareMessageRecords).slice(-limit);
       const cached = messagePages.get(conversationId);
       const started = pageTick;
       const local = (held = cached) =>
@@ -1335,12 +1332,7 @@ export function createVaultChatBackend(options: VaultChatBackendOptions): VaultC
           messagePages.set(conversationId, {
             records: selected,
             snapshots: [...snapshots.values()]
-              .sort(
-                (a, b) =>
-                  a.record.sortKey - b.record.sortKey ||
-                  a.record.createdAt - b.record.createdAt ||
-                  (a.record.id < b.record.id ? -1 : 1)
-              )
+              .sort((a, b) => compareMessageRecords(a.record, b.record))
               .slice(-cachedMessageLimit),
             nextCursor,
             boundary,
