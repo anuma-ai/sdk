@@ -1,8 +1,13 @@
 import { useCallback, useState } from "react";
-import Tesseract from "tesseract.js";
+import type Tesseract from "tesseract.js";
 
 import { getLogger } from "../lib/logger";
 import { convertPdfToImages } from "../lib/pdf";
+
+async function loadTesseract(): Promise<typeof Tesseract> {
+  const mod = await import("tesseract.js");
+  return mod.default ?? mod;
+}
 
 export interface OCRFile {
   url: string | File | Blob;
@@ -84,9 +89,10 @@ export function useOCR(): UseOCRResult {
               imagesToProcess = [file.url];
             }
 
+            const tesseract = await loadTesseract();
             const pageTexts: string[] = [];
             for (const image of imagesToProcess) {
-              const result = await Tesseract.recognize(image, language);
+              const result = await tesseract.recognize(image, language);
               pageTexts.push(result.data.text);
             }
 

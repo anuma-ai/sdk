@@ -1,4 +1,4 @@
-import JSZip from "jszip";
+import type JSZip from "jszip";
 
 import type { FileMetadata } from "../db/chat/types";
 import { getLogger } from "../logger";
@@ -9,6 +9,11 @@ import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
 const MAX_ZIP_ENTRIES = 1_000;
 const MAX_TOTAL_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
+
+async function loadJSZip(): Promise<typeof JSZip> {
+  const mod = await import("jszip");
+  return mod.default ?? mod;
+}
 
 function declaredUncompressedSize(zipObject: JSZip.JSZipObject): number | undefined {
   const size = (zipObject as unknown as { _data?: { uncompressedSize?: unknown } })._data
@@ -65,7 +70,8 @@ export class ZipProcessor implements FileProcessor {
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
     try {
       const arrayBuffer = await dataUrlToArrayBuffer(file.dataUrl);
-      const zip = await JSZip.loadAsync(arrayBuffer);
+      const JSZipLib = await loadJSZip();
+      const zip = await JSZipLib.loadAsync(arrayBuffer);
 
       const entries: ZipEntry[] = [];
       const processedContents: ProcessedContent[] = [];
