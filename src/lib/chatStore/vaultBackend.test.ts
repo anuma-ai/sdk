@@ -1167,12 +1167,83 @@ describe("vault chat backend", () => {
         messageRole: "user",
       },
     ]);
+    expect(list.mock.calls.filter(([query]) => query.kind === "message")).toHaveLength(3);
     expect((await b.getAllFiles({ conversationId: "conv_1" })).map((file) => file.id)).toEqual([
       "msg_3",
       "msg_1",
     ]);
     await b.getMessages("conv_2");
+    list.mockClear();
     expect((await b.getAllFiles()).map((file) => file.id)).toEqual(["msg_3", "msg_2", "msg_1"]);
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it("shares global file scans and limits concurrent conversation reads", async () => {
+    const fake = await createChatStoreHarness();
+    const writer = backend(fake).b;
+    const conversationIds = Array.from({ length: 9 }, (_, index) => `conv_${index}`);
+    for (const conversationId of conversationIds)
+      await writer.createConversation({ conversationId });
+    await writer.flush();
+
+    const { b } = backend(fake);
+    await b.getConversations();
+    const original = fake.store.list.bind(fake.store);
+    let active = 0;
+    let peak = 0;
+    const list = vi.spyOn(fake.store, "list").mockImplementation(async (query) => {
+      peak = Math.max(peak, ++active);
+      try {
+        return await original(query);
+      } finally {
+        active--;
+      }
+    });
+
+    expect(await Promise.all([b.getAllFiles({ limit: 1 }), b.getAllFiles()])).toEqual([[], []]);
+    expect(list.mock.calls.map(([query]) => query.conversationId).sort()).toEqual(conversationIds);
+    expect(peak).toBeGreaterThan(1);
+    expect(peak).toBeLessThanOrEqual(4);
+    list.mockClear();
+    expect(await b.getAllFiles()).toEqual([]);
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it("refreshes only the global file lists with remote message changes", async () => {
+    const fake = await createChatStoreHarness();
+    const writer = backend(fake).b;
+    const file = (id: string) => ({ id, name: `${id}.txt`, type: "text/plain", size: 1 });
+    for (const id of ["edit", "keep", "empty"])
+      await writer.createMessage({
+        conversationId: `conv_${id}`,
+        uniqueId: `msg_${id}`,
+        role: "user",
+        content: id,
+        files: id === "empty" ? [] : [file(id)],
+      });
+    await writer.flush();
+
+    const { b } = backend(fake);
+    expect((await b.getAllFiles()).map(({ id }) => id).sort()).toEqual(["edit", "keep"]);
+    await writer.deleteMessage("msg_edit");
+    await writer.upsertMessage({
+      conversationId: "conv_empty",
+      uniqueId: "msg_empty",
+      role: "user",
+      content: "empty",
+      files: [file("added")],
+    });
+    await writer.flush();
+
+    const list = vi.spyOn(fake.store, "list");
+    expect((await b.getAllFiles()).map(({ id }) => id).sort()).toEqual(["added", "keep"]);
+    expect(list.mock.calls.map(([query]) => query.conversationId).sort()).toEqual([
+      "conv_edit",
+      "conv_empty",
+    ]);
+    list.mockClear();
+    expect(await b.getAllFiles({ limit: 1 })).toHaveLength(1);
+    expect(list).not.toHaveBeenCalled();
   });
 
   it("applies local file edits and deletions before the global file limit", async () => {
@@ -1206,6 +1277,7 @@ describe("vault chat backend", () => {
       return original(writes);
     });
     const { b } = backend(fake, { now: () => 600, threadCacheSize: 1 });
+    expect(await b.getAllFiles()).toHaveLength(4);
     const expected = ["local", "msg_stored", "edited"];
     let flushing = Promise.resolve();
     try {
@@ -1237,7 +1309,9 @@ describe("vault chat backend", () => {
       release();
       await flushing;
     }
+    const list = vi.spyOn(fake.store, "list");
     expect((await b.getAllFiles()).map((file) => file.id)).toEqual(expected);
+    expect(list.mock.calls.map(([query]) => query.conversationId)).toEqual(["conv_local"]);
   });
 
   it.each(["first", "later"])("discards an evicted thread load at its %s page", async (page) => {
