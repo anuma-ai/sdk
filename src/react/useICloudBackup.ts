@@ -104,6 +104,7 @@ export function useICloudBackup(options: UseICloudBackupOptions): UseICloudBacku
   const { database, userAddress, requestEncryptionKey, exportConversation, importConversation } =
     options;
 
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- requestAccess is a useCallback closure and does not use this
   const { isAuthenticated, isConfigured, isAvailable, requestAccess } = useICloudAuth();
 
   const deps = useMemo(
