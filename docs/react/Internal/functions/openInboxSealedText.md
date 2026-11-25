@@ -55,7 +55,7 @@ Open text that portal sealed to the wallet's inbox key under a seal id.
 <tr>
 <td>
 
-`options.walletAddress`
+`options.walletAddress?`
 
 </td>
 <td>
