@@ -282,6 +282,12 @@ const memoryFields = {
   geohash: true,
 } satisfies Record<keyof RemoteMemoryRow, boolean>;
 
+export function chunks<T>(values: readonly T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < values.length; i += size) batches.push(values.slice(i, i + size));
+  return batches;
+}
+
 export const MAX_REMOTE_MEMORY_IDS = 1000;
 const MAX_RECALLED_IDS = 100;
 

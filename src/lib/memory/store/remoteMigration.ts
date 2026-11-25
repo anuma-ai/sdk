@@ -17,7 +17,9 @@ import {
   type MemoryKeyRing,
 } from "./memoryKeys.js";
 import {
+  chunks,
   createNearbyRequest,
+  MAX_REMOTE_MEMORY_IDS,
   type NearbyRequest,
   RemoteMemoryError,
   type RemoteMemoryPersistenceOptions,
@@ -31,7 +33,6 @@ const IMPORT_BATCH = 50;
 const EMBED_BATCH = 100;
 const LOCAL_VECTOR_DIMS = 4096;
 const VERIFY_BATCH = 1000;
-const QUERY_IDS = 1000;
 const QUERY_PAGE = 200;
 const MAX_UPLOAD_PASSES = 3;
 const MAX_RATE_LIMIT_WAITS = 10;
@@ -381,12 +382,6 @@ function sameMetadata(local: RawRow, remote: Record<string, unknown>, model: str
   });
 }
 
-function chunks<T>(values: readonly T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < values.length; i += size) out.push(values.slice(i, i + size));
-  return out;
-}
-
 function aborted(signal: AbortSignal): Error {
   return signal.reason instanceof Error ? signal.reason : new Error("Memory migration aborted");
 }
@@ -470,7 +465,7 @@ async function remoteMetadata(
   signal?: AbortSignal
 ): Promise<Map<string, RemoteItem>> {
   const rows = new Map<string, RemoteItem>();
-  for (const batch of chunks(ids, QUERY_IDS)) {
+  for (const batch of chunks(ids, MAX_REMOTE_MEMORY_IDS)) {
     let cursor: string | undefined;
     do {
       const page = (await request(

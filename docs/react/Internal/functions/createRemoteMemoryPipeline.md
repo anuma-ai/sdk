@@ -2,7 +2,7 @@
 
 > **createRemoteMemoryPipeline**(`options`: [`RemoteMemoryPipelineOptions`](../interfaces/RemoteMemoryPipelineOptions.md)): [`RemoteMemoryPipeline`](../interfaces/RemoteMemoryPipeline.md)
 
-Defined in: [src/lib/memory/store/remotePipeline.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#142)
+Defined in: [src/lib/memory/store/remotePipeline.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/store/remotePipeline.ts#143)
 
 Shared recall/retain on bounded server candidates; this is not a complete
 MemoryStore or client cutover. Supply server-backed graph/temporal lanes:
