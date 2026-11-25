@@ -4,6 +4,7 @@ import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEn
 import { getLogger } from "../../logger";
 import { deleteEncryptedFile, isOPFSSupported } from "../../storage";
 import { VIDEO_EXTENSIONS, videoExtensionOf } from "../../storage/mcpImages";
+import { isEncrypted } from "../encryption-utils";
 import { decryptMediaFields, encryptMediaFields } from "./encryption";
 import { Media } from "./models";
 import type {
@@ -235,22 +236,27 @@ export async function updateMediaOp(
 
   const media = results[0];
   const now = Date.now();
+  const { walletAddress, signMessage, embeddedWalletSigner } = ctx;
+  const hasSensitiveChanges =
+    options.name !== undefined || options.sourceUrl !== undefined || options.metadata !== undefined;
 
   const encryptedOpts =
-    ctx.walletAddress &&
-    ctx.signMessage &&
-    (options.name !== undefined ||
-      options.sourceUrl !== undefined ||
-      options.metadata !== undefined)
-      ? await encryptMediaFields(
-          options,
-          ctx.walletAddress,
-          ctx.signMessage,
-          ctx.embeddedWalletSigner
-        )
+    walletAddress && signMessage && hasSensitiveChanges
+      ? await encryptMediaFields(options, walletAddress, signMessage, embeddedWalletSigner)
       : options;
 
   await ctx.database.write(async () => {
+    if (hasSensitiveChanges && (!walletAddress || !signMessage)) {
+      const { name, sourceUrl, metadata } = media;
+      if (
+        isEncrypted(name) ||
+        isEncrypted(sourceUrl ?? "") ||
+        (typeof metadata === "string" && isEncrypted(metadata))
+      ) {
+        throw new Error("Provide the wallet address and signer to update encrypted media fields.");
+      }
+    }
+
     await media.update((m) => {
       if (encryptedOpts.name !== undefined) m._setRaw("name", encryptedOpts.name);
       if (options.messageId !== undefined) m._setRaw("message_id", options.messageId);
