@@ -107,16 +107,16 @@ describe("openInboxSealedText", () => {
     ).rejects.toThrow(message);
   });
 
-  it.each(["", undefined])(
-    "throws a clear error and asks for no signature without a wallet: %j",
-    async (address) => {
+  it.each([
+    ["empty", { walletAddress: "" }],
+    ["undefined", { walletAddress: undefined }],
+    ["omitted", {}],
+  ])(
+    "throws a clear error and asks for no signature with an %s wallet address",
+    async (_, options) => {
       const signMessage = vi.fn(() => Promise.resolve(signature));
       await expect(
-        openInboxSealedText(
-          { walletAddress: address as string, signMessage },
-          rewardVector.sealed,
-          rewardVector.seal_id
-        )
+        openInboxSealedText({ ...options, signMessage }, rewardVector.sealed, rewardVector.seal_id)
       ).rejects.toThrow("No inbox key: set walletAddress and signMessage");
       expect(signMessage).not.toHaveBeenCalled();
     }

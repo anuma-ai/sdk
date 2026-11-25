@@ -3265,11 +3265,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   detachedToolsRef.current = detachedTools;
   const openSealedWithInboxKey = useCallback(
     (sealed: string, sealId: string): Promise<string> =>
-      openInboxSealedText(
-        { walletAddress: walletAddress ?? "", signMessage, embeddedWalletSigner },
-        sealed,
-        sealId
-      ),
+      openInboxSealedText({ walletAddress, signMessage, embeddedWalletSigner }, sealed, sealId),
     [walletAddress, signMessage, embeddedWalletSigner]
   );
 
