@@ -1,4 +1,4 @@
-import mammoth from "mammoth";
+import type mammoth from "mammoth";
 
 import { getLogger } from "../logger";
 import { dataUrlToArrayBuffer } from "./encoding";
@@ -25,7 +25,8 @@ export class WordProcessor implements FileProcessor {
         process.versions.node !== null &&
         process.versions.node !== undefined;
       const input = isNode ? { buffer: Buffer.from(arrayBuffer) } : { arrayBuffer };
-      const result = await mammoth.extractRawText(input);
+      const mammothLib = await this.loadMammoth();
+      const result = await mammothLib.extractRawText(input);
 
       if (!result.value || result.value.trim().length === 0) {
         return null;
@@ -43,6 +44,11 @@ export class WordProcessor implements FileProcessor {
       getLogger().error("Error processing Word document:", error);
       throw error;
     }
+  }
+
+  private async loadMammoth(): Promise<typeof mammoth> {
+    const mod = await import("mammoth");
+    return mod.default ?? mod;
   }
 
   /**

@@ -1,6 +1,6 @@
 # OCRFile
 
-Defined in: [src/react/useOCR.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#7)
+Defined in: [src/react/useOCR.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#12)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/react/useOCR.ts:7](https://github.com/anuma-ai/sdk/blob/main/sr
 
 > `optional` **filename**: `string`
 
-Defined in: [src/react/useOCR.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#9)
+Defined in: [src/react/useOCR.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#14)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/react/useOCR.ts:9](https://github.com/anuma-ai/sdk/blob/main/sr
 
 > `optional` **language**: `string`
 
-Defined in: [src/react/useOCR.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#10)
+Defined in: [src/react/useOCR.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#15)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/react/useOCR.ts:10](https://github.com/anuma-ai/sdk/blob/main/s
 
 > **url**: `string` | `Blob` | `File`
 
-Defined in: [src/react/useOCR.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#8)
+Defined in: [src/react/useOCR.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#13)

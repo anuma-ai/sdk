@@ -1,6 +1,6 @@
 # UseOCRResult
 
-Defined in: [src/react/useOCR.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#17)
+Defined in: [src/react/useOCR.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#22)
 
 Result returned by the useOCR hook.
 
@@ -10,7 +10,7 @@ Result returned by the useOCR hook.
 
 > **error**: `Error` | `null`
 
-Defined in: [src/react/useOCR.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#23)
+Defined in: [src/react/useOCR.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#28)
 
 Error from the last OCR extraction attempt
 
@@ -20,7 +20,7 @@ Error from the last OCR extraction attempt
 
 > **extractOCRContext**: (`files`: [`OCRFile`](../Internal/interfaces/OCRFile.md)\[]) => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useOCR.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#19)
+Defined in: [src/react/useOCR.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#24)
 
 Extract text from images using OCR
 
@@ -59,6 +59,6 @@ Extract text from images using OCR
 
 > **isProcessing**: `boolean`
 
-Defined in: [src/react/useOCR.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#21)
+Defined in: [src/react/useOCR.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/react/useOCR.ts#26)
 
 Whether OCR processing is in progress
