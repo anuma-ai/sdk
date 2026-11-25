@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resumeStream } from "./resumeStream";
-import type { StreamingTransportOptions } from "./toolLoop";
+import { runToolLoop, type StreamingTransportOptions } from "./toolLoop";
 import { xhrTransport } from "./xhrTransport";
 
 class FakeXMLHttpRequest {
@@ -302,5 +302,66 @@ describe("xhrTransport", () => {
 
     expect(received).toEqual([{ x: 1 }]);
     expect(abort).not.toHaveBeenCalled();
+  });
+
+  it("yields the [DONE] marker the fetch SSE client surfaces", async () => {
+    const result = xhrTransport(baseOptions);
+
+    const xhr = lastXhr();
+    xhr.receiveHeaders(200);
+    xhr.receiveChunk('data: {"x":1}\n\ndata: [DO');
+    xhr.receiveChunk("NE]\n\n");
+    xhr.finish();
+
+    const received: unknown[] = [];
+    for await (const chunk of result.stream) received.push(chunk);
+
+    expect(received).toEqual([{ x: 1 }, "[DONE]"]);
+  });
+
+  it("finishes a completions generation when abort follows [DONE] before the connection closes", async () => {
+    const controller = new AbortController();
+    const onFinish = vi.fn();
+    let sawOutput: () => void = () => {};
+    const outputSeen = new Promise<void>((resolve) => {
+      sawOutput = resolve;
+    });
+    const usage = { cost_micro_usd: 120, credits_used: 3 };
+    const event = (data: unknown) =>
+      `data: ${typeof data === "string" ? data : JSON.stringify(data)}\n\n`;
+    const resultPromise = runToolLoop({
+      token: "token",
+      apiType: "completions",
+      model: "test-model",
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      signal: controller.signal,
+      smoothing: false,
+      idleTimeoutMs: 0,
+      transport: xhrTransport,
+      onData: () => sawOutput(),
+      onFinish,
+    });
+
+    await vi.waitFor(() => {
+      expect(FakeXMLHttpRequest.instances.length).toBeGreaterThan(0);
+    });
+    const xhr = lastXhr();
+    xhr.receiveHeaders(200);
+    xhr.receiveChunk(
+      event({ choices: [{ index: 0, delta: { content: "partial" } }] }) +
+        event({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] }) +
+        event({ choices: [], usage }) +
+        event("[DONE]")
+    );
+    await outputSeen;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.abort();
+
+    const result = await resultPromise;
+    expect(result.error).toBeNull();
+    expect(JSON.stringify(result.data)).toContain("partial");
+    expect(result.data).toHaveProperty("usage", usage);
+    expect(onFinish).toHaveBeenCalledOnce();
+    expect(onFinish).toHaveBeenCalledWith(result.data);
   });
 });
