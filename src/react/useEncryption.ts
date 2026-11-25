@@ -1346,12 +1346,12 @@ export async function getKeyPair(
 }
 
 /**
- * Requests the user to sign a message to generate an ECDH key pair.
- * If a key pair already exists in memory for the given wallet, resolves immediately.
+ * Requests an ECDH key pair and resolves immediately if it exists in memory.
+ * The SDK can load a saved key pair or request a wallet signature to generate one.
  *
- * Note: Key pairs are stored in memory only and do not persist across page reloads.
- * This is a security feature - users must sign once per session to derive their key pair.
- *
+ * Concurrent calls for the same wallet address share one pending request. The SDK ignores later
+ * callers' signers. All callers receive the first caller's result or rejection. The SDK clears a
+ * rejected request so a retry starts a new request.
  * @param walletAddress - The wallet address to generate the key pair for
  * @param signMessage - Function to sign a message (returns signature hex string)
  * @param embeddedWalletSigner - Optional function for silent signing with embedded wallets
