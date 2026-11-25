@@ -1,6 +1,8 @@
 import {
   getVaultEmbeddingsByIdsOp,
+  getVaultMemoriesByIdsOp,
   getVaultProfileMetadataOp,
+  type VaultMemoryOperationsContext,
   type VaultProfileMetadata,
 } from "../db/memoryVault/operations.js";
 import type { StoredVaultMemory } from "../db/memoryVault/types.js";
@@ -29,7 +31,7 @@ const DEFAULT_FACET_MAX_TOKENS = 512;
 const DEFAULT_SCOPES = ["private"];
 const NEW_FACT_ATTRIBUTION_MIN_SCORE = 0.1;
 type ProfileMemory = VaultProfileMetadata &
-  Partial<Pick<StoredVaultMemory, "embedding" | "embeddingModel">>;
+  Partial<Pick<StoredVaultMemory, "content" | "embedding" | "embeddingModel">>;
 /** Bump when the ProfileDoc / section shape changes incompatibly. */
 export const PROFILE_DOC_VERSION = 1;
 
@@ -175,6 +177,7 @@ export interface ProfileSection {
   text: string;
   /** Vault memory ids this section was grounded on — provenance + delta refresh. */
   sourceMemoryIds: string[];
+  sourceMemoryContentHashes?: Record<string, string>;
   /**
    * Structured occupation — the `work_role` facet only. A short role phrase
    * (at most 80 code points, PII-gated alongside {@link ProfileSection.text})
@@ -417,7 +420,7 @@ export async function synthesizeProfile(
     watermark,
     options.reviewedMemoryIds,
     previousUnreadable,
-    store ? undefined : (ids) => getVaultEmbeddingsByIdsOp(vaultCtx!, ids)
+    store ? undefined : vaultCtx
   );
 
   const memoriesById = new Map(memories.map((memory) => [memory.uniqueId, memory]));
@@ -593,6 +596,20 @@ function computeVaultWatermark(memories: VaultProfileMetadata[]): number {
   return max;
 }
 
+async function memoryContentHash(id: string, content: string): Promise<string | undefined> {
+  try {
+    const digest = await globalThis.crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(JSON.stringify([id, content]))
+    );
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
+      ""
+    );
+  } catch {
+    return undefined;
+  }
+}
+
 async function computeStaleFacetKeys(
   ctx: RecallContext,
   memories: ProfileMemory[],
@@ -601,7 +618,7 @@ async function computeStaleFacetKeys(
   watermark: number,
   reviewedMemoryIds: readonly string[] | undefined,
   previouslyUnreadable: ReadonlySet<string>,
-  loadEmbeddings?: (ids: string[]) => ReturnType<typeof getVaultEmbeddingsByIdsOp>
+  vaultCtx?: VaultMemoryOperationsContext
 ): Promise<Set<ProfileFacetKey>> {
   const allKeys = new Set(facets.map((f) => f.key));
   if (previous && watermark < previous.vaultWatermark) return allKeys;
@@ -613,6 +630,7 @@ async function computeStaleFacetKeys(
   const changedIds = new Set(changed.map((m) => m.uniqueId));
   const presentIds = new Set(memories.map((m) => m.uniqueId));
   const stale = new Set<ProfileFacetKey>();
+  const citedHashes = new Map<string, string | undefined>();
 
   for (const section of previous.sections) {
     if (section.sourceMemoryIds.some((id) => changedIds.has(id))) {
@@ -624,6 +642,10 @@ async function computeStaleFacetKeys(
     if (section.stale) {
       stale.add(section.key);
     }
+    for (const id of section.sourceMemoryIds) {
+      const hash = section.sourceMemoryContentHashes?.[id];
+      citedHashes.set(id, citedHashes.has(id) && citedHashes.get(id) !== hash ? undefined : hash);
+    }
   }
   for (const facet of facets) {
     if (!previous.sections.some((s) => s.key === facet.key)) stale.add(facet.key);
@@ -634,9 +656,32 @@ async function computeStaleFacetKeys(
     const allowed = new Set(reviewedMemoryIds);
     toAttribute = toAttribute.filter((m) => allowed.has(m.uniqueId));
   }
+  const comparable = toAttribute.filter(
+    (m) => citedHashes.get(m.uniqueId) !== undefined && !previouslyUnreadable.has(m.uniqueId)
+  );
+  if (comparable.length > 0) {
+    const current = vaultCtx
+      ? await getVaultMemoriesByIdsOp(
+          vaultCtx,
+          comparable.map((m) => m.uniqueId)
+        ).catch(() => [])
+      : comparable;
+    const unchangedIds = new Set<string>();
+    await Promise.all(
+      current.map(async ({ uniqueId, content }) => {
+        if (content === undefined) return;
+        const hash = await memoryContentHash(uniqueId, content);
+        if (hash !== undefined && hash === citedHashes.get(uniqueId)) unchangedIds.add(uniqueId);
+      })
+    );
+    toAttribute = toAttribute.filter((m) => !unchangedIds.has(m.uniqueId));
+  }
   if (toAttribute.length > 0) {
-    const candidates = loadEmbeddings
-      ? await loadEmbeddings(toAttribute.map((m) => m.uniqueId))
+    const candidates = vaultCtx
+      ? await getVaultEmbeddingsByIdsOp(
+          vaultCtx,
+          toAttribute.map((m) => m.uniqueId)
+        )
       : toAttribute;
     if (candidates.length !== toAttribute.length) return allKeys;
     const attributed = await attributeFacts(ctx, candidates, facets);
@@ -815,6 +860,19 @@ async function synthesizeFacet(
     if (occupation !== undefined) section.occupation = occupation;
     const interests = normalizeInterests(values.interests);
     if (interests !== undefined) section.interests = interests;
+  }
+
+  const hashes = await Promise.all(
+    memories
+      .filter((memory) => section.sourceMemoryIds.includes(memory.id))
+      .map(async ({ id, content }) => {
+        const hash = await memoryContentHash(id, content);
+        return hash === undefined ? undefined : ([id, hash] as const);
+      })
+  );
+  const availableHashes = hashes.filter((entry) => entry !== undefined);
+  if (availableHashes.length > 0) {
+    section.sourceMemoryContentHashes = Object.fromEntries(availableHashes);
   }
 
   return section;
