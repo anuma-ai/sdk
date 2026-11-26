@@ -30,7 +30,7 @@ function deferredSignature() {
   return { promise, resolve };
 }
 
-it("documents how requestKeyPair shares and retries requests", () => {
+function readRequestKeyPairDescription(): string {
   const source = ts.createSourceFile(
     "useEncryption.ts",
     readFileSync(join(__dirname, "useEncryption.ts"), "utf8"),
@@ -42,12 +42,28 @@ it("documents how requestKeyPair shares and retries requests", () => {
   );
   assert.isDefined(declaration);
   const jsDoc = ts.getJSDocCommentsAndTags(declaration).find(ts.isJSDoc);
-  const documentation = (ts.getTextOfJSDocComment(jsDoc?.comment) ?? "").replace(/\s+/g, " ");
+  return (ts.getTextOfJSDocComment(jsDoc?.comment) ?? "").replace(/\s+/g, " ").trim();
+}
 
-  expect(documentation).toContain("same wallet address share one pending request");
-  expect(documentation).toContain("ignores later callers' signers");
-  expect(documentation).toContain("receive the first caller's result or rejection");
-  expect(documentation).toContain("clears a rejected request so a retry starts a new request");
+describe("requestKeyPair documentation", () => {
+  it("keeps the TSDoc description to one sentence", () => {
+    const sentences = readRequestKeyPairDescription().split(/(?<=[.!?])\s+/);
+
+    expect(sentences).toHaveLength(1);
+    expect(sentences[0]).toMatch(/[.!?]$/);
+  });
+
+  it("explains shared and retried requests in the encryption guide", () => {
+    const guide = readFileSync(join(__dirname, "..", "..", "ENCRYPTION.md"), "utf8").replace(
+      /\s+/g,
+      " "
+    );
+
+    expect(guide).toContain("same wallet address share one pending request");
+    expect(guide).toContain("ignores the signers of later callers");
+    expect(guide).toContain("receive the result or rejection of the first caller");
+    expect(guide).toContain("clears a rejected request so a retry starts a new request");
+  });
 });
 
 describe("requestKeyPair concurrency", () => {

@@ -2,14 +2,9 @@
 
 > **requestKeyPair**(`walletAddress`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<`void`>
 
-Defined in: [src/react/useEncryption.ts:1360](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1360)
+Defined in: [src/react/useEncryption.ts:1355](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1355)
 
-Requests an ECDH key pair and resolves immediately if it exists in memory.
-The SDK can load a saved key pair or request a wallet signature to generate one.
-
-Concurrent calls for the same wallet address share one pending request. The SDK ignores later
-callers' signers. All callers receive the first caller's result or rejection. The SDK clears a
-rejected request so a retry starts a new request.
+Requests the wallet's ECDH key pair and resolves immediately if it exists in memory.
 
 ## Parameters
 

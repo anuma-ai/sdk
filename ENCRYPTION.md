@@ -266,6 +266,16 @@ const unsubscribe = onKeyAvailable(walletAddress, () => {
 unsubscribe();
 ```
 
+### Concurrent key pair requests
+
+`requestKeyPair(walletAddress, signMessage, embeddedWalletSigner?)` loads a saved key pair or asks the wallet for a signature to generate one.
+
+- **One request for each wallet.** Concurrent calls for the same wallet address share one pending request.
+- **Later signers are not used.** The SDK ignores the signers of later callers.
+- **One outcome for all callers.** All callers receive the result or rejection of the first caller.
+- **Retry after a rejection.** The SDK clears a rejected request so a retry starts a new request.
+- **Fast path.** The call resolves immediately when the key pair is already in memory.
+
 ### Using the queue manager directly
 
 For advanced scenarios where you need to queue custom operations:
