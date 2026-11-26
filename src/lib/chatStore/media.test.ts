@@ -540,11 +540,13 @@ describe("seedMediaToVault", () => {
     let peak = 0;
     let lookups = 0;
     vault.faults.push(async (request) => {
-      if (request.method !== "GET" || !/\/attachments\/[0-9a-f]{32}\?/.test(request.path)) return;
+      if (request.method !== "GET" || !/\/attachments\/[0-9a-f]{32}\?/.test(request.path))
+        return undefined;
       lookups++;
       peak = Math.max(peak, ++inFlight);
       await new Promise((resolve) => setTimeout(resolve, 5));
       inFlight--;
+      return undefined;
     });
 
     expect(await run(0)).toEqual({
@@ -582,10 +584,11 @@ describe("seedMediaToVault", () => {
     let uploading = 0;
     let peakUploads = 0;
     vault.faults.push(async (request) => {
-      if (request.host !== "r2.test" || request.method !== "PUT") return;
+      if (request.host !== "r2.test" || request.method !== "PUT") return undefined;
       peakUploads = Math.max(peakUploads, ++uploading);
       await new Promise((resolve) => setTimeout(resolve, 5));
       uploading--;
+      return undefined;
     });
 
     expect(await run(2)).toMatchObject({ uploaded: 2, remaining: 3 });
