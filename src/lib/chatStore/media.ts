@@ -114,6 +114,7 @@ interface MediaWriter {
 }
 
 const maxWriteAttempts = 4;
+const attachmentLookupConcurrency = 8;
 
 /** The vault record id of a library file: a keyed hash of its device id, so vault cannot tell it and reruns agree on it. */
 export async function mediaItemId(
@@ -183,6 +184,18 @@ function toMediaItem(snapshot: ChatSnapshot): MediaItem | null {
   };
 }
 
+async function lookupCandidate(
+  store: ChatStore,
+  attachmentId: string | null | undefined,
+  signal?: AbortSignal
+): Promise<Candidate | null> {
+  return toCandidate(
+    attachmentId && attachmentIdPattern.test(attachmentId)
+      ? (await store.attachments.get(attachmentId, signal))?.attachment
+      : null
+  );
+}
+
 function mediaRecord(
   id: string,
   item: MediaItemInput,
@@ -216,17 +229,14 @@ async function storeMedia(
   item: MediaItemInput,
   read: () => Promise<Uint8Array | Blob | VaultAttachmentSource | null>,
   known?: ChatSnapshot | null,
-  canUpload = true
+  canUpload = true,
+  recorded?: Candidate | null
 ): Promise<{ snapshot: ChatSnapshot; uploaded: boolean } | "busy" | "missing" | "upload_limit"> {
   const { store, attachments, journal, now, signal } = writer;
   const id = known?.record.id ?? (await mediaItemId(store, item.localId));
   const key = journalKey(id);
-  const lookup = async (attachmentId: string | null | undefined) =>
-    toCandidate(
-      attachmentId && attachmentIdPattern.test(attachmentId)
-        ? (await store.attachments.get(attachmentId, signal))?.attachment
-        : null
-    );
+  const lookup = (attachmentId: string | null | undefined) =>
+    lookupCandidate(store, attachmentId, signal);
   const uploading = (candidate: Candidate) =>
     candidate.createdAt !== undefined && now() < Date.parse(candidate.createdAt) + uploadWindowMs;
   const deleted = async (stray: Candidate | null) => {
@@ -244,7 +254,7 @@ async function storeMedia(
       if (uploading(next)) return "busy";
       await attachments.delete(next.id, signal);
     }
-    next = await lookup(recordedAttachment(current));
+    next = recorded !== undefined ? recorded : await lookup(recordedAttachment(current));
   }
   let uploaded = false;
   for (let attempt = 1; ; attempt++) {
@@ -487,26 +497,40 @@ async function seedRun(options: MediaSeedOptions): Promise<MediaSeedResult> {
       )
     ).map((snapshot) => [snapshot.record.id, snapshot])
   );
-  for (const [i, item] of options.items.entries()) {
+  for (let start = 0; start < options.items.length; start += attachmentLookupConcurrency) {
     signal?.throwIfAborted();
-    const known = found.get(ids[i]) ?? null;
-    try {
-      const stored = await storeMedia(
-        writer,
-        item,
-        () => item.read(),
-        known,
-        result.uploaded < maxUploads
-      );
-      if (stored === "missing") result.missing.push(item.localId);
-      else if (stored === "busy") result.deferred.push(item.localId);
-      else if (stored === "upload_limit") result.remaining++;
-      else if (stored.uploaded) result.uploaded++;
-    } catch (error) {
-      if (!(error instanceof ChatStoreError)) throw error;
-      if (error.code === "media_deleted") result.deleted.push(item.localId);
-      else if (error.code === "attachment_too_large") result.oversized.push(item.localId);
-      else throw error;
+    const batch = options.items.slice(start, start + attachmentLookupConcurrency);
+    const recorded = await Promise.all(
+      batch.map(async (_, offset) => {
+        const snapshot = found.get(ids[start + offset]);
+        const attachmentId =
+          snapshot && !snapshot.record.isDeleted ? recordedAttachment(snapshot) : undefined;
+        if (!attachmentId) return undefined;
+        return lookupCandidate(store, attachmentId, signal).catch(() => undefined);
+      })
+    );
+    for (const [offset, item] of batch.entries()) {
+      signal?.throwIfAborted();
+      const known = found.get(ids[start + offset]) ?? null;
+      try {
+        const stored = await storeMedia(
+          writer,
+          item,
+          () => item.read(),
+          known,
+          result.uploaded < maxUploads,
+          recorded[offset]
+        );
+        if (stored === "missing") result.missing.push(item.localId);
+        else if (stored === "busy") result.deferred.push(item.localId);
+        else if (stored === "upload_limit") result.remaining++;
+        else if (stored.uploaded) result.uploaded++;
+      } catch (error) {
+        if (!(error instanceof ChatStoreError)) throw error;
+        if (error.code === "media_deleted") result.deleted.push(item.localId);
+        else if (error.code === "attachment_too_large") result.oversized.push(item.localId);
+        else throw error;
+      }
     }
   }
   return result;
