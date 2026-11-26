@@ -54,7 +54,29 @@ describe("requestICloudSignIn", () => {
     document.body.innerHTML = "";
   });
 
-  it("rejects after 60 seconds when the popup does not complete sign-in", async () => {
+  it("allows slow sign-in after CloudKit loads", async () => {
+    const cloudKit = window.CloudKit;
+    delete window.CloudKit;
+    const appendScript = vi
+      .spyOn(document.head, "appendChild")
+      .mockImplementationOnce((node) => node);
+    const rejected = vi.fn();
+    const result = requestICloudSignIn();
+    void result.catch(rejected);
+
+    const [[script]] = appendScript.mock.calls;
+    await vi.advanceTimersByTimeAsync(30_000);
+    window.CloudKit = cloudKit;
+    script.dispatchEvent(new Event("load"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(click).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(90_000);
+    signIn.resolve(user);
+    await expect(result).resolves.toEqual(user);
+  });
+
+  it("rejects after three minutes when the popup does not complete sign-in", async () => {
     const controller = new AbortController();
     const removeListener = vi.spyOn(controller.signal, "removeEventListener");
     const resolved = vi.fn();
@@ -62,7 +84,7 @@ describe("requestICloudSignIn", () => {
     void requestICloudSignIn({ signal: controller.signal }).then(resolved, rejected);
     await vi.advanceTimersByTimeAsync(0);
     expect(click).toHaveBeenCalledOnce();
-    await vi.advanceTimersByTimeAsync(59_999);
+    await vi.advanceTimersByTimeAsync(179_999);
     expect(rejected).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     expect(rejected).toHaveBeenCalledExactlyOnceWith(new Error("iCloud sign-in timed out"));
@@ -86,7 +108,7 @@ describe("requestICloudSignIn", () => {
     expect(removeListener).toHaveBeenCalledWith("abort", expect.any(Function));
     expect(vi.getTimerCount()).toBe(0);
     signIn.resolve(user);
-    await vi.advanceTimersByTimeAsync(60_000);
+    await vi.advanceTimersByTimeAsync(180_000);
     expect(rejected).toHaveBeenCalledOnce();
   });
 
@@ -112,7 +134,7 @@ describe("requestICloudSignIn", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(setUpAuth).toHaveBeenCalledOnce();
     if (reason === "abort") controller.abort();
-    await vi.advanceTimersByTimeAsync(60_000);
+    await vi.advanceTimersByTimeAsync(180_000);
     expect(rejected).toHaveBeenCalledExactlyOnceWith(
       new Error(reason === "abort" ? "Sign-in was cancelled" : "iCloud sign-in timed out")
     );
@@ -156,7 +178,7 @@ describe("requestICloudSignIn", () => {
   it("allows a retry after a timeout", async () => {
     const rejected = vi.fn();
     void requestICloudSignIn().catch(rejected);
-    await vi.advanceTimersByTimeAsync(60_000);
+    await vi.advanceTimersByTimeAsync(180_000);
     expect(rejected).toHaveBeenCalledExactlyOnceWith(new Error("iCloud sign-in timed out"));
     const retry = requestICloudSignIn();
     await vi.advanceTimersByTimeAsync(0);

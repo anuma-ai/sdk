@@ -249,7 +249,7 @@ export async function authenticateICloud(): Promise<CloudKitUserIdentity | null>
   return container.setUpAuth();
 }
 
-/** Request iCloud sign-in with a 60-second timeout and an optional abort signal. */
+/** Request iCloud sign-in with a three-minute timeout and an optional abort signal. */
 export async function requestICloudSignIn({
   signal,
 }: { signal?: AbortSignal } = {}): Promise<CloudKitUserIdentity> {
@@ -267,7 +267,7 @@ export async function requestICloudSignIn({
     };
     onAbort = () => cancel(new Error("Sign-in was cancelled"));
     signal?.addEventListener("abort", onAbort, { once: true });
-    timer = setTimeout(() => cancel(new Error("iCloud sign-in timed out")), 60_000);
+    timer = setTimeout(() => cancel(new Error("iCloud sign-in timed out")), 180_000);
   });
   const throwIfCancelled = () => {
     if (cancellationError) throw cancellationError;
