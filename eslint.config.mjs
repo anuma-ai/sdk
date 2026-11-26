@@ -27,6 +27,7 @@ const checkedTestFiles = [
   "src/design/overlays.test.tsx",
   "src/design/shadowDom.test.tsx",
   "src/lib/auth/oauth-wallet-scope.test.ts",
+  "src/lib/chatStore/media.test.ts",
   "src/lib/chatStore/migrateChats.test.ts",
   "src/lib/chatStore/remote.test.ts",
   "src/lib/chatStore/vaultAttachments.test.ts",

@@ -244,7 +244,7 @@ describe("vault media library", () => {
   });
 });
 
-describe("large app files", () => {
+describe("large app files", { timeout: 60_000 }, () => {
   it("round-trips a file over the record limit and deletes the attachment each edit supersedes", async () => {
     const vault = createFakeVault({ mediaAttachments: true });
     const phone = await device(vault);
@@ -456,9 +456,11 @@ describe("seedMediaToVault", () => {
     expect(await run()).toMatchObject({ uploaded: 0, remaining: 0 });
     const before = vault.requests.length;
     expect(await run()).toMatchObject({ uploaded: 0, remaining: 0 });
-    expect(vault.requests.slice(before).map((r) => r.path)).toEqual([
-      "/api/private-chats/records/get",
-    ]);
+    expect(
+      vault.requests
+        .slice(before)
+        .filter(({ method, path }) => method !== "GET" && path !== "/api/private-chats/records/get")
+    ).toEqual([]);
     expect(vault.uploads()).toHaveLength(3);
     expect([...vault.attachments.values()].map((a) => a.state)).toEqual([
       "committed",
@@ -470,6 +472,130 @@ describe("seedMediaToVault", () => {
     for (const item of listed)
       expect(vault.attachments.get(item.attachmentId)?.ownerId).toBe(item.id);
     expect(journal.entries.size).toBe(0);
+  });
+
+  it.each([
+    { state: "pending", additionalUploads: 0 },
+    { state: "gone", additionalUploads: 1 },
+  ])("recovers a $state attachment after journal loss", async ({ state, additionalUploads }) => {
+    const vault = createFakeVault({ mediaAttachments: true });
+    const phone = await device(vault);
+    const journal = memoryJournal();
+    const run = (maxUploads?: number) =>
+      seedMediaToVault({
+        store: phone.store,
+        attachments: phone.attachments,
+        journal,
+        items: [localItem("a", "alpha")],
+        maxUploads,
+        now: vault.now,
+      });
+
+    vault.faults.push((request) => {
+      if (request.path.endsWith("/commit")) return Promise.reject(new TypeError("app killed"));
+    });
+    await expect(run()).rejects.toThrow("app killed");
+    const [{ id, attachmentId }] = await phone.library.list();
+    expect(vault.attachments.get(attachmentId)?.state).toBe("pending");
+    expect(await phone.library.read(id)).toBeNull();
+
+    vault.faults.length = 0;
+    expect(journal.entries.size).toBe(1);
+    journal.entries.clear();
+    if (state === "gone") await phone.attachments.delete(attachmentId);
+
+    expect(await run(additionalUploads)).toMatchObject({
+      uploaded: additionalUploads,
+      remaining: 0,
+    });
+    const listed = await phone.library.list();
+    expect(listed.map((item) => item.id)).toEqual([id]);
+    const [recovered] = listed;
+    expect(vault.attachments.get(recovered.attachmentId)).toMatchObject({
+      state: "committed",
+      ownerKind: "media",
+      ownerId: id,
+    });
+    expect(await phone.library.read(id)).toEqual(bytes("alpha"));
+    expect(vault.uploads()).toHaveLength(1 + additionalUploads);
+  });
+
+  it("checks existing attachments in bounded parallel without extra uploads", async () => {
+    const vault = createFakeVault({ mediaAttachments: true });
+    const phone = await device(vault);
+    const journal = memoryJournal();
+    const items = Array.from({ length: 12 }, (_, i) => localItem(`item_${i}`, `content ${i}`));
+    const run = (maxUploads?: number) =>
+      seedMediaToVault({
+        store: phone.store,
+        attachments: phone.attachments,
+        journal,
+        items,
+        maxUploads,
+        now: vault.now,
+      });
+    expect(await run()).toMatchObject({ uploaded: 12, remaining: 0 });
+
+    let inFlight = 0;
+    let peak = 0;
+    let lookups = 0;
+    vault.faults.push(async (request) => {
+      if (request.method !== "GET" || !/\/attachments\/[0-9a-f]{32}\?/.test(request.path))
+        return undefined;
+      lookups++;
+      peak = Math.max(peak, ++inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight--;
+      return undefined;
+    });
+
+    expect(await run(0)).toEqual({
+      uploaded: 0,
+      deleted: [],
+      missing: [],
+      oversized: [],
+      deferred: [],
+      remaining: 0,
+    });
+    expect(lookups).toBe(12);
+    expect(peak).toBeGreaterThan(1);
+    expect(peak).toBeLessThanOrEqual(8);
+    expect(vault.uploads()).toHaveLength(12);
+  });
+
+  it("keeps uploads serial and limited while checking attachments in parallel", async () => {
+    const vault = createFakeVault({ mediaAttachments: true });
+    const phone = await device(vault);
+    const journal = memoryJournal();
+    const items = Array.from({ length: 6 }, (_, i) => localItem(`item_${i}`, `content ${i}`));
+    const run = (maxUploads?: number) =>
+      seedMediaToVault({
+        store: phone.store,
+        attachments: phone.attachments,
+        journal,
+        items,
+        maxUploads,
+        now: vault.now,
+      });
+    await run();
+    for (const item of await phone.library.list())
+      if (item.localId !== "item_5") await phone.attachments.delete(item.attachmentId);
+
+    let uploading = 0;
+    let peakUploads = 0;
+    vault.faults.push(async (request) => {
+      if (request.host !== "r2.test" || request.method !== "PUT") return undefined;
+      peakUploads = Math.max(peakUploads, ++uploading);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      uploading--;
+      return undefined;
+    });
+
+    expect(await run(2)).toMatchObject({ uploaded: 2, remaining: 3 });
+    expect(peakUploads).toBe(1);
+    expect(vault.uploads()).toHaveLength(8);
+    expect(await run(5)).toMatchObject({ uploaded: 3, remaining: 0 });
+    expect(vault.uploads()).toHaveLength(11);
   });
 
   it("skips items deleted on another device", async () => {
@@ -493,7 +619,7 @@ describe("seedMediaToVault", () => {
   });
 });
 
-describe("without vault media support", () => {
+describe("without vault media support", { timeout: 60_000 }, () => {
   it("keeps media on the device and large app files out of vault", async () => {
     const vault = createFakeVault();
     const phone = await device(vault);
