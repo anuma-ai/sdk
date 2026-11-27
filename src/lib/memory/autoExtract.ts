@@ -513,13 +513,24 @@ export type WriteFailureReason =
   | "embeddings-unavailable"
   | "merge-not-persisted"
   | "private-memory-unreadable"
+  | "store-unavailable"
   | "aborted"
   | "unknown";
+
+function isStoreOutage(err: unknown): boolean {
+  const { name, status } = (err ?? {}) as { name?: unknown; status?: unknown };
+  return (
+    name === "RemoteMemoryError" &&
+    typeof status === "number" &&
+    (status === 401 || status === 403 || status === 408 || status === 429 || status >= 500)
+  );
+}
 
 function writeFailureReasonOf(err: unknown): WriteFailureReason {
   if (err instanceof MemorySourceIneligibleError) return "source-ineligible";
   if (err instanceof RetainError) return err.reason;
   if ((err as { name?: unknown } | null)?.name === "AbortError") return "aborted";
+  if (isStoreOutage(err)) return "store-unavailable";
   return "unknown";
 }
 

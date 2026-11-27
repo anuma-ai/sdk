@@ -327,6 +327,7 @@ const MAX_CONSECUTIVE_WINDOW_FAILURES = 3;
 
 const TRANSIENT_WRITE_FAILURES: ReadonlySet<WriteFailureReason> = new Set([
   "embeddings-unavailable",
+  "store-unavailable",
   "aborted",
 ]);
 

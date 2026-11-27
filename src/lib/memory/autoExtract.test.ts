@@ -13,6 +13,7 @@ import { linkMemoryEntitiesOp } from "../db/entities/operations";
 
 import { MemorySourceIneligibleError } from "../db/memoryVault/types";
 import { retain, RetainError } from "./retain";
+import { RemoteMemoryError } from "./store/remotePersistence";
 
 import type { NerDetector, PiiSpan } from "../pii/ner";
 import { PiiRedactor } from "../pii/redactor";
@@ -738,6 +739,11 @@ describe("extractAndRetain", () => {
     ],
     [new DOMException("aborted", "AbortError"), "aborted"],
     [{ name: "AbortError", message: "polyfilled abort" }, "aborted"],
+    [new RemoteMemoryError("rate limited", 429), "store-unavailable"],
+    [new RemoteMemoryError("Nearby request timed out", 408, "timeout"), "store-unavailable"],
+    [new RemoteMemoryError("Nearby request failed (503)", 503), "store-unavailable"],
+    [new RemoteMemoryError("Authentication required", 401), "store-unavailable"],
+    [new RemoteMemoryError("payload rejected", 422), "unknown"],
   ] as const)("reports why the first write failed: %s", async (error, reason) => {
     vi.mocked(retain)
       .mockRejectedValueOnce(error)

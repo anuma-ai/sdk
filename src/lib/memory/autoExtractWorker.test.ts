@@ -944,6 +944,7 @@ describe("a window that keeps failing", () => {
   it.each([
     ["an embeddings outage", failing({ writeFailureReason: "embeddings-unavailable" })],
     ["an aborted write", failing({ writeFailureReason: "aborted" })],
+    ["a memory store outage", failing({ writeFailureReason: "store-unavailable" })],
     [
       "a transport failure",
       failing({
