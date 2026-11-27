@@ -6,6 +6,7 @@ import type { VaultEmbeddingCache } from "../memoryVault/searchTool.js";
 import type { VaultPreparation } from "../memoryVault/vaultPreparation.js";
 import type { PiiRedactor } from "../pii/redactor.js";
 import type { ChatBackend } from "../storage/ChatBackend.js";
+import type { MemoryAppProfile } from "./appProfile.js";
 import type { FactType } from "./autoExtract.js";
 import type { ObservationTrend } from "./observationTrend.js";
 import type { PortalLlmAuth } from "./portalLlm.js";
@@ -95,8 +96,11 @@ export interface RankedMemory {
   updatedAt: Date;
 }
 
+export type RecallScoreScale = "cosine" | "bm25" | "rrf" | "unknown" | "none";
+
 export interface RecallOptions {
   /** @internal */ vaultPreparation?: VaultPreparation;
+  profile?: MemoryAppProfile;
   /** Embedding cache shared with the rest of the turn, so the query is embedded once across lanes and the send. */
   embeddingCache?: Map<string, Float32Array>;
   /** Which kinds to search. Default: ['fact']. */
@@ -438,6 +442,7 @@ export interface RecallDiagnostics {
   topScore: number;
   /** Lowest score among the returned memories; -1 when none were returned. */
   lowestAdmittedScore: number;
+  scoreScale?: RecallScoreScale;
   /**
    * The similarity floor the lane that produced these scores actually applied:
    * the fact lane's when it RETURNED results, otherwise the chunk lane's, and

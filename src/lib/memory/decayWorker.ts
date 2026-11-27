@@ -6,6 +6,7 @@ import {
   type VaultMemoryOperationsContext,
 } from "../db/memoryVault/operations.js";
 import { getLogger } from "../logger.js";
+import { type MemoryAppProfile, profileDecayPolicy } from "./appProfile.js";
 import {
   classifyDecay,
   type DecayInput,
@@ -77,6 +78,7 @@ export interface CreateDecaySweeperOptions {
   now?: NowSource;
   /** Partial policy overriding the per-type TTL defaults. Omit for defaults. */
   policy?: Partial<DecayPolicy>;
+  profile?: MemoryAppProfile;
   /**
    * PR5 seam. When provided, borderline candidates' rule verdict is passed
    * through it. Gate on key availability (it may decrypt content). Default
@@ -199,16 +201,20 @@ export function createDecaySweeper(options: CreateDecaySweeperOptions): DecaySwe
 }
 
 export function ruleBasedDecayOptions(
-  options: Pick<CreateDecaySweeperOptions, "now" | "policy" | "onSwept" | "onError"> = {}
+  options: Pick<
+    CreateDecaySweeperOptions,
+    "now" | "policy" | "profile" | "onSwept" | "onError"
+  > = {}
 ): DecaySweepOptions {
   if ((options as { classifier?: unknown }).classifier !== undefined)
     throw new Error(
       "MemoryStore.decay sweeps by rule only; a decay classifier needs decrypted content"
     );
-  const { now, policy, onSwept, onError } = options;
+  const { now, policy, profile, onSwept, onError } = options;
   return {
     ...(now !== undefined && { now }),
     ...(policy && { policy }),
+    ...(profile && { profile }),
     ...(onSwept && { onSwept }),
     ...(onError && { onError }),
   };
@@ -218,7 +224,8 @@ export function createDecaySweeperOver(
   backend: DecaySweepBackend,
   options: DecaySweepOptions
 ): DecaySweeper {
-  const { policy, classifier, onSwept, onError } = options;
+  const { classifier, onSwept, onError } = options;
+  const policy = profileDecayPolicy(options.profile, options.policy);
   const maxTransitions = options.maxTransitionsPerSweep ?? Number.POSITIVE_INFINITY;
   const hardDeleteWindowMs = policy?.hardDeleteWindowMs ?? DEFAULT_DECAY_POLICY.hardDeleteWindowMs;
   const maxClassifierCalls =

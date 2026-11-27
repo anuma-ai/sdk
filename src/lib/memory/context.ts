@@ -1,5 +1,6 @@
 import type { getAllVaultMemoriesOp } from "../db/memoryVault/operations.js";
 import { isRecallableMemory, type StoredVaultMemory } from "../db/memoryVault/types.js";
+import type { MemoryAppProfile } from "./appProfile.js";
 import type { RecallOptions, RecallResult } from "./types.js";
 
 export type MemoryContextLane = "profile" | "fact" | "episode" | "session";
@@ -28,6 +29,7 @@ export interface MemoryContextOptions {
     | null;
   loadSessionRefs?: (() => Promise<Array<{ memoryId: string; score: number }>>) | null;
   recallOptions?: RecallOptions;
+  profile?: MemoryAppProfile;
   /** Topic membership is applied before ranking and to every context lane. */
   memoryIds?: string[];
   /** Character budget for contents (formatting overhead is excluded). Default 12000. */
@@ -72,6 +74,9 @@ export async function assembleMemoryContext(
 ): Promise<MemoryContextResult> {
   const { query, recall, loadFacts, loadSessionRefs } = options;
   const memoryIds = options.memoryIds ?? options.recallOptions?.memoryIds;
+  const recallOptions: RecallOptions | undefined = options.profile
+    ? { profile: options.profile, ...options.recallOptions }
+    : options.recallOptions;
   const ranked = shouldRecallMemory(query);
   const degraded: MemoryContextLane[] = [];
   const guard = async <T>(
@@ -122,7 +127,7 @@ export async function assembleMemoryContext(
     ranked
       ? guard(
           "fact",
-          () => recall(query, { ...options.recallOptions, types: ["fact"], limit: 20, memoryIds }),
+          () => recall(query, { ...recallOptions, types: ["fact"], limit: 20, memoryIds }),
           empty
         )
       : empty,
@@ -131,7 +136,7 @@ export async function assembleMemoryContext(
           "episode",
           () =>
             recall(query, {
-              ...options.recallOptions,
+              ...recallOptions,
               types: ["chunk"],
               limit: 4,
               minScore: 0.5,

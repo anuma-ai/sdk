@@ -170,7 +170,7 @@ export interface MemorySubscribeOptions {
 /** @public */
 export type MemoryDecaySweeperOptions = Pick<
   CreateDecaySweeperOptions,
-  "now" | "policy" | "onSwept" | "onError"
+  "now" | "policy" | "profile" | "onSwept" | "onError"
 >;
 
 /**

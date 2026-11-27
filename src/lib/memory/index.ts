@@ -4,6 +4,7 @@ export type {
   ChunkVectorCache,
 } from "../db/chat/operations.js";
 export { INTERNAL_FLOW_MARKER, withInternalFlowMarker } from "../internalFlowMarker.js";
+export { type MemoryAppProfile, ZETALABS_MARKETS_PROFILE } from "./appProfile.js";
 export {
   type AutoExtractMessage,
   extractAndRetain,
@@ -203,6 +204,7 @@ export type {
   RecallEmptyReason,
   RecallOptions,
   RecallResult,
+  RecallScoreScale,
   RecallTelemetryCallbacks,
   RecallTruncation,
   RetainAction,
