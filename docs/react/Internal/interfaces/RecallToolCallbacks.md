@@ -51,7 +51,7 @@ Called with the conversation IDs returned via the chunk lane.
 
 > `optional` **onDiagnostics**: (`diagnostics`: [`RecallDiagnostics`](RecallDiagnostics.md)) => `void`
 
-Defined in: [src/lib/memory/types.ts:542](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#542)
+Defined in: [src/lib/memory/types.ts:550](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#550)
 
 **Parameters**
 
@@ -92,7 +92,7 @@ Defined in: [src/lib/memory/types.ts:542](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/lib/memory/types.ts:544](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#544)
+Defined in: [src/lib/memory/types.ts:552](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#552)
 
 **Parameters**
 
@@ -266,7 +266,7 @@ Called when the tool refuses a call without searching.
 
 > `optional` **onTruncated**: (`truncation`: [`RecallTruncation`](RecallTruncation.md)) => `void`
 
-Defined in: [src/lib/memory/types.ts:543](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#543)
+Defined in: [src/lib/memory/types.ts:551](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#551)
 
 **Parameters**
 

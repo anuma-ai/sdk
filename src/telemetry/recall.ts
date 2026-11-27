@@ -34,6 +34,7 @@ export function createRecallDiagnosticsHandler(
       admittedCount: diagnostics.admittedCount,
       topScore: diagnostics.topScore,
       lowestAdmittedScore: diagnostics.lowestAdmittedScore,
+      scoreScale: diagnostics.scoreScale ?? "unknown",
       minScoreApplied: diagnostics.minScoreApplied,
       truncated: diagnostics.truncated,
       emptyReason: diagnostics.emptyReason,

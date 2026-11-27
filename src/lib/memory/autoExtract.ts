@@ -7,6 +7,7 @@ import { findQuarantinedDuplicateOp } from "../db/memoryVault/operations.js";
 import { MemorySourceIneligibleError, type StoredVaultMemory } from "../db/memoryVault/types.js";
 import { getLogger } from "../logger.js";
 import { type PiiRedactor, resolvePiiRedactor } from "../pii/redactor.js";
+import { composeExtractionSystemPrompt, type MemoryAppProfile } from "./appProfile.js";
 import {
   isGenericEntityName,
   isIdentifierOrAmountEntityName,
@@ -221,6 +222,8 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
   endpointOverride?: string;
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
+  /** App profile adding extraction guidance to the system prompt and setting the content-length cap. */
+  profile?: MemoryAppProfile;
   /**
    * The user's own name(s) / handle(s) (e.g. profile nickname, wallet display
    * name). Candidates whose entire content is just one of these are dropped —
@@ -416,7 +419,7 @@ export async function extractFacts(
       endpointOverride: options.endpointOverride,
     }),
     model: options.model ?? DEFAULT_EXTRACTION_MODEL,
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: composeExtractionSystemPrompt(SYSTEM_PROMPT, options.profile),
     userMessage: `Today's date is ${today}.\n\nRecent conversation:\n${transcript}\n\nExtract durable user facts.`,
     tag: "memory/extract",
     extra: { max_completion_tokens: MAX_COMPLETION_TOKENS },
@@ -433,12 +436,14 @@ export async function extractFacts(
   }
 
   const fallbackSourceId = [...messages].reverse().find((m) => m.role === "user")?.id;
+  const maxContentLength = options.profile?.maxContentLength ?? MAX_CONTENT_LENGTH;
   const candidates = validateCandidates(
     parsed,
     new Set(messages.map((m) => m.id)),
     new Set(messages.filter((m) => m.role === "user").map((m) => m.id)),
     fallbackSourceId,
-    options.userIdentity ?? []
+    options.userIdentity ?? [],
+    maxContentLength
   );
   const rawCandidates = (parsed as { candidates?: unknown }).candidates;
   options.onCandidatesParsed?.({
@@ -446,7 +451,12 @@ export async function extractFacts(
     validCount: candidates.length,
   });
   if (!redactor) return candidates;
-  const restored = restoreCandidates(candidates, redactor, options.userIdentity ?? []);
+  const restored = restoreCandidates(
+    candidates,
+    redactor,
+    options.userIdentity ?? [],
+    maxContentLength
+  );
   if (candidates.length > 0 && restored.length === 0) {
     options.onCandidatesDropped?.();
   }
@@ -456,7 +466,8 @@ export async function extractFacts(
 function restoreCandidates(
   candidates: ExtractedCandidate[],
   redactor: PiiRedactor,
-  ownNames: readonly string[]
+  ownNames: readonly string[],
+  maxContentLength: number
 ): ExtractedCandidate[] {
   return candidates
     .map((c) => {
@@ -475,7 +486,7 @@ function restoreCandidates(
     })
     .filter(
       (c) =>
-        c.candidate.content.length <= MAX_CONTENT_LENGTH &&
+        c.candidate.content.length <= maxContentLength &&
         !c.unresolved &&
         !isLowSignalContent(c.candidate.content, ownNames)
     )
@@ -942,7 +953,8 @@ function validateCandidates(
   validIds: Set<string>,
   userIds: Set<string>,
   fallbackSourceId?: string,
-  ownNames: readonly string[] = []
+  ownNames: readonly string[] = [],
+  maxContentLength = MAX_CONTENT_LENGTH
 ): ExtractedCandidate[] {
   if (typeof parsed !== "object" || parsed === null) return [];
   const candidates = (parsed as { candidates?: unknown }).candidates;
@@ -955,7 +967,7 @@ function validateCandidates(
 
     if (typeof obj.content !== "string") continue;
     const content = obj.content.trim();
-    if (content.length === 0 || content.length > MAX_CONTENT_LENGTH) continue;
+    if (content.length === 0 || content.length > maxContentLength) continue;
     if (isLowSignalContent(content, ownNames)) continue;
 
     if (typeof obj.confidence !== "number" || !Number.isFinite(obj.confidence)) continue;

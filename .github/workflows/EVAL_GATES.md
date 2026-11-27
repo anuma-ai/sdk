@@ -1,8 +1,9 @@
 # Memory eval gates — shared notes
 
-Five workflows (`extraction-eval`, `topic-eval`, `vault-search-eval`,
-`consolidation-eval`, `recall-eval`) run live-LLM quality benchmarks against a
-committed baseline. `memory-perf` measures work cost with deterministic
+Six workflows (`extraction-eval`, `topic-eval`, `vault-search-eval`,
+`consolidation-eval`, `recall-eval`, `retain-outcome-eval`) run live-LLM quality
+benchmarks against a committed baseline — except `retain-outcome-eval`, which
+has none yet (§1b). `memory-perf` measures work cost with deterministic
 stand-ins. They share two non-obvious properties. This file is the one place
 they are explained; each workflow points here rather than repeating them.
 
@@ -19,10 +20,11 @@ required cannot fail your merge, whatever it reports.**
 | `vault-search-eval` | advisory | ” |
 | `consolidation-eval` | advisory | ” |
 | `recall-eval` | advisory | ” |
+| `retain-outcome-eval` | advisory, **and gates nothing until a baseline is committed** (§1b) | Live LLM; 58 cases × 2 `retain()` calls per pass |
 
 The advisory gates report red/green and nothing else: a regression one of them
-catches still needs a human to look at the check. That was the state of **all
-six** until #797 — the point of listing it here is that "we have a gate for
+catches still needs a human to look at the check. That was the state of **every
+gate** until #797 — the point of listing it here is that "we have a gate for
 that" and "that gate can stop a bad merge" were different claims, and only the
 ruleset knew which was which.
 
@@ -38,7 +40,7 @@ paths-scoped context is the specific mistake that bricked #784.
 
 ## 1. Live-LLM gates are ADVISORY, and must stay that way in their current shape
 
-Each of the five is paths-scoped on `pull_request`, so on a PR that touches none
+Each of the six is paths-scoped on `pull_request`, so on a PR that touches none
 of its paths **no run is created at all** — the status context is *absent*, not
 skipped. (`memory-perf` no longer is; see §0.)
 
@@ -59,7 +61,7 @@ After that conversion a **green status on a PR means the eval was skipped**, not
 that it passed — the real run happens in the queue.
 
 The cost is a full LLM eval on every queued merge (~2–4 min each), which is why
-all five are advisory today.
+all six are advisory today.
 
 `memory-perf` took a shorter route: it is deterministic and finishes in well
 under a minute, so it simply dropped `paths:` and kept running on every PR. Step
@@ -110,6 +112,47 @@ four decimals on all 100 queries (paired Δ = 0.00pp, CI [0.00, 0.00]), and a
 head of 1 reproduces the no-rerank arm exactly, which is what proves the flag is
 plumbed. The default is 30. In a browser that is ~26 pairs of pure cost — see
 anuma-ai/sdk#845.
+
+## 1b. `retain-outcome-eval` has no baseline yet
+
+`pnpm eval:retain-outcome` runs each of the 58 cases in
+`test/memory/src/retainOutcome/cases.ts` through two real `retain()` calls and
+checks what the vault holds afterwards (keep both / one memory / replace), so it
+covers the consolidation decision *and* the write path around it, which
+`consolidation-eval` does not. Until this workflow existed nothing ran it.
+
+No `test/memory/src/retainOutcome/baseline.json` is committed, because nobody
+has captured one from a live run. While that file is absent, `mode: gate` (the
+`pull_request` default) downgrades itself to `report`: it prints accuracy and
+the facts-not-stored count, raises a workflow warning, and **cannot fail on a
+regression** — only on a crash. A green `retain-outcome-eval-status` therefore
+means "the benchmark ran", nothing more.
+
+To turn it into a real gate: dispatch the workflow with `mode: save-baseline`
+(5+ runs), download the `retain-outcome-baseline` artifact, commit it at that
+path, and update the row in §0. The gate then compares `accuracy`
+(higher-better) and `factsLostRate` (lower-better) with the shared tolerance in
+`test/memory/src/gate.ts`, and refuses to gate if the case count or the
+consolidation model differs from the baseline's.
+
+## 1c. `extraction-eval` covers the default prompt only
+
+The committed `test/memory/src/extraction/baseline.json` is for the 45 general
+cases with no app profile, and that is the only arm the workflow runs. The
+finance cases (`FINANCE_EXTRACTION_CASES`) and the ZetaLabs markets profile are
+run by hand:
+
+```
+pnpm eval:extraction --profile zetalabs --repeat 5            # finance cases, profile on
+pnpm eval:extraction --dataset finance --repeat 5             # same cases, profile off
+pnpm eval:extraction --profile zetalabs --dataset general     # general cases, profile on
+```
+
+The first two together are the measurement of what the profile buys; the third
+shows whether the added guidance costs anything on the general cases. None has a
+committed baseline, so nothing gates the profile today. `--save-baseline` with a
+non-default arm writes `baseline.<dataset>[.<profile>].json` next to the default
+one rather than overwriting it.
 
 ## 2. The status jobs use an allowlist, not a failure check
 

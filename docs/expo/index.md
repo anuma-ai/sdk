@@ -1786,6 +1786,12 @@ Re-exports [MEMORY\_LEVELS](../react/Internal/variables/MEMORY_LEVELS.md)
 
 ***
 
+### MemoryAppProfile
+
+Re-exports [MemoryAppProfile](../react/Internal/interfaces/MemoryAppProfile.md)
+
+***
+
 ### memoryCipher
 
 Re-exports [memoryCipher](../react/Internal/functions/memoryCipher.md)
@@ -2359,6 +2365,12 @@ Re-exports [RecallRefusalReason](../react/Internal/type-aliases/RecallRefusalRea
 ### RecallResult
 
 Re-exports [RecallResult](../react/Internal/interfaces/RecallResult.md)
+
+***
+
+### RecallScoreScale
+
+Re-exports [RecallScoreScale](../react/Internal/type-aliases/RecallScoreScale.md)
 
 ***
 
@@ -3523,3 +3535,9 @@ Re-exports [WebSearchPreProcessorOptions](../react/Internal/interfaces/WebSearch
 ### WriteFailureReason
 
 Re-exports [WriteFailureReason](../react/Internal/type-aliases/WriteFailureReason.md)
+
+***
+
+### ZETALABS\_MARKETS\_PROFILE
+
+Re-exports [ZETALABS\_MARKETS\_PROFILE](../react/Internal/variables/ZETALABS_MARKETS_PROFILE.md)

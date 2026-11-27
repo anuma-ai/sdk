@@ -23,6 +23,7 @@ export function factRecallDiagnostics(
       | "decryptLast"
       | "vaultRowsDecrypted"
       | "vaultRowsEmbedded"
+      | "scoreScale"
     >
   > & { minScore?: number; embeddingsUnavailable?: boolean; queryEmbedMs?: number } = {}
 ): RecallDiagnostics {
@@ -43,6 +44,7 @@ export function factRecallDiagnostics(
     admittedCount: scores.length,
     topScore: scores.length ? Math.max(...scores) : -1,
     lowestAdmittedScore: scores.length ? Math.min(...scores) : -1,
+    scoreScale: scores.length ? (options.scoreScale ?? "unknown") : "none",
     minScoreApplied: options.minScore ?? -1,
     truncated: options.truncated ?? false,
     graphLaneCount: 0,

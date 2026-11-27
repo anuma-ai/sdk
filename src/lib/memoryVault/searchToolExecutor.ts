@@ -174,6 +174,7 @@ export function createMemoryVaultSearchTool(
               vaultRowsDecrypted: outcome.rowsDecrypted,
               vaultRowsEmbedded: outcome.rowsEmbedded,
               queryEmbedMs: outcome.queryEmbedMs,
+              scoreScale: outcome.scoreScale,
             }
           );
           notifyMemoryCallback(callbacks?.onDiagnostics, diagnostics);

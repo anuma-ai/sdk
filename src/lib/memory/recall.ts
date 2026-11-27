@@ -38,6 +38,7 @@ import type {
   RecallFactSource,
   RecallOptions,
   RecallResult,
+  RecallScoreScale,
 } from "./types.js";
 
 const DEFAULT_LIMIT = 8;
@@ -169,6 +170,8 @@ async function recallLanes(
   let embeddingsUnavailable = false;
   let chunkEmbedFailed = false;
   let factLaneRankedOnCosine = false;
+  let factScoreScale: RecallScoreScale = "unknown";
+  let fusedAcrossKinds = false;
   let decryptLastRan: boolean | undefined;
   let vaultRowsDecrypted: number | undefined;
   let corpusStats: CorpusStats | undefined;
@@ -238,6 +241,14 @@ async function recallLanes(
       admittedCount: admitted.length,
       topScore: scores.length > 0 ? Math.max(...scores) : -1,
       lowestAdmittedScore: scores.length > 0 ? Math.min(...scores) : -1,
+      scoreScale:
+        admitted.length === 0
+          ? "none"
+          : fusedAcrossKinds
+            ? "rrf"
+            : factResults.length > 0
+              ? factScoreScale
+              : "cosine",
       minScoreApplied,
       truncated: hitLimit,
       graphLaneCount,
@@ -341,7 +352,9 @@ async function recallLanes(
 
   if (types.includes("fact") && (ctx.factSource || (ctx.vaultCtx && ctx.vaultCache))) {
     const factStart = nowMs();
-    const vaultMinScore = options.minScore ?? DEFAULT_FACT_MIN_SCORE;
+    const vaultMinScore =
+      options.minScore ?? options.profile?.factMinScore ?? DEFAULT_FACT_MIN_SCORE;
+    const factTypeWeights = options.factTypeWeights ?? options.profile?.factTypeWeights;
     factFloor = vaultMinScore;
     const searchFacts: RecallFactSource["search"] =
       laneSearch ??
@@ -367,6 +380,7 @@ async function recallLanes(
       decryptLast: factDecryptLast,
       rowsDecrypted: factRowsDecrypted,
       corpusStats: factCorpusStats,
+      scoreScale: reportedScoreScale,
       lanes,
     } = await searchFacts(
       query,
@@ -404,7 +418,7 @@ async function recallLanes(
         ...(options.folderId !== undefined && { folderId: options.folderId }),
         ...(options.factTypes?.length && { factTypes: options.factTypes }),
         ...(options.memoryIds !== undefined && { memoryIds: options.memoryIds }),
-        ...(options.factTypeWeights && { factTypeWeights: options.factTypeWeights }),
+        ...(factTypeWeights && { factTypeWeights }),
         ...(entityRanking.length > 0 && { entityRanking }),
         ...(temporalRanking.length > 0 && { temporalRanking }),
         ...(needsChunkEmbedding && { queryEmbedding: queryEmbedding ?? [] }),
@@ -430,6 +444,7 @@ async function recallLanes(
     decryptLastRan = factDecryptLast;
     vaultRowsDecrypted = factRowsDecrypted;
     corpusStats = factCorpusStats;
+    factScoreScale = reportedScoreScale ?? "unknown";
     if (lanes) {
       graphLaneCount = lanes.entityRanking.length;
       temporalLaneCount = lanes.temporalRanking.length;
@@ -488,6 +503,7 @@ async function recallLanes(
   const factRanking = factResults.map((r) => `fact:${r.uniqueId}`);
   const chunkRanking = chunkResults.map(chunkKey);
   const fused = rrfFuse([factRanking, chunkRanking], options.rrfK);
+  fusedAcrossKinds = true;
 
   const byId = new Map<string, RankedMemory>();
   for (const r of factResults) {

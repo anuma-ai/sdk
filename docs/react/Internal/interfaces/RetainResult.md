@@ -1,6 +1,6 @@
 # RetainResult
 
-Defined in: [src/lib/memory/types.ts:700](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#700)
+Defined in: [src/lib/memory/types.ts:708](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#708)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:700](https://github.com/anuma-ai/sdk/blob/m
 
 > **action**: [`RetainAction`](../type-aliases/RetainAction.md)
 
-Defined in: [src/lib/memory/types.ts:701](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#701)
+Defined in: [src/lib/memory/types.ts:709](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#709)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/types.ts:701](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **consolidation**: [`ConsolidationAction`](../type-aliases/ConsolidationAction.md)
 
-Defined in: [src/lib/memory/types.ts:741](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#741)
+Defined in: [src/lib/memory/types.ts:749](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#749)
 
 What the consolidation LLM decided for this candidate, when consolidation
 ran — see [ConsolidationAction](../type-aliases/ConsolidationAction.md).
@@ -27,7 +27,7 @@ ran — see [ConsolidationAction](../type-aliases/ConsolidationAction.md).
 
 > `optional` **consolidationFallback**: [`ConsolidationFallbackReason`](../type-aliases/ConsolidationFallbackReason.md)
 
-Defined in: [src/lib/memory/types.ts:743](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#743)
+Defined in: [src/lib/memory/types.ts:751](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#751)
 
 Set when consolidation ran but produced no usable decision, so this write fell back to an exact-content merge or a plain create.
 
@@ -37,7 +37,7 @@ Set when consolidation ran but produced no usable decision, so this write fell b
 
 > **memoryId**: `string`
 
-Defined in: [src/lib/memory/types.ts:702](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#702)
+Defined in: [src/lib/memory/types.ts:710](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#710)
 
 ***
 
@@ -45,7 +45,7 @@ Defined in: [src/lib/memory/types.ts:702](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **privateMemoryId**: `string`
 
-Defined in: [src/lib/memory/types.ts:716](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#716)
+Defined in: [src/lib/memory/types.ts:724](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#724)
 
 When action is 'withheld', the id of the private memory that already holds
 this fact, left untouched instead of publishing a shared copy. `memoryId` is
@@ -57,7 +57,7 @@ set to the same id (no new memory was written).
 
 > **proofCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:718](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#718)
+Defined in: [src/lib/memory/types.ts:726](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#726)
 
 Updated proof\_count after this write. 0 when nothing was written (suppressed, withheld).
 
@@ -67,7 +67,7 @@ Updated proof\_count after this write. 0 when nothing was written (suppressed, w
 
 > `optional` **similarity**: `number`
 
-Defined in: [src/lib/memory/types.ts:736](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#736)
+Defined in: [src/lib/memory/types.ts:744](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#744)
 
 How close the write was to the threshold that allowed it. Absent on the
 actions that have no such score (`create`, `update`, `supersede`, `skip`).
@@ -91,7 +91,7 @@ The two paths report DIFFERENT things and a dashboard has to know which:
 
 > `optional` **targetId**: `string`
 
-Defined in: [src/lib/memory/types.ts:705](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#705)
+Defined in: [src/lib/memory/types.ts:713](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#713)
 
 When action is 'merge' or 'update', the prior memory's id. When action is
 'supersede', the stale memory that was retired (`memoryId` is the new one).
@@ -102,7 +102,7 @@ When action is 'merge' or 'update', the prior memory's id. When action is
 
 > `optional` **tombstoneId**: `string`
 
-Defined in: [src/lib/memory/types.ts:710](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#710)
+Defined in: [src/lib/memory/types.ts:718](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#718)
 
 When action is 'suppressed', the id of the soft-deleted memory that blocked
 re-creation. `memoryId` is set to the same id (no new memory was written).

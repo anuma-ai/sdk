@@ -205,3 +205,73 @@ describe("extractQueryEntities — fallback ordering and cap", () => {
     expect(out.slice(0, 3)).toEqual(["wa", "wb", "wc"]);
   });
 });
+
+describe("extractQueryEntities — tickers", () => {
+  it("keeps a two-letter uppercase ticker beside a longer entity", () => {
+    expect(extractQueryEntities("How is my OP position on Hyperliquid doing")).toEqual([
+      "hyperliquid",
+      "op",
+    ]);
+  });
+
+  it("adds a cashtag with and without its prefix", () => {
+    expect(extractQueryEntities("What did I say about $OP and Hyperliquid")).toEqual([
+      "hyperliquid",
+      "op",
+      "$op",
+    ]);
+  });
+
+  it("recognises lowercase and single-letter cashtags", () => {
+    expect(extractQueryEntities("thoughts on $hype and $S")).toEqual(
+      expect.arrayContaining(["hype", "$hype", "s", "$s"])
+    );
+  });
+
+  it("does not read a dollar amount as a cashtag", () => {
+    const entities = extractQueryEntities("I put $500 and $5k into Solana");
+    expect(entities).toEqual(["solana"]);
+  });
+
+  it("does not read a clock suffix or a postscript as a ticker", () => {
+    expect(extractQueryEntities("Meeting at 5 PM with Sara")).not.toContain("pm");
+    expect(extractQueryEntities("PS what about my dog Biscuit")).not.toContain("ps");
+  });
+
+  it("ignores two-letter function words typed in capitals", () => {
+    expect(extractQueryEntities("IS MY OP UP")).toEqual(["op"]);
+  });
+
+  it("does not split a longer capitalised word or a contraction into a ticker", () => {
+    expect(extractQueryEntities("I'M asking about NVDA")).toEqual(["i'm", "nvda"]);
+  });
+
+  it("adds the base ticker of a market pair beside another named entity", () => {
+    expect(extractQueryEntities("compare OP-USD on Hyperliquid")).toEqual([
+      "op-usd",
+      "hyperliquid",
+      "op",
+    ]);
+    expect(extractQueryEntities("How is ETH-PERP on Hyperliquid")).toContain("eth");
+    expect(extractQueryEntities("Did Sara mention SOL-USDC")).toContain("sol");
+    expect(extractQueryEntities("Chart BTC/USDT for Sara")).toContain("btc");
+    expect(extractQueryEntities("Funding on S-USD at Hyperliquid")).toContain("s");
+    expect(extractQueryEntities("Is 1INCH-USD listed on Hyperliquid")).toContain("1inch");
+    expect(extractQueryEntities("Open BTC-USDT-SWAP on Hyperliquid")).toContain("btc");
+  });
+
+  it("does not split an ordinary hyphenated uppercase word into a ticker", () => {
+    const query = "Sara wants an X-RAY, an AI-FIRST plan, US-EU rates, a T-SHIRT and E-MAIL";
+    const entities = extractQueryEntities(query);
+    for (const part of ["x", "ai", "us", "eu", "t", "e", "ray", "first", "shirt", "mail"]) {
+      expect(entities).not.toContain(part);
+    }
+  });
+
+  it("returns the same candidates as before for a query without tickers", () => {
+    expect(extractQueryEntities("Where is Sara traveling")).toEqual(["sara"]);
+    expect(extractQueryEntities("is there anyone in san francisco")).toEqual(
+      expect.arrayContaining(["san francisco"])
+    );
+  });
+});
