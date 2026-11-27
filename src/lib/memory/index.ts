@@ -100,6 +100,7 @@ export {
   createRecallTool,
   RECALL_MAX_LIMIT,
   RECALL_TOOL_NAME,
+  type RecallRefusalReason,
   type RecallToolCallbacks,
   type RecallToolOptions,
 } from "./recallTool.js";

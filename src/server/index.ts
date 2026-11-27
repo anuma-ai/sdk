@@ -395,6 +395,7 @@ export type {
   RecallDiagnostics,
   RecallEmptyReason,
   RecallOptions,
+  RecallRefusalReason,
   RecallResult,
   RecallTelemetryCallbacks,
   RecallToolCallbacks,

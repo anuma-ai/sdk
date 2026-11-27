@@ -1177,6 +1177,24 @@ describe("recall — diagnostics (onDiagnostics)", () => {
     expect(result.memories.length).toBeGreaterThan(0);
   });
 
+  it("emits diagnostics marked recall-failed when recall throws, then rethrows", async () => {
+    vi.mocked(searchVaultMemoriesWithSize).mockRejectedValueOnce(new Error("vault read failed"));
+    const onDiagnostics = vi.fn<(d: RecallDiagnostics) => void>();
+
+    await expect(recall(QUERY, makeCtx(), { onDiagnostics, budget: "mid" })).rejects.toThrow(
+      "vault read failed"
+    );
+
+    expect(onDiagnostics).toHaveBeenCalledTimes(1);
+    expect(onDiagnostics.mock.calls[0][0]).toMatchObject({
+      usedBudget: "mid",
+      emptyReason: "recall-failed",
+      degraded: ["recall-failed"],
+      admittedCount: 0,
+      candidateCount: 0,
+    });
+  });
+
   it("emits diagnostics even for an empty query", async () => {
     const seen: RecallDiagnostics[] = [];
 

@@ -65,7 +65,12 @@ export interface RecallToolOptions {
   now?: number;
 }
 
+/** Why the recall tool answered with a refusal notice instead of searching. */
+export type RecallRefusalReason = "dump-query" | "rate-limit" | "volume-limit";
+
 export interface RecallToolCallbacks extends RecallTelemetryCallbacks {
+  /** Called when the tool refuses a call without searching. */
+  onRefused?: (refusal: { reason: RecallRefusalReason }) => void;
   /** Called with the conversation IDs returned via the chunk lane. */
   onChunksRetrieved?: (conversationIds: string[]) => void;
   /** Called with the fact IDs returned via the fact lane. */
@@ -214,8 +219,22 @@ const STRONG_DUMP_RE = new RegExp(
   "i"
 );
 
+const STORE_FILLER =
+  "of|my|the|your|our|their|his|her|this|that|user|users|user's|and|every|each|single|" +
+  "stored|saved|kept|remembered|recorded|existing|available|known|past|previous|prior|" +
+  "private|personal|raw|full|complete|entire|possible|long-term";
+
+const TOPIC_AFTER_WHOLE_SUBJECT =
+  "\\s+(?!(?:to|and|or|please|now|so|that|you|i|we|at|right)\\b)[a-z]";
+
+const TOPICAL_QUALIFIER =
+  "\\s+(?:on|about|for|regarding|concerning|involving|mentioning|related to|relating to)\\s+" +
+  `(?!(?:(?:my|the|our|your|his|her|their|this|that|all|of)\\s+)*(?:${WHOLE_SUBJECT_TOPIC})\\b` +
+  `(?!(?:'s)?${TOPIC_AFTER_WHOLE_SUBJECT}))[a-z0-9$]`;
+
 const ALL_STORE_RE = new RegExp(
-  `\\b(all|every|each)\\b[^.\\n]{0,15}(?:\\b(?:my|the|your)\\b[^.\\n]{0,12})?\\b(${STORE_NOUN})\\b`,
+  `\\b(?:all|every|each)\\b(?:[\\s,]+(?:${STORE_FILLER}))*[\\s,]+(?:${STORE_NOUN})\\b` +
+    `(?!${TOPICAL_QUALIFIER})`,
   "i"
 );
 
@@ -374,10 +393,12 @@ export function createRecallTool(
       }
       turnInvocations++;
       if (turnInvocations > RECALL_MAX_INVOCATIONS_PER_TURN) {
+        notifyMemoryCallback(callbacks?.onRefused, { reason: "rate-limit" });
         return RATE_LIMIT_NOTICE;
       }
 
       if (isDumpQuery(query)) {
+        notifyMemoryCallback(callbacks?.onRefused, { reason: "dump-query" });
         return DUMP_REFUSAL_NOTICE;
       }
 
@@ -411,6 +432,7 @@ export function createRecallTool(
         });
       }
       if (effectiveLimit <= 0) {
+        notifyMemoryCallback(callbacks?.onRefused, { reason: "volume-limit" });
         return VOLUME_LIMIT_NOTICE;
       }
       turnMemories += effectiveLimit;
