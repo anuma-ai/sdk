@@ -1,6 +1,6 @@
 # ExtractionTimings
 
-Defined in: [src/lib/memory/autoExtract.ts:364](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#364)
+Defined in: [src/lib/memory/autoExtract.ts:369](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#369)
 
 Wall-clock split of one [extractAndRetain](../functions/extractAndRetain.md) call. The worker's
 `durationMs` is the sum plus the screen; these say which half is slow.
@@ -11,7 +11,7 @@ Wall-clock split of one [extractAndRetain](../functions/extractAndRetain.md) cal
 
 > **extractMs**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:366](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#366)
+Defined in: [src/lib/memory/autoExtract.ts:371](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#371)
 
 The extraction LLM call, all attempts and backoff included.
 
@@ -21,6 +21,6 @@ The extraction LLM call, all attempts and backoff included.
 
 > **retainMs**: `number`
 
-Defined in: [src/lib/memory/autoExtract.ts:368](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#368)
+Defined in: [src/lib/memory/autoExtract.ts:373](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtract.ts#373)
 
 The retain loop — embeddings, consolidation LLM calls, writes — over every candidate.

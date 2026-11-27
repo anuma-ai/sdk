@@ -473,6 +473,13 @@ export function createNearbyRequest(
         },
         redirect: "error",
         signal: controller.signal,
+      }).catch((cause: unknown) => {
+        if (controller.signal.aborted || apiPath !== "/api/private-memories") throw cause;
+        throw new RemoteMemoryError(
+          cause instanceof Error ? cause.message : "Nearby request failed",
+          0,
+          "network"
+        );
       });
       if (!response.ok) {
         const body: unknown = await response.json().catch(() => null);

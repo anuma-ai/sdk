@@ -1564,7 +1564,36 @@ describe("retain — the strict cosine stage after a consolidation decision", ()
     expect(updateVaultMemoryOp).not.toHaveBeenCalled();
   });
 
-  it("still merges when the consolidation call failed", async () => {
+  it.each(["llm_error", "llm_timeout", "invalid_response", "content_flagged"] as const)(
+    "creates the new fact instead of absorbing it into a near match when consolidation degraded (%s)",
+    async (fallbackReason) => {
+      const held = { uniqueId: "close", content: "Holds 5 BTC", similarity: 0.93 };
+      mockVaultMatchesOnce([held]);
+      mockVaultMatchesOnce([held]);
+      vi.mocked(getVaultMemoryOp).mockResolvedValue({
+        uniqueId: "close",
+        content: held.content,
+        proofCount: 1,
+        sourceChunkIds: [],
+      } as never);
+      vi.mocked(consolidateMemory).mockResolvedValue({ action: "create", fallbackReason });
+
+      const result = await retain("Holds 2 BTC", ctx, { consolidateOptions: { apiKey: "k" } });
+
+      expect(result).toMatchObject({
+        action: "create",
+        memoryId: "fresh",
+        consolidationFallback: fallbackReason,
+      });
+      expect(result.consolidation).toBeUndefined();
+      expect(updateVaultMemoryOp).not.toHaveBeenCalled();
+      expect(vi.mocked(createVaultMemoryOp).mock.calls[0][1]).toMatchObject({
+        content: "Holds 2 BTC",
+      });
+    }
+  );
+
+  it("still merges a restatement of the same content when consolidation degraded", async () => {
     mockVaultMatchesOnce([close]);
     mockVaultMatchesOnce([close]);
     vi.mocked(consolidateMemory).mockResolvedValue({
@@ -1572,9 +1601,15 @@ describe("retain — the strict cosine stage after a consolidation decision", ()
       fallbackReason: "llm_error",
     });
 
-    const result = await retain(incoming, ctx, { consolidateOptions: { apiKey: "k" } });
+    const result = await retain("  user is allergic to   PEANUTS", ctx, {
+      consolidateOptions: { apiKey: "k" },
+    });
 
-    expect(result).toMatchObject({ action: "merge", memoryId: "close" });
+    expect(result).toMatchObject({
+      action: "merge",
+      memoryId: "close",
+      consolidationFallback: "llm_error",
+    });
     expect(result.consolidation).toBeUndefined();
     expect(createVaultMemoryOp).not.toHaveBeenCalled();
   });

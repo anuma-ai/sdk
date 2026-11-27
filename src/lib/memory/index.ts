@@ -72,6 +72,7 @@ export {
 } from "./injectionClassifier.js";
 export {
   type InjectionReason,
+  type InjectionScreenOptions,
   injectionSignatureCatalog,
   screenCandidatesForInjection,
   type ScreenedCandidate,
@@ -100,6 +101,7 @@ export {
   createRecallTool,
   RECALL_MAX_LIMIT,
   RECALL_TOOL_NAME,
+  type RecallRefusalReason,
   type RecallToolCallbacks,
   type RecallToolOptions,
 } from "./recallTool.js";

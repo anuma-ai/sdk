@@ -47,6 +47,9 @@ export const DEFAULT_EXTRACTION_MODEL = "gpt-oss/gpt-oss-120b";
 const DEFAULT_MIN_CONFIDENCE = 0.7;
 const MAX_CONTENT_LENGTH = 200;
 const MIN_CONTENT_LENGTH = 3;
+const MAX_COMPLETION_TOKENS = 8192;
+const MAX_ASSISTANT_TRANSCRIPT_CHARS = 1500;
+const ASSISTANT_ELISION_MARKER = " […]";
 
 const FACT_TYPES = [
   "identity",
@@ -323,6 +326,8 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
    * a prompt problem and a validator problem. Counts only; never content.
    */
   onCandidatesParsed?: (stats: { rawCount: number; validCount: number }) => void;
+  /** Fired once per call with the size of the transcript sent to the model; counts only, never content. */
+  onTranscript?: (stats: { charCount: number; messageCount: number }) => void;
 }
 
 /**
@@ -391,10 +396,15 @@ export async function extractFacts(
   const redactor = resolvePiiRedactor(options.piiRedaction);
   const transcriptLines: string[] = [];
   for (const m of messages) {
-    const content = redactor ? (await redactor.redactTextAsync(m.content)).text : m.content;
+    const redacted = redactor ? (await redactor.redactTextAsync(m.content)).text : m.content;
+    const content =
+      m.role === "assistant" && redacted.length > MAX_ASSISTANT_TRANSCRIPT_CHARS
+        ? redacted.slice(0, MAX_ASSISTANT_TRANSCRIPT_CHARS) + ASSISTANT_ELISION_MARKER
+        : redacted;
     transcriptLines.push(`[${m.id}] ${m.role}: ${content}`);
   }
   const transcript = transcriptLines.join("\n");
+  options.onTranscript?.({ charCount: transcript.length, messageCount: messages.length });
   const today = formatLocalDate(options.now ?? Date.now());
   let failure: PortalLlmFailure | undefined;
   const parsed = await callPortalJsonCompletion({
@@ -412,6 +422,7 @@ export async function extractFacts(
     systemPrompt: composeExtractionSystemPrompt(SYSTEM_PROMPT, options.profile),
     userMessage: `Today's date is ${today}.\n\nRecent conversation:\n${transcript}\n\nExtract durable user facts.`,
     tag: "memory/extract",
+    extra: { max_completion_tokens: MAX_COMPLETION_TOKENS },
     ...(options.fetchFn && { fetchFn: options.fetchFn }),
     ...(options.maxAttempts !== undefined && { maxAttempts: options.maxAttempts }),
     ...(options.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
@@ -513,13 +524,24 @@ export type WriteFailureReason =
   | "embeddings-unavailable"
   | "merge-not-persisted"
   | "private-memory-unreadable"
+  | "store-unavailable"
   | "aborted"
   | "unknown";
+
+function isStoreOutage(err: unknown): boolean {
+  const { name, status } = (err ?? {}) as { name?: unknown; status?: unknown };
+  return (
+    name === "RemoteMemoryError" &&
+    typeof status === "number" &&
+    (status === 0 || status === 401 || status === 408 || status === 429 || status >= 500)
+  );
+}
 
 function writeFailureReasonOf(err: unknown): WriteFailureReason {
   if (err instanceof MemorySourceIneligibleError) return "source-ineligible";
   if (err instanceof RetainError) return err.reason;
   if ((err as { name?: unknown } | null)?.name === "AbortError") return "aborted";
+  if (isStoreOutage(err)) return "store-unavailable";
   return "unknown";
 }
 
@@ -618,6 +640,8 @@ export async function extractAndRetain(
   timings: ExtractionTimings;
   /** The extraction model this call asked for (the resolved default when unset). */
   model: string;
+  /** Characters in the transcript sent to the extraction model. */
+  transcriptChars: number;
 }> {
   const { memoryStore, signal } = options;
   if (memoryStore === null) throw new Error("Memory store is not ready");
@@ -643,9 +667,11 @@ export async function extractAndRetain(
   let droppedAfterRedaction = false;
   let rawCandidateCount = 0;
   let validCandidateCount = 0;
+  let transcriptChars = 0;
   const callerOnExhaustedEmpty = options.extract.onExhaustedEmpty;
   const callerOnCandidatesDropped = options.extract.onCandidatesDropped;
   const callerOnCandidatesParsed = options.extract.onCandidatesParsed;
+  const callerOnTranscript = options.extract.onTranscript;
   const tExtract = Date.now();
   const candidates = await extractFacts(messages, {
     ...options.extract,
@@ -663,6 +689,10 @@ export async function extractAndRetain(
       validCandidateCount = stats.validCount;
       callerOnCandidatesParsed?.(stats);
     },
+    onTranscript: (stats) => {
+      transcriptChars = stats.charCount;
+      callerOnTranscript?.(stats);
+    },
   });
   const extractMs = Date.now() - tExtract;
   signal?.throwIfAborted();
@@ -670,7 +700,9 @@ export async function extractAndRetain(
 
   const log = getLogger();
 
-  const screened = screenCandidatesForInjection(filtered);
+  const screened = screenCandidatesForInjection(filtered, {
+    userMessageIds: new Set(messages.filter((m) => m.role === "user").map((m) => m.id)),
+  });
   let clean = screened.clean;
   const quarantined = [...screened.quarantined];
 
@@ -888,6 +920,7 @@ export async function extractAndRetain(
     },
     timings: { extractMs, retainMs: Date.now() - tRetain },
     model: options.extract.model ?? DEFAULT_EXTRACTION_MODEL,
+    transcriptChars,
     ...(exhaustedFailure !== undefined && { failure: exhaustedFailure }),
   };
 }

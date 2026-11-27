@@ -9,7 +9,7 @@ import { extractAndRetain, type AutoExtractMessage } from "./autoExtract";
 import { createAutoExtractor } from "./autoExtractWorker";
 
 const messages: AutoExtractMessage[] = [
-  { id: "m1", role: "user", content: "hi" },
+  { id: "m1", role: "user", content: "I moved to Lisbon" },
   { id: "m2", role: "assistant", content: "hello" },
 ];
 
@@ -36,7 +36,8 @@ const TELEMETRY_FIXTURE = {
   },
   timings: { extractMs: 7, retainMs: 3 },
   model: "gpt-oss/gpt-oss-120b",
-} satisfies Pick<ExtractAndRetainResult, "funnel" | "timings" | "model">;
+  transcriptChars: 42,
+} satisfies Pick<ExtractAndRetainResult, "funnel" | "timings" | "model" | "transcriptChars">;
 
 const EMPTY_RESULT: ExtractAndRetainResult = {
   candidates: [],
@@ -782,5 +783,225 @@ describe("partial retention failures", () => {
     await flush();
     expect(extractAndRetain).toHaveBeenCalledTimes(2);
     expect(cursorStore.set).toHaveBeenCalledWith("conv1", "m2");
+  });
+});
+
+describe("trivial turns", () => {
+  const settled: AutoExtractMessage[] = [
+    { id: "m1", role: "user", content: "I hold 5 BTC" },
+    { id: "m2", role: "assistant", content: "Noted." },
+  ];
+
+  it.each(["thanks", "ok", "Hello!", "gracias"])(
+    "skips the extraction call for %s and advances the watermark",
+    async (content) => {
+      vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+      const cursorStore = { get: vi.fn(), set: vi.fn() };
+      const onSkipped = vi.fn();
+      const worker = createAutoExtractor({ ...baseOptions, cursorStore, onSkipped });
+      worker.processTurn(settled, "c1");
+      await flush();
+      expect(extractAndRetain).toHaveBeenCalledTimes(1);
+
+      const trivial: AutoExtractMessage[] = [
+        ...settled,
+        { id: "m3", role: "user", content },
+        { id: "m4", role: "assistant", content: "Anytime." },
+      ];
+      expect(worker.processTurn(trivial, "c1")).toBe(false);
+      await flush();
+      expect(extractAndRetain).toHaveBeenCalledTimes(1);
+      expect(onSkipped).toHaveBeenCalledWith({ reason: "trivial-content", conversationId: "c1" });
+      expect(cursorStore.set).toHaveBeenLastCalledWith("c1", "m4");
+
+      onSkipped.mockClear();
+      expect(worker.processTurn(trivial, "c1")).toBe(false);
+      expect(onSkipped).toHaveBeenCalledWith({ reason: "no-new-content", conversationId: "c1" });
+
+      worker.processTurn(
+        [...trivial, { id: "m5", role: "user", content: "I sold 2 BTC yesterday" }],
+        "c1"
+      );
+      await flush();
+      expect(extractAndRetain).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(extractAndRetain).mock.calls[1][0].map((m) => m.id)).toEqual([
+        "m3",
+        "m4",
+        "m5",
+      ]);
+    }
+  );
+
+  it("still extracts a bare confirmation that answers an assistant question", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const onSkipped = vi.fn();
+    const worker = createAutoExtractor({ ...baseOptions, onSkipped });
+    worker.processTurn(
+      [
+        { id: "m1", role: "user", content: "I hold 5 BTC" },
+        { id: "m2", role: "assistant", content: "Is that in cold storage?" },
+      ],
+      "c1"
+    );
+    await flush();
+    worker.processTurn(
+      [
+        { id: "m1", role: "user", content: "I hold 5 BTC" },
+        { id: "m2", role: "assistant", content: "Is that in cold storage?" },
+        { id: "m3", role: "user", content: "yes" },
+      ],
+      "c1"
+    );
+    await flush();
+    expect(extractAndRetain).toHaveBeenCalledTimes(2);
+    expect(onSkipped).not.toHaveBeenCalled();
+  });
+
+  it("still extracts when only assistant messages are new", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    const worker = createAutoExtractor(baseOptions);
+    worker.processTurn([settled[0]], "c1");
+    await flush();
+    worker.processTurn(settled, "c1");
+    await flush();
+    expect(extractAndRetain).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("a window that keeps failing", () => {
+  const failing = (overrides: Partial<ExtractAndRetainResult>): ExtractAndRetainResult => ({
+    ...EMPTY_RESULT,
+    outcome: "extracted",
+    failedCount: 1,
+    writeFailureReason: "unknown",
+    ...overrides,
+  });
+  const turn = (n: number): AutoExtractMessage[] =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `m${i}`,
+      role: i % 2 === 0 ? "user" : "assistant",
+      content: `I bought lot number ${i}`,
+    }));
+
+  it("advances past the window after three consecutive failed turns and reports it", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue(failing({}));
+    const cursorStore = { get: vi.fn(), set: vi.fn() };
+    const onError = vi.fn();
+    const onTurnComplete = vi.fn();
+    const worker = createAutoExtractor({ ...baseOptions, cursorStore, onError, onTurnComplete });
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      worker.processTurn(turn(2), "c1");
+      await flush();
+      expect(onTurnComplete.mock.calls[attempt - 1][0]).not.toHaveProperty(
+        "abandonedAfterFailures"
+      );
+    }
+    expect(cursorStore.set).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+
+    worker.processTurn(turn(2), "c1");
+    await flush();
+    expect(onTurnComplete.mock.calls[2][0]).toMatchObject({
+      failedCount: 1,
+      abandonedAfterFailures: 3,
+    });
+    expect(cursorStore.set).toHaveBeenCalledWith("c1", "m1");
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0].message).toBe(
+      "Abandoned an extraction window of 2 message(s) after 3 consecutive failed turns (unknown)"
+    );
+    expect(onError.mock.calls[0][1]).toBe("c1");
+
+    vi.mocked(extractAndRetain).mockResolvedValue(EMPTY_RESULT);
+    worker.processTurn(turn(4), "c1");
+    await flush();
+    expect(vi.mocked(extractAndRetain).mock.calls[3][0].map((m) => m.id)).toEqual([
+      "m0",
+      "m1",
+      "m2",
+      "m3",
+    ]);
+    expect(worker.processTurn(turn(4), "c1")).toBe(false);
+  });
+
+  it("starts the count again after a turn that succeeds", async () => {
+    const onError = vi.fn();
+    const worker = createAutoExtractor({ ...baseOptions, onError });
+    vi.mocked(extractAndRetain)
+      .mockResolvedValueOnce(failing({}))
+      .mockResolvedValueOnce(failing({}))
+      .mockResolvedValueOnce(EMPTY_RESULT)
+      .mockResolvedValue(failing({}));
+    for (let n = 2; n <= 10; n += 2) {
+      worker.processTurn(turn(n), "c1");
+      await flush();
+    }
+    expect(extractAndRetain).toHaveBeenCalledTimes(5);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an embeddings outage", failing({ writeFailureReason: "embeddings-unavailable" })],
+    ["an aborted write", failing({ writeFailureReason: "aborted" })],
+    ["a memory store outage", failing({ writeFailureReason: "store-unavailable" })],
+    [
+      "a transport failure",
+      failing({
+        outcome: "empty-after-retry",
+        failedCount: 0,
+        writeFailureReason: undefined,
+        failure: { reason: "network", attempts: 3 },
+      }),
+    ],
+  ])("keeps retrying the window through %s", async (_label, result) => {
+    vi.mocked(extractAndRetain).mockResolvedValue(result);
+    const cursorStore = { get: vi.fn(), set: vi.fn() };
+    const onError = vi.fn();
+    const worker = createAutoExtractor({ ...baseOptions, cursorStore, onError });
+    for (let attempt = 0; attempt < 5; attempt++) {
+      worker.processTurn(turn(2), "c1");
+      await flush();
+    }
+    expect(extractAndRetain).toHaveBeenCalledTimes(5);
+    expect(cursorStore.set).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it.each(["content-flagged", "truncated"] as const)(
+    "advances past a window the extractor deterministically rejects (%s)",
+    async (reason) => {
+      vi.mocked(extractAndRetain).mockResolvedValue(
+        failing({
+          outcome: "empty-after-retry",
+          failedCount: 0,
+          writeFailureReason: undefined,
+          failure: { reason, attempts: 1 },
+        })
+      );
+      const cursorStore = { get: vi.fn(), set: vi.fn() };
+      const onError = vi.fn();
+      const worker = createAutoExtractor({ ...baseOptions, cursorStore, onError });
+      for (let attempt = 0; attempt < 3; attempt++) {
+        worker.processTurn(turn(2), "c1");
+        await flush();
+      }
+      expect(cursorStore.set).toHaveBeenCalledWith("c1", "m1");
+      expect(onError.mock.calls[0][0].message).toContain(`(${reason})`);
+    }
+  );
+});
+
+describe("turn telemetry", () => {
+  it("reports the window size and transcript length on onTurnComplete", async () => {
+    vi.mocked(extractAndRetain).mockResolvedValue({ ...EMPTY_RESULT, transcriptChars: 1234 });
+    const onTurnComplete = vi.fn();
+    const worker = createAutoExtractor({ ...baseOptions, onTurnComplete });
+    worker.processTurn(messages, "c1");
+    await flush();
+    expect(onTurnComplete.mock.calls[0][0]).toMatchObject({
+      windowMessageCount: 2,
+      transcriptChars: 1234,
+    });
   });
 });

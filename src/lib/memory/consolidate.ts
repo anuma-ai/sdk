@@ -129,8 +129,8 @@ interface ConsolidateOptions extends PortalLlmAuth {
 /**
  * Decide create/update/noop for a new memory against existing similar
  * candidates. On any failure (network, timeout, malformed JSON, schema
- * violation) returns `{ action: "create", content: newContent }` so a
- * flaky consolidator degrades to native dedup at the cosine-merge level.
+ * violation) returns `{ action: "create", content: newContent }` with a
+ * `fallbackReason`, and retain() then merges only an exact-content match.
  */
 export async function consolidateMemory(
   newContent: string,

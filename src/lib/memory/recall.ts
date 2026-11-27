@@ -25,6 +25,7 @@ import {
 import { classifyObservationTrend } from "./observationTrend.js";
 import { extractQueryEntities } from "./queryEntities.js";
 import { parseQueryTimeWindow, scoreEventTimeOverlap } from "./queryTemporal.js";
+import { factRecallDiagnostics, notifyMemoryCallback } from "./recallTelemetry.js";
 import { rrfFuse } from "./rrf.js";
 import type {
   Budget,
@@ -92,6 +93,36 @@ export async function recall(
   query: string,
   ctx: RecallContext,
   options: RecallOptions = {}
+): Promise<RecallResult> {
+  const onDiagnostics = options.onDiagnostics;
+  if (!onDiagnostics) return recallLanes(query, ctx, options);
+  const startedAt = nowMs();
+  let reported = false;
+  try {
+    return await recallLanes(query, ctx, {
+      ...options,
+      onDiagnostics: (diagnostics) => {
+        reported = true;
+        onDiagnostics(diagnostics);
+      },
+    });
+  } catch (error) {
+    if (!reported) {
+      notifyMemoryCallback(onDiagnostics, {
+        ...factRecallDiagnostics([], nowMs() - startedAt),
+        usedBudget: options.budget ?? DEFAULT_BUDGET,
+        emptyReason: "recall-failed",
+        degraded: ["recall-failed"],
+      });
+    }
+    throw error;
+  }
+}
+
+async function recallLanes(
+  query: string,
+  ctx: RecallContext,
+  options: RecallOptions
 ): Promise<RecallResult> {
   const storageCtx = ctx.storageCtx;
   const searchChunks: ChatBackend["searchChunks"] | undefined = ctx.chats
