@@ -191,10 +191,13 @@ function fakeNearby(
         const existing = rows.get(row.memory_id);
         if (
           !existing ||
-          row.updated_at > existing.updated_at ||
-          (row.updated_at === existing.updated_at && row.is_deleted && !existing.is_deleted)
-        )
+          (account.state === "migrating" &&
+            (row.updated_at > existing.updated_at ||
+              (row.updated_at === existing.updated_at && row.is_deleted && !existing.is_deleted)))
+        ) {
           rows.set(row.memory_id, initial.scrubTombstones ? scrubTombstone(row) : row);
+          versions.set(row.memory_id, (versions.get(row.memory_id) ?? 0) + 1);
+        }
       }
       await onImport?.();
       return json(200, { written: (body.memories as unknown[]).length });
@@ -205,9 +208,10 @@ function fakeNearby(
           const s = rows.get(r.memory_id as string);
           return (
             !s ||
-            newer(r.updated_at as number, s.updated_at) ||
-            newer(r.topics_updated_at as number | null, s.topics_updated_at) ||
-            newer(r.last_observed_at as number | null, s.last_observed_at)
+            (account.state === "migrating" &&
+              (newer(r.updated_at as number, s.updated_at) ||
+                newer(r.topics_updated_at as number | null, s.topics_updated_at) ||
+                newer(r.last_observed_at as number | null, s.last_observed_at)))
           );
         })
         .map((r) => r.memory_id);
@@ -244,6 +248,7 @@ function fakeNearby(
     if (/^\/memories\/[^/]+$/.test(path)) {
       const id = decodeURIComponent(path.slice("/memories/".length));
       if (method === "PUT") {
+        if (account.key_id !== body.key_id) return json(409, { code: "key_mismatch" });
         const version = versions.get(id) ?? (rows.has(id) ? 1 : 0);
         if (body.expected_version !== version) return json(409, { code: "version_conflict" });
         rows.set(id, body.memory as Stored);
@@ -430,8 +435,9 @@ describe("migrateMemoriesToRemote", () => {
     nearby.account.state = "migrating";
     nearby.enabled.set(off.uniqueId, true);
     nearby.switches.length = 0;
-    await setMemoryVisibilityOp(ctx, off.uniqueId, { visibility: "public" });
     const localUpdatedAt = (await ctx.vaultMemoryCollection.find(off.uniqueId)).updatedAt.getTime();
+    await setMemoryVisibilityOp(ctx, off.uniqueId, { visibility: "public" });
+    await setRaw(ctx, off.uniqueId, { updated_at: localUpdatedAt });
     expect(nearby.rows.get(off.uniqueId)?.updated_at).toBe(localUpdatedAt);
 
     const result = await migrate(nearby, ctx);
@@ -444,7 +450,7 @@ describe("migrateMemoriesToRemote", () => {
     expect(nearby.switches).toEqual([
       {
         memory_id: off.uniqueId,
-        expected_version: 2,
+        expected_version: 3,
         enabled: false,
         updated_at: localUpdatedAt + 1,
       },
@@ -476,6 +482,89 @@ describe("migrateMemoriesToRemote", () => {
     expect(nearby.calls).not.toContain("POST /import");
     expect(nearby.calls).not.toContain("PUT /account");
     expect(onActivated).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { remoteRevision: "equal", expectedVisibility: "private" },
+    { remoteRevision: "older", expectedVisibility: "private" },
+    { remoteRevision: "newer", expectedVisibility: "public" },
+  ])(
+    "uses $expectedVisibility visibility at handoff when the remote revision is $remoteRevision",
+    async ({ remoteRevision, expectedVisibility }) => {
+      const ctx = vault(makeDatabase(), signatureA);
+      const memory = await createVaultMemoryOp(ctx, { content: "Works at Acme" });
+      await replaceMemoryEntitiesGuardedOp(ctx.entityCtx!, memory.uniqueId, ["Acme"]);
+      await setMemoryVisibilityOp(ctx, memory.uniqueId, { visibility: "public" });
+      const nearby = fakeNearby();
+      await migrate(nearby, ctx);
+      const remote = { ...nearby.rows.get(memory.uniqueId)!, folder_id: "remote-folder" };
+      nearby.rows.set(memory.uniqueId, remote);
+      expect(remote.visibility).toBe("public");
+
+      const revoked = await setMemoryVisibilityOp(ctx, memory.uniqueId, { visibility: "private" });
+      if (remoteRevision === "equal") {
+        await setRaw(ctx, memory.uniqueId, { updated_at: remote.updated_at });
+      } else if (remoteRevision === "newer") {
+        nearby.rows.set(memory.uniqueId, {
+          ...remote,
+          updated_at: revoked!.updatedAt.getTime() + 1,
+        });
+      }
+      const onActivated = vi.fn(() => {
+        const migrated = nearby.rows.get(memory.uniqueId)!;
+        expect(migrated).toMatchObject({
+          visibility: expectedVisibility,
+          content: remote.content,
+          topics: remote.topics,
+          folder_id: remote.folder_id,
+        });
+        if (expectedVisibility === "private") expect(migrated.published_at).toBeUndefined();
+      });
+
+      await expect(migrate(nearby, ctx, { onActivated })).resolves.toMatchObject({
+        state: "active",
+        imported: 0,
+      });
+      expect(onActivated).toHaveBeenCalledOnce();
+      if (remoteRevision === "older")
+        expect(revoked!.updatedAt.getTime()).toBeGreaterThan(remote.updated_at);
+    }
+  );
+
+  it("keeps a concurrent remote edit when a visibility repair loses its version", async () => {
+    const ctx = vault(makeDatabase(), signatureA);
+    const memory = await createVaultMemoryOp(ctx, { content: "Likes green tea" });
+    await setMemoryVisibilityOp(ctx, memory.uniqueId, { visibility: "public" });
+    const nearby = fakeNearby();
+    await migrate(nearby, ctx);
+    const remote = nearby.rows.get(memory.uniqueId)!;
+    await setMemoryVisibilityOp(ctx, memory.uniqueId, { visibility: "private" });
+    const path = `/memories/${memory.uniqueId}`;
+    const fetch = nearby.fetch;
+    nearby.fetch = async (url, init) => {
+      if (init?.method === "PUT" && requestUrl(url).endsWith(path)) {
+        const response = await fetch(url, {
+          method: "PUT",
+          body: JSON.stringify({
+            key_id: nearby.account.key_id,
+            expected_version: 1,
+            memory: { ...remote, folder_id: "new-folder" },
+          }),
+        });
+        expect(response.ok).toBe(true);
+      }
+      return fetch(url, init);
+    };
+    const onActivated = vi.fn();
+
+    await expect(migrate(nearby, ctx, { onActivated })).rejects.toMatchObject({
+      code: "version_conflict",
+    });
+    expect(onActivated).not.toHaveBeenCalled();
+    expect(nearby.rows.get(memory.uniqueId)).toMatchObject({
+      visibility: "public",
+      folder_id: "new-folder",
+    });
   });
 
   it("sends only the rows nearby is missing", async () => {
@@ -884,6 +973,7 @@ describe("migrateMemoriesToRemote", () => {
     const before = nearby.rows.get(m.uniqueId)!.updated_at;
 
     await setMemoryVisibilityOp(ctx, m.uniqueId, { visibility: "private" });
+    await setRaw(ctx, m.uniqueId, { updated_at: before });
     const result = await migrate(nearby, ctx);
 
     expect(result.state).toBe("active");
