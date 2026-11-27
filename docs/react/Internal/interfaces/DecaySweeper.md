@@ -1,6 +1,6 @@
 # DecaySweeper
 
-Defined in: [src/lib/memory/decayWorker.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#102)
+Defined in: [src/lib/memory/decayWorker.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#104)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/decayWorker.ts:102](https://github.com/anuma-ai/sdk/
 
 > **dispose**(): `void`
 
-Defined in: [src/lib/memory/decayWorker.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#111)
+Defined in: [src/lib/memory/decayWorker.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#113)
 
 Stop accepting sweeps. An in-flight `runSweep()` resolves normally.
 
@@ -22,7 +22,7 @@ Stop accepting sweeps. An in-flight `runSweep()` resolves normally.
 
 > **runSweep**(): `Promise`<[`DecaySweepResult`](DecaySweepResult.md)>
 
-Defined in: [src/lib/memory/decayWorker.ts:109](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#109)
+Defined in: [src/lib/memory/decayWorker.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/decayWorker.ts#111)
 
 Scan the vault, classify every candidate, and apply archive/delete
 transitions. Safe to call repeatedly (idempotent — a keep stays a keep, an

@@ -1,6 +1,6 @@
 # RetainResult
 
-Defined in: [src/lib/memory/types.ts:692](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#692)
+Defined in: [src/lib/memory/types.ts:697](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#697)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/types.ts:692](https://github.com/anuma-ai/sdk/blob/m
 
 > **action**: [`RetainAction`](../type-aliases/RetainAction.md)
 
-Defined in: [src/lib/memory/types.ts:693](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#693)
+Defined in: [src/lib/memory/types.ts:698](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#698)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/types.ts:693](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **consolidation**: [`ConsolidationAction`](../type-aliases/ConsolidationAction.md)
 
-Defined in: [src/lib/memory/types.ts:733](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#733)
+Defined in: [src/lib/memory/types.ts:738](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#738)
 
 What the consolidation LLM decided for this candidate, when consolidation
 ran — see [ConsolidationAction](../type-aliases/ConsolidationAction.md).
@@ -27,7 +27,7 @@ ran — see [ConsolidationAction](../type-aliases/ConsolidationAction.md).
 
 > **memoryId**: `string`
 
-Defined in: [src/lib/memory/types.ts:694](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#694)
+Defined in: [src/lib/memory/types.ts:699](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#699)
 
 ***
 
@@ -35,7 +35,7 @@ Defined in: [src/lib/memory/types.ts:694](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **privateMemoryId**: `string`
 
-Defined in: [src/lib/memory/types.ts:708](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#708)
+Defined in: [src/lib/memory/types.ts:713](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#713)
 
 When action is 'withheld', the id of the private memory that already holds
 this fact, left untouched instead of publishing a shared copy. `memoryId` is
@@ -47,7 +47,7 @@ set to the same id (no new memory was written).
 
 > **proofCount**: `number`
 
-Defined in: [src/lib/memory/types.ts:710](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#710)
+Defined in: [src/lib/memory/types.ts:715](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#715)
 
 Updated proof\_count after this write. 0 when nothing was written (suppressed, withheld).
 
@@ -57,7 +57,7 @@ Updated proof\_count after this write. 0 when nothing was written (suppressed, w
 
 > `optional` **similarity**: `number`
 
-Defined in: [src/lib/memory/types.ts:728](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#728)
+Defined in: [src/lib/memory/types.ts:733](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#733)
 
 How close the write was to the threshold that allowed it. Absent on the
 actions that have no such score (`create`, `update`, `supersede`, `skip`).
@@ -81,7 +81,7 @@ The two paths report DIFFERENT things and a dashboard has to know which:
 
 > `optional` **targetId**: `string`
 
-Defined in: [src/lib/memory/types.ts:697](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#697)
+Defined in: [src/lib/memory/types.ts:702](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#702)
 
 When action is 'merge' or 'update', the prior memory's id. When action is
 'supersede', the stale memory that was retired (`memoryId` is the new one).
@@ -92,7 +92,7 @@ When action is 'merge' or 'update', the prior memory's id. When action is
 
 > `optional` **tombstoneId**: `string`
 
-Defined in: [src/lib/memory/types.ts:702](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#702)
+Defined in: [src/lib/memory/types.ts:707](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#707)
 
 When action is 'suppressed', the id of the soft-deleted memory that blocked
 re-creation. `memoryId` is set to the same id (no new memory was written).

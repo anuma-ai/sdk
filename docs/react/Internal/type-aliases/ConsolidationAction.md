@@ -2,7 +2,7 @@
 
 > **ConsolidationAction** = `"create"` | `"update"` | `"noop"` | `"supersede"`
 
-Defined in: [src/lib/memory/types.ts:556](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#556)
+Defined in: [src/lib/memory/types.ts:561](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#561)
 
 The consolidation LLM's decision for a candidate, when it made one. Reported
 on [RetainResult.consolidation](../interfaces/RetainResult.md#consolidation) so a host can tell an LLM `noop` (the

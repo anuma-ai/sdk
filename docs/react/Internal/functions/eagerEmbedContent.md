@@ -2,7 +2,7 @@
 
 > **eagerEmbedContent**(`content`: `string`, `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `vaultCtx?`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `memoryId?`: `string`, `updatedAt?`: `Date`): `Promise`<`void`>
 
-Defined in: [src/lib/memoryVault/searchTool.ts:1297](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1297)
+Defined in: [src/lib/memoryVault/searchTool.ts:1298](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#1298)
 
 Eagerly embed a single piece of content and store it in the cache.
 Call this when a vault memory is created or updated.
