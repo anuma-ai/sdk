@@ -280,6 +280,21 @@ describe("createRecallTool executor — quantified topical queries", () => {
     "every fact about everything",
     "all notes on me and anything else you have",
     "all memories for me to review",
+    "all other memories",
+    "all remaining memories",
+    "all 500 memories",
+    "all memories about them",
+    "all memories about you",
+    "all memories regarding the person",
+    "all memories about any topic",
+    "all memories on all subjects",
+    "all memories about stuff",
+    "all facts on file",
+    "all facts on record",
+    "all data on this account",
+    "all memories for export",
+    "all memories for backup",
+    "all facts for review",
   ])("still refuses a true dump: %s", async (query) => {
     const onRefused = vi.fn();
     const tool = createRecallTool(ctx, { types: ["fact"] }, { onRefused });
@@ -288,6 +303,17 @@ describe("createRecallTool executor — quantified topical queries", () => {
     expect(recall).not.toHaveBeenCalled();
     expect(onRefused).toHaveBeenCalledTimes(1);
     expect(onRefused).toHaveBeenCalledWith({ reason: "dump-query" });
+  });
+});
+
+describe("createRecallTool executor — dump guard cost", () => {
+  it("screens a long run of quantifiers in linear time", async () => {
+    vi.clearAllMocks();
+    vi.mocked(recall).mockResolvedValue(recallResult([]));
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    const startedAt = performance.now();
+    await tool.executor!({ query: "every ".repeat(16_000) });
+    expect(performance.now() - startedAt).toBeLessThan(500);
   });
 });
 

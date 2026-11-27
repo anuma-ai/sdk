@@ -222,18 +222,25 @@ const STRONG_DUMP_RE = new RegExp(
 const STORE_FILLER =
   "of|my|the|your|our|their|his|her|this|that|user|users|user's|and|every|each|single|" +
   "stored|saved|kept|remembered|recorded|existing|available|known|past|previous|prior|" +
-  "private|personal|raw|full|complete|entire|possible|long-term";
+  "private|personal|raw|full|complete|entire|possible|long-term|other|remaining|\\d+";
+
+const MAX_STORE_FILLER_WORDS = 8;
+
+const NON_TOPIC =
+  "him|her|them|us|you|it|person|human|owner|account|file|record|export|backup|review|now|" +
+  "stuff|things?|whatever|topics?|subjects?";
 
 const TOPIC_AFTER_WHOLE_SUBJECT =
   "\\s+(?!(?:to|and|or|please|now|so|that|you|i|we|at|right)\\b)[a-z]";
 
 const TOPICAL_QUALIFIER =
   "\\s+(?:on|about|for|regarding|concerning|involving|mentioning|related to|relating to)\\s+" +
-  `(?!(?:(?:my|the|our|your|his|her|their|this|that|all|of)\\s+)*(?:${WHOLE_SUBJECT_TOPIC})\\b` +
+  `(?!(?:(?:my|the|our|your|his|her|their|this|that|all|of|any|every|each|a|an|some)\\s+)*` +
+  `(?:${WHOLE_SUBJECT_TOPIC}|${NON_TOPIC})\\b` +
   `(?!(?:'s)?${TOPIC_AFTER_WHOLE_SUBJECT}))[a-z0-9$]`;
 
 const ALL_STORE_RE = new RegExp(
-  `\\b(?:all|every|each)\\b(?:[\\s,]+(?:${STORE_FILLER}))*[\\s,]+(?:${STORE_NOUN})\\b` +
+  `\\b(?:all|every|each)\\b(?:[\\s,]+(?:${STORE_FILLER})){0,${MAX_STORE_FILLER_WORDS}}[\\s,]+(?:${STORE_NOUN})\\b` +
     `(?!${TOPICAL_QUALIFIER})`,
   "i"
 );
