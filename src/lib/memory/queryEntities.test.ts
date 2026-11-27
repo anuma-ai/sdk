@@ -246,6 +246,28 @@ describe("extractQueryEntities — tickers", () => {
     expect(extractQueryEntities("I'M asking about NVDA")).toEqual(["i'm", "nvda"]);
   });
 
+  it("adds the base ticker of a market pair beside another named entity", () => {
+    expect(extractQueryEntities("compare OP-USD on Hyperliquid")).toEqual([
+      "op-usd",
+      "hyperliquid",
+      "op",
+    ]);
+    expect(extractQueryEntities("How is ETH-PERP on Hyperliquid")).toContain("eth");
+    expect(extractQueryEntities("Did Sara mention SOL-USDC")).toContain("sol");
+    expect(extractQueryEntities("Chart BTC/USDT for Sara")).toContain("btc");
+    expect(extractQueryEntities("Funding on S-USD at Hyperliquid")).toContain("s");
+    expect(extractQueryEntities("Is 1INCH-USD listed on Hyperliquid")).toContain("1inch");
+    expect(extractQueryEntities("Open BTC-USDT-SWAP on Hyperliquid")).toContain("btc");
+  });
+
+  it("does not split an ordinary hyphenated uppercase word into a ticker", () => {
+    const query = "Sara wants an X-RAY, an AI-FIRST plan, US-EU rates, a T-SHIRT and E-MAIL";
+    const entities = extractQueryEntities(query);
+    for (const part of ["x", "ai", "us", "eu", "t", "e", "ray", "first", "shirt", "mail"]) {
+      expect(entities).not.toContain(part);
+    }
+  });
+
   it("returns the same candidates as before for a query without tickers", () => {
     expect(extractQueryEntities("Where is Sara traveling")).toEqual(["sara"]);
     expect(extractQueryEntities("is there anyone in san francisco")).toEqual(

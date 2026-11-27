@@ -53,6 +53,9 @@ const CASHTAG_REGEX = /(?<![\p{L}\p{N}$])\$(\p{L}[\p{L}\p{N}]{0,9})(?![\p{L}\p{N
 
 const SHORT_TICKER_REGEX = /(?<![\p{L}\p{N}$'-])\p{Lu}{2}(?![\p{L}\p{N}'-])/gu;
 
+const MARKET_PAIR_REGEX =
+  /(?<![\p{L}\p{N}$'/-])(?=\p{N}*\p{Lu})([\p{Lu}\p{N}]{1,10})[-/](?:USD|USDT|USDC|PERP|BTC|ETH)(?![\p{L}\p{N}'])/gu;
+
 const FALLBACK_ONLY_STOPWORDS: string[] = (
   "a an and or but nor not if then than because so too also just very really " +
   "about above after again against all am any anyone anybody anything are " +
@@ -130,6 +133,10 @@ function extractTickers(query: string): string[] {
   for (const match of query.matchAll(SHORT_TICKER_REGEX)) {
     const symbol = normalizeEntityName(match[0]);
     if (!FALLBACK_STOPWORDS.has(symbol) && !SHORT_TICKER_NOISE.has(symbol)) tickers.push(symbol);
+  }
+  for (const match of query.matchAll(MARKET_PAIR_REGEX)) {
+    const symbol = normalizeEntityName(match[1]);
+    if (!FALLBACK_STOPWORDS.has(symbol)) tickers.push(symbol);
   }
   return tickers;
 }
