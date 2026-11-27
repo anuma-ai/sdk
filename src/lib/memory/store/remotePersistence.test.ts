@@ -114,6 +114,27 @@ describe("private memory rate budgets", () => {
     await expect(first("/topics", {}, controller.signal)).rejects.toThrow("Cancelled");
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it("reports an unreachable memory store as a network failure and leaves other rejections alone", async () => {
+    const unreachable = new TypeError("Failed to fetch");
+    const fetch = vi.fn<typeof globalThis.fetch>().mockRejectedValue(unreachable);
+    const options = { baseUrl: "https://nearby.test", getToken: async () => "token", fetch };
+    const error: unknown = await createNearbyRequest(options)("/counts").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(RemoteMemoryError);
+    expect(error).toMatchObject({ status: 0, code: "network", message: "Failed to fetch" });
+    await expect(createNearbyRequest(options, "/api/private-chats")("/account")).rejects.toBe(
+      unreachable
+    );
+    const controller = new AbortController();
+    const cancelled = new DOMException("aborted", "AbortError");
+    fetch.mockImplementationOnce(async () => {
+      controller.abort();
+      throw cancelled;
+    });
+    await expect(createNearbyRequest(options)("/counts", {}, controller.signal)).rejects.toBe(
+      cancelled
+    );
+  });
 });
 
 const vector = () => [1, ...new Array<number>(1535).fill(0)];

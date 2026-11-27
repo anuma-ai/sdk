@@ -63,6 +63,7 @@ const empty = {
   },
   timings: { extractMs: 0, retainMs: 0 },
   model: "test",
+  transcriptChars: 0,
 };
 const realGetMessageOp = vi.mocked(getMessageOp).getMockImplementation()!;
 class BatchReadError extends Error {}
@@ -1724,6 +1725,57 @@ describe("durable extraction outbox", () => {
     const job = await jobRow();
     expect(job._getRaw("failed_sessions")).toBe(1);
     expect(JSON.parse(String(job._getRaw("message_ids")))).toEqual(["m0", "m1"]);
+  });
+
+  it("counts a truncated completion toward abandoning a batch", async () => {
+    await conversation();
+    vi.mocked(extractAndRetain).mockResolvedValue(failedExtraction({ reason: "truncated" }));
+    nextSession();
+    const worker = createDurableAutoExtractor(options());
+    worker.processTurn(messages.slice(0, 2), "conversation");
+    await vi.waitFor(() => expect(extractAndRetain).toHaveBeenCalledTimes(3), { timeout: 2000 });
+    await vi.waitFor(async () => expect((await jobRow())._getRaw("failed_sessions")).toBe(1));
+    worker.dispose();
+  });
+
+  it("acknowledges a batch of trivial messages without an extraction call", async () => {
+    const trivial = [
+      { id: "t0", role: "user" as const, content: "hi" },
+      { id: "t1", role: "assistant" as const, content: "Hello! Ready when you are." },
+      { id: "t2", role: "user" as const, content: "thanks" },
+    ];
+    await db.write(async () => {
+      await db.get<Conversation>("conversations").create((r) => {
+        r._setRaw("conversation_id", "conversation");
+        r._setRaw("is_deleted", false);
+      });
+      for (const [index, message] of trivial.entries()) {
+        await db.get<Message>("history").create((row) => {
+          row._raw.id = message.id;
+          row._setRaw("conversation_id", "conversation");
+          row._setRaw("message_id", index + 1);
+          row._setRaw("role", message.role);
+          row._setRaw("content", message.content);
+        });
+      }
+    });
+    const onError = vi.fn<NonNullable<DurableAutoExtractorOptions["onError"]>>();
+    const onSkipped = vi.fn();
+    const onTurnComplete = vi.fn();
+    const worker = createDurableAutoExtractor({ ...options(), onError, onSkipped, onTurnComplete });
+    worker.processTurn(trivial, "conversation");
+    await vi.waitFor(async () => expect((await jobRow())?._getRaw("watermark")).toBe("t2"), {
+      timeout: 2000,
+    });
+    expect((await jobRow())._getRaw("message_ids")).toBe("[]");
+    expect(extractAndRetain).not.toHaveBeenCalled();
+    expect(onSkipped).toHaveBeenCalledWith({
+      reason: "trivial-content",
+      conversationId: "conversation",
+    });
+    expect(onTurnComplete).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    worker.dispose();
   });
 
   it("refuses the late writes of a batch the watchdog gave up on", async () => {

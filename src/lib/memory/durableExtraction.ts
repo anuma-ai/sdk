@@ -120,6 +120,7 @@ const CONTENT_FAILURE_REASONS = new Set([
   "empty-content",
   "invalid-json",
   "null-completion",
+  "truncated",
   "body-parse-failed",
 ]);
 const BACKOFF_ALLOWANCE_MS = 2_100;
@@ -366,7 +367,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     ids: string[],
     jobScope: string,
     jobFolderId: string | null
-  ): Promise<TurnCompleteEvent> {
+  ): Promise<TurnCompleteEvent | null> {
     if (disposed) throw new Error("Extraction session was disposed");
     let watchdog: ReturnType<typeof setTimeout> | undefined;
     let cancelled = false;
@@ -375,7 +376,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
     const model = options.modelForScope?.(jobScope) ?? options.extract.model;
     try {
       return await Promise.race([
-        new Promise<TurnCompleteEvent>((resolve, reject) => {
+        new Promise<TurnCompleteEvent | null>((resolve, reject) => {
           const worker = createAutoExtractor({
             ...options,
             signal: controller.signal,
@@ -399,6 +400,10 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
             windowSize: 20,
             maxWindowSize: 20,
             onTurnComplete: resolve,
+            onSkipped: (event) => {
+              options.onSkipped?.(event);
+              if (event.reason === "trivial-content") resolve(null);
+            },
             onError: reject,
           });
           worker.processTurn(messages, conversationId);
@@ -671,13 +676,13 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
               jobFolderId
             );
             if (disposed) throw new Error("Extraction session was disposed");
-            options.onTurnComplete?.(result);
+            if (result) options.onTurnComplete?.(result);
             return result;
           };
           const flaggedIds = new Set<string>();
           if (messages.length) {
             const result = await runExtraction(messages, ids);
-            if (result.failure?.reason === "content-flagged") {
+            if (result?.failure?.reason === "content-flagged") {
               const turns = splitTurns(messages);
               if (turns.length < 2)
                 throw new FlaggedBatchError("Extraction batch refused by moderation; abandoned");
@@ -686,9 +691,9 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                   turn,
                   turn.map((m) => m.id)
                 );
-                if (turnResult.failure?.reason === "content-flagged")
+                if (turnResult?.failure?.reason === "content-flagged")
                   for (const m of turn) flaggedIds.add(m.id);
-                else if (!extracted(turnResult)) throw batchError(turnResult);
+                else if (turnResult && !extracted(turnResult)) throw batchError(turnResult);
               }
               if (flaggedIds.size)
                 reportError(
@@ -697,7 +702,7 @@ export function createDurableAutoExtractor(options: DurableAutoExtractorOptions)
                   ),
                   conversationId
                 );
-            } else if (!extracted(result)) throw batchError(result);
+            } else if (result && !extracted(result)) throw batchError(result);
           }
           await acknowledge(
             job,

@@ -22,7 +22,7 @@ import {
 import { cacheRowVector } from "../memoryVault/vectorVersion.js";
 import type { WriteFailureReason } from "./autoExtract.js";
 import { notifyConsolidationFallback } from "./consolidationFallback.js";
-import type { RetainOptions, RetainResult } from "./types.js";
+import type { ConsolidationFallbackReason, RetainOptions, RetainResult } from "./types.js";
 
 const DEFAULT_AUTO_MERGE_THRESHOLD = 0.8;
 const PRIVATE_SCOPE = "private";
@@ -156,6 +156,7 @@ export async function retainWithPersistence(
   let supersedeTargetIds: string[] = [];
   let consolidationDecidedCreate = false;
   let keepSeparate = false;
+  let degradedReason: ConsolidationFallbackReason | undefined;
   let supersedeContent: string | undefined;
   let prepared: PreparedVaultCandidates | undefined;
   let queryEmbedding: number[] = [];
@@ -202,7 +203,9 @@ export async function retainWithPersistence(
       const outcome = await tryConsolidate(trimmed, ctx, options, prepared);
       if (outcome) {
         if ("done" in outcome) return outcome.done;
-        if ("create" in outcome) {
+        if ("degraded" in outcome) {
+          degradedReason = outcome.degraded;
+        } else if ("create" in outcome) {
           keepSeparate = true;
           consolidationDecidedCreate = outcome.create === "decided";
         } else {
@@ -227,7 +230,11 @@ export async function retainWithPersistence(
       if (matches.length > 0) {
         const targetId = matches[0].uniqueId;
         const existing = await ctx.persistence.get(targetId);
-        if (existing && !existing.supersededBy) {
+        if (
+          existing &&
+          !existing.supersededBy &&
+          (degradedReason === undefined || sameContent(existing.content, trimmed))
+        ) {
           const mergedSourceIds = unionStrings(
             existing.sourceChunkIds ?? [],
             options.sourceChunkIds ?? []
@@ -252,6 +259,7 @@ export async function retainWithPersistence(
               targetId,
               proofCount: updated.proofCount ?? (existing.proofCount ?? 1) + 1,
               similarity: matches[0].similarity,
+              ...(degradedReason !== undefined && { consolidationFallback: degradedReason }),
             };
           }
           await assertMergeTargetGoneOrThrow(ctx, targetId);
@@ -381,7 +389,19 @@ export async function retainWithPersistence(
     memoryId: created.uniqueId,
     proofCount: 1,
     ...(consolidationDecidedCreate && { consolidation: "create" as const }),
+    ...(degradedReason !== undefined && { consolidationFallback: degradedReason }),
   };
+}
+
+function sameContent(a: string, b: string): boolean {
+  const normalize = (value: string) =>
+    value
+      .normalize("NFKC")
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(/[.!?]+$/, "")
+      .toLowerCase();
+  return normalize(a) === normalize(b);
 }
 
 function keepRows(
@@ -522,11 +542,15 @@ type ConsolidateOutcome =
   | { done: RetainResult }
   | { supersede: string[]; content: string }
   | { create: "decided" | "refused" }
+  | { degraded: ConsolidationFallbackReason }
   | null;
 
-function abandonToRace(options: RetainOptions, detail: string): null {
+function abandonToRace(
+  options: RetainOptions,
+  detail: string
+): { degraded: ConsolidationFallbackReason } {
   notifyConsolidationFallback("target_vanished", options.consolidateOptions?.onFallback, detail);
-  return null;
+  return { degraded: "target_vanished" };
 }
 
 async function tryConsolidate(
@@ -564,7 +588,9 @@ async function tryConsolidate(
 
   if (decision.action === "create") {
     if (!decision.fallbackReason) return { create: "decided" };
-    return decision.fallbackReason === "subject_mismatch" ? { create: "refused" } : null;
+    return decision.fallbackReason === "subject_mismatch"
+      ? { create: "refused" }
+      : { degraded: decision.fallbackReason };
   }
 
   if (decision.action === "supersede" && decision.content) {
@@ -573,7 +599,7 @@ async function tryConsolidate(
       : decision.targetId
         ? [decision.targetId]
         : [];
-    if (requestedIds.length === 0) return null;
+    if (requestedIds.length === 0) return { degraded: "invalid_response" };
     const valid: string[] = [];
     for (const id of requestedIds) {
       const existing = await ctx.persistence.get(id);
@@ -635,7 +661,7 @@ async function tryConsolidate(
     const expectedContent = candidates.find(
       (candidate) => candidate.id === decision.targetId
     )?.content;
-    if (expectedContent === undefined) return null;
+    if (expectedContent === undefined) return { degraded: "invalid_response" };
     const existing = await ctx.persistence.get(decision.targetId);
     if (!existing || existing.supersededBy) {
       return abandonToRace(
@@ -700,7 +726,7 @@ async function tryConsolidate(
     options.consolidateOptions?.onFallback,
     `unapplicable ${decision.action} decision reached the applier — validate() should have rejected it`
   );
-  return null;
+  return { degraded: "invalid_response" };
 }
 
 async function assertMergeTargetGoneOrThrow(

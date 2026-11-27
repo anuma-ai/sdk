@@ -1,6 +1,6 @@
 # TurnSkippedEvent
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#45)
+Defined in: [src/lib/memory/autoExtractWorker.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#46)
 
 ## Properties
 
@@ -8,15 +8,15 @@ Defined in: [src/lib/memory/autoExtractWorker.ts:45](https://github.com/anuma-ai
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#60)
+Defined in: [src/lib/memory/autoExtractWorker.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#65)
 
 ***
 
 ### reason
 
-> **reason**: `"superseded"` | `"no-messages"` | `"no-new-content"` | `"in-flight"`
+> **reason**: `"superseded"` | `"no-messages"` | `"no-new-content"` | `"in-flight"` | `"trivial-content"`
 
-Defined in: [src/lib/memory/autoExtractWorker.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#59)
+Defined in: [src/lib/memory/autoExtractWorker.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/autoExtractWorker.ts#64)
 
 Why the turn produced no extraction call:
 
@@ -30,3 +30,7 @@ Why the turn produced no extraction call:
 * `in-flight`       — retained for back-compat; no longer emitted. The
   worker now coalesces in-flight arrivals into the
   pending queue instead of dropping them.
+* `trivial-content` — every new user message was a greeting or bare
+  acknowledgment that answers no assistant question,
+  so no extraction call was made; the watermark
+  advanced past them.

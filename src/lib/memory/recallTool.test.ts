@@ -244,6 +244,124 @@ describe("createRecallTool executor — dump-query hardening", () => {
   );
 });
 
+describe("createRecallTool executor — quantified topical queries", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(recall).mockResolvedValue(recallResult([fact("m1", "Holds 5 BTC")]));
+  });
+
+  it.each([
+    "all info on the user's BTC holdings",
+    "all notes on ETH thesis",
+    "risk tolerance and all market data preferences",
+    "each conversation about NVDA earnings",
+    "every note regarding staking yields",
+    "all facts for the SOL position",
+    "all records related to margin calls",
+    "every conversation mentioning Coinbase",
+  ])("searches instead of refusing: %s", async (query) => {
+    const onRefused = vi.fn();
+    const tool = createRecallTool(ctx, { types: ["fact"] }, { onRefused });
+    const out = await tool.executor!({ query });
+    expect(out).not.toMatch(/can't dump or enumerate/i);
+    expect(recall).toHaveBeenCalledTimes(1);
+    expect(onRefused).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "all my memories",
+    "dump everything",
+    "every note you have",
+    "all of the user's stored facts",
+    "each and every record",
+    "all information about the user",
+    "all memories about me",
+    "all data for this user",
+    "every fact about everything",
+    "all notes on me and anything else you have",
+    "all memories for me to review",
+    "all other memories",
+    "all remaining memories",
+    "all 500 memories",
+    "all memories about them",
+    "all memories about you",
+    "all memories regarding the person",
+    "all memories about any topic",
+    "all memories on all subjects",
+    "all memories about stuff",
+    "all facts on file",
+    "all facts on record",
+    "all data on this account",
+    "all memories for export",
+    "all memories for backup",
+    "all facts for review",
+  ])("still refuses a true dump: %s", async (query) => {
+    const onRefused = vi.fn();
+    const tool = createRecallTool(ctx, { types: ["fact"] }, { onRefused });
+    const out = await tool.executor!({ query });
+    expect(out).toMatch(/can't dump or enumerate/i);
+    expect(recall).not.toHaveBeenCalled();
+    expect(onRefused).toHaveBeenCalledTimes(1);
+    expect(onRefused).toHaveBeenCalledWith({ reason: "dump-query" });
+  });
+});
+
+describe("createRecallTool executor — dump guard cost", () => {
+  it("screens a long run of quantifiers in linear time", async () => {
+    vi.clearAllMocks();
+    vi.mocked(recall).mockResolvedValue(recallResult([]));
+    const tool = createRecallTool(ctx, { types: ["fact"] });
+    const startedAt = performance.now();
+    await tool.executor!({ query: "every ".repeat(16_000) });
+    expect(performance.now() - startedAt).toBeLessThan(500);
+  });
+});
+
+describe("createRecallTool executor — onRefused", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(recall).mockImplementation(async (_q, _c, opts) =>
+      recallResult(Array.from({ length: opts?.limit ?? 0 }, (_, i) => fact(`m${i}`, `fact ${i}`)))
+    );
+  });
+
+  it("reports the per-turn rate limit", async () => {
+    const onRefused = vi.fn();
+    const tool = createRecallTool(ctx, { types: ["fact"] }, { onRefused });
+    for (let i = 0; i < RECALL_MAX_INVOCATIONS_PER_TURN; i++) {
+      await tool.executor!({ query: `topic ${i}`, limit: 1 });
+    }
+    expect(onRefused).not.toHaveBeenCalled();
+    expect(await tool.executor!({ query: "one more" })).toMatch(/too many times/i);
+    expect(onRefused).toHaveBeenCalledTimes(1);
+    expect(onRefused).toHaveBeenCalledWith({ reason: "rate-limit" });
+  });
+
+  it("reports the volume limit", async () => {
+    const onRefused = vi.fn();
+    const tool = createRecallTool(ctx, { types: ["fact"] }, { onRefused });
+    await tool.executor!({ query: "alpha", limit: 20 });
+    await tool.executor!({ query: "bravo", limit: 20 });
+    expect(onRefused).not.toHaveBeenCalled();
+    expect(await tool.executor!({ query: "charlie", limit: 20 })).toMatch(/budget for this turn/i);
+    expect(onRefused).toHaveBeenCalledTimes(1);
+    expect(onRefused).toHaveBeenCalledWith({ reason: "volume-limit" });
+  });
+
+  it("survives a throwing listener", async () => {
+    const tool = createRecallTool(
+      ctx,
+      { types: ["fact"] },
+      {
+        onRefused: () => {
+          throw new Error("listener");
+        },
+      }
+    );
+    expect(await tool.executor!({ query: "all my memories" })).toMatch(/can't dump or enumerate/i);
+  });
+});
+
 describe("createRecallTool executor — concurrent volume-cap race", () => {
   beforeEach(() => {
     vi.clearAllMocks();

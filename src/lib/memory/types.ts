@@ -352,7 +352,9 @@ export type RecallDegradation =
    *  chunk lane would escape the topic/folder scope — it is dropped instead.
    *  Without this signal a scoped caller asking for excerpts got an empty
    *  result indistinguishable from "the vault had no match". */
-  | "chunks-scope-restricted";
+  | "chunks-scope-restricted"
+  /** `recall()` threw before it could report; the only signal in a diagnostics payload emitted for a failed call. */
+  | "recall-failed";
 
 /**
  * Why a recall returned nothing. `""` when it returned something, so the field
@@ -364,7 +366,13 @@ export type RecallDegradation =
  * were previously indistinguishable from outside — every one reported
  * `candidateCount: 0`.
  */
-export type RecallEmptyReason = "" | "empty-query" | "no-lanes" | "vault-empty" | "no-candidates";
+export type RecallEmptyReason =
+  | ""
+  | "empty-query"
+  | "no-lanes"
+  | "vault-empty"
+  | "no-candidates"
+  | "recall-failed";
 
 /**
  * Per-call recall observability payload (see {@link RecallOptions.onDiagnostics}).
@@ -731,4 +739,6 @@ export interface RetainResult {
    * ran — see {@link ConsolidationAction}.
    */
   consolidation?: ConsolidationAction;
+  /** Set when consolidation ran but produced no usable decision, so this write fell back to an exact-content merge or a plain create. */
+  consolidationFallback?: ConsolidationFallbackReason;
 }
