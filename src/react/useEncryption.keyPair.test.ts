@@ -56,6 +56,18 @@ describe("requestKeyPair concurrency", () => {
     expect(signMessage).toHaveBeenCalledTimes(1);
   });
 
+  it("exports the same public key with one signature for concurrent calls", async () => {
+    const signMessage = vi.fn<SignMessageFn>().mockResolvedValue(SIGNATURE);
+
+    const [firstKey, secondKey] = await Promise.all([
+      exportPublicKey(ADDRESS, signMessage),
+      exportPublicKey(ADDRESS, signMessage),
+    ]);
+
+    expect(signMessage).toHaveBeenCalledTimes(1);
+    expect(firstKey).toBe(secondKey);
+  });
+
   it("shares a signature error and permits a subsequent request", async () => {
     const error = new Error("The signature request failed.");
     const signMessage = vi
