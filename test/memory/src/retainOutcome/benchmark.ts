@@ -1,15 +1,51 @@
 import "dotenv/config";
+import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 
 import { getAllVaultMemoriesOp } from "../../../../src/lib/db/memoryVault/operations.js";
+import { DEFAULT_CONSOLIDATION_MODEL } from "../../../../src/lib/memory/consolidate.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
 import type { VaultEmbeddingCache } from "../../../../src/lib/memoryVault/searchTool.js";
+import {
+  buildGateBaseline,
+  compareToGateBaseline,
+  describeConfigMismatch,
+  formatGateRegressions,
+  type GateMetricSpec,
+  isValidGateBaseline,
+} from "../gate.js";
 import { createVaultContext, setupDatabase } from "../longmemeval/suite.js";
 import { OUTCOME_CASES, type OutcomeCase } from "./cases.js";
 
+const DEFAULT_BASELINE_PATH = "test/memory/src/retainOutcome/baseline.json";
+
 const { values: args } = parseArgs({
-  options: { runs: { type: "string" }, json: { type: "boolean", default: false } },
+  options: {
+    runs: { type: "string" },
+    json: { type: "boolean", default: false },
+    baseline: { type: "string", short: "b" },
+    "save-baseline": { type: "boolean", default: false },
+  },
 });
+
+const GATE_METRICS: GateMetricSpec[] = [
+  {
+    key: "accuracy",
+    direction: "higher-better",
+    minTolerance: 0.03,
+    itemsPerRun: OUTCOME_CASES.length,
+    label: "Outcome accuracy",
+  },
+  {
+    key: "factsLostRate",
+    direction: "lower-better",
+    minTolerance: 0.03,
+    itemsPerRun: OUTCOME_CASES.length,
+    label: "New facts not stored",
+  },
+];
+
+const GATE_CONFIG = { model: DEFAULT_CONSOLIDATION_MODEL, cases: OUTCOME_CASES.length };
 
 const apiKey = process.env.PORTAL_API_KEY;
 const baseUrl = process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai";
@@ -64,6 +100,7 @@ function correct(c: OutcomeCase, seen: Observed): boolean {
 async function main(): Promise<void> {
   const groups = new Map<string, { correct: number; total: number }>();
   const misses: string[] = [];
+  const perRun = Array.from({ length: runs }, () => ({ correct: 0, lost: 0 }));
   let factsLost = 0;
   let total = 0;
 
@@ -74,9 +111,14 @@ async function main(): Promise<void> {
       tally.total++;
       total++;
       const lost = c.group !== "same-fact" && !seen.incomingStored;
-      if (lost) factsLost++;
-      if (correct(c, seen)) tally.correct++;
-      else
+      if (lost) {
+        factsLost++;
+        perRun[run].lost++;
+      }
+      if (correct(c, seen)) {
+        tally.correct++;
+        perRun[run].correct++;
+      } else
         misses.push(
           `${c.group}: "${c.incoming}" → ${seen.outcome} (${seen.action})${lost ? ", new fact not stored" : ""}`
         );
@@ -99,6 +141,30 @@ async function main(): Promise<void> {
     console.log(`\nRetain outcome: ${right}/${total} correct, ${factsLost} new facts not stored`);
     for (const [name, g] of groups) console.log(`  ${name.padEnd(16)} ${g.correct}/${g.total}`);
     for (const miss of summary.misses) console.log(`  miss  ${miss}`);
+  }
+
+  const gateRuns = perRun.map((r) => ({
+    accuracy: r.correct / OUTCOME_CASES.length,
+    factsLostRate: r.lost / OUTCOME_CASES.length,
+  }));
+  const baselinePath = args.baseline ?? DEFAULT_BASELINE_PATH;
+  if (args["save-baseline"]) {
+    const baseline = buildGateBaseline(gateRuns, GATE_METRICS, GATE_CONFIG);
+    await writeFile(baselinePath, JSON.stringify(baseline, null, 2) + "\n");
+    console.error(`\nBaseline written to ${baselinePath} (${runs} runs).`);
+  } else if (args.baseline !== undefined) {
+    const parsed: unknown = JSON.parse(await readFile(baselinePath, "utf-8"));
+    if (!isValidGateBaseline(parsed, GATE_METRICS))
+      throw new Error(`${baselinePath} is not a valid retain-outcome baseline`);
+    const mismatch = describeConfigMismatch(parsed, GATE_CONFIG);
+    if (mismatch) throw new Error(`Refusing to gate: ${mismatch}`);
+    const regressions = compareToGateBaseline(gateRuns, parsed, GATE_METRICS);
+    if (regressions.length > 0) {
+      console.error("\n  REGRESSION DETECTED\n");
+      console.error(formatGateRegressions(regressions));
+      throw new Error("Retain outcome regressed against the baseline");
+    }
+    console.error("\n  Baseline comparison: no regressions detected.\n");
   }
 }
 

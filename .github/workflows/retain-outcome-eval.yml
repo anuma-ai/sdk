@@ -1,0 +1,133 @@
+name: Retain Outcome Eval
+
+# ADVISORY gate — see .github/workflows/EVAL_GATES.md.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "gate = fail on regression vs the committed baseline (report only while none is committed); save-baseline = write a new baseline artifact; report = print the outcome, no gate"
+        required: false
+        type: choice
+        default: "gate"
+        options: ["gate", "save-baseline", "report"]
+      runs:
+        description: "Passes over the 58-case corpus. Need not match the baseline: the gate folds both run counts into its tolerance."
+        required: false
+        type: string
+        default: "3"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/retain-outcome-eval.yml"
+      - "src/lib/memory/retain.ts"
+      - "src/lib/memory/consolidate.ts"
+      - "src/lib/memory/consolidationFallback.ts"
+      - "src/lib/memory/portalLlm.ts"
+      - "test/memory/src/retainOutcome/**"
+      - "test/memory/src/gate.ts"
+jobs:
+  retain-outcome-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
+      INPUT_MODE: ${{ inputs.mode || 'gate' }}
+      INPUT_RUNS: ${{ inputs.runs || '3' }}
+      BASELINE_PATH: test/memory/src/retainOutcome/baseline.json
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve mode
+        run: |
+          mode="$INPUT_MODE"
+          if [ "$mode" = "gate" ] && [ ! -f "$BASELINE_PATH" ]; then
+            mode="report"
+            echo "::warning::No retain-outcome baseline is committed at $BASELINE_PATH, so this run reports and gates nothing. Capture one with mode=save-baseline."
+          fi
+          printf 'EVAL_MODE=%s\n' "$mode" >> "$GITHUB_ENV"
+
+      - name: Run eval (regression gate)
+        if: env.EVAL_MODE == 'gate'
+        run: |
+          set -o pipefail
+          pnpm --silent eval:retain-outcome --json --runs "$INPUT_RUNS" --baseline "$BASELINE_PATH" | tee results.json
+
+      - name: Run eval (save baseline)
+        if: env.EVAL_MODE == 'save-baseline'
+        run: |
+          set -o pipefail
+          pnpm --silent eval:retain-outcome --json --runs "$INPUT_RUNS" --save-baseline | tee results.json
+          {
+            echo "### Generated baseline"
+            echo '```json'
+            cat "$BASELINE_PATH"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload generated baseline
+        if: env.EVAL_MODE == 'save-baseline'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: retain-outcome-baseline
+          path: test/memory/src/retainOutcome/baseline.json
+          if-no-files-found: error
+
+      - name: Run eval (report, no gate)
+        if: env.EVAL_MODE == 'report'
+        run: |
+          set -o pipefail
+          pnpm --silent eval:retain-outcome --json --runs "$INPUT_RUNS" | tee results.json
+
+      - name: Summarize
+        if: always()
+        run: |
+          {
+            echo "## Retain outcome eval (${EVAL_MODE:-not started}, ${INPUT_RUNS} passes)"
+            if [ "${EVAL_MODE:-}" = "report" ] && [ "$INPUT_MODE" = "gate" ]; then
+              echo "**No baseline committed: nothing was gated.**"
+            fi
+            if [ -f results.json ]; then
+              echo '```'
+              jq -r '
+                "  accuracy        : \((.accuracy*1000|round/10))%",
+                "  facts not stored: \(.factsLost) (\((.factsLostRate*1000|round/10))%)",
+                (.byGroup | to_entries[] | "    \(.key | . + (" " * (18 - length)))\(.value)"),
+                (.misses[] | "  miss  \(.)")
+              ' results.json 2>/dev/null || echo "  (could not parse results.json)"
+              echo '```'
+            else
+              echo "_No result (the eval step failed before writing results.json)._"
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: retain-outcome-eval-results
+          path: results.json
+          if-no-files-found: ignore
+
+  retain-outcome-eval-status:
+    if: always()
+    needs: [retain-outcome-eval]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check retain outcome gate result
+        run: |
+          result="${{ needs.retain-outcome-eval.result }}"
+          if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+            echo "Retain outcome eval gate did not pass (result: $result)"
+            exit 1
+          fi
+          echo "Retain outcome eval gate passed"
