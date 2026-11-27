@@ -2,7 +2,7 @@
 
 > **RecallEmptyReason** = `""` | `"empty-query"` | `"no-lanes"` | `"vault-empty"` | `"no-candidates"` | `"recall-failed"`
 
-Defined in: [src/lib/memory/types.ts:369](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#369)
+Defined in: [src/lib/memory/types.ts:375](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#375)
 
 Why a recall returned nothing. `""` when it returned something, so the field
 is always present and groupable rather than being absent on the healthy path.

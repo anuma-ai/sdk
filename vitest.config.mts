@@ -10,6 +10,7 @@ export default defineConfig({
       "test/memory/src/vault/embeddingCache.test.ts",
       "test/memory/src/vault/comparison.test.ts",
       "test/memory/src/extraction/baseline.unit.test.ts",
+      "test/memory/src/extraction/dataset.unit.test.ts",
       "test/memory/src/gate.test.ts",
       "test/memory/src/longmemeval/judge.test.ts",
       "test/memory/src/longmemeval/aggregate.test.ts",

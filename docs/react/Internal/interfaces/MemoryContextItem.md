@@ -1,6 +1,6 @@
 # MemoryContextItem
 
-Defined in: [src/lib/memory/context.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#6)
+Defined in: [src/lib/memory/context.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#7)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/context.ts:6](https://github.com/anuma-ai/sdk/blob/m
 
 > **content**: `string`
 
-Defined in: [src/lib/memory/context.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#8)
+Defined in: [src/lib/memory/context.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#9)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/memory/context.ts:8](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **createdAt**: `Date`
 
-Defined in: [src/lib/memory/context.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#16)
+Defined in: [src/lib/memory/context.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#17)
 
 When the memory was written — lets the prompt show a saved date so the
 model can answer "what did I save recently".
@@ -27,7 +27,7 @@ model can answer "what did I save recently".
 
 > **id**: `string`
 
-Defined in: [src/lib/memory/context.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#7)
+Defined in: [src/lib/memory/context.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#8)
 
 ***
 
@@ -35,7 +35,7 @@ Defined in: [src/lib/memory/context.ts:7](https://github.com/anuma-ai/sdk/blob/m
 
 > **lane**: [`MemoryContextLane`](../type-aliases/MemoryContextLane.md)
 
-Defined in: [src/lib/memory/context.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#10)
+Defined in: [src/lib/memory/context.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#11)
 
 ***
 
@@ -43,7 +43,7 @@ Defined in: [src/lib/memory/context.ts:10](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **recalled**: `boolean`
 
-Defined in: [src/lib/memory/context.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#13)
+Defined in: [src/lib/memory/context.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#14)
 
 Ranked fact evidence, retained when profile deduplication wins placement.
 
@@ -53,7 +53,7 @@ Ranked fact evidence, retained when profile deduplication wins placement.
 
 > **score**: `number`
 
-Defined in: [src/lib/memory/context.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#9)
+Defined in: [src/lib/memory/context.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#10)
 
 ***
 
@@ -61,4 +61,4 @@ Defined in: [src/lib/memory/context.ts:9](https://github.com/anuma-ai/sdk/blob/m
 
 > **sourceIds**: `string`\[]
 
-Defined in: [src/lib/memory/context.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#11)
+Defined in: [src/lib/memory/context.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#12)

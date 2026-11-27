@@ -1640,3 +1640,69 @@ it("preserves the receiver of class-based fact sources", async () => {
   );
   expect(result.memories).toEqual([]);
 });
+
+describe("recall — diagnostics: score scale", () => {
+  async function scaleOf(
+    query: string,
+    ctx: RecallContext,
+    options: Parameters<typeof recall>[2] = {}
+  ): Promise<RecallDiagnostics> {
+    const seen: RecallDiagnostics[] = [];
+    await recall(query, ctx, { ...options, onDiagnostics: (d) => seen.push(d) });
+    return seen[0];
+  }
+
+  it("reports cosine for a fact recall without side lanes", async () => {
+    const d = await scaleOf(QUERY, makeCtx(), { types: ["fact"] });
+    expect(d.scoreScale).toBe("cosine");
+    expect(d.topScore).toBeGreaterThan(0.5);
+  });
+
+  it("reports rrf once a side lane is fused into the fact ranking", async () => {
+    vi.mocked(getMemoriesByEntityNamesOp).mockResolvedValue(new Map([["m3", new Set(["sara"])]]));
+    const d = await scaleOf("Where is Sara traveling", makeCtx({ entityCtx }), {
+      types: ["fact"],
+      minScore: 0,
+    });
+    expect(d.graphLaneCount).toBe(1);
+    expect(d.scoreScale).toBe("rrf");
+    expect(d.topScore).toBeLessThan(0.1);
+  });
+
+  it("reports rrf for a decomposed query", async () => {
+    const d = await scaleOf(QUERY, makeCtx(), {
+      types: ["fact"],
+      subQueries: [M1, M2],
+    });
+    expect(d.scoreScale).toBe("rrf");
+  });
+
+  it("reports bm25 when the query could not be embedded", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "allergic to shellfish")]);
+    vi.mocked(generateEmbedding).mockRejectedValue(new Error("provider down"));
+    const d = await scaleOf("shellfish", makeCtx());
+    expect(d.admittedCount).toBe(1);
+    expect(d.scoreScale).toBe("bm25");
+  });
+
+  it("reports rrf when facts and chunks are fused", async () => {
+    vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv", 0.9)]);
+    const d = await scaleOf(QUERY, makeCtx(), { types: ["fact", "chunk"] });
+    expect(d.factCount).toBeGreaterThan(0);
+    expect(d.chunkCount).toBe(1);
+    expect(d.scoreScale).toBe("rrf");
+  });
+
+  it("reports cosine for a chunk-only recall", async () => {
+    vi.mocked(searchChunksOp).mockResolvedValue([makeChunk("c1", "conv", 0.9)]);
+    const d = await scaleOf(QUERY, makeCtx(), { types: ["chunk"] });
+    expect(d.scoreScale).toBe("cosine");
+  });
+
+  it("reports none when nothing was admitted", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+    vi.mocked(countActiveVaultMemoriesOp).mockResolvedValue(0);
+    const d = await scaleOf(QUERY, makeCtx(), { types: ["fact"] });
+    expect(d.scoreScale).toBe("none");
+  });
+});

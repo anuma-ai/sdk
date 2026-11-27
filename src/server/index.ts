@@ -369,6 +369,7 @@ export type {
   InjectionScreenOptions,
   LlmDecayClassifierOptions,
   LlmNeighborRefinerOptions,
+  MemoryAppProfile,
   MemoryExtractedEvent,
   MemoryKind,
   MemoryQuarantinedEvent,
@@ -397,6 +398,7 @@ export type {
   RecallOptions,
   RecallRefusalReason,
   RecallResult,
+  RecallScoreScale,
   RecallTelemetryCallbacks,
   RecallToolCallbacks,
   RecallToolOptions,
@@ -499,6 +501,7 @@ export {
   ttlForType,
   VAULT_SIZE_HOP_CAP,
   verifyMemoriesForPublish,
+  ZETALABS_MARKETS_PROFILE,
 } from "../lib/memory";
 export {
   assembleMemoryContext,

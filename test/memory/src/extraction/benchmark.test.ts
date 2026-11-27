@@ -4,12 +4,27 @@ import "dotenv/config";
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 
+import {
+  type MemoryAppProfile,
+  ZETALABS_MARKETS_PROFILE,
+} from "../../../../src/lib/memory/appProfile.js";
 import { extractFacts } from "../../../../src/lib/memory/autoExtract.js";
 import { normalizeEntityName } from "../../../../src/lib/db/entities/types.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
-import { buildBaseline, compareToBaseline, isValidBaseline } from "./baseline.js";
-import { EXTRACTION_CASES, type ExtractionCase, type ExtractionCategory } from "./dataset.js";
+import {
+  type BaselineSetup,
+  baselineSetupMismatch,
+  buildBaseline,
+  compareToBaseline,
+  isValidBaseline,
+} from "./baseline.js";
+import {
+  EXTRACTION_CASES,
+  type ExtractionCase,
+  type ExtractionCategory,
+  FINANCE_EXTRACTION_CASES,
+} from "./dataset.js";
 
 function entityMatchScore(gold: string, extracted: string): number {
   const toks = (s: string): Set<string> =>
@@ -39,8 +54,32 @@ const { values: args } = parseArgs({
     repeat: { type: "string" },
     baseline: { type: "string", short: "b" },
     "save-baseline": { type: "boolean", default: false },
+    profile: { type: "string" },
+    dataset: { type: "string" },
   },
 });
+
+const PROFILES: Record<string, MemoryAppProfile> = { zetalabs: ZETALABS_MARKETS_PROFILE };
+const DATASETS: Record<string, ExtractionCase[]> = {
+  general: EXTRACTION_CASES,
+  finance: FINANCE_EXTRACTION_CASES,
+};
+
+const PROFILE = args.profile === undefined ? undefined : PROFILES[args.profile];
+if (args.profile !== undefined && !PROFILE) {
+  console.error(
+    `Error: unknown --profile "${args.profile}" (${Object.keys(PROFILES).join(", ")}).`
+  );
+  process.exit(1);
+}
+const DATASET_NAME = args.dataset ?? (PROFILE ? "finance" : "general");
+const CASES = DATASETS[DATASET_NAME];
+if (!CASES) {
+  console.error(
+    `Error: unknown --dataset "${DATASET_NAME}" (${Object.keys(DATASETS).join(", ")}).`
+  );
+  process.exit(1);
+}
 
 function numArg(
   raw: string | undefined,
@@ -101,7 +140,15 @@ interface CaseResult {
   candidates: string[];
   matchedExpected: number;
   goodCandidates: number;
-  expectedDetail: { fact: string; matched: boolean; best: number }[];
+  expectedDetail: {
+    fact: string;
+    matched: boolean;
+    best: number;
+    expectedType: string | null;
+    extractedType: string | null;
+  }[];
+  typedExpected: number;
+  typeCorrect: number;
   candidateDetail: {
     content: string;
     type: string;
@@ -131,6 +178,7 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
       apiKey: API_KEY,
       baseUrl: BASE_URL,
       ...(args.model && { model: args.model }),
+      ...(PROFILE && { profile: PROFILE }),
       onAttempt: (a) => attemptLog.push({ ok: a.ok, ...(a.reason && { reason: a.reason }) }),
     }
   );
@@ -177,9 +225,24 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
 
   const expectedDetail = c.expected.map((fact, i) => {
     let best = 0;
-    for (const ce of candEmb) best = Math.max(best, cosine(goldEmb[i], ce));
-    return { fact, matched: best >= MATCH_THRESHOLD, best };
+    let bestIndex = -1;
+    candEmb.forEach((ce, j) => {
+      const score = cosine(goldEmb[i], ce);
+      if (score > best) {
+        best = score;
+        bestIndex = j;
+      }
+    });
+    const matched = best >= MATCH_THRESHOLD;
+    return {
+      fact,
+      matched,
+      best,
+      expectedType: c.expectedTypes?.[i] ?? null,
+      extractedType: matched ? candidates[bestIndex].type : null,
+    };
   });
+  const typed = expectedDetail.filter((e) => e.matched && e.expectedType !== null);
   const candidateDetail = candTexts.map((content, i) => {
     let best = 0;
     for (const ge of goldEmb) best = Math.max(best, cosine(candEmb[i], ge));
@@ -206,6 +269,8 @@ async function scoreCase(c: ExtractionCase): Promise<CaseResult> {
     matchedExpected: expectedDetail.filter((e) => e.matched).length,
     goodCandidates: candidateDetail.filter((e) => e.matched && !e.forbidden).length,
     expectedDetail,
+    typedExpected: typed.length,
+    typeCorrect: typed.filter((e) => e.extractedType === e.expectedType).length,
     candidateDetail,
     forbiddenHits: candidateDetail.filter((e) => e.forbidden).length,
     entityDetail,
@@ -231,6 +296,9 @@ interface RunSummary {
     kindCorrect: number;
     entityCoverage: number;
     kindAccuracy: number;
+    typedExpected: number;
+    typeCorrect: number;
+    typeAccuracy: number;
     firstAttemptCleanRate: number;
     callsPerCase: number;
     attemptFailures: Record<string, number>;
@@ -254,7 +322,7 @@ interface RunSummary {
 }
 
 async function runOnce(): Promise<RunSummary> {
-  const results = await mapLimit(EXTRACTION_CASES, CONCURRENCY, scoreCase);
+  const results = await mapLimit(CASES, CONCURRENCY, scoreCase);
 
   const withExpected = results.filter((r) => r.expectedCount > 0);
   const negatives = results.filter((r) => r.expectedCount === 0);
@@ -291,6 +359,8 @@ async function runOnce(): Promise<RunSummary> {
     .map(([kind, v]) => ({ kind, ...v }))
     .sort((a, b) => b.total - a.total);
 
+  const typedExpected = results.reduce((s, r) => s + r.typedExpected, 0);
+  const typeCorrect = results.reduce((s, r) => s + r.typeCorrect, 0);
   const firstAttemptClean = results.filter((r) => r.firstAttemptClean).length;
   const totalAttempts = results.reduce((s, r) => s + r.attempts, 0);
   const attemptFailures: Record<string, number> = {};
@@ -313,19 +383,15 @@ async function runOnce(): Promise<RunSummary> {
     kindCorrect,
     entityCoverage: coveredEntities / (expectedEntities || 1),
     kindAccuracy: kindCorrect / (coveredEntities || 1),
+    typedExpected,
+    typeCorrect,
+    typeAccuracy: typeCorrect / (typedExpected || 1),
     firstAttemptCleanRate: firstAttemptClean / (results.length || 1),
     callsPerCase: totalAttempts / (results.length || 1),
     attemptFailures,
   };
 
-  const categories: ExtractionCategory[] = [
-    "durable",
-    "multi-fact",
-    "buried",
-    "update",
-    "instruction",
-    "negative",
-  ];
+  const categories: ExtractionCategory[] = [...new Set(CASES.map((c) => c.category))];
   const byCategory = categories.map((cat) => {
     const group = results.filter((r) => r.category === cat);
     const exp = group.reduce((s, r) => s + r.expectedCount, 0);
@@ -377,12 +443,18 @@ function computeVariance(runs: RunSummary[]): Record<string, VarianceBand> {
   };
 }
 
-const DEFAULT_BASELINE_PATH = "test/memory/src/extraction/baseline.json";
+const DEFAULT_BASELINE_PATH =
+  DATASET_NAME === "general" && !PROFILE
+    ? "test/memory/src/extraction/baseline.json"
+    : `test/memory/src/extraction/baseline.${[DATASET_NAME, args.profile].filter(Boolean).join(".")}.json`;
+
+const BASELINE_SETUP: BaselineSetup = { dataset: DATASET_NAME, profile: PROFILE?.id ?? null };
 
 async function saveBaseline(runs: RunSummary[], path: string): Promise<void> {
   const baseline = buildBaseline(
     runs.map((r) => r.overall),
-    MATCH_THRESHOLD
+    MATCH_THRESHOLD,
+    BASELINE_SETUP
   );
   await writeFile(path, JSON.stringify(baseline, null, 2) + "\n");
   console.error(
@@ -409,6 +481,11 @@ async function gateAgainstBaseline(runs: RunSummary[], path: string): Promise<vo
     process.exit(1);
   }
   const baseline = parsed;
+  const setupMismatch = baselineSetupMismatch(baseline, BASELINE_SETUP);
+  if (setupMismatch) {
+    console.error(`\n  ${path}: ${setupMismatch}\n`);
+    process.exit(1);
+  }
   if (Math.abs(baseline.matchThreshold - MATCH_THRESHOLD) > 1e-9) {
     console.error(
       `\n  match-threshold ${MATCH_THRESHOLD} differs from the baseline's ` +
@@ -464,6 +541,11 @@ function printRunHuman(run: RunSummary): void {
     `  Forbidden-fact hits            ${overall.forbiddenHits} (matched a known junk pattern)`
   );
   console.log(`  Avg candidates/case            ${overall.avgCandidatesPerCase.toFixed(2)}`);
+  if (overall.typedExpected > 0)
+    console.log(
+      `  Fact-type accuracy             ${pct(overall.typeCorrect, overall.typedExpected)} ` +
+        `(${overall.typeCorrect}/${overall.typedExpected} matched gold facts got the expected type)`
+    );
   const failTally = Object.entries(overall.attemptFailures)
     .sort((a, b) => b[1] - a[1])
     .map(([k, v]) => `${k} ${v}`)
@@ -511,6 +593,8 @@ function printVerbose(run: RunSummary): void {
     console.error(`\n[${r.category}] ${r.id}${flag}`);
     for (const e of r.expectedDetail) {
       console.error(`  ${e.matched ? "✓" : "✗ MISS"} gold: ${e.fact}  (${e.best.toFixed(2)})`);
+      if (e.matched && e.expectedType !== null && e.extractedType !== e.expectedType)
+        console.error(`    ✗ TYPE: want ${e.expectedType}, got ${e.extractedType}`);
     }
     for (const cd of r.candidateDetail) {
       if (cd.forbidden) {
@@ -555,8 +639,8 @@ function printVarianceHuman(variance: Record<string, VarianceBand>): void {
 
 async function main(): Promise<void> {
   console.error(
-    `Extracting facts for ${EXTRACTION_CASES.length} cases ` +
-      `(model: ${args.model ?? "default gpt-oss-120b"}${REPEAT > 1 ? `, ${REPEAT} runs` : ""})...`
+    `Extracting facts for ${CASES.length} ${DATASET_NAME} cases ` +
+      `(profile: ${PROFILE?.id ?? "none"}, model: ${args.model ?? "default gpt-oss-120b"}${REPEAT > 1 ? `, ${REPEAT} runs` : ""})...`
   );
   const runs: RunSummary[] = [];
   for (let i = 0; i < REPEAT; i++) {
@@ -572,6 +656,8 @@ async function main(): Promise<void> {
       JSON.stringify(
         {
           matchThreshold: MATCH_THRESHOLD,
+          dataset: DATASET_NAME,
+          profile: PROFILE?.id ?? null,
           overall: primary.overall,
           kindConfusion: primary.kindConfusion,
           byCategory: primary.byCategory,

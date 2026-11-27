@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   type BaselineOverall,
+  baselineSetupMismatch,
   buildBaseline,
   compareToBaseline,
   type ExtractionBaseline,
@@ -39,6 +40,50 @@ describe("buildBaseline", () => {
     const baseline = buildBaseline(runs, 0.62);
     expect(baseline.metrics.recall.tolerance).toBeCloseTo(0.15, 5);
     expect(baseline.metrics.recall.mean).toBeCloseTo(0.875, 5);
+  });
+});
+
+describe("baseline setup", () => {
+  const general = { dataset: "general", profile: null };
+  const finance = { dataset: "finance", profile: "zetalabs-markets" };
+
+  it("records the dataset and profile a baseline was saved from", () => {
+    const baseline = buildBaseline([overall({})], 0.62, finance);
+    expect(baseline.dataset).toBe("finance");
+    expect(baseline.profile).toBe("zetalabs-markets");
+    expect(isValidBaseline(JSON.parse(JSON.stringify(baseline)))).toBe(true);
+  });
+
+  it("accepts a comparison against a baseline from the same setup", () => {
+    expect(baselineSetupMismatch(buildBaseline([overall({})], 0.62, finance), finance)).toBeNull();
+    expect(baselineSetupMismatch(buildBaseline([overall({})], 0.62), general)).toBeNull();
+  });
+
+  it("treats a baseline without the fields as the general dataset with no profile", () => {
+    const legacy = JSON.parse(JSON.stringify(buildBaseline([overall({})], 0.62))) as Record<
+      string,
+      unknown
+    >;
+    delete legacy.dataset;
+    delete legacy.profile;
+    expect(isValidBaseline(legacy)).toBe(true);
+    expect(baselineSetupMismatch(legacy, general)).toBeNull();
+    expect(baselineSetupMismatch(legacy, finance)).toContain('dataset "general", profile none');
+  });
+
+  it("refuses a comparison across datasets or profiles", () => {
+    const saved = buildBaseline([overall({})], 0.62, finance);
+    expect(baselineSetupMismatch(saved, general)).toContain('dataset "finance"');
+    expect(baselineSetupMismatch(saved, { dataset: "finance", profile: null })).toContain(
+      'profile "zetalabs-markets"'
+    );
+    expect(baselineSetupMismatch(saved, { ...finance, dataset: "general" })).not.toBeNull();
+  });
+
+  it("rejects a baseline whose dataset or profile is not a string", () => {
+    const saved = JSON.parse(JSON.stringify(buildBaseline([overall({})], 0.62)));
+    expect(isValidBaseline({ ...saved, dataset: 3 })).toBe(false);
+    expect(isValidBaseline({ ...saved, profile: {} })).toBe(false);
   });
 });
 

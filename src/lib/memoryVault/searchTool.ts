@@ -14,6 +14,7 @@ import { notifyMemoryCallback } from "../memory/recallTelemetry";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
 import { RerankerUnavailableError, rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
+import type { RecallScoreScale } from "../memory/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
@@ -2119,6 +2120,7 @@ export async function rankPreparedVaultCandidates(
   hadV2Head: boolean;
   /** Forwarded from the prepared set — see {@link PreparedVaultCandidates.embeddingsUnavailable}. */
   embeddingsUnavailable: boolean;
+  scoreScale: RecallScoreScale;
 }> {
   const limit = searchOptions?.limit ?? 5;
   const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
@@ -2151,11 +2153,14 @@ export async function rankPreparedVaultCandidates(
       },
     ])
   );
+  const fusedScale: RecallScoreScale =
+    sideLanesOf(searchOptions).length > 0 ? "rrf" : queryEmbedding.length === 0 ? "bm25" : "cosine";
   const stampTimestamps = (out: {
     results: VaultSearchResult[];
     vaultSize: number;
     reranked?: boolean;
     hadV2Head?: boolean;
+    scoreScale?: RecallScoreScale;
   }): {
     results: VaultSearchResult[];
     vaultSize: number;
@@ -2163,6 +2168,7 @@ export async function rankPreparedVaultCandidates(
     rerankMs: number;
     hadV2Head: boolean;
     embeddingsUnavailable: boolean;
+    scoreScale: RecallScoreScale;
   } => {
     const results = out.results.map((r) => {
       const meta = metaById.get(r.uniqueId);
@@ -2187,6 +2193,7 @@ export async function rankPreparedVaultCandidates(
       rerankMs: rerankStats.ms,
       hadV2Head: out.hadV2Head ?? false,
       embeddingsUnavailable,
+      scoreScale: out.scoreScale ?? fusedScale,
     };
   };
 
@@ -2268,6 +2275,7 @@ export async function rankPreparedVaultCandidates(
         vaultSize,
         reranked: rerankStats.applied,
         hadV2Head: v2HeadStats.hadResults,
+        scoreScale: "rrf",
       });
     }
   }
@@ -2323,7 +2331,12 @@ export async function rankPreparedVaultCandidates(
     }),
   });
 
-  return stampTimestamps({ results, vaultSize, hadV2Head: results.length > 0 });
+  return stampTimestamps({
+    results,
+    vaultSize,
+    hadV2Head: results.length > 0,
+    scoreScale: "cosine",
+  });
 }
 /**
  * Search + rank in one call. Thin wrapper over {@link prepareVaultCandidates} +
@@ -2380,6 +2393,7 @@ export async function searchVaultMemoriesWithSize(
   queryEmbedMs: number;
   rowsEmbedded: number;
   corpusStats?: CorpusStats;
+  scoreScale?: RecallScoreScale;
 }> {
   if (!query || typeof query !== "string") {
     return {
