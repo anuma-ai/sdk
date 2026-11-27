@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type {
   HandlersBindRequest,
@@ -17,6 +17,8 @@ import {
 } from "../client/sdk.gen";
 import { BASE_URL } from "../clientConfig";
 
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 /**
  * @inline
  */
@@ -30,13 +32,15 @@ export type UseWalletBindingOptions = {
    */
   baseUrl?: string;
   /**
-   * Whether to fetch the bound wallets automatically on mount (default: true)
+   * Fetch the bound wallets on mount and when the session key changes (default: true).
    */
   autoFetch?: boolean;
   /**
    * Optional callback for error handling
    */
   onError?: (error: Error) => void;
+  /** A stable account or session ID, or null when the user is signed out. */
+  sessionKey?: string | null;
 };
 
 export type UseWalletBindingResult = {
@@ -84,6 +88,11 @@ export type UseWalletBindingResult = {
   unbindWallet: (address: string) => Promise<boolean>;
 };
 
+type WalletBindingState = Pick<
+  UseWalletBindingResult,
+  "wallets" | "totals" | "isLoading" | "error"
+>;
+
 /**
  * React hook for managing ZETA wallet bindings and reading staked-based Pro status.
  * Provides methods to list bound wallets, request a binding nonce, bind a wallet
@@ -91,214 +100,196 @@ export type UseWalletBindingResult = {
  * @category Hooks
  */
 export function useWalletBinding(options: UseWalletBindingOptions = {}): UseWalletBindingResult {
-  const { getToken, baseUrl = BASE_URL, autoFetch = true, onError } = options;
-
-  const [wallets, setWallets] = useState<HandlersBoundWalletResponse[]>([]);
-  const [totals, setTotals] = useState<HandlersListTotals | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const { getToken, baseUrl = BASE_URL, autoFetch = true, onError, sessionKey } = options;
+  const session = useMemo(
+    () => ({
+      key: sessionKey,
+      initialState: { wallets: [], totals: null, isLoading: false, error: null },
+    }),
+    [sessionKey]
+  );
+  const [state, setState] = useState<(WalletBindingState & { session: typeof session }) | null>(
+    null
+  );
 
   const getTokenRef = useRef(getToken);
   const baseUrlRef = useRef(baseUrl);
   const onErrorRef = useRef(onError);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const hasFetchedRef = useRef(false);
-  const loadingCountRef = useRef(0);
+  const activeSessionRef = useRef<{
+    session: typeof session;
+    controller: AbortController;
+    fetchController: AbortController | null;
+    loadingCount: number;
+  } | null>(null);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     getTokenRef.current = getToken;
     baseUrlRef.current = baseUrl;
     onErrorRef.current = onError;
   });
 
-  useEffect(() => {
-    return () => {
-      hasFetchedRef.current = false;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
+  useIsomorphicLayoutEffect(() => {
+    const activeSession = {
+      session,
+      controller: new AbortController(),
+      fetchController: null as AbortController | null,
+      loadingCount: 0,
     };
-  }, []);
+    activeSessionRef.current = activeSession;
+    setState((current) => (current?.session === session ? { ...current, isLoading: false } : null));
+    return () => {
+      activeSessionRef.current = null;
+      activeSession.controller.abort();
+      activeSession.fetchController?.abort();
+    };
+  }, [session]);
 
-  const startLoading = useCallback(() => {
-    loadingCountRef.current++;
-    setIsLoading(true);
-  }, []);
+  const updateState = useCallback(
+    (update: Partial<WalletBindingState>) => {
+      setState((previous) => ({
+        ...(previous?.session === session ? previous : session.initialState),
+        ...update,
+        session,
+      }));
+    },
+    [session]
+  );
 
-  const stopLoading = useCallback(() => {
-    loadingCountRef.current = Math.max(0, loadingCountRef.current - 1);
-    setIsLoading(loadingCountRef.current > 0);
-  }, []);
+  const runOperation = useCallback(
+    async <T>(
+      operation: (request: {
+        baseUrl: string;
+        headers: Record<string, string>;
+        signal: AbortSignal;
+      }) => Promise<T>,
+      kind: "mutation" | "fetch" | "refetch" = "mutation"
+    ): Promise<T | null> => {
+      const activeSession = activeSessionRef.current;
+      if (activeSession?.session !== session || session.key === null) return null;
 
-  const getHeaders = useCallback(async (): Promise<Record<string, string>> => {
-    const headers: Record<string, string> = {};
-    if (getTokenRef.current) {
-      const token = await getTokenRef.current();
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+      const fetchController = kind === "mutation" ? null : new AbortController();
+      if (fetchController) {
+        activeSession.fetchController?.abort();
+        activeSession.fetchController = fetchController;
       }
-    }
-    return headers;
-  }, []);
+      const { signal } = fetchController ?? activeSession.controller;
 
-  const handleError = useCallback((err: unknown): Error => {
-    const error = err instanceof Error ? err : new Error(String(err));
-    setError(error);
-    onErrorRef.current?.(error);
-    return error;
-  }, []);
-
-  const fetchBinding = useCallback(async () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-    const signal = abortController.signal;
-
-    startLoading();
-    setError(null);
-
-    try {
-      const headers = await getHeaders();
-
-      if (signal.aborted) return;
-
-      const response = await getApiV1WalletsBinding({
-        baseUrl: baseUrlRef.current,
-        headers,
-        signal,
+      activeSession.loadingCount++;
+      updateState({
+        ...(kind === "refetch" ? { wallets: [], totals: null } : {}),
+        isLoading: true,
+        error: null,
       });
-
-      if (signal.aborted) return;
-
-      if (response.error) {
-        const errorMsg = response.error.error ?? "Failed to fetch bound wallets";
-        throw Object.assign(new Error(errorMsg), { cause: response.error });
-      }
-
-      setWallets(response.data?.wallets ?? []);
-      setTotals(response.data?.totals ?? null);
-    } catch (err) {
-      if (signal.aborted || (err instanceof Error && err.name === "AbortError")) {
-        return;
-      }
-      handleError(err);
-    } finally {
-      stopLoading();
-      if (abortControllerRef.current === abortController) {
-        abortControllerRef.current = null;
-      }
-    }
-  }, [getHeaders, handleError, startLoading, stopLoading]);
-
-  const refetch = useCallback(async () => {
-    setWallets([]);
-    setTotals(null);
-    await fetchBinding();
-  }, [fetchBinding]);
-
-  const getNonce = useCallback(async (): Promise<HandlersNonceResponse | null> => {
-    startLoading();
-    setError(null);
-
-    try {
-      const headers = await getHeaders();
-
-      const response = await postApiV1WalletsBindingNonce({
-        baseUrl: baseUrlRef.current,
-        headers,
-      });
-
-      if (response.error) {
-        const errorMsg = response.error.error ?? "Failed to issue binding nonce";
-        throw new Error(errorMsg);
-      }
-
-      return response.data ?? null;
-    } catch (err) {
-      handleError(err);
-      return null;
-    } finally {
-      stopLoading();
-    }
-  }, [getHeaders, handleError, startLoading, stopLoading]);
-
-  const bindWallet = useCallback(
-    async (request: HandlersBindRequest): Promise<HandlersBoundWalletResponse | null> => {
-      startLoading();
-      setError(null);
 
       try {
-        const headers = await getHeaders();
+        const token = await getTokenRef.current?.();
+        if (signal.aborted) return null;
 
-        const response = await postApiV1WalletsBinding({
-          baseUrl: baseUrlRef.current,
-          headers,
-          body: request,
-        });
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const result = await operation({ baseUrl: baseUrlRef.current, headers, signal });
+        return signal.aborted ? null : result;
+      } catch (err) {
+        if (
+          !signal.aborted &&
+          (!fetchController || !(err instanceof Error && err.name === "AbortError"))
+        ) {
+          const error = err instanceof Error ? err : new Error(String(err));
+          updateState({ error });
+          onErrorRef.current?.(error);
+        }
+        return null;
+      } finally {
+        if (activeSession.fetchController === fetchController) {
+          activeSession.fetchController = null;
+        }
+        if (!activeSession.controller.signal.aborted) {
+          activeSession.loadingCount--;
+          updateState({ isLoading: activeSession.loadingCount > 0 });
+        }
+      }
+    },
+    [session, updateState]
+  );
+
+  const fetchBinding = useCallback(
+    async (kind: "fetch" | "refetch" = "fetch") => {
+      await runOperation(async (request) => {
+        const response = await getApiV1WalletsBinding(request);
+        if (request.signal.aborted) return;
 
         if (response.error) {
-          const errorMsg = response.error.error ?? "Failed to bind wallet";
-          throw new Error(errorMsg);
+          const errorMsg = response.error.error ?? "Failed to fetch bound wallets";
+          throw Object.assign(new Error(errorMsg), { cause: response.error });
+        }
+
+        updateState({
+          wallets: response.data?.wallets ?? [],
+          totals: response.data?.totals ?? null,
+        });
+      }, kind);
+    },
+    [runOperation, updateState]
+  );
+
+  const refetch = useCallback(() => fetchBinding("refetch"), [fetchBinding]);
+
+  const getNonce = useCallback(
+    () =>
+      runOperation(async (request) => {
+        const response = await postApiV1WalletsBindingNonce(request);
+        if (response.error) {
+          throw new Error(response.error.error ?? "Failed to issue binding nonce");
+        }
+        return response.data ?? null;
+      }),
+    [runOperation]
+  );
+
+  const bindWallet = useCallback(
+    (body: HandlersBindRequest) =>
+      runOperation(async (request) => {
+        const response = await postApiV1WalletsBinding({ ...request, body });
+        if (request.signal.aborted) return null;
+
+        if (response.error) {
+          throw new Error(response.error.error ?? "Failed to bind wallet");
         }
 
         await fetchBinding();
-
         return response.data ?? null;
-      } catch (err) {
-        handleError(err);
-        return null;
-      } finally {
-        stopLoading();
-      }
-    },
-    [getHeaders, handleError, startLoading, stopLoading, fetchBinding]
+      }),
+    [runOperation, fetchBinding]
   );
 
   const unbindWallet = useCallback(
-    async (address: string): Promise<boolean> => {
-      startLoading();
-      setError(null);
-
-      try {
-        const headers = await getHeaders();
-
+    async (address: string) => {
+      const result = await runOperation(async (request) => {
         const response = await deleteApiV1WalletsBindingByAddress({
-          baseUrl: baseUrlRef.current,
-          headers,
+          ...request,
           path: { address },
         });
+        if (request.signal.aborted) return false;
 
         if (response.error) {
-          const errorMsg = response.error.error ?? "Failed to unbind wallet";
-          throw new Error(errorMsg);
+          throw new Error(response.error.error ?? "Failed to unbind wallet");
         }
 
         await fetchBinding();
-
         return true;
-      } catch (err) {
-        handleError(err);
-        return false;
-      } finally {
-        stopLoading();
-      }
+      });
+      return result ?? false;
     },
-    [getHeaders, handleError, startLoading, stopLoading, fetchBinding]
+    [runOperation, fetchBinding]
   );
 
   useEffect(() => {
-    if (autoFetch && !hasFetchedRef.current) {
-      hasFetchedRef.current = true;
-      void fetchBinding();
-    }
-    if (!autoFetch) {
-      hasFetchedRef.current = false;
-    }
+    if (autoFetch) void fetchBinding();
   }, [autoFetch, fetchBinding]);
+
+  const { wallets, totals, isLoading, error } =
+    state?.session === session ? state : session.initialState;
 
   return {
     wallets,

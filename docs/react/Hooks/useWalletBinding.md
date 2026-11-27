@@ -2,7 +2,7 @@
 
 > **useWalletBinding**(`options`: `object`): [`UseWalletBindingResult`](../Internal/type-aliases/UseWalletBindingResult.md)
 
-Defined in: [src/react/useWalletBinding.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#93)
+Defined in: [src/react/useWalletBinding.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#102)
 
 React hook for managing ZETA wallet bindings and reading staked-based Pro status.
 Provides methods to list bound wallets, request a binding nonce, bind a wallet
@@ -49,7 +49,7 @@ with a signed proof, and unbind a wallet.
 </td>
 <td>
 
-Whether to fetch the bound wallets automatically on mount (default: true)
+Fetch the bound wallets on mount and when the session key changes (default: true).
 
 </td>
 </tr>
@@ -101,6 +101,23 @@ Custom function to get auth token for API calls
 <td>
 
 Optional callback for error handling
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.sessionKey?`
+
+</td>
+<td>
+
+`string` | `null`
+
+</td>
+<td>
+
+A stable account or session ID, or null when the user is signed out.
 
 </td>
 </tr>

@@ -263,6 +263,151 @@ describe.each(cases)("$name aborts", ({ useHook, data, expected, errorMessage })
   });
 });
 
+describe("useWalletBinding sessions", () => {
+  const first = {
+    wallets: [{ address_evm: "0x123" }],
+    totals: { staked_zeta: "10", pro: { pro_active: true } },
+  };
+  const second = {
+    wallets: [{ address_evm: "0x456" }],
+    totals: { staked_zeta: "1", pro: { pro_active: false } },
+  };
+
+  it("clears the previous result and fetches with the new session token", async () => {
+    const newRequest = deferred<Response>();
+    fetchMock.mockResolvedValueOnce(jsonResponse(first)).mockReturnValueOnce(newRequest.promise);
+
+    const { result, rerender } = renderHook(
+      (sessionKey: string | null) => {
+        const options = { sessionKey, getToken: () => Promise.resolve(sessionKey) };
+        return useWalletBinding(options);
+      },
+      { initialProps: "first" as string | null }
+    );
+
+    await waitFor(() => expect(result.current).toMatchObject(first));
+    expect(result.current.pro).toEqual(first.totals.pro);
+    await act(() => {
+      rerender("first");
+      return Promise.resolve();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    rerender("second");
+    expect(result.current).toMatchObject({ wallets: [], totals: null, pro: null });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const headers = new Headers(fetchMock.mock.calls[1][1]?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer second");
+
+    await act(async () => {
+      newRequest.resolve(jsonResponse(second));
+      await newRequest.promise;
+    });
+    expect(result.current).toMatchObject({ ...second, pro: second.totals.pro });
+
+    rerender(null);
+    expect(result.current).toMatchObject({
+      wallets: [],
+      totals: null,
+      pro: null,
+      isLoading: false,
+    });
+    await act(async () => {
+      await result.current.refetch();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("aborts the previous fetch and ignores its late result", async () => {
+    const oldRequest = deferred<Response>();
+    fetchMock.mockReturnValueOnce(oldRequest.promise).mockResolvedValueOnce(jsonResponse(second));
+
+    const { result, rerender } = renderHook(
+      (sessionKey: string) => {
+        const options = { sessionKey, getToken: () => Promise.resolve(sessionKey) };
+        return useWalletBinding(options);
+      },
+      { initialProps: "first" }
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const signal = fetchMock.mock.calls[0][1]?.signal;
+
+    rerender("second");
+    expect(signal?.aborted).toBe(true);
+    await waitFor(() => expect(result.current).toMatchObject({ ...second, isLoading: false }));
+
+    await act(async () => {
+      oldRequest.resolve(jsonResponse(first));
+      await oldRequest.promise;
+    });
+    expect(result.current).toMatchObject({ ...second, isLoading: false, error: null });
+  });
+
+  it("clears the previous result when automatic fetch is disabled", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(first));
+
+    const { result, rerender } = renderHook(
+      (sessionKey: string) => {
+        const options = { sessionKey, autoFetch: false };
+        return useWalletBinding(options);
+      },
+      { initialProps: "first" }
+    );
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+    expect(result.current).toMatchObject(first);
+
+    rerender("second");
+    expect(result.current).toMatchObject({
+      wallets: [],
+      totals: null,
+      pro: null,
+      isLoading: false,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not refetch for a wallet operation from the previous session", async () => {
+    const oldRequest = deferred<Response>();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(first))
+      .mockReturnValueOnce(oldRequest.promise)
+      .mockResolvedValueOnce(jsonResponse(second));
+
+    const { result, rerender } = renderHook(
+      (sessionKey: string) => {
+        const options = { sessionKey };
+        return useWalletBinding(options);
+      },
+      { initialProps: "first" }
+    );
+
+    await waitFor(() => expect(result.current).toMatchObject(first));
+    const unbindWallet = result.current.unbindWallet;
+    let pendingUnbind!: Promise<boolean>;
+    await act(async () => {
+      pendingUnbind = unbindWallet("0x123");
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    });
+    const signal = fetchMock.mock.calls[1][1]?.signal;
+
+    rerender("second");
+    expect(signal?.aborted).toBe(true);
+    await waitFor(() => expect(result.current).toMatchObject({ ...second, isLoading: false }));
+
+    await act(async () => {
+      oldRequest.resolve(jsonResponse({}));
+      expect(await pendingUnbind).toBe(false);
+      expect(await unbindWallet("0x123")).toBe(false);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result.current).toMatchObject({ ...second, isLoading: false, error: null });
+  });
+});
+
 const mutationCases: {
   name: string;
   useMutation: (options: UseWalletBindingOptions) => MutationState;

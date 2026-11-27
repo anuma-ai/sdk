@@ -2,7 +2,7 @@
 
 > **UseWalletBindingOptions** = `object`
 
-Defined in: [src/react/useWalletBinding.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#23)
+Defined in: [src/react/useWalletBinding.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#25)
 
 ## Properties
 
@@ -10,9 +10,9 @@ Defined in: [src/react/useWalletBinding.ts:23](https://github.com/anuma-ai/sdk/b
 
 > `optional` **autoFetch**: `boolean`
 
-Defined in: [src/react/useWalletBinding.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#35)
+Defined in: [src/react/useWalletBinding.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#37)
 
-Whether to fetch the bound wallets automatically on mount (default: true)
+Fetch the bound wallets on mount and when the session key changes (default: true).
 
 ***
 
@@ -20,7 +20,7 @@ Whether to fetch the bound wallets automatically on mount (default: true)
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/react/useWalletBinding.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#31)
+Defined in: [src/react/useWalletBinding.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#33)
 
 Optional base URL for the API requests.
 
@@ -30,7 +30,7 @@ Optional base URL for the API requests.
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useWalletBinding.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#27)
+Defined in: [src/react/useWalletBinding.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#29)
 
 Custom function to get auth token for API calls
 
@@ -44,7 +44,7 @@ Custom function to get auth token for API calls
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/react/useWalletBinding.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#39)
+Defined in: [src/react/useWalletBinding.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#41)
 
 Optional callback for error handling
 
@@ -76,3 +76,13 @@ Optional callback for error handling
 **Returns**
 
 `void`
+
+***
+
+### sessionKey?
+
+> `optional` **sessionKey**: `string` | `null`
+
+Defined in: [src/react/useWalletBinding.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/react/useWalletBinding.ts#43)
+
+A stable account or session ID, or null when the user is signed out.
