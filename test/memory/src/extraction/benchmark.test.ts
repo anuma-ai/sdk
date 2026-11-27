@@ -12,7 +12,13 @@ import { extractFacts } from "../../../../src/lib/memory/autoExtract.js";
 import { normalizeEntityName } from "../../../../src/lib/db/entities/types.js";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
-import { buildBaseline, compareToBaseline, isValidBaseline } from "./baseline.js";
+import {
+  type BaselineSetup,
+  baselineSetupMismatch,
+  buildBaseline,
+  compareToBaseline,
+  isValidBaseline,
+} from "./baseline.js";
 import {
   EXTRACTION_CASES,
   type ExtractionCase,
@@ -442,10 +448,13 @@ const DEFAULT_BASELINE_PATH =
     ? "test/memory/src/extraction/baseline.json"
     : `test/memory/src/extraction/baseline.${[DATASET_NAME, args.profile].filter(Boolean).join(".")}.json`;
 
+const BASELINE_SETUP: BaselineSetup = { dataset: DATASET_NAME, profile: PROFILE?.id ?? null };
+
 async function saveBaseline(runs: RunSummary[], path: string): Promise<void> {
   const baseline = buildBaseline(
     runs.map((r) => r.overall),
-    MATCH_THRESHOLD
+    MATCH_THRESHOLD,
+    BASELINE_SETUP
   );
   await writeFile(path, JSON.stringify(baseline, null, 2) + "\n");
   console.error(
@@ -472,6 +481,11 @@ async function gateAgainstBaseline(runs: RunSummary[], path: string): Promise<vo
     process.exit(1);
   }
   const baseline = parsed;
+  const setupMismatch = baselineSetupMismatch(baseline, BASELINE_SETUP);
+  if (setupMismatch) {
+    console.error(`\n  ${path}: ${setupMismatch}\n`);
+    process.exit(1);
+  }
   if (Math.abs(baseline.matchThreshold - MATCH_THRESHOLD) > 1e-9) {
     console.error(
       `\n  match-threshold ${MATCH_THRESHOLD} differs from the baseline's ` +

@@ -19,7 +19,14 @@ export interface BaselineMetricBand {
   max: number;
   tolerance: number;
 }
-export interface ExtractionBaseline {
+export interface BaselineSetup {
+  dataset: string;
+  profile: string | null;
+}
+
+export const DEFAULT_BASELINE_SETUP: BaselineSetup = { dataset: "general", profile: null };
+
+export interface ExtractionBaseline extends Partial<BaselineSetup> {
   matchThreshold: number;
   runs: number;
   metrics: Record<BaselineMetric, BaselineMetricBand>;
@@ -37,6 +44,8 @@ export function isValidBaseline(obj: unknown): obj is ExtractionBaseline {
   if (!obj || typeof obj !== "object") return false;
   const b = obj as Record<string, unknown>;
   if (typeof b.matchThreshold !== "number" || !Number.isFinite(b.matchThreshold)) return false;
+  if (b.dataset !== undefined && typeof b.dataset !== "string") return false;
+  if (b.profile !== undefined && b.profile !== null && typeof b.profile !== "string") return false;
   const metrics = b.metrics;
   if (!metrics || typeof metrics !== "object") return false;
   return BASELINE_METRICS.some((m) => {
@@ -45,6 +54,29 @@ export function isValidBaseline(obj: unknown): obj is ExtractionBaseline {
     const { mean, tolerance } = band as Record<string, unknown>;
     return typeof mean === "number" && typeof tolerance === "number";
   });
+}
+
+export function baselineSetup(baseline: Partial<BaselineSetup>): BaselineSetup {
+  return {
+    dataset: baseline.dataset ?? DEFAULT_BASELINE_SETUP.dataset,
+    profile: baseline.profile ?? DEFAULT_BASELINE_SETUP.profile,
+  };
+}
+
+function describeSetup(setup: BaselineSetup): string {
+  return `dataset "${setup.dataset}", profile ${setup.profile === null ? "none" : `"${setup.profile}"`}`;
+}
+
+export function baselineSetupMismatch(
+  baseline: Partial<BaselineSetup>,
+  current: BaselineSetup
+): string | null {
+  const recorded = baselineSetup(baseline);
+  if (recorded.dataset === current.dataset && recorded.profile === current.profile) return null;
+  return (
+    `this run uses ${describeSetup(current)} but the baseline was recorded with ` +
+    `${describeSetup(recorded)}; compare against a baseline saved from the same setup.`
+  );
 }
 
 function meanOf(xs: number[]): number {
@@ -57,7 +89,8 @@ function series(runs: readonly BaselineOverall[], metric: BaselineMetric): numbe
 
 export function buildBaseline(
   runs: readonly BaselineOverall[],
-  matchThreshold: number
+  matchThreshold: number,
+  setup: BaselineSetup = DEFAULT_BASELINE_SETUP
 ): ExtractionBaseline {
   const metrics = {} as Record<BaselineMetric, BaselineMetricBand>;
   for (const m of BASELINE_METRICS) {
@@ -73,6 +106,8 @@ export function buildBaseline(
   }
   const forbidden = runs.map((r) => r.forbiddenHits);
   return {
+    dataset: setup.dataset,
+    profile: setup.profile,
     matchThreshold,
     runs: runs.length,
     metrics,
