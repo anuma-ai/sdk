@@ -205,3 +205,46 @@ describe("extractQueryEntities — fallback ordering and cap", () => {
     expect(out.slice(0, 3)).toEqual(["wa", "wb", "wc"]);
   });
 });
+
+describe("extractQueryEntities — tickers", () => {
+  it("keeps a two-letter uppercase ticker beside a longer entity", () => {
+    expect(extractQueryEntities("How is my OP position on Hyperliquid doing")).toEqual([
+      "hyperliquid",
+      "op",
+    ]);
+  });
+
+  it("adds a cashtag with and without its prefix", () => {
+    expect(extractQueryEntities("What did I say about $OP and Hyperliquid")).toEqual([
+      "hyperliquid",
+      "op",
+      "$op",
+    ]);
+  });
+
+  it("recognises lowercase and single-letter cashtags", () => {
+    expect(extractQueryEntities("thoughts on $hype and $S")).toEqual(
+      expect.arrayContaining(["hype", "$hype", "s", "$s"])
+    );
+  });
+
+  it("does not read a dollar amount as a cashtag", () => {
+    const entities = extractQueryEntities("I put $500 and $5k into Solana");
+    expect(entities).toEqual(["solana"]);
+  });
+
+  it("ignores two-letter function words typed in capitals", () => {
+    expect(extractQueryEntities("IS MY OP UP")).toEqual(["op"]);
+  });
+
+  it("does not split a longer capitalised word or a contraction into a ticker", () => {
+    expect(extractQueryEntities("I'M asking about NVDA")).toEqual(["i'm", "nvda"]);
+  });
+
+  it("returns the same candidates as before for a query without tickers", () => {
+    expect(extractQueryEntities("Where is Sara traveling")).toEqual(["sara"]);
+    expect(extractQueryEntities("is there anyone in san francisco")).toEqual(
+      expect.arrayContaining(["san francisco"])
+    );
+  });
+});

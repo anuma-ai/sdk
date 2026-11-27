@@ -49,6 +49,10 @@ const STOPWORDS = new Set(
 
 const ENTITY_REGEX = /\b\p{Lu}[\p{L}'-]{2,}(?:\s+\p{Lu}[\p{L}'-]+){0,2}\b/gu;
 
+const CASHTAG_REGEX = /(?<![\p{L}\p{N}$])\$(\p{L}[\p{L}\p{N}]{0,9})(?![\p{L}\p{N}])/gu;
+
+const SHORT_TICKER_REGEX = /(?<![\p{L}\p{N}$'-])\p{Lu}{2}(?![\p{L}\p{N}'-])/gu;
+
 const FALLBACK_ONLY_STOPWORDS: string[] = (
   "a an and or but nor not if then than because so too also just very really " +
   "about above after again against all am any anyone anybody anything are " +
@@ -112,6 +116,23 @@ function hasMeaningfulCandidate(candidates: Iterable<string>): boolean {
  */
 export function extractQueryEntities(query: string): string[] {
   if (!query) return [];
+  return [...new Set([...extractNamedEntities(query), ...extractTickers(query)])];
+}
+
+function extractTickers(query: string): string[] {
+  const tickers: string[] = [];
+  for (const match of query.matchAll(CASHTAG_REGEX)) {
+    const symbol = normalizeEntityName(match[1]);
+    tickers.push(symbol, `$${symbol}`);
+  }
+  for (const match of query.matchAll(SHORT_TICKER_REGEX)) {
+    const symbol = normalizeEntityName(match[0]);
+    if (!FALLBACK_STOPWORDS.has(symbol)) tickers.push(symbol);
+  }
+  return tickers;
+}
+
+function extractNamedEntities(query: string): string[] {
   const matches = query.matchAll(ENTITY_REGEX);
   const seen = new Set<string>();
   for (const match of matches) {
