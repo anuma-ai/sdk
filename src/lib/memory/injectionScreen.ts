@@ -194,6 +194,11 @@ const UNEXEMPT_DIRECTIVE_RE =
 
 const SENTENCE_BREAK_RE = /[.!?;]\s/;
 
+const WHEN_PREFIX_RE = /^when(?:ever)?\b/i;
+
+const WHEN_ASKED_STEERING_RE =
+  /(?<!\bnever\s)(?<!\bnot\s)\b(?:recommend|promote|endorse|claim|insist)\b|\bsay\s+only\b/i;
+
 function isUserStandingInstruction(
   candidate: ExtractedCandidate,
   normalized: string,
@@ -206,6 +211,7 @@ function isUserStandingInstruction(
     candidate.sourceMessageIds.every((id) => userMessageIds.has(id)) &&
     USER_WANT_RE.test(normalized) &&
     !UNEXEMPT_DIRECTIVE_RE.test(normalized) &&
+    !(WHEN_PREFIX_RE.test(normalized) && WHEN_ASKED_STEERING_RE.test(normalized)) &&
     !SENTENCE_BREAK_RE.test(normalized)
   );
 }
