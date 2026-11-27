@@ -732,3 +732,5 @@ export interface RetainResult {
    */
   consolidation?: ConsolidationAction;
 }
+  /** Set when consolidation ran but produced no usable decision, so this write fell back to an exact-content merge or a plain create. */
+  consolidationFallback?: ConsolidationFallbackReason;
