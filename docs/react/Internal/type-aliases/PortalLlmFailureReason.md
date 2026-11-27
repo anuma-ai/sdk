@@ -1,6 +1,6 @@
 # PortalLlmFailureReason
 
-> **PortalLlmFailureReason** = `"auth-unavailable"` | `"http-terminal"` | `"http-retryable"` | `"network"` | `"body-parse-failed"` | `"empty-content"` | `"invalid-json"` | `"null-completion"` | `"time-budget-exhausted"` | `"content-flagged"`
+> **PortalLlmFailureReason** = `"auth-unavailable"` | `"http-terminal"` | `"http-retryable"` | `"network"` | `"body-parse-failed"` | `"empty-content"` | `"invalid-json"` | `"null-completion"` | `"truncated"` | `"time-budget-exhausted"` | `"content-flagged"`
 
 Defined in: [src/lib/memory/portalLlm.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/portalLlm.ts#94)
 

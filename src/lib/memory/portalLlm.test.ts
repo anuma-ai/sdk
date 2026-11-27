@@ -699,6 +699,93 @@ describe("callPortalJsonCompletion — retry on transient failure", () => {
   });
 });
 
+describe("callPortalJsonCompletion — output-token cap", () => {
+  const baseArgs = {
+    apiKey: "test-key",
+    model: "gpt-oss/gpt-oss-120b",
+    systemPrompt: "system",
+    userMessage: "user",
+    tag: "test",
+    backoffMs: () => 0,
+  } as const;
+
+  const chatBody = (content: string | null, finishReason: string) =>
+    new Response(
+      JSON.stringify({ choices: [{ message: { content }, finish_reason: finishReason }] }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+  it.each([
+    ["cut-off JSON", '{"candidates":[{"content":"Holds 5 B'],
+    ["no content at all", null],
+  ])("reports truncated once, without retrying: %s", async (_label, content) => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockImplementation(() => Promise.resolve(chatBody(content, "length")));
+    const onFailure = vi.fn();
+    const attempts: PortalLlmAttempt[] = [];
+
+    const result = await callPortalJsonCompletion({
+      ...baseArgs,
+      fetchFn,
+      onFailure,
+      onAttempt: (a) => attempts.push(a),
+    });
+
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(onFailure).toHaveBeenCalledWith({ reason: "truncated", attempts: 1 });
+    expect(attempts).toEqual([{ attempt: 1, ok: false, reason: "truncated" }]);
+  });
+
+  it("reports truncated for an incomplete Responses-API answer", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            status: "incomplete",
+            incomplete_details: { reason: "max_output_tokens" },
+            output: [],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+    );
+    const onFailure = vi.fn();
+
+    const result = await callPortalJsonCompletion({
+      ...baseArgs,
+      model: "openai/gpt-6-luna",
+      fetchFn,
+      onFailure,
+    });
+
+    expect(result).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(onFailure).toHaveBeenCalledWith({ reason: "truncated", attempts: 1 });
+  });
+
+  it("keeps a complete JSON value even when the cap was reached", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockImplementation(() => Promise.resolve(chatBody('{"candidates":[]}', "length")));
+    expect(await callPortalJsonCompletion({ ...baseArgs, fetchFn })).toEqual({ candidates: [] });
+  });
+
+  it("still retries unparseable content that finished normally", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockImplementation(() => Promise.resolve(chatBody("not json", "stop")));
+    const onFailure = vi.fn();
+    await callPortalJsonCompletion({ ...baseArgs, fetchFn, onFailure });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(onFailure).toHaveBeenCalledWith({ reason: "invalid-json", attempts: 3 });
+  });
+});
+
 describe("callPortalJsonCompletion warning privacy", () => {
   afterEach(() => setLogger(noopLogger));
 
