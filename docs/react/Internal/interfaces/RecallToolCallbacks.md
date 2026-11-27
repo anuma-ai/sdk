@@ -1,6 +1,6 @@
 # RecallToolCallbacks
 
-Defined in: [src/lib/memory/recallTool.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#68)
+Defined in: [src/lib/memory/recallTool.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#71)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [src/lib/memory/recallTool.ts:68](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **onChunksRetrieved**: (`conversationIds`: `string`\[]) => `void`
 
-Defined in: [src/lib/memory/recallTool.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#70)
+Defined in: [src/lib/memory/recallTool.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#75)
 
 Called with the conversation IDs returned via the chunk lane.
 
@@ -51,7 +51,7 @@ Called with the conversation IDs returned via the chunk lane.
 
 > `optional` **onDiagnostics**: (`diagnostics`: [`RecallDiagnostics`](RecallDiagnostics.md)) => `void`
 
-Defined in: [src/lib/memory/types.ts:534](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#534)
+Defined in: [src/lib/memory/types.ts:542](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#542)
 
 **Parameters**
 
@@ -92,7 +92,7 @@ Defined in: [src/lib/memory/types.ts:534](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/lib/memory/types.ts:536](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#536)
+Defined in: [src/lib/memory/types.ts:544](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#544)
 
 **Parameters**
 
@@ -133,7 +133,7 @@ Defined in: [src/lib/memory/types.ts:536](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **onFactsRanked**: (`facts`: `object`\[]) => `void`
 
-Defined in: [src/lib/memory/recallTool.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#80)
+Defined in: [src/lib/memory/recallTool.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#85)
 
 Called with the ranked facts and their relevance scores, in rank
 order (highest first). A superset of [onFactsRetrieved](#onfactsretrieved) that
@@ -176,7 +176,7 @@ relevance (e.g. the Memory Graph's recall pulses) use this.
 
 > `optional` **onFactsRetrieved**: (`factIds`: `string`\[]) => `void`
 
-Defined in: [src/lib/memory/recallTool.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#72)
+Defined in: [src/lib/memory/recallTool.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#77)
 
 Called with the fact IDs returned via the fact lane.
 
@@ -211,11 +211,62 @@ Called with the fact IDs returned via the fact lane.
 
 ***
 
+### onRefused()?
+
+> `optional` **onRefused**: (`refusal`: `object`) => `void`
+
+Defined in: [src/lib/memory/recallTool.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/recallTool.ts#73)
+
+Called when the tool refuses a call without searching.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`refusal`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`refusal.reason`
+
+</td>
+<td>
+
+[`RecallRefusalReason`](../type-aliases/RecallRefusalReason.md)
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+***
+
 ### onTruncated()?
 
 > `optional` **onTruncated**: (`truncation`: [`RecallTruncation`](RecallTruncation.md)) => `void`
 
-Defined in: [src/lib/memory/types.ts:535](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#535)
+Defined in: [src/lib/memory/types.ts:543](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#543)
 
 **Parameters**
 

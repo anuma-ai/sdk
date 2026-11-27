@@ -1570,6 +1570,12 @@ Re-exports [InjectionReason](../react/Internal/type-aliases/InjectionReason.md)
 
 ***
 
+### InjectionScreenOptions
+
+Re-exports [InjectionScreenOptions](../react/Internal/interfaces/InjectionScreenOptions.md)
+
+***
+
 ### injectionSignatureCatalog
 
 Re-exports [injectionSignatureCatalog](../react/Internal/functions/injectionSignatureCatalog.md)
@@ -2341,6 +2347,12 @@ Re-exports [RecallEmptyReason](../react/Internal/type-aliases/RecallEmptyReason.
 ### RecallOptions
 
 Re-exports [RecallOptions](../react/Internal/interfaces/RecallOptions.md)
+
+***
+
+### RecallRefusalReason
+
+Re-exports [RecallRefusalReason](../react/Internal/type-aliases/RecallRefusalReason.md)
 
 ***
 

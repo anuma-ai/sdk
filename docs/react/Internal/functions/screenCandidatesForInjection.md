@@ -1,8 +1,8 @@
 # screenCandidatesForInjection
 
-> **screenCandidatesForInjection**(`candidates`: readonly [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]): [`ScreenResult`](../interfaces/ScreenResult.md)
+> **screenCandidatesForInjection**(`candidates`: readonly [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[], `options`: [`InjectionScreenOptions`](../interfaces/InjectionScreenOptions.md)): [`ScreenResult`](../interfaces/ScreenResult.md)
 
-Defined in: [src/lib/memory/injectionScreen.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#200)
+Defined in: [src/lib/memory/injectionScreen.ts:236](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/injectionScreen.ts#236)
 
 Screen extraction candidates for injection / poisoning signatures.
 
@@ -30,6 +30,18 @@ preserved within each partition.
 <td>
 
 readonly [`ExtractedCandidate`](../interfaces/ExtractedCandidate.md)\[]
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+[`InjectionScreenOptions`](../interfaces/InjectionScreenOptions.md)
 
 </td>
 </tr>

@@ -2,7 +2,7 @@
 
 > **ConsolidationFallbackReason** = `"llm_error"` | `"llm_timeout"` | `"content_flagged"` | `"invalid_response"` | `"target_vanished"` | `"subject_mismatch"`
 
-Defined in: [src/lib/memory/types.ts:587](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#587)
+Defined in: [src/lib/memory/types.ts:595](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/types.ts#595)
 
 Why a retain returned "create" instead of applying a consolidation decision.
 Each value names a DIFFERENT thing to go fix, which is the point of keeping
