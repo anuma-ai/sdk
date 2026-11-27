@@ -86,6 +86,7 @@ const checkedTestFiles = [
   "src/lib/processors/preprocessor.remoteUrls.test.ts",
   "src/lib/tools/serverTools.cache.test.ts",
   "src/react/useAccountFetch.abort.test.tsx",
+  "src/react/useBackupAuth.test.tsx",
   "src/react/useChatStorage.background.test.tsx",
   "src/react/useChatStorage.fileSize.test.tsx",
   "src/react/useChatStorage.inbox.test.tsx",

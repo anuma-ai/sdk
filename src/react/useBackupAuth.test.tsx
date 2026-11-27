@@ -1,15 +1,17 @@
-import { act, render } from "@testing-library/react";
-import React from "react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
+import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { authenticateICloud } from "../lib/backup/icloud/api";
+import { type BackupAuthContextValue, BackupAuthProvider, useBackupAuth } from "./useBackupAuth";
+import { ICloudAuthProvider, useICloudAuth } from "./useICloudAuth";
 
 vi.mock("../lib/backup/icloud/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/backup/icloud/api")>()),
   loadCloudKit: vi.fn(async () => {}),
   configureCloudKit: vi.fn(async () => {}),
-  authenticateICloud: vi.fn(async () => ({ userRecordName: "icloud-user" })),
+  authenticateICloud: vi.fn(() => Promise.resolve({ userRecordName: "icloud-user" })),
 }));
-
-import { type BackupAuthContextValue, BackupAuthProvider, useBackupAuth } from "./useBackupAuth";
 
 const WALLET = "0x" + "a".repeat(40);
 const LOCAL_ROW = JSON.stringify({ accessToken: "dbx-legacy" });
@@ -110,5 +112,51 @@ describe("BackupAuthProvider", () => {
     expect(signedOut.hasAnyAuthentication).toBe(false);
     expect(signedOut.icloud.isAuthenticated).toBe(false);
     expect(signedOut.icloud.accessToken).toBeNull();
+  });
+});
+
+describe("iCloud sign-in", () => {
+  it.each([
+    {
+      name: "useBackupAuth",
+      useAuth: () => useBackupAuth().icloud,
+      wrapper: ({ children }: PropsWithChildren) => (
+        <BackupAuthProvider icloudApiToken="cloudkit-token">{children}</BackupAuthProvider>
+      ),
+    },
+    {
+      name: "useICloudAuth",
+      useAuth: useICloudAuth,
+      wrapper: ({ children }: PropsWithChildren) => (
+        <ICloudAuthProvider apiToken="cloudkit-token">{children}</ICloudAuthProvider>
+      ),
+    },
+  ])("cancels a pending request through $name", async ({ useAuth, wrapper }) => {
+    vi.mocked(authenticateICloud).mockResolvedValueOnce(null);
+    const whenUserSignsIn = vi.fn(() => new Promise<never>(() => {}));
+    vi.stubGlobal("CloudKit", {
+      getDefaultContainer: () => ({ setUpAuth: () => Promise.resolve(null), whenUserSignsIn }),
+    });
+
+    try {
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      await waitFor(() => expect(result.current.isConfigured).toBe(true));
+      vi.useFakeTimers();
+
+      const controller = new AbortController();
+      const rejected = vi.fn();
+      void result.current.requestAccess({ signal: controller.signal }).catch(rejected);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(whenUserSignsIn).toHaveBeenCalledOnce();
+
+      controller.abort();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(rejected).toHaveBeenCalledExactlyOnceWith(new Error("Sign-in was cancelled"));
+      expect(result.current.isAuthenticated).toBe(false);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 });

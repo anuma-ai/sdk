@@ -40,7 +40,7 @@ Whether this provider is configured
 
 > **logout**: () => `Promise`<`void`>
 
-Defined in: [src/react/useBackupAuth.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#52)
+Defined in: [src/react/useBackupAuth.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#53)
 
 Sign out of iCloud
 
@@ -54,7 +54,7 @@ Sign out of iCloud
 
 > **refreshToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useBackupAuth.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#54)
+Defined in: [src/react/useBackupAuth.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#55)
 
 Re-check the iCloud session and return the user record name
 
@@ -62,15 +62,64 @@ Re-check the iCloud session and return the user record name
 
 `Promise`<`string` | `null`>
 
-***
+## Methods
 
 ### requestAccess()
 
-> **requestAccess**: () => `Promise`<`string`>
+**Call Signature**
+
+> **requestAccess**(): `Promise`<`string`>
 
 Defined in: [src/react/useBackupAuth.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#50)
 
 Request access - triggers iCloud sign-in if needed and returns the user record name
+
+**Returns**
+
+`Promise`<`string`>
+
+**Call Signature**
+
+> **requestAccess**(`options`: `object`): `Promise`<`string`>
+
+Defined in: [src/react/useBackupAuth.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#51)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.signal?`
+
+</td>
+<td>
+
+`AbortSignal`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 

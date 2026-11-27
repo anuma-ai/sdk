@@ -2,7 +2,7 @@
 
 > **useICloudAuth**(): [`ICloudAuthContextValue`](../Internal/interfaces/ICloudAuthContextValue.md)
 
-Defined in: [src/react/useICloudAuth.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#205)
+Defined in: [src/react/useICloudAuth.ts:209](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#209)
 
 Hook to access iCloud authentication state and methods.
 

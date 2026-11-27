@@ -208,7 +208,7 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
     isAuthenticated: icloudAuth.isAuthenticated,
     backup: icloudBackup,
     restore: icloudRestore,
-    connect: icloudAuth.requestAccess,
+    connect: () => icloudAuth.requestAccess(),
     disconnect: icloudAuth.logout,
   };
 
