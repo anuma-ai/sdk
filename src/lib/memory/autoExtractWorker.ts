@@ -12,6 +12,7 @@ import {
   type QuarantinedMemoryInfo,
   type WriteFailureReason,
 } from "./autoExtract.js";
+import { shouldRecallMemory } from "./context.js";
 import type { InjectionClassifierOptions } from "./injectionClassifier.js";
 import type { PortalLlmFailure } from "./portalLlm.js";
 import type { RetainContext } from "./retain.js";
@@ -55,8 +56,12 @@ export interface TurnSkippedEvent {
    * - `in-flight`       — retained for back-compat; no longer emitted. The
    *                       worker now coalesces in-flight arrivals into the
    *                       pending queue instead of dropping them.
+   * - `trivial-content` — every new user message was a greeting or bare
+   *                       acknowledgment that answers no assistant question,
+   *                       so no extraction call was made; the watermark
+   *                       advanced past them.
    */
-  reason: "no-messages" | "no-new-content" | "superseded" | "in-flight";
+  reason: "no-messages" | "no-new-content" | "superseded" | "in-flight" | "trivial-content";
   conversationId?: string;
 }
 
@@ -102,6 +107,15 @@ export interface TurnCompleteEvent {
   timings?: ExtractionTimings;
   /** The extraction model this turn asked for. */
   model?: string;
+  /** Messages in the window sent to the extraction model. */
+  windowMessageCount?: number;
+  /** Characters in the transcript sent to the extraction model. */
+  transcriptChars?: number;
+  /**
+   * Set when the watermark was advanced past this window although it failed, with the number of
+   * consecutive failed turns that triggered it; `onError` fires alongside.
+   */
+  abandonedAfterFailures?: number;
 }
 
 /** @public */
@@ -309,6 +323,31 @@ const DEFAULT_EXTRACT_TOTAL_TIMEOUT_MS = 60_000;
 
 const MAX_TRACKED_CONVERSATIONS = 200;
 
+const MAX_CONSECUTIVE_WINDOW_FAILURES = 3;
+
+const TRANSIENT_WRITE_FAILURES: ReadonlySet<WriteFailureReason> = new Set([
+  "embeddings-unavailable",
+  "aborted",
+]);
+
+const DETERMINISTIC_EXTRACT_FAILURES: ReadonlySet<PortalLlmFailure["reason"]> = new Set([
+  "content-flagged",
+  "truncated",
+]);
+
+function isTrivialTurn(window: AutoExtractMessage[], freshFrom: number): boolean {
+  let userMessages = 0;
+  for (let i = freshFrom; i < window.length; i++) {
+    const message = window[i];
+    if (message.role !== "user") continue;
+    userMessages++;
+    if (shouldRecallMemory(message.content)) return false;
+    const previous = window[i - 1];
+    if (previous?.role === "assistant" && /[?？]/u.test(previous.content)) return false;
+  }
+  return userMessages > 0;
+}
+
 /** Per-conversation extraction state (keyed by conversationId, undefined included). */
 interface ConversationState {
   /**
@@ -329,6 +368,7 @@ interface ConversationState {
   /** True once the persisted cursor has been read into `watermark` (at most
    * once per state instance), so hydration never clobbers a live watermark. */
   hydrated?: boolean;
+  consecutiveFailures?: number;
 }
 
 /**
@@ -386,13 +426,17 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
   function computeWindow(
     messages: AutoExtractMessage[],
     conversationId?: string
-  ): { window: AutoExtractMessage[]; contiguous: boolean } {
+  ): { window: AutoExtractMessage[]; contiguous: boolean; freshFrom: number } {
     const lastId = stateFor(conversationId).watermark;
     const idx = lastId === undefined ? -1 : messages.findIndex((m) => m.id === lastId);
     if (idx === -1) {
-      return { window: messages.slice(-windowSize), contiguous: messages.length <= windowSize };
+      return {
+        window: messages.slice(-windowSize),
+        contiguous: messages.length <= windowSize,
+        freshFrom: 0,
+      };
     }
-    if (idx >= messages.length - 1) return { window: [], contiguous: true };
+    if (idx >= messages.length - 1) return { window: [], contiguous: true, freshFrom: 0 };
     const start = Math.max(0, idx + 1 - CONTEXT_OVERLAP);
     let window = messages.slice(start);
     if (window.length > maxWindowSize) {
@@ -401,7 +445,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
       );
       window = window.slice(0, maxWindowSize);
     }
-    return { window, contiguous: true };
+    return { window, contiguous: true, freshFrom: idx + 1 - start };
   }
 
   const persistCursor = (
@@ -487,9 +531,22 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
   }
 
   function dispatch(messages: AutoExtractMessage[], conversationId?: string): boolean {
-    const { window, contiguous } = computeWindow(messages, conversationId);
+    const { window, contiguous, freshFrom } = computeWindow(messages, conversationId);
     if (window.length === 0) {
       options.onSkipped?.({ reason: "no-new-content", conversationId });
+      drainPending();
+      return false;
+    }
+    const advance = (): void => {
+      const advancedTo = window[window.length - 1].id;
+      const state = stateFor(conversationId);
+      state.watermark = advancedTo;
+      state.consecutiveFailures = 0;
+      persistCursor(conversationId, messages, advancedTo, contiguous);
+    };
+    if (isTrivialTurn(window, freshFrom)) {
+      advance();
+      options.onSkipped?.({ reason: "trivial-content", conversationId });
       drainPending();
       return false;
     }
@@ -508,6 +565,7 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           funnel,
           timings,
           model,
+          transcriptChars,
         } = await extractAndRetain(window, retainCtx, {
           extract,
           memoryStore: options.memoryStore,
@@ -529,10 +587,21 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           }),
         });
 
+        let abandonedAfterFailures: number | undefined;
         if (outcome !== "empty-after-retry" && failedCount === 0) {
-          const advancedTo = window[window.length - 1].id;
-          stateFor(conversationId).watermark = advancedTo;
-          persistCursor(conversationId, messages, advancedTo, contiguous);
+          advance();
+        } else if (
+          outcome === "empty-after-retry"
+            ? failure !== undefined && DETERMINISTIC_EXTRACT_FAILURES.has(failure.reason)
+            : writeFailureReason === undefined || !TRANSIENT_WRITE_FAILURES.has(writeFailureReason)
+        ) {
+          const state = stateFor(conversationId);
+          const failures = (state.consecutiveFailures ?? 0) + 1;
+          state.consecutiveFailures = failures;
+          if (failures >= MAX_CONSECUTIVE_WINDOW_FAILURES) {
+            abandonedAfterFailures = failures;
+            advance();
+          }
         }
 
         for (let i = 0; i < results.length; i++) {
@@ -554,8 +623,20 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           funnel,
           timings,
           model,
+          windowMessageCount: window.length,
+          transcriptChars,
           ...(failure !== undefined && { failure }),
+          ...(abandonedAfterFailures !== undefined && { abandonedAfterFailures }),
         });
+        if (abandonedAfterFailures !== undefined) {
+          options.onError?.(
+            new Error(
+              `Abandoned an extraction window of ${window.length} message(s) after ${abandonedAfterFailures} consecutive failed turns` +
+                ` (${failure?.reason ?? writeFailureReason ?? "unknown"})`
+            ),
+            conversationId
+          );
+        }
       } catch (err) {
         options.onError?.(err instanceof Error ? err : new Error(String(err)), conversationId);
       } finally {

@@ -111,6 +111,8 @@ export type PortalLlmFailureReason =
   | "invalid-json"
   /** Content parsed to a literal `null`, which is never a valid response. */
   | "null-completion"
+  /** The model stopped at its output-token cap before finishing a usable JSON value. Terminal. */
+  | "truncated"
   /** `totalTimeoutMs` was spent before the next attempt could run. */
   | "time-budget-exhausted"
   /**
@@ -695,7 +697,11 @@ async function requestPortalJson(
   }
 
   const rawContent = extractCompletionContent(body);
+  const truncated: AttemptOutcome | undefined = completionHitTokenCap(body)
+    ? { kind: "terminal", code: "truncated", reason: "completion stopped at the output-token cap" }
+    : undefined;
   if (!rawContent) {
+    if (truncated) return truncated;
     return {
       kind: "retryable",
       code: "empty-content",
@@ -711,6 +717,7 @@ async function requestPortalJson(
   try {
     value = JSON.parse(candidate);
   } catch {
+    if (truncated) return truncated;
     return {
       kind: "retryable",
       code: "invalid-json",
@@ -823,6 +830,14 @@ export function extractCompletionContent(body: unknown): string | null {
   const first = choices[0] as { message?: { content?: unknown } };
   const content = first?.message?.content;
   return typeof content === "string" ? content : null;
+}
+
+function completionHitTokenCap(body: unknown): boolean {
+  const root = asRecord(body);
+  if (!root) return false;
+  if (asRecord(root.incomplete_details)?.reason === "max_output_tokens") return true;
+  const first = Array.isArray(root.choices) ? asRecord(root.choices[0]) : undefined;
+  return first?.finish_reason === "length";
 }
 
 function extractResponsesContent(body: unknown): string | null {

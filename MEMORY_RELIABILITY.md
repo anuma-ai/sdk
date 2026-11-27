@@ -34,7 +34,7 @@ per authenticated database session. It requires the SDK v47 schema and models.
   failure that says nothing about the batch never costs it. Only failures that
   point at the batch count toward abandoning it:
   - content-shaped give-ups (`empty-content`, `invalid-json`,
-    `null-completion`, `body-parse-failed`) and retain failures, after three of
+    `null-completion`, `truncated`, `body-parse-failed`) and retain failures, after three of
     them in a session, however many turns they span;
   - request-shaped rejections (HTTP 400/404/413/422), at once and without a
     retry in that session;
