@@ -1017,7 +1017,7 @@ describe("vault chat backend", () => {
         kind: "message",
         conversationId: "conv_pages",
         limit: 20,
-        cursor: conformance ? expect.any(String) : "20",
+        cursor: conformance ? (expect.any(String) as string) : "20",
       },
     ]);
 
@@ -1059,7 +1059,7 @@ describe("vault chat backend", () => {
         kind: "message",
         conversationId: "conv_pages",
         limit: 5,
-        cursor: conformance ? expect.any(String) : "200",
+        cursor: conformance ? (expect.any(String) as string) : "200",
       },
     ]);
   });
