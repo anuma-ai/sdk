@@ -78,6 +78,8 @@ const FALLBACK_ONLY_STOPWORDS: string[] = (
 
 const FALLBACK_STOPWORDS = new Set([...STOPWORDS, ...FALLBACK_ONLY_STOPWORDS]);
 
+const SHORT_TICKER_NOISE = new Set(["pm", "ps"]);
+
 const MAX_FALLBACK_CANDIDATES = 12;
 
 const MAX_FALLBACK_TOKENS = 3;
@@ -127,7 +129,7 @@ function extractTickers(query: string): string[] {
   }
   for (const match of query.matchAll(SHORT_TICKER_REGEX)) {
     const symbol = normalizeEntityName(match[0]);
-    if (!FALLBACK_STOPWORDS.has(symbol)) tickers.push(symbol);
+    if (!FALLBACK_STOPWORDS.has(symbol) && !SHORT_TICKER_NOISE.has(symbol)) tickers.push(symbol);
   }
   return tickers;
 }

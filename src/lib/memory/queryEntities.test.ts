@@ -233,6 +233,11 @@ describe("extractQueryEntities — tickers", () => {
     expect(entities).toEqual(["solana"]);
   });
 
+  it("does not read a clock suffix or a postscript as a ticker", () => {
+    expect(extractQueryEntities("Meeting at 5 PM with Sara")).not.toContain("pm");
+    expect(extractQueryEntities("PS what about my dog Biscuit")).not.toContain("ps");
+  });
+
   it("ignores two-letter function words typed in capitals", () => {
     expect(extractQueryEntities("IS MY OP UP")).toEqual(["op"]);
   });

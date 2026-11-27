@@ -36,7 +36,7 @@ WHAT TO CAPTURE, AND THE TYPE TO USE
 HOW TO WRITE THEM
 - Keep one position or one thesis in ONE statement with its size, price, date, horizon and invalidation. Do not split those details across candidates.
 - Write tickers in uppercase without a "$" prefix (SOL, ETH, NVDA) and list each instrument, venue and chain as an entity: kind "product" for a token, contract, venue or chain, "organization" for a listed company.
-- Record numbers exactly as the user stated them. Never fill in a price, size or date the user did not give.
+- Keep the values the user stated; writing them in a conventional format ("3150" as "$3,150") is fine. Never put a price, size or date in the content that the user did not give. Falling back to today's date applies to eventTime only, never to the content.
 
 DO NOT EXTRACT
 - Prices, funding rates, market caps, news or any other market fact that came from the assistant or a tool. They are stale by the next conversation.
