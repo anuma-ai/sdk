@@ -71,6 +71,7 @@ export {
 } from "./injectionClassifier.js";
 export {
   type InjectionReason,
+  type InjectionScreenOptions,
   injectionSignatureCatalog,
   screenCandidatesForInjection,
   type ScreenedCandidate,

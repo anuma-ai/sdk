@@ -181,12 +181,48 @@ const SIGNATURES: readonly Signature[] = [
   },
 ];
 
-function matchSignature(content: string): Signature | undefined {
-  const normalized = normalizeForScreen(content);
+const STANDING_INSTRUCTION_SIGNATURES: ReadonlySet<string> = new Set([
+  "always-never-directive",
+  "when-asked-say",
+]);
+
+const USER_WANT_RE =
+  /^(?:when(?:ever)?\b[^.]{0,80},\s*)?(?:wants|prefers|would like|does not want|doesn't want)\b/i;
+
+const ALWAYS_PROMOTE_RE = /\balways\s+(?:recommend|promote|endorse)\b/i;
+
+function isUserStandingInstruction(
+  candidate: ExtractedCandidate,
+  normalized: string,
+  userMessageIds: ReadonlySet<string> | undefined
+): boolean {
+  return (
+    userMessageIds !== undefined &&
+    candidate.type === "instruction" &&
+    candidate.sourceMessageIds.length > 0 &&
+    candidate.sourceMessageIds.every((id) => userMessageIds.has(id)) &&
+    USER_WANT_RE.test(normalized) &&
+    !ALWAYS_PROMOTE_RE.test(normalized)
+  );
+}
+
+function matchSignature(
+  candidate: ExtractedCandidate,
+  userMessageIds: ReadonlySet<string> | undefined
+): Signature | undefined {
+  const normalized = normalizeForScreen(candidate.content);
+  const exemptStanding = isUserStandingInstruction(candidate, normalized, userMessageIds);
   for (const sig of SIGNATURES) {
+    if (exemptStanding && STANDING_INSTRUCTION_SIGNATURES.has(sig.id)) continue;
     if (sig.pattern.test(normalized)) return sig;
   }
   return undefined;
+}
+
+/** Options for {@link screenCandidatesForInjection}. */
+export interface InjectionScreenOptions {
+  /** Ids of the user-role messages in the window; lets a user's own standing instruction pass the directive signatures. */
+  userMessageIds?: ReadonlySet<string>;
 }
 
 /**
@@ -198,12 +234,13 @@ function matchSignature(content: string): Signature | undefined {
  * preserved within each partition.
  */
 export function screenCandidatesForInjection(
-  candidates: readonly ExtractedCandidate[]
+  candidates: readonly ExtractedCandidate[],
+  options: InjectionScreenOptions = {}
 ): ScreenResult {
   const clean: ExtractedCandidate[] = [];
   const quarantined: ScreenedCandidate[] = [];
   for (const candidate of candidates) {
-    const match = matchSignature(candidate.content);
+    const match = matchSignature(candidate, options.userMessageIds);
     if (match) {
       quarantined.push({ candidate, reason: match.reason, signature: match.id });
     } else {

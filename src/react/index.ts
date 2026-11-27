@@ -551,6 +551,7 @@ export type {
   GraphTraversalOptions,
   InjectionClassifierOptions,
   InjectionReason,
+  InjectionScreenOptions,
   LlmDecayClassifierOptions,
   LlmNeighborRefinerOptions,
   MemoryExtractedEvent,

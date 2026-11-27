@@ -659,7 +659,9 @@ export async function extractAndRetain(
 
   const log = getLogger();
 
-  const screened = screenCandidatesForInjection(filtered);
+  const screened = screenCandidatesForInjection(filtered, {
+    userMessageIds: new Set(messages.filter((m) => m.role === "user").map((m) => m.id)),
+  });
   let clean = screened.clean;
   const quarantined = [...screened.quarantined];
 
