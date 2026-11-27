@@ -522,7 +522,7 @@ function isStoreOutage(err: unknown): boolean {
   return (
     name === "RemoteMemoryError" &&
     typeof status === "number" &&
-    (status === 401 || status === 403 || status === 408 || status === 429 || status >= 500)
+    (status === 0 || status === 401 || status === 408 || status === 429 || status >= 500)
   );
 }
 

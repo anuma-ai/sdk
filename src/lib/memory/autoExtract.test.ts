@@ -743,7 +743,10 @@ describe("extractAndRetain", () => {
     [new RemoteMemoryError("Nearby request timed out", 408, "timeout"), "store-unavailable"],
     [new RemoteMemoryError("Nearby request failed (503)", 503), "store-unavailable"],
     [new RemoteMemoryError("Authentication required", 401), "store-unavailable"],
+    [new RemoteMemoryError("Failed to fetch", 0, "network"), "store-unavailable"],
+    [new RemoteMemoryError("forbidden", 403), "unknown"],
     [new RemoteMemoryError("payload rejected", 422), "unknown"],
+    [new TypeError("Failed to fetch"), "unknown"],
   ] as const)("reports why the first write failed: %s", async (error, reason) => {
     vi.mocked(retain)
       .mockRejectedValueOnce(error)

@@ -14,7 +14,7 @@ import {
 } from "./autoExtract.js";
 import { shouldRecallMemory } from "./context.js";
 import type { InjectionClassifierOptions } from "./injectionClassifier.js";
-import type { PortalLlmFailure } from "./portalLlm.js";
+import type { PortalLlmFailure, PortalLlmFailureReason } from "./portalLlm.js";
 import type { RetainContext } from "./retain.js";
 import type { MemoryStore } from "./store/types.js";
 import type {
@@ -325,16 +325,29 @@ const MAX_TRACKED_CONVERSATIONS = 200;
 
 const MAX_CONSECUTIVE_WINDOW_FAILURES = 3;
 
-const TRANSIENT_WRITE_FAILURES: ReadonlySet<WriteFailureReason> = new Set([
-  "embeddings-unavailable",
-  "store-unavailable",
-  "aborted",
-]);
+const TRANSIENT_WRITE_FAILURES: Record<WriteFailureReason, boolean> = {
+  "source-ineligible": false,
+  "embeddings-unavailable": true,
+  "merge-not-persisted": false,
+  "private-memory-unreadable": false,
+  "store-unavailable": true,
+  aborted: true,
+  unknown: false,
+};
 
-const DETERMINISTIC_EXTRACT_FAILURES: ReadonlySet<PortalLlmFailure["reason"]> = new Set([
-  "content-flagged",
-  "truncated",
-]);
+const DETERMINISTIC_EXTRACT_FAILURES: Record<PortalLlmFailureReason, boolean> = {
+  "auth-unavailable": false,
+  "http-terminal": false,
+  "http-retryable": false,
+  network: false,
+  "body-parse-failed": false,
+  "empty-content": false,
+  "invalid-json": false,
+  "null-completion": false,
+  truncated: true,
+  "time-budget-exhausted": false,
+  "content-flagged": true,
+};
 
 function isTrivialTurn(window: AutoExtractMessage[], freshFrom: number): boolean {
   let userMessages = 0;
@@ -593,8 +606,8 @@ export function createAutoExtractor(options: CreateAutoExtractorOptions): AutoEx
           advance();
         } else if (
           outcome === "empty-after-retry"
-            ? failure !== undefined && DETERMINISTIC_EXTRACT_FAILURES.has(failure.reason)
-            : writeFailureReason === undefined || !TRANSIENT_WRITE_FAILURES.has(writeFailureReason)
+            ? failure !== undefined && DETERMINISTIC_EXTRACT_FAILURES[failure.reason]
+            : writeFailureReason === undefined || !TRANSIENT_WRITE_FAILURES[writeFailureReason]
         ) {
           const state = stateFor(conversationId);
           const failures = (state.consecutiveFailures ?? 0) + 1;
