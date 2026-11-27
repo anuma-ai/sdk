@@ -8,6 +8,7 @@ const projectRoot = path.resolve(__dirname, "..");
 const entryPoints = [
   { name: "anuma-sdk", dtsPath: "dist/index.d.ts" },
   { name: "anuma-sdk-react", dtsPath: "dist/react/index.d.ts" },
+  { name: "anuma-sdk-react-chart", dtsPath: "dist/react/chart/index.d.ts" },
   { name: "anuma-sdk-expo", dtsPath: "dist/expo/index.d.ts" },
   { name: "anuma-sdk-polyfills", dtsPath: "dist/polyfills/index.d.ts" },
   { name: "anuma-sdk-vercel", dtsPath: "dist/vercel/index.d.ts" },
