@@ -37,6 +37,13 @@
       "require": "./dist/react/index.cjs",
       "default": "./dist/react/index.cjs"
     },
+    "./react/chart": {
+      "types": "./dist/react/chart/index.d.ts",
+      "react-native": "./dist/react/chart/index.cjs",
+      "import": "./dist/react/chart/index.mjs",
+      "require": "./dist/react/chart/index.cjs",
+      "default": "./dist/react/chart/index.cjs"
+    },
     "./design": {
       "types": "./dist/design/index.d.ts",
       "import": "./dist/design/index.mjs",
@@ -160,7 +167,7 @@
     "check:excluded-suites": "node scripts/assert-excluded-suites-still-fail.mjs",
     "knip": "knip",
     "check:export-consumers": "node scripts/assert-export-consumers.mjs",
-    "check-exports": "publint && attw --pack --ignore-rules no-resolution false-cjs && node scripts/assert-no-client-self-import.mjs && node scripts/assert-shared-logger.mjs && node scripts/assert-embedding-cross-entrypoints.mjs",
+    "check-exports": "publint && attw --pack --ignore-rules no-resolution false-cjs && node scripts/assert-no-client-self-import.mjs && node scripts/assert-shared-logger.mjs && node scripts/assert-embedding-cross-entrypoints.mjs && node scripts/assert-react-entry-lazy-recharts.mjs",
     "check": "pnpm run lint && pnpm run knip && pnpm run check:export-consumers && pnpm run format && pnpm run generate",
     "eval:extraction": "tsx test/memory/src/extraction/benchmark.test.ts",
     "eval:topic": "tsx test/memory/src/topic/benchmark.ts",

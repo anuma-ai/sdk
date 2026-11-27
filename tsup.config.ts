@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { defineConfig } from "tsup";
 
 export default defineConfig([
@@ -87,12 +89,37 @@ export default defineConfig([
       "react",
       "@privy-io/react-auth",
       "@huggingface/transformers",
-      "recharts",
       "exceljs",
       "jspdf",
       "html2canvas",
       "marked",
     ],
+    esbuildPlugins: [
+      {
+        name: "react-chart-subpath",
+        setup(build) {
+          const reactSource = path.resolve("src/react");
+          const extension = build.initialOptions.format === "esm" ? "mjs" : "cjs";
+          build.onResolve({ filter: /^\.\/chart$/ }, ({ kind, resolveDir }) =>
+            kind === "dynamic-import" && resolveDir === reactSource
+              ? { path: `./chart/index.${extension}`, external: true }
+              : undefined
+          );
+        },
+      },
+    ],
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
+  {
+    entry: { index: "src/react/chart.tsx" },
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/react/chart",
+    external: ["react", "recharts"],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",

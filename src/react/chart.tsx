@@ -18,17 +18,10 @@ import {
   YAxis,
 } from "recharts";
 
-import type { DisplayChartResult } from "../tools/chart";
-import {
-  buildChartModel,
-  chartCellText,
-  type ChartTrend,
-  type ChartTrendDirection,
-} from "../tools/chartModel";
+import { buildChartModel, chartCellText } from "../tools/chartModel";
+import { type ChartCardProps, ChartError, ChartFrame, ChartPlaceholder, cx } from "./chartFrame";
 
-function cx(...classes: (string | false | undefined | null)[]) {
-  return classes.filter(Boolean).join(" ");
-}
+export type { ChartCardProps } from "./chartFrame";
 
 const THEMES = { light: "", dark: ".dark" } as const;
 
@@ -333,10 +326,6 @@ function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key:
   return configLabelKey in config ? config[configLabelKey] : config[key];
 }
 
-export type ChartCardProps = {
-  data: DisplayChartResult;
-};
-
 const DEFAULT_COLORS = [
   "var(--chart-1)",
   "var(--chart-2)",
@@ -352,18 +341,6 @@ function paletteColor(index: number): string {
     ? DEFAULT_COLORS[index]
     : `hsl(${Math.round((index * 137.508) % 360)} 65% 55%)`;
 }
-
-const VISUALLY_HIDDEN: React.CSSProperties = {
-  position: "absolute",
-  width: 1,
-  height: 1,
-  padding: 0,
-  margin: -1,
-  overflow: "hidden",
-  clip: "rect(0, 0, 0, 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-};
 
 function buildChartConfig(
   dataKeys: string[],
@@ -394,39 +371,7 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-const TREND_CLASS: Record<ChartTrendDirection, string> = {
-  up: "text-emerald-600 dark:text-emerald-400",
-  down: "text-red-600 dark:text-red-400",
-  flat: "text-muted-foreground",
-};
-
-const TREND_ARROW: Record<ChartTrendDirection, string> = { up: "\u25B2", down: "\u25BC", flat: "" };
-
-function ChartHeader({ title, trend }: { title?: React.ReactNode; trend?: ChartTrend }) {
-  if (!trend) {
-    return title ? <p className="mb-3 text-sm font-medium">{title}</p> : null;
-  }
-  return (
-    <div className="mb-3" data-testid="chart-header">
-      {title && <p className="text-sm text-muted-foreground">{title}</p>}
-      <p className="mt-0.5 text-2xl font-semibold tracking-tight text-foreground">{trend.value}</p>
-      <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs">
-        <span className={cx("font-medium", TREND_CLASS[trend.direction])}>
-          {TREND_ARROW[trend.direction] && (
-            <span aria-hidden="true" className="mr-1 text-[0.6rem]">
-              {TREND_ARROW[trend.direction]}
-            </span>
-          )}
-          {trend.change}
-        </span>
-        {trend.range && <span className="text-muted-foreground">{trend.range}</span>}
-      </p>
-    </div>
-  );
-}
-
 export function ChartCard({ data }: ChartCardProps) {
-  const containerRef = React.useRef<HTMLDivElement>(null);
   const [ready, setReady] = React.useState(false);
   const gradientId = `chart-fill-${React.useId().replace(/:/g, "")}`;
   const reducedMotion = usePrefersReducedMotion();
@@ -435,19 +380,11 @@ export function ChartCard({ data }: ChartCardProps) {
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  if ("error" in data) {
-    return (
-      <div className="my-4 max-w-lg">
-        <div className="rounded-xl bg-sidebar dark:bg-card px-4 py-3">
-          <p className="text-sm text-muted-foreground">Couldn&apos;t display this chart.</p>
-        </div>
-      </div>
-    );
-  }
+  if ("error" in data) return <ChartError />;
 
-  const { chartType, title, data: chartData, dataKeys, xAxisKey, colors } = data;
+  const { chartType, data: chartData, dataKeys, xAxisKey, colors } = data;
   const model = buildChartModel(data);
-  const { plottedKeys, yTicks, yDomain, formatters, trend, isTrendChart } = model;
+  const { yTicks, yDomain, formatters, isTrendChart } = model;
   const chartConfig = buildChartConfig(dataKeys, model.seriesLabels, colors);
   const seriesColor = (key: string) => chartConfig[key]?.color;
   const animate = !reducedMotion;
@@ -511,171 +448,142 @@ export function ChartCard({ data }: ChartCardProps) {
           ) : (
             <g key={`dot-${key}-${props.index}`} />
           );
-  const tableColumns = model.labelKey ? [model.labelKey, ...plottedKeys] : plottedKeys;
 
   return (
-    <div
-      className="my-4 max-w-lg"
-      ref={containerRef}
-      role="figure"
-      aria-label={[title, `${chartType} chart`].filter(Boolean).join(", ")}
-    >
-      <div className="rounded-xl bg-sidebar dark:bg-card px-5 py-4 [--chart-surface:var(--sidebar)] dark:[--chart-surface:var(--card)]">
-        <ChartHeader title={model.title} trend={trend} />
-        <table style={VISUALLY_HIDDEN}>
-          <thead>
-            <tr>
-              {tableColumns.map((column) => (
-                <th key={column} scope="col">
-                  {column}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {chartData.map((point, row) => (
-              <tr key={row}>
-                {tableColumns.map((column) => (
-                  <td key={column}>{chartCellText(point[column])}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {ready ? (
-          <ChartContainer
-            config={chartConfig}
-            className="aspect-auto h-[220px] w-full"
-            aria-hidden="true"
-          >
-            {chartType === "bar" ? (
-              <BarChart data={chartData} margin={margin} barGap={2} barCategoryGap="24%">
-                <CartesianGrid vertical={false} />
-                {xAxis}
-                {yAxis}
-                {tooltip}
-                {legend}
-                {dataKeys.map((key) => (
-                  <Bar
-                    key={key}
-                    dataKey={key}
-                    fill={seriesColor(key)}
-                    maxBarSize={24}
-                    radius={hasNegative ? 2 : [4, 4, 0, 0]}
-                    isAnimationActive={animate}
-                  />
-                ))}
-              </BarChart>
-            ) : chartType === "line" ? (
-              <LineChart data={chartData} margin={margin}>
-                <CartesianGrid vertical={false} />
-                {xAxis}
-                {yAxis}
-                {tooltip}
-                {legend}
-                {dataKeys.map((key) => (
-                  <Line
-                    key={key}
-                    type={curve}
-                    dataKey={key}
-                    stroke={seriesColor(key)}
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    dot={lineDot(key)}
-                    activeDot={marker(key, 5)}
-                    isAnimationActive={animate}
-                    animationDuration={600}
-                  />
-                ))}
-              </LineChart>
-            ) : chartType === "area" ? (
-              <AreaChart data={chartData} margin={margin}>
-                <defs>
-                  {dataKeys.map((key, index) => (
-                    <linearGradient
-                      key={key}
-                      id={`${gradientId}-${index}`}
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop offset="0%" stopColor={seriesColor(key)} stopOpacity={0.24} />
-                      <stop offset="100%" stopColor={seriesColor(key)} stopOpacity={0} />
-                    </linearGradient>
-                  ))}
-                </defs>
-                <CartesianGrid vertical={false} />
-                {xAxis}
-                {yAxis}
-                {tooltip}
-                {legend}
-                {dataKeys.map((key, index) => (
-                  <Area
-                    key={key}
-                    type={curve}
-                    dataKey={key}
-                    stroke={seriesColor(key)}
-                    strokeWidth={2}
-                    fill={`url(#${gradientId}-${index})`}
-                    dot={lineDot(key)}
-                    activeDot={marker(key, 5)}
-                    baseValue="dataMin"
-                    isAnimationActive={animate}
-                    animationDuration={600}
-                  />
-                ))}
-              </AreaChart>
-            ) : (
-              <PieChart margin={margin}>
-                {tooltip}
-                <Pie
-                  data={chartData}
-                  dataKey={dataKeys[0]}
-                  nameKey={xAxisKey || "name"}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius="58%"
-                  outerRadius="86%"
-                  paddingAngle={chartData.length > 1 ? 1 : 0}
-                  stroke={SURFACE}
-                  strokeWidth={2}
+    <ChartFrame spec={data} model={model}>
+      {ready ? (
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-[220px] w-full"
+          aria-hidden="true"
+        >
+          {chartType === "bar" ? (
+            <BarChart data={chartData} margin={margin} barGap={2} barCategoryGap="24%">
+              <CartesianGrid vertical={false} />
+              {xAxis}
+              {yAxis}
+              {tooltip}
+              {legend}
+              {dataKeys.map((key) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  fill={seriesColor(key)}
+                  maxBarSize={24}
+                  radius={hasNegative ? 2 : [4, 4, 0, 0]}
                   isAnimationActive={animate}
-                >
-                  {chartData.map((_, index) => (
-                    <Cell key={index} fill={paletteColor(index)} />
-                  ))}
-                  <Label
-                    position="center"
-                    content={({ viewBox }) => {
-                      const box = viewBox as { cx?: number; cy?: number } | undefined;
-                      if (box?.cx === undefined || box.cy === undefined) return null;
-                      return (
-                        <text x={box.cx} y={box.cy} textAnchor="middle" dominantBaseline="middle">
-                          <tspan
-                            x={box.cx}
-                            y={box.cy - 6}
-                            className="fill-foreground text-lg font-semibold"
-                          >
-                            {formatters.value(model.total)}
-                          </tspan>
-                          <tspan x={box.cx} y={box.cy + 14} className="fill-muted-foreground">
-                            Total
-                          </tspan>
-                        </text>
-                      );
-                    }}
-                  />
-                </Pie>
-                <ChartLegend content={<ChartLegendContent nameKey={xAxisKey || "name"} />} />
-              </PieChart>
-            )}
-          </ChartContainer>
-        ) : (
-          <div className="h-[220px] w-full" />
-        )}
-      </div>
-    </div>
+                />
+              ))}
+            </BarChart>
+          ) : chartType === "line" ? (
+            <LineChart data={chartData} margin={margin}>
+              <CartesianGrid vertical={false} />
+              {xAxis}
+              {yAxis}
+              {tooltip}
+              {legend}
+              {dataKeys.map((key) => (
+                <Line
+                  key={key}
+                  type={curve}
+                  dataKey={key}
+                  stroke={seriesColor(key)}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  dot={lineDot(key)}
+                  activeDot={marker(key, 5)}
+                  isAnimationActive={animate}
+                  animationDuration={600}
+                />
+              ))}
+            </LineChart>
+          ) : chartType === "area" ? (
+            <AreaChart data={chartData} margin={margin}>
+              <defs>
+                {dataKeys.map((key, index) => (
+                  <linearGradient
+                    key={key}
+                    id={`${gradientId}-${index}`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="0%" stopColor={seriesColor(key)} stopOpacity={0.24} />
+                    <stop offset="100%" stopColor={seriesColor(key)} stopOpacity={0} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid vertical={false} />
+              {xAxis}
+              {yAxis}
+              {tooltip}
+              {legend}
+              {dataKeys.map((key, index) => (
+                <Area
+                  key={key}
+                  type={curve}
+                  dataKey={key}
+                  stroke={seriesColor(key)}
+                  strokeWidth={2}
+                  fill={`url(#${gradientId}-${index})`}
+                  dot={lineDot(key)}
+                  activeDot={marker(key, 5)}
+                  baseValue="dataMin"
+                  isAnimationActive={animate}
+                  animationDuration={600}
+                />
+              ))}
+            </AreaChart>
+          ) : (
+            <PieChart margin={margin}>
+              {tooltip}
+              <Pie
+                data={chartData}
+                dataKey={dataKeys[0]}
+                nameKey={xAxisKey || "name"}
+                cx="50%"
+                cy="50%"
+                innerRadius="58%"
+                outerRadius="86%"
+                paddingAngle={chartData.length > 1 ? 1 : 0}
+                stroke={SURFACE}
+                strokeWidth={2}
+                isAnimationActive={animate}
+              >
+                {chartData.map((_, index) => (
+                  <Cell key={index} fill={paletteColor(index)} />
+                ))}
+                <Label
+                  position="center"
+                  content={({ viewBox }) => {
+                    const box = viewBox as { cx?: number; cy?: number } | undefined;
+                    if (box?.cx === undefined || box.cy === undefined) return null;
+                    return (
+                      <text x={box.cx} y={box.cy} textAnchor="middle" dominantBaseline="middle">
+                        <tspan
+                          x={box.cx}
+                          y={box.cy - 6}
+                          className="fill-foreground text-lg font-semibold"
+                        >
+                          {formatters.value(model.total)}
+                        </tspan>
+                        <tspan x={box.cx} y={box.cy + 14} className="fill-muted-foreground">
+                          Total
+                        </tspan>
+                      </text>
+                    );
+                  }}
+                />
+              </Pie>
+              <ChartLegend content={<ChartLegendContent nameKey={xAxisKey || "name"} />} />
+            </PieChart>
+          )}
+        </ChartContainer>
+      ) : (
+        <ChartPlaceholder />
+      )}
+    </ChartFrame>
   );
 }

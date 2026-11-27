@@ -950,16 +950,8 @@ export {
   resolveThemeColor,
   useAnumaTheme,
 } from "./anumaRuntime";
-export type { ChartCardProps, ChartConfig } from "./chart";
-export {
-  ChartCard,
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartStyle,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "./chart";
+export { ChartCard } from "./chartCard";
+export type { ChartCardProps } from "./chartFrame";
 export type { LoggerProviderProps } from "./LoggerProvider";
 export { LoggerProvider } from "./LoggerProvider";
 export type {
