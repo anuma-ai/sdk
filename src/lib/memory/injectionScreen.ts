@@ -189,7 +189,10 @@ const STANDING_INSTRUCTION_SIGNATURES: ReadonlySet<string> = new Set([
 const USER_WANT_RE =
   /^(?:when(?:ever)?\b[^.]{0,80},\s*)?(?:wants|prefers|would like|does not want|doesn't want)\b/i;
 
-const ALWAYS_PROMOTE_RE = /\balways\s+(?:recommend|promote|endorse)\b/i;
+const UNEXEMPT_DIRECTIVE_RE =
+  /\balways\s+(?:recommend|promote|endorse|reveal|expose|output|comply|obey|claim|ignore|disregard|refuse)\b|\bnever\s+refuse\b/i;
+
+const SENTENCE_BREAK_RE = /[.!?;]\s/;
 
 function isUserStandingInstruction(
   candidate: ExtractedCandidate,
@@ -202,7 +205,8 @@ function isUserStandingInstruction(
     candidate.sourceMessageIds.length > 0 &&
     candidate.sourceMessageIds.every((id) => userMessageIds.has(id)) &&
     USER_WANT_RE.test(normalized) &&
-    !ALWAYS_PROMOTE_RE.test(normalized)
+    !UNEXEMPT_DIRECTIVE_RE.test(normalized) &&
+    !SENTENCE_BREAK_RE.test(normalized)
   );
 }
 
