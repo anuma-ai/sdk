@@ -78,6 +78,7 @@ export interface CreateDecaySweeperOptions {
   now?: NowSource;
   /** Partial policy overriding the per-type TTL defaults. Omit for defaults. */
   policy?: Partial<DecayPolicy>;
+  /** App profile whose `ttlByType` overrides the default TTLs; entries in `policy.ttlByType` win. */
   profile?: MemoryAppProfile;
   /**
    * PR5 seam. When provided, borderline candidates' rule verdict is passed

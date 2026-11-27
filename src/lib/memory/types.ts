@@ -96,10 +96,12 @@ export interface RankedMemory {
   updatedAt: Date;
 }
 
+/** The scale recall scores are on: boosted cosine similarity, BM25-only, reciprocal-rank fusion, `unknown` when the source did not say, or `none` when nothing was returned. */
 export type RecallScoreScale = "cosine" | "bm25" | "rrf" | "unknown" | "none";
 
 export interface RecallOptions {
   /** @internal */ vaultPreparation?: VaultPreparation;
+  /** App profile supplying the fact-lane score floor and fact-type weights when `minScore` / `factTypeWeights` are not set. */
   profile?: MemoryAppProfile;
   /** Embedding cache shared with the rest of the turn, so the query is embedded once across lanes and the send. */
   embeddingCache?: Map<string, Float32Array>;
@@ -442,6 +444,7 @@ export interface RecallDiagnostics {
   topScore: number;
   /** Lowest score among the returned memories; -1 when none were returned. */
   lowestAdmittedScore: number;
+  /** The scale `topScore` and `lowestAdmittedScore` are on; scores on different scales are not comparable. */
   scoreScale?: RecallScoreScale;
   /**
    * The similarity floor the lane that produced these scores actually applied:

@@ -8,7 +8,7 @@ Defined in: [src/lib/memory/context.ts:24](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **includeEpisodes**: `boolean`
 
-Defined in: [src/lib/memory/context.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#37)
+Defined in: [src/lib/memory/context.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#38)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/memory/context.ts:30](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **maxChars**: `number`
 
-Defined in: [src/lib/memory/context.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#36)
+Defined in: [src/lib/memory/context.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#37)
 
 Character budget for contents (formatting overhead is excluded). Default 12000.
 
@@ -42,7 +42,7 @@ Character budget for contents (formatting overhead is excluded). Default 12000.
 
 > `optional` **memoryIds**: `string`\[]
 
-Defined in: [src/lib/memory/context.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#34)
+Defined in: [src/lib/memory/context.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#35)
 
 Topic membership is applied before ranking and to every context lane.
 
@@ -52,7 +52,7 @@ Topic membership is applied before ranking and to every context lane.
 
 > `optional` **onDegraded**: (`lane`: [`MemoryContextLane`](../type-aliases/MemoryContextLane.md), `error`: `unknown`) => `void`
 
-Defined in: [src/lib/memory/context.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#38)
+Defined in: [src/lib/memory/context.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#39)
 
 **Parameters**
 
@@ -101,7 +101,9 @@ Defined in: [src/lib/memory/context.ts:38](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **profile**: [`MemoryAppProfile`](MemoryAppProfile.md)
 
-Defined in: [src/lib/memory/context.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#32)
+Defined in: [src/lib/memory/context.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memory/context.ts#33)
+
+App profile passed to both recall lanes; a `recallOptions.profile` wins.
 
 ***
 

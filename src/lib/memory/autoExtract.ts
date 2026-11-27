@@ -219,6 +219,7 @@ export interface ExtractFactsOptions extends PortalLlmAuth {
   endpointOverride?: string;
   /** Override the global fetch implementation (useful for tests). */
   fetchFn?: typeof fetch;
+  /** App profile adding extraction guidance to the system prompt and setting the content-length cap. */
   profile?: MemoryAppProfile;
   /**
    * The user's own name(s) / handle(s) (e.g. profile nickname, wallet display

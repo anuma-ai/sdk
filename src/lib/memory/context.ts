@@ -29,6 +29,7 @@ export interface MemoryContextOptions {
     | null;
   loadSessionRefs?: (() => Promise<Array<{ memoryId: string; score: number }>>) | null;
   recallOptions?: RecallOptions;
+  /** App profile passed to both recall lanes; a `recallOptions.profile` wins. */
   profile?: MemoryAppProfile;
   /** Topic membership is applied before ranking and to every context lane. */
   memoryIds?: string[];

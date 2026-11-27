@@ -1,12 +1,19 @@
 import type { FactType } from "./autoExtract.js";
 import { type DecayPolicy, MEDIUM_TTL_MS } from "./decay.js";
 
+/** Per-app memory tuning applied to extraction, recall, context assembly and decay; omitted fields keep the SDK defaults. */
 export interface MemoryAppProfile {
+  /** Stable identifier for the profile, used in logs and eval output. */
   id: string;
+  /** App-specific rules appended to the default extraction system prompt. */
   extractionGuidance?: string;
+  /** Maximum characters in an extracted fact; longer candidates are dropped. Default 200. */
   maxContentLength?: number;
+  /** Per-fact-type score multipliers for the recall fact lane; an explicit `RecallOptions.factTypeWeights` wins. */
   factTypeWeights?: Partial<Record<FactType, number>>;
+  /** Score floor for the recall fact lane; an explicit `RecallOptions.minScore` wins. Default 0.1. */
   factMinScore?: number;
+  /** Per-fact-type decay TTLs in milliseconds; an explicit `DecayPolicy.ttlByType` entry wins. */
   ttlByType?: Partial<Record<FactType, number>>;
 }
 
@@ -38,6 +45,7 @@ DO NOT EXTRACT
 - Hypothetical or exploratory sizing ("what if I went 10x long?").
 - Wallet addresses, transaction hashes, API keys, seed phrases or account numbers.`;
 
+/** Profile for a markets and trading research assistant: positions, theses, risk rules and venue preferences, with longer TTLs for positions and plans. */
 export const ZETALABS_MARKETS_PROFILE: MemoryAppProfile = {
   id: "zetalabs-markets",
   extractionGuidance: ZETALABS_EXTRACTION_GUIDANCE,
