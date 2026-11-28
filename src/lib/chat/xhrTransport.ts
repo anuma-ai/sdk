@@ -25,7 +25,10 @@ function parseSseChunks(
   for (const line of lines) {
     if (!line.startsWith("data: ")) continue;
     const data = line.substring(6).trim();
-    if (data === "[DONE]") continue;
+    if (data === "[DONE]") {
+      chunks.push(data);
+      continue;
+    }
     try {
       chunks.push(JSON.parse(data));
     } catch {

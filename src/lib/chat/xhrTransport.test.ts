@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resumeStream } from "./resumeStream";
-import type { StreamingTransportOptions } from "./toolLoop";
+import { runToolLoop, type StreamingTransportOptions } from "./toolLoop";
 import { xhrTransport } from "./xhrTransport";
 
 class FakeXMLHttpRequest {
@@ -286,6 +286,38 @@ describe("xhrTransport", () => {
     expect(onError).not.toHaveBeenCalled();
     expect(onFinish).not.toHaveBeenCalled();
     expect(abort).toHaveBeenCalledOnce();
+  });
+
+  it("preserves a completed chat completion on an abort after [DONE]", async () => {
+    const controller = new AbortController();
+    const onFinish = vi.fn();
+    const usage = { cost_micro_usd: 120, credits_used: 3 };
+    const loop = runToolLoop({
+      apiType: "completions",
+      model: "m",
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      token: "tok",
+      signal: controller.signal,
+      transport: xhrTransport,
+      smoothing: false,
+      onFinish,
+    });
+    const xhr = await vi.waitFor(lastXhr);
+    xhr.receiveHeaders(200);
+    xhr.receiveChunk(
+      'data: {"choices":[{"index":0,"delta":{"content":"partial"}}]}\n\n' +
+        'data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n' +
+        `data: ${JSON.stringify({ choices: [], usage })}\n\n` +
+        "data: [DONE]\n\n"
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.abort();
+
+    const result = await loop;
+
+    expect(result.error).toBeNull();
+    expect(result.data).toHaveProperty("usage", usage);
+    expect(onFinish).toHaveBeenCalledExactlyOnceWith(result.data);
   });
 
   it("yields only data payloads — SSE id: lines carry no state", async () => {
