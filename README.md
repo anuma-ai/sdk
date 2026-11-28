@@ -71,6 +71,7 @@ const response = await postApiV1Responses({
 The SDK provides entry points for different platforms:
 
 - `@anuma/sdk/react` — React hooks
+- `@anuma/sdk/react/chart` — Recharts chart primitives (`ChartContainer`, `ChartTooltip`, `ChartLegend`, …); needs the optional `recharts` peer
 - `@anuma/sdk/expo` — React Native / Expo
 - `@anuma/sdk/client` — Generated API client and types
 
