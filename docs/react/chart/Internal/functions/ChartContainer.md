@@ -2,7 +2,7 @@
 
 > **ChartContainer**(`__namedParameters`: `ClassAttributes`<`HTMLDivElement`> & `HTMLAttributes`<`HTMLDivElement`> & `object`): `Element`
 
-Defined in: [src/react/chart.tsx:97](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#97)
+Defined in: [src/react/chart.tsx:90](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#90)
 
 ## Parameters
 

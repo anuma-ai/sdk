@@ -13,6 +13,7 @@
   "mergeReadme": true,
   "entryPoints": [
     "src/react/index.ts",
+    "src/react/chart.tsx",
     "src/client/index.ts",
     "src/next/index.ts",
     "src/vercel/index.ts",
