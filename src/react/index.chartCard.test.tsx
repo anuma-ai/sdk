@@ -65,6 +65,14 @@ describe("ChartCard from @anuma/sdk/react", () => {
     expect(rechartsLoadedByEntry).toBe(false);
   });
 
+  it("shows an error result without downloading Recharts", async () => {
+    render(<ChartCard data={{ error: "Unsupported chart type: radar." }} />);
+
+    expect(screen.getByText("Couldn't display this chart.")).toBeTruthy();
+    await vi.dynamicImportSettled();
+    expect(recharts.loaded).toBe(false);
+  });
+
   it("reserves the chart's box while Recharts loads, then draws the chart in it", async () => {
     const { container } = render(<ChartCard data={SOL_DATA} />);
 

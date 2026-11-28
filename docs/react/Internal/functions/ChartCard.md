@@ -2,7 +2,7 @@
 
 > **ChartCard**(`__namedParameters`: [`ChartCardProps`](../type-aliases/ChartCardProps.md)): `Element`
 
-Defined in: [src/react/chartCard.tsx:22](https://github.com/anuma-ai/sdk/blob/main/src/react/chartCard.tsx#22)
+Defined in: [src/react/chartCard.tsx:28](https://github.com/anuma-ai/sdk/blob/main/src/react/chartCard.tsx#28)
 
 Renders a `display_chart` result, loading Recharts on first render and reserving the chart's space until it arrives.
 

@@ -179,4 +179,5 @@ is advisory; the queue run is the one that blocks.
 | [expo](expo/index.md) | React Native hooks for building AI-powered mobile applications. |
 | [next](next/index.md) | Next.js configuration plugin for @anuma/sdk |
 | [react](react/index.md) | The `@anuma/sdk/react` package provides a collection of React hooks designed to simplify building AI features in your applications. These hooks abstract away the complexity of managing streaming responses, loading states, authentication, and real-time updates, letting you focus on creating great user experiences. |
+| [react/chart](react/chart/index.md) | - |
 | [vercel](vercel/index.md) | Helper utilities for integrating the `useChat` hook and [Vercel AI Elements](https://ai-sdk.dev/elements). |

@@ -9,20 +9,35 @@ const RechartsChartCard = React.lazy(() =>
   import("./chart").then((module) => ({ default: module.ChartCard }))
 );
 
-function ChartCardFallback({ data }: ChartCardProps) {
-  if ("error" in data) return <ChartError />;
-  return (
-    <ChartFrame spec={data} model={buildChartModel(data)}>
-      <ChartPlaceholder />
-    </ChartFrame>
-  );
+class ChartLoadBoundary extends React.Component<
+  { children: React.ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? <ChartError /> : this.props.children;
+  }
 }
 
 /** Renders a `display_chart` result, loading Recharts on first render and reserving the chart's space until it arrives. */
 export function ChartCard({ data }: ChartCardProps) {
+  if ("error" in data) return <ChartError />;
   return (
-    <React.Suspense fallback={<ChartCardFallback data={data} />}>
-      <RechartsChartCard data={data} />
-    </React.Suspense>
+    <ChartLoadBoundary>
+      <React.Suspense
+        fallback={
+          <ChartFrame spec={data} model={buildChartModel(data)}>
+            <ChartPlaceholder />
+          </ChartFrame>
+        }
+      >
+        <RechartsChartCard data={data} />
+      </React.Suspense>
+    </ChartLoadBoundary>
   );
 }
