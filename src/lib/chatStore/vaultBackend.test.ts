@@ -1013,7 +1013,12 @@ describe("vault chat backend", () => {
     );
     expect(list.mock.calls.map(([query]) => query)).toEqual([
       { kind: "message", conversationId: "conv_pages", limit: 20 },
-      { kind: "message", conversationId: "conv_pages", limit: 20, cursor: "20" },
+      {
+        kind: "message",
+        conversationId: "conv_pages",
+        limit: 20,
+        cursor: conformance ? (expect.any(String) as string) : "20",
+      },
     ]);
 
     const getMany = vi.spyOn(fake.store, "getMany");
@@ -1050,7 +1055,12 @@ describe("vault chat backend", () => {
     expect(messages[0].messageId).toBe(795);
     expect(list.mock.calls.map(([query]) => query)).toEqual([
       { kind: "message", conversationId: "conv_pages", limit: 200 },
-      { kind: "message", conversationId: "conv_pages", limit: 5, cursor: "200" },
+      {
+        kind: "message",
+        conversationId: "conv_pages",
+        limit: 5,
+        cursor: conformance ? (expect.any(String) as string) : "200",
+      },
     ]);
   });
 
